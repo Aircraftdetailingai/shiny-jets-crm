@@ -50,53 +50,27 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const aircraftId = searchParams.get('aircraft_id') || '';
     const limit = parseInt(searchParams.get('limit')) || 50;
     const offset = parseInt(searchParams.get('offset')) || 0;
 
-    let query = supabase
+    // Query default_hours_updates - uses actual columns: id, service_type, reason
+    const { data: updates, error } = await supabase
       .from('default_hours_updates')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (aircraftId) {
-      query = query.eq('aircraft_id', aircraftId);
-    }
-
-    const { data: updates, error } = await query;
 
     if (error) {
       console.error('Failed to fetch history:', error);
       return Response.json({ error: 'Failed to fetch history' }, { status: 500 });
     }
 
-    // Get aircraft details for display
-    const aircraftIds = [...new Set((updates || []).map(u => u.aircraft_id))];
-    let aircraftMap = {};
-
-    if (aircraftIds.length > 0) {
-      const { data: aircraftList } = await supabase
-        .from('aircraft')
-        .select('id, manufacturer, model')
-        .in('id', aircraftIds);
-
-      if (aircraftList) {
-        aircraftList.forEach(a => { aircraftMap[a.id] = a; });
-      }
-    }
-
-    const history = (updates || []).map(u => {
-      const aircraft = aircraftMap[u.aircraft_id];
-      return {
-        ...u,
-        aircraft_name: aircraft ? `${aircraft.manufacturer} ${aircraft.model}` : 'Unknown',
-        hours_field_label: HOURS_FIELD_LABELS[u.hours_field] || u.hours_field,
-        change_percent: u.old_value > 0
-          ? Math.round(((u.new_value - u.old_value) / u.old_value) * 1000) / 10
-          : null,
-      };
-    });
+    const history = (updates || []).map(u => ({
+      id: u.id,
+      service_type: u.service_type,
+      hours_field_label: HOURS_FIELD_LABELS[u.service_type] || u.service_type,
+      reason: u.reason || '',
+    }));
 
     return Response.json({ history, total: history.length });
   } catch (err) {

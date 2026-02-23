@@ -45,33 +45,26 @@ export async function POST(request) {
       return Response.json({ error: 'Quote not found' }, { status: 404 });
     }
 
-    // Get aircraft details
-    let aircraftManufacturer = quote.aircraft_type || '';
+    // Get aircraft model name
     let aircraftModel = quote.aircraft_model || '';
-
     if (quote.aircraft_id) {
       const { data: aircraft } = await supabase
         .from('aircraft')
-        .select('manufacturer, model')
+        .select('model')
         .eq('id', quote.aircraft_id)
         .single();
-
       if (aircraft) {
-        aircraftManufacturer = aircraft.manufacturer;
         aircraftModel = aircraft.model;
       }
     }
 
-    // Insert hours log entries
+    // Insert hours log entries (uses actual DB columns)
     const toInsert = entries.map(entry => ({
       quote_id,
       detailer_id: user.id,
       aircraft_id: quote.aircraft_id || null,
-      aircraft_manufacturer: aircraftManufacturer,
       aircraft_model: aircraftModel,
-      service_name: entry.service_name,
-      hours_field: entry.hours_field || 'ext_wash_hours',
-      quoted_hours: parseFloat(entry.quoted_hours) || 0,
+      service_type: entry.hours_field || entry.service_type || 'ext_wash_hours',
       actual_hours: parseFloat(entry.actual_hours) || 0,
     }));
 

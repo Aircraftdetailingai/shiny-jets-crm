@@ -78,31 +78,21 @@ export async function POST(request) {
       const oldValue = parseFloat(aircraft[hours_field]) || 0;
       const newVal = parseFloat(new_value);
 
-      // Get current averages for audit
-      const { data: avg } = await supabase
-        .from('hours_averages')
-        .select('avg_actual_hours, sample_count')
-        .eq('aircraft_id', aircraft_id)
-        .eq('hours_field', hours_field)
-        .single();
-
       // Update aircraft table
       await supabase
         .from('aircraft')
         .update({ [hours_field]: newVal })
         .eq('id', aircraft_id);
 
-      // Log the change
-      await supabase.from('default_hours_updates').insert({
-        aircraft_id,
-        hours_field,
-        old_value: oldValue,
-        new_value: newVal,
-        reason: update.reason || reason,
-        avg_actual_at_time: avg ? parseFloat(avg.avg_actual_hours) : null,
-        sample_count_at_time: avg ? avg.sample_count : null,
-        updated_by: user.email,
-      });
+      // Log the change to audit trail (uses service_type column name)
+      try {
+        await supabase.from('default_hours_updates').insert({
+          service_type: hours_field,
+          reason: `${aircraft.manufacturer} ${aircraft.model}: ${oldValue}h -> ${newVal}h | By: ${user.email} | ${update.reason || reason}`,
+        });
+      } catch (e) {
+        console.error('Failed to log audit:', e);
+      }
 
       results.push({
         aircraft_id,

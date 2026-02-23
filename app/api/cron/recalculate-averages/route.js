@@ -23,10 +23,10 @@ export async function GET(request) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
-    // Get all hours_log entries
+    // Get all hours_log entries (actual DB columns)
     const { data: logs, error } = await supabase
       .from('hours_log')
-      .select('aircraft_id, aircraft_manufacturer, aircraft_model, hours_field, actual_hours')
+      .select('aircraft_id, aircraft_model, service_type, actual_hours')
       .not('aircraft_id', 'is', null);
 
     if (error) {
@@ -38,54 +38,36 @@ export async function GET(request) {
       return Response.json({ success: true, groups_processed: 0, message: 'No data to process' });
     }
 
-    // Group by aircraft_id + hours_field
+    // Group by aircraft_id + service_type
     const groups = {};
     for (const log of logs) {
-      const key = `${log.aircraft_id}::${log.hours_field}`;
+      if (!log.service_type) continue;
+      const key = `${log.aircraft_id}::${log.service_type}`;
       if (!groups[key]) {
         groups[key] = {
           aircraft_id: log.aircraft_id,
-          aircraft_manufacturer: log.aircraft_manufacturer,
           aircraft_model: log.aircraft_model,
-          hours_field: log.hours_field,
+          service_type: log.service_type,
           values: [],
         };
       }
       groups[key].values.push(parseFloat(log.actual_hours) || 0);
     }
 
-    // Calculate stats and upsert
+    // Upsert into hours_averages (uses actual DB columns: aircraft_model, service_type, sample_count)
     let processed = 0;
 
     for (const group of Object.values(groups)) {
-      const values = group.values.sort((a, b) => a - b);
-      const count = values.length;
-      const sum = values.reduce((a, b) => a + b, 0);
-      const avg = sum / count;
-      const min = values[0];
-      const max = values[count - 1];
+      const count = group.values.length;
 
-      // Standard deviation
-      const squaredDiffs = values.map(v => Math.pow(v - avg, 2));
-      const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / count;
-      const stddev = Math.sqrt(avgSquaredDiff);
-
-      // Upsert into hours_averages
       const { error: upsertError } = await supabase
         .from('hours_averages')
         .upsert({
-          aircraft_id: group.aircraft_id,
-          aircraft_manufacturer: group.aircraft_manufacturer,
           aircraft_model: group.aircraft_model,
-          hours_field: group.hours_field,
-          avg_actual_hours: Math.round(avg * 100) / 100,
-          min_actual_hours: Math.round(min * 100) / 100,
-          max_actual_hours: Math.round(max * 100) / 100,
+          service_type: group.service_type,
           sample_count: count,
-          stddev_hours: Math.round(stddev * 100) / 100,
-          last_calculated_at: new Date().toISOString(),
         }, {
-          onConflict: 'aircraft_id,hours_field',
+          onConflict: 'aircraft_model,service_type',
         });
 
       if (upsertError) {

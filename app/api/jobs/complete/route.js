@@ -98,18 +98,16 @@ export async function POST(request) {
     // Log per-service hours if provided
     if (service_hours && Array.isArray(service_hours) && service_hours.length > 0) {
       try {
-        let aircraftManufacturer = '';
         let aircraftModel = '';
 
         if (quote.aircraft_id) {
           const { data: aircraft } = await supabase
             .from('aircraft')
-            .select('manufacturer, model')
+            .select('model')
             .eq('id', quote.aircraft_id)
             .single();
 
           if (aircraft) {
-            aircraftManufacturer = aircraft.manufacturer;
             aircraftModel = aircraft.model;
           }
         }
@@ -118,11 +116,8 @@ export async function POST(request) {
           quote_id,
           detailer_id: user.id,
           aircraft_id: quote.aircraft_id || null,
-          aircraft_manufacturer: aircraftManufacturer,
           aircraft_model: aircraftModel,
-          service_name: sh.service_name || '',
-          hours_field: sh.hours_field || 'ext_wash_hours',
-          quoted_hours: parseFloat(sh.quoted_hours) || 0,
+          service_type: sh.hours_field || 'ext_wash_hours',
           actual_hours: parseFloat(sh.actual_hours) || 0,
         }));
 

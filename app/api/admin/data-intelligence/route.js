@@ -36,7 +36,7 @@ async function isAdmin(request) {
   return user;
 }
 
-// GET - Get aggregated data intelligence
+// GET - Compute data intelligence directly from hours_log
 export async function GET(request) {
   try {
     const user = await isAdmin(request);
@@ -55,44 +55,56 @@ export async function GET(request) {
     const hoursField = searchParams.get('hours_field') || '';
     const minSamples = parseInt(searchParams.get('min_samples')) || 3;
 
-    // Get collection stats
-    const { data: logStats } = await supabase
+    // Fetch all hours_log entries (uses actual DB columns: aircraft_id, aircraft_model, service_type, actual_hours)
+    const { data: logs, error } = await supabase
       .from('hours_log')
-      .select('id, detailer_id, aircraft_id, created_at');
+      .select('id, detailer_id, aircraft_id, aircraft_model, service_type, actual_hours, created_at')
+      .not('aircraft_id', 'is', null);
 
-    const totalLogs = logStats?.length || 0;
-    const uniqueAircraft = new Set(logStats?.map(l => l.aircraft_id).filter(Boolean)).size;
-    const uniqueDetailers = new Set(logStats?.map(l => l.detailer_id)).size;
-    const dates = logStats?.map(l => l.created_at).filter(Boolean).sort() || [];
-
-    // Get averages
-    let averagesQuery = supabase
-      .from('hours_averages')
-      .select('*')
-      .gte('sample_count', minSamples);
-
-    if (hoursField) {
-      averagesQuery = averagesQuery.eq('hours_field', hoursField);
+    if (error) {
+      console.error('Failed to fetch hours logs:', error);
+      return Response.json({ error: 'Failed to fetch logs' }, { status: 500 });
     }
 
-    const { data: averages } = await averagesQuery;
+    const totalLogs = logs?.length || 0;
+    const uniqueAircraft = new Set(logs?.map(l => l.aircraft_id).filter(Boolean)).size;
+    const uniqueDetailers = new Set(logs?.map(l => l.detailer_id)).size;
+    const dates = logs?.map(l => l.created_at).filter(Boolean).sort() || [];
 
-    if (!averages || averages.length === 0) {
+    if (!logs || logs.length === 0) {
       return Response.json({
-        stats: {
-          total_logs: totalLogs,
-          unique_aircraft: uniqueAircraft,
-          unique_detailers: uniqueDetailers,
-          earliest_log: dates[0] || null,
-          latest_log: dates[dates.length - 1] || null,
-        },
+        stats: { total_logs: 0, unique_aircraft: 0, unique_detailers: 0, flagged_count: 0 },
         data: [],
         suggestions: [],
       });
     }
 
-    // Get aircraft data for the averages
-    const aircraftIds = [...new Set(averages.map(a => a.aircraft_id).filter(Boolean))];
+    // Group by aircraft_id + service_type and compute averages on the fly
+    const groups = {};
+    for (const log of logs) {
+      if (!log.service_type) continue;
+      const key = `${log.aircraft_id}::${log.service_type}`;
+      if (!groups[key]) {
+        groups[key] = {
+          aircraft_id: log.aircraft_id,
+          aircraft_model: log.aircraft_model,
+          service_type: log.service_type,
+          values: [],
+        };
+      }
+      groups[key].values.push(parseFloat(log.actual_hours) || 0);
+    }
+
+    // Filter by min samples
+    const qualifiedGroups = Object.values(groups).filter(g => g.values.length >= minSamples);
+
+    // Filter by hours_field if specified
+    const filteredGroups = hoursField
+      ? qualifiedGroups.filter(g => g.service_type === hoursField)
+      : qualifiedGroups;
+
+    // Get aircraft data for all referenced aircraft
+    const aircraftIds = [...new Set(filteredGroups.map(g => g.aircraft_id).filter(Boolean))];
     let aircraftMap = {};
 
     if (aircraftIds.length > 0) {
@@ -106,19 +118,26 @@ export async function GET(request) {
       }
     }
 
-    // Build response data with variance
-    let data = averages.map(avg => {
-      const aircraft = aircraftMap[avg.aircraft_id];
+    // Build response with computed stats
+    let data = filteredGroups.map(group => {
+      const aircraft = aircraftMap[group.aircraft_id];
       if (!aircraft) return null;
 
-      // Apply filters
       if (category && aircraft.category !== category) return null;
       if (manufacturer && aircraft.manufacturer !== manufacturer) return null;
 
-      const currentDefault = parseFloat(aircraft[avg.hours_field]) || 0;
-      const avgActual = parseFloat(avg.avg_actual_hours) || 0;
+      const values = group.values.sort((a, b) => a - b);
+      const count = values.length;
+      const sum = values.reduce((a, b) => a + b, 0);
+      const avg = sum / count;
+      const min = values[0];
+      const max = values[count - 1];
+      const squaredDiffs = values.map(v => Math.pow(v - avg, 2));
+      const stddev = Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / count);
+
+      const currentDefault = parseFloat(aircraft[group.service_type]) || 0;
       const variancePercent = currentDefault > 0
-        ? ((avgActual - currentDefault) / currentDefault) * 100
+        ? ((avg - currentDefault) / currentDefault) * 100
         : 0;
 
       let varianceFlag = 'ok';
@@ -126,27 +145,25 @@ export async function GET(request) {
       else if (variancePercent < -10) varianceFlag = 'under';
 
       return {
-        aircraft_id: avg.aircraft_id,
+        aircraft_id: group.aircraft_id,
         manufacturer: aircraft.manufacturer,
         model: aircraft.model,
         category: aircraft.category,
-        hours_field: avg.hours_field,
-        hours_field_label: HOURS_FIELD_LABELS[avg.hours_field] || avg.hours_field,
+        hours_field: group.service_type,
+        hours_field_label: HOURS_FIELD_LABELS[group.service_type] || group.service_type,
         current_default: currentDefault,
-        avg_actual: avgActual,
-        min_actual: parseFloat(avg.min_actual_hours) || 0,
-        max_actual: parseFloat(avg.max_actual_hours) || 0,
-        sample_count: avg.sample_count,
-        stddev: parseFloat(avg.stddev_hours) || 0,
+        avg_actual: Math.round(avg * 100) / 100,
+        min_actual: Math.round(min * 100) / 100,
+        max_actual: Math.round(max * 100) / 100,
+        sample_count: count,
+        stddev: Math.round(stddev * 100) / 100,
         variance_percent: Math.round(variancePercent * 10) / 10,
         variance_flag: varianceFlag,
       };
     }).filter(Boolean);
 
-    // Sort by absolute variance descending
     data.sort((a, b) => Math.abs(b.variance_percent) - Math.abs(a.variance_percent));
 
-    // Generate suggestions
     const flaggedCount = data.filter(d => d.variance_flag !== 'ok').length;
     const suggestions = [];
 
@@ -154,17 +171,15 @@ export async function GET(request) {
       suggestions.push(`${flaggedCount} aircraft/service combos have >10% variance from defaults`);
     }
 
-    const overItems = data.filter(d => d.variance_flag === 'over' && d.sample_count >= 10);
-    overItems.slice(0, 3).forEach(item => {
+    data.filter(d => d.variance_flag === 'over' && d.sample_count >= 10).slice(0, 3).forEach(item => {
       suggestions.push(
-        `${item.manufacturer} ${item.model} ${item.hours_field_label} may be ${Math.abs(item.variance_percent).toFixed(1)}% too low based on ${item.sample_count} data points`
+        `${item.manufacturer} ${item.model} ${item.hours_field_label}: default may be ${Math.abs(item.variance_percent).toFixed(1)}% too low (${item.sample_count} data points)`
       );
     });
 
-    const underItems = data.filter(d => d.variance_flag === 'under' && d.sample_count >= 10);
-    underItems.slice(0, 3).forEach(item => {
+    data.filter(d => d.variance_flag === 'under' && d.sample_count >= 10).slice(0, 3).forEach(item => {
       suggestions.push(
-        `${item.manufacturer} ${item.model} ${item.hours_field_label} may be ${Math.abs(item.variance_percent).toFixed(1)}% too high based on ${item.sample_count} data points`
+        `${item.manufacturer} ${item.model} ${item.hours_field_label}: default may be ${Math.abs(item.variance_percent).toFixed(1)}% too high (${item.sample_count} data points)`
       );
     });
 

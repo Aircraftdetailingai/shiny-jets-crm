@@ -724,39 +724,15 @@ export default function DataIntelligencePage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-3 py-3 text-left">Date</th>
-                      <th className="px-3 py-3 text-left">Aircraft</th>
-                      <th className="px-3 py-3 text-left">Service</th>
-                      <th className="px-3 py-3 text-right">Old</th>
-                      <th className="px-3 py-3 text-right">New</th>
-                      <th className="px-3 py-3 text-right">Change</th>
-                      <th className="px-3 py-3 text-right">Samples</th>
-                      <th className="px-3 py-3 text-left">Reason</th>
+                      <th className="px-3 py-3 text-left">Service Type</th>
+                      <th className="px-3 py-3 text-left">Details</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {history.map((h) => (
                       <tr key={h.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-3 text-gray-500 whitespace-nowrap">
-                          {new Date(h.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-3 py-3 font-medium">{h.aircraft_name}</td>
-                        <td className="px-3 py-3 text-gray-600">{h.hours_field_label}</td>
-                        <td className="px-3 py-3 text-right font-mono">{parseFloat(h.old_value).toFixed(1)}h</td>
-                        <td className="px-3 py-3 text-right font-mono font-semibold">{parseFloat(h.new_value).toFixed(1)}h</td>
-                        <td className="px-3 py-3 text-right">
-                          {h.change_percent !== null && (
-                            <span className={h.change_percent > 0 ? 'text-red-600' : 'text-blue-600'}>
-                              {h.change_percent > 0 ? '+' : ''}{h.change_percent}%
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-right text-gray-500">
-                          {h.sample_count_at_time || '-'}
-                        </td>
-                        <td className="px-3 py-3 text-gray-500 text-xs max-w-xs truncate">
-                          {h.reason || '-'}
-                        </td>
+                        <td className="px-3 py-3 font-medium text-gray-900">{h.hours_field_label}</td>
+                        <td className="px-3 py-3 text-gray-600 text-sm">{h.reason || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
