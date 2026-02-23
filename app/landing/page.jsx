@@ -175,7 +175,7 @@ export default function LandingPage() {
               {
                 step: '2',
                 title: 'Pick Services',
-                desc: 'Select individual services or a package. Price auto-calculates from aircraft hours and your hourly rate.',
+                desc: 'Select individual services or a package. Price auto-calculates from pre-loaded hours or your own hours and your hourly rate.',
               },
               {
                 step: '3',
