@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendExpirationAlertSms, sendExpirationWarningSms } from '@/lib/sms';
 
 export async function POST(request) {
   // Verify CRON_SECRET from Authorization header
@@ -41,59 +42,29 @@ export async function POST(request) {
       const plan = detailer.plan || 'starter';
       const quoteViewed = quote.status === 'viewed';
       // SMS to detailer if plan is pro or business and smsQuoteExpiring enabled
-      if ((plan === 'pro' || plan === 'business') && settings.smsQuoteExpiring) {
-        if (detailer.phone) {
-          try {
-            const accountSid = process.env.TWILIO_ACCOUNT_SID;
-            const authToken = process.env.TWILIO_AUTH_TOKEN;
-            const fromNumber = process.env.TWILIO_FROM_NUMBER;
-            if (accountSid && authToken && fromNumber) {
-              const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-              const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-              const statusText = quoteViewed ? 'viewed' : 'not viewed';
-              const body = `\u23F0 Quote for ${quote.client_name || ''}'s ${quote.aircraft_type || ''} expires in 24hrs. Status: ${statusText}`;
-              await fetch(twilioUrl, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Basic ${basicAuth}`,
-                  'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: new URLSearchParams({
-                  From: fromNumber,
-                  To: detailer.phone,
-                  Body: body
-                }).toString()
-              });
-            }
-          } catch (err) {
-            // ignore sms errors
-          }
+      if ((plan === 'pro' || plan === 'business') && settings.smsQuoteExpiring && detailer.phone) {
+        try {
+          const statusText = quoteViewed ? 'viewed' : 'not viewed';
+          await sendExpirationAlertSms({
+            detailerPhone: detailer.phone,
+            clientName: quote.client_name || '',
+            aircraft: quote.aircraft_type || '',
+            statusText,
+          });
+        } catch (err) {
+          // ignore sms errors
         }
       }
-      // SMS to client if plan is business and smsClientExpiration enabled
-      if (plan === 'business' && settings.smsClientExpiration && quote.client_phone) {
+      // SMS to client if plan is business, SMS enabled, and smsClientExpiration enabled
+      if (plan === 'business' && detailer.sms_enabled !== false && settings.smsClientExpiration && quote.client_phone) {
         try {
-          const accountSid = process.env.TWILIO_ACCOUNT_SID;
-          const authToken = process.env.TWILIO_AUTH_TOKEN;
-          const fromNumber = process.env.TWILIO_FROM_NUMBER;
-          if (accountSid && authToken && fromNumber) {
-            const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-            const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-            const link = `https://app.aircraftdetailing.ai/q/${quote.share_link}`;
-            const body = `Hi ${quote.client_name || ''}, your quote for the ${quote.aircraft_type || ''} expires tomorrow. ${link}`;
-            await fetch(twilioUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Basic ${basicAuth}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
-              },
-              body: new URLSearchParams({
-                From: fromNumber,
-                To: quote.client_phone,
-                Body: body
-              }).toString()
-            });
-          }
+          const link = `https://app.aircraftdetailing.ai/q/${quote.share_link}`;
+          await sendExpirationWarningSms({
+            clientPhone: quote.client_phone,
+            clientName: quote.client_name || '',
+            aircraft: quote.aircraft_type || '',
+            link,
+          });
         } catch (err) {
           // ignore sms errors
         }

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendFollowup3DaySms, sendFollowup7DaySms } from '@/lib/sms';
 
 export async function POST(request) {
   // Verify CRON_SECRET from Authorization header
@@ -50,8 +51,8 @@ export async function POST(request) {
         await supabase.from('scheduled_followups').update({ cancelled_at: nowISO, cancel_reason: quote.status }).eq('id', followup.id);
         continue;
       }
-      // Cancel if detailer plan is not business
-      if (detailer.plan !== 'business') {
+      // Cancel if detailer plan is not business or SMS disabled
+      if (detailer.plan !== 'business' || detailer.sms_enabled === false) {
         await supabase.from('scheduled_followups').update({ cancelled_at: nowISO, cancel_reason: 'downgraded' }).eq('id', followup.id);
         continue;
       }
@@ -70,24 +71,17 @@ export async function POST(request) {
       }
       // Send SMS
       try {
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const fromNumber = process.env.TWILIO_FROM_NUMBER;
-        if (accountSid && authToken && fromNumber && followup.client_phone) {
-          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-          const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-          await fetch(twilioUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Basic ${basicAuth}`,
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams({
-              From: fromNumber,
-              To: followup.client_phone,
-              Body: body
-            }).toString()
-          });
+        const smsArgs = {
+          clientPhone: followup.client_phone,
+          clientName,
+          aircraft,
+          link,
+          detailerName: detailer.name || '',
+        };
+        if (followup.followup_type === '3day') {
+          await sendFollowup3DaySms(smsArgs);
+        } else {
+          await sendFollowup7DaySms(smsArgs);
         }
       } catch (err) {
         // ignore SMS errors

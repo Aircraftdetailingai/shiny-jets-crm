@@ -30,7 +30,10 @@ function SettingsContent() {
     followup3: false,
     followup7: false,
     expiration: false,
+    jobReminderSms: false,
+    paymentConfirmSms: false,
   });
+  const [smsEnabled, setSmsEnabled] = useState(false);
   const [priceReminder, setPriceReminder] = useState(6);
   const [quoteDisplayPref, setQuoteDisplayPref] = useState('package');
   const [efficiencyFactor, setEfficiencyFactor] = useState(1.0);
@@ -82,7 +85,17 @@ function SettingsContent() {
         followup3: u.notification_settings?.followup3 || false,
         followup7: u.notification_settings?.followup7 || false,
         expiration: u.notification_settings?.expiration || false,
+        jobReminderSms: u.notification_settings?.jobReminderSms || false,
+        paymentConfirmSms: u.notification_settings?.paymentConfirmSms || false,
       });
+      // Fetch SMS settings for business users
+      if (u.plan === 'business') {
+        fetch('/api/sms/settings', {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(r => r.json()).then(data => {
+          setSmsEnabled(data.sms_enabled || false);
+        }).catch(() => {});
+      }
   }, [router]);
 
   const [stripeError, setStripeError] = useState(null);
@@ -356,6 +369,21 @@ function SettingsContent() {
     const newUser = { ...user, notification_settings: settings, price_reminder_months: priceReminder };
     localStorage.setItem('vector_user', JSON.stringify(newUser));
     setUser(newUser);
+  };
+
+  const saveSmsSettings = async (updates) => {
+    try {
+      await fetch('/api/sms/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+        },
+        body: JSON.stringify(updates),
+      });
+    } catch (err) {
+      console.error('Failed to save SMS settings:', err);
+    }
   };
 
   // ---- Add-on Fees CRUD ----
@@ -914,25 +942,45 @@ function SettingsContent() {
             </div>
           )}
           {user?.plan === 'business' && (
-            [
-              { key: 'quoteDelivery', label: 'Quote delivery via SMS' },
-              { key: 'followup3', label: '3-day follow-up' },
-              { key: 'followup7', label: '7-day follow-up' },
-              { key: 'expiration', label: 'Expiration warning to client' },
-            ].map((item) => (
-              <div key={item.key} className="flex items-center justify-between mb-2">
-                <span>{item.label}</span>
+            <>
+              {/* Master SMS Toggle */}
+              <div className="flex items-center justify-between mb-4 pb-3 border-b">
+                <div>
+                  <span className="font-medium">Enable SMS</span>
+                  <p className="text-xs text-gray-500">Master toggle for all client SMS</p>
+                </div>
                 <input
                   type="checkbox"
-                  checked={smsClient[item.key]}
+                  checked={smsEnabled}
                   onChange={(e) => {
-                    const newSettings = { ...smsClient, [item.key]: e.target.checked };
-                    setSmsClient(newSettings);
-                    saveNotifications({ ...user?.notification_settings, ...emailNotifs, ...smsAlerts, ...newSettings });
+                    setSmsEnabled(e.target.checked);
+                    saveSmsSettings({ sms_enabled: e.target.checked });
                   }}
                 />
               </div>
-            ))
+              {[
+                { key: 'quoteDelivery', label: 'Quote delivery via SMS' },
+                { key: 'followup3', label: '3-day follow-up' },
+                { key: 'followup7', label: '7-day follow-up' },
+                { key: 'expiration', label: 'Expiration warning to client' },
+                { key: 'jobReminderSms', label: 'Job reminder (day before)' },
+                { key: 'paymentConfirmSms', label: 'Payment confirmation' },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between mb-2">
+                  <span className={!smsEnabled ? 'text-gray-400' : ''}>{item.label}</span>
+                  <input
+                    type="checkbox"
+                    disabled={!smsEnabled}
+                    checked={smsClient[item.key]}
+                    onChange={(e) => {
+                      const newSettings = { ...smsClient, [item.key]: e.target.checked };
+                      setSmsClient(newSettings);
+                      saveNotifications({ ...user?.notification_settings, ...emailNotifs, ...smsAlerts, ...newSettings });
+                    }}
+                  />
+                </div>
+              ))}
+            </>
           )}
         </div>
         {/* Account Section */}

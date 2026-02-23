@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { sendPaymentReceivedEmail, sendPaymentConfirmedEmail } from '@/lib/email';
 import { notifyQuotePaid } from '@/lib/push';
+import { sendPaymentConfirmationSms } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +79,7 @@ export async function POST(request) {
             notifyQuotePaid({ fcmToken: detailer.fcm_token, quote }).catch(console.error);
           }
 
-          // Send payment confirmation to customer
+          // Send payment confirmation to customer (email)
           if (quote.client_email) {
             try {
               await sendPaymentConfirmedEmail({
@@ -89,6 +90,22 @@ export async function POST(request) {
               });
             } catch (e) {
               console.error('Failed to send customer confirmation:', e);
+            }
+          }
+
+          // Send payment confirmation to customer (SMS - business plan only)
+          if (detailer?.plan === 'business' && detailer?.sms_enabled !== false && quote.client_phone) {
+            try {
+              const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(quote.total_price || 0);
+              await sendPaymentConfirmationSms({
+                clientPhone: quote.client_phone,
+                clientName: quote.client_name || '',
+                aircraftDisplay: quote.aircraft_model || quote.aircraft_type || 'aircraft',
+                amount,
+                companyName: detailer.company || detailer.name || '',
+              });
+            } catch (e) {
+              console.error('Payment confirmation SMS error:', e);
             }
           }
         }

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { sendQuoteSentEmail } from '@/lib/email';
+import { sendQuoteSms } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,7 +167,7 @@ export async function POST(request, { params }) {
   // Fetch detailer info for email
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('id, name, email, phone, company, plan, notification_settings')
+    .select('id, name, email, phone, company, plan, notification_settings, sms_enabled')
     .eq('id', user.id)
     .single();
 
@@ -210,30 +211,18 @@ export async function POST(request, { params }) {
   }
 
   // Send SMS for business plan
-  if (detailer?.plan === 'business' && clientPhone) {
+  if (detailer?.plan === 'business' && detailer?.sms_enabled !== false && clientPhone) {
     try {
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken = process.env.TWILIO_AUTH_TOKEN;
-      const fromNumber = process.env.TWILIO_FROM_NUMBER;
+      const smsResult = await sendQuoteSms({
+        clientPhone,
+        clientName,
+        aircraftDisplay: updated?.aircraft_model || updated?.aircraft_type || 'aircraft',
+        quoteLink,
+        companyName: detailer.company || detailer.name || '',
+      });
+      smsSent = smsResult.success;
 
-      if (accountSid && authToken && fromNumber) {
-        const bodyParams = new URLSearchParams({
-          From: fromNumber,
-          To: clientPhone,
-          Body: `Your aircraft detailing quote is ready! View and pay here: ${quoteLink}`
-        }).toString();
-
-        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`)
-          },
-          body: bodyParams
-        });
-
-        smsSent = true;
-
+      if (smsSent) {
         // Schedule follow-ups
         const followups = [];
         const threeDay = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
