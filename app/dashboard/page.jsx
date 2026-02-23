@@ -607,6 +607,7 @@ function DashboardContent() {
           <a href="/calendar" className="underline">Calendar</a>
           <a href="/products" className="underline">Inventory</a>
           <a href="/equipment" className="underline">Equipment</a>
+          <a href="/team" className="underline">Team</a>
           <a href="/growth" className="underline">Growth</a>
           <a href="/settings" className="underline">Settings</a>
           <button onClick={handleLogout} className="underline">Logout</button>
