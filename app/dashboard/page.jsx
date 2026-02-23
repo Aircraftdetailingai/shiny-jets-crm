@@ -511,6 +511,7 @@ function DashboardContent() {
     service_id: svc.id,
     description: svc.name,
     service_type: svc.service_type || 'exterior',
+    hours_field: svc.hours_field || '',
     hours: getHoursForService(svc),
     rate: parseFloat(svc.hourly_rate) || 0,
     amount: getServicePrice(svc) * accessDifficulty * (1 - discountPercent / 100),

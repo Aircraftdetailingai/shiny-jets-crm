@@ -44,6 +44,7 @@ export async function POST(request) {
     const {
       quote_id,
       actual_hours,
+      service_hours,
       wait_time_minutes = 0,
       repositioning_needed = false,
       customer_late = false,
@@ -92,6 +93,43 @@ export async function POST(request) {
     if (logError) {
       console.error('Failed to create completion log:', logError);
       // Continue anyway - don't fail the completion
+    }
+
+    // Log per-service hours if provided
+    if (service_hours && Array.isArray(service_hours) && service_hours.length > 0) {
+      try {
+        let aircraftManufacturer = '';
+        let aircraftModel = '';
+
+        if (quote.aircraft_id) {
+          const { data: aircraft } = await supabase
+            .from('aircraft')
+            .select('manufacturer, model')
+            .eq('id', quote.aircraft_id)
+            .single();
+
+          if (aircraft) {
+            aircraftManufacturer = aircraft.manufacturer;
+            aircraftModel = aircraft.model;
+          }
+        }
+
+        const hoursEntries = service_hours.map(sh => ({
+          quote_id,
+          detailer_id: user.id,
+          aircraft_id: quote.aircraft_id || null,
+          aircraft_manufacturer: aircraftManufacturer,
+          aircraft_model: aircraftModel,
+          service_name: sh.service_name || '',
+          hours_field: sh.hours_field || 'ext_wash_hours',
+          quoted_hours: parseFloat(sh.quoted_hours) || 0,
+          actual_hours: parseFloat(sh.actual_hours) || 0,
+        }));
+
+        await supabase.from('hours_log').insert(hoursEntries);
+      } catch (e) {
+        console.error('Failed to log service hours:', e);
+      }
     }
 
     // Update quote status to completed
