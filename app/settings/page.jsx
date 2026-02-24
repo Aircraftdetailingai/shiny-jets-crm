@@ -515,10 +515,10 @@ function SettingsContent() {
                       }}
                       className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm"
                     >
-                      Upgrade to Pro - $49.95/mo
+                      Upgrade to Pro - $79/mo
                     </button>
                   )}
-                  {user?.plan !== 'business' && (
+                  {user?.plan !== 'business' && user?.plan !== 'enterprise' && (
                     <button
                       onClick={async () => {
                         try {
@@ -535,7 +535,27 @@ function SettingsContent() {
                       }}
                       className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
                     >
-                      Upgrade to Business - $79.95/mo
+                      Upgrade to Business - $149/mo
+                    </button>
+                  )}
+                  {user?.plan !== 'enterprise' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('vector_token');
+                          const res = await fetch('/api/upgrade', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ tier: 'enterprise' }),
+                          });
+                          const data = await res.json();
+                          if (data.url) window.location.href = data.url;
+                          else if (data.error) alert(data.error);
+                        } catch (e) { alert('Upgrade failed'); }
+                      }}
+                      className="px-4 py-2 rounded bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm"
+                    >
+                      Upgrade to Enterprise - $299/mo
                     </button>
                   )}
                 </div>

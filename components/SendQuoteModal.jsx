@@ -20,6 +20,7 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [quoteLink, setQuoteLink] = useState("");
+  const [quoteLimitHit, setQuoteLimitHit] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState("4_weeks"); // '4_weeks', 'monthly', 'quarterly'
 
@@ -127,6 +128,10 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
     if (!res.ok) {
       const errData = await res.json().catch(() => null);
       console.error('Quote create failed:', res.status, errData);
+      if (res.status === 403 && errData?.upgrade) {
+        setQuoteLimitHit(errData);
+        throw new Error("QUOTE_LIMIT");
+      }
       throw new Error(errData?.error || "Failed to create quote");
     }
     const data = await res.json();
@@ -215,7 +220,9 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
         setError(`Quote sent but email failed: ${sendResult.emailError}`);
       }
     } catch (err) {
-      setError(err.message);
+      if (err.message !== "QUOTE_LIMIT") {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -258,6 +265,55 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
               {aircraftName && `Aircraft: ${aircraftName}`}{quote?.airport ? ` • ${quote.airport}` : ''} • Total: ${totalPrice.toFixed(2)}
             </p>
             {error && <p className="text-red-600 mb-2">{error}</p>}
+
+            {/* Quote Limit Upgrade Prompt */}
+            {quoteLimitHit && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-4">
+                <p className="font-semibold text-amber-900 mb-1">Free quote limit reached</p>
+                <p className="text-sm text-amber-800 mb-3">
+                  You&apos;ve used {quoteLimitHit.quotesUsed} of {quoteLimitHit.quotesLimit} free quotes this month.
+                  Upgrade for unlimited quotes.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem("vector_token");
+                        const res = await fetch("/api/upgrade", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ tier: "pro" }),
+                        });
+                        const data = await res.json();
+                        if (data.url) window.location.href = data.url;
+                        else if (data.error) setError(data.error);
+                      } catch (e) { setError("Failed to start upgrade"); }
+                    }}
+                    className="w-full px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90"
+                  >
+                    Upgrade to Pro - $79/mo
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem("vector_token");
+                        const res = await fetch("/api/upgrade", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ tier: "business" }),
+                        });
+                        const data = await res.json();
+                        if (data.url) window.location.href = data.url;
+                        else if (data.error) setError(data.error);
+                      } catch (e) { setError("Failed to start upgrade"); }
+                    }}
+                    className="w-full px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold hover:opacity-90"
+                  >
+                    Upgrade to Business - $149/mo
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Customer Selection */}
             <label className="block mb-2 text-sm font-medium">Customer</label>
