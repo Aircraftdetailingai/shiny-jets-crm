@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ROIDashboard from '@/components/ROIDashboard';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function ROIPage() {
   const router = useRouter();
@@ -101,11 +102,7 @@ export default function ROIPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading ROI data..." />;
   }
 
   return (

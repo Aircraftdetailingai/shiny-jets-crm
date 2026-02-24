@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DataTable from '@/components/DataTable';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { formatPrice, formatPriceWhole } from '@/lib/formatPrice';
 import ExportGate from '@/components/ExportGate';
 
@@ -509,11 +510,7 @@ export default function QuotesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-        <div className="text-white text-xl">Loading quotes...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading quotes..." />;
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function TeamMemberPage() {
   const router = useRouter();
@@ -134,11 +135,7 @@ export default function TeamMemberPage() {
     .reduce((sum, e) => sum + parseFloat(e.hours_worked || 0), 0);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading team member..." />;
   }
 
   if (error && !member) {

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPriceWhole } from '@/lib/formatPrice';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function GrowthPage() {
   const router = useRouter();
@@ -69,11 +70,7 @@ export default function GrowthPage() {
     .sort((a, b) => a.costPerJob - b.costPerJob);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading analytics..." />;
   }
 
   return (

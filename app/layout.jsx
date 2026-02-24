@@ -1,6 +1,7 @@
 import './globals.css'
 import InstallPrompt from '@/components/InstallPrompt'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
+import Providers from '@/components/Providers'
 
 export const metadata = {
   title: 'Vector - Aircraft Detailing Quotes',
@@ -23,7 +24,9 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <InstallPrompt />
         <ServiceWorkerRegistrar />
       </body>

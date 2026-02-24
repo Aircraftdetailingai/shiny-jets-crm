@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, formatPriceWhole } from '@/lib/formatPrice';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const COMMON_SERVICES = [
   { name: 'Exterior Wash', description: 'Full exterior aircraft wash and dry', hours_field: 'ext_wash_hours', defaultRate: 85 },
@@ -309,11 +310,7 @@ export default function OnboardingPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading setup..." />;
   }
 
   const chosenServices = COMMON_SERVICES.filter((_, i) => selectedServices[i]);
