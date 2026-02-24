@@ -206,6 +206,18 @@ function QuickStats({ stats, onNewQuote }) {
           <p className="text-gray-500 text-xs">Avg Job Value</p>
           <p className="text-xl font-bold text-green-600">${formatPriceWhole(stats.avgJobValue)}</p>
         </div>
+        {stats.avgRating !== null && stats.avgRating !== undefined && (
+          <div className="bg-white rounded-lg p-3 shadow">
+            <p className="text-gray-500 text-xs">Avg Rating</p>
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-xl font-bold text-amber-500">{stats.avgRating}</p>
+              <span className="text-amber-400 text-sm">&#9733;</span>
+            </div>
+            {stats.totalReviews > 0 && (
+              <p className="text-xs text-gray-400">{stats.totalReviews} review{stats.totalReviews !== 1 ? 's' : ''}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}

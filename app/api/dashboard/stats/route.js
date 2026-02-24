@@ -55,7 +55,7 @@ export async function GET(request) {
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
 
     // Fetch all data in parallel for speed
-    const [weekQuotesRes, weekPointsRes, monthQuotesRes, allQuotesRes, pendingRes, todayJobsRes, recentActivityRes] = await Promise.all([
+    const [weekQuotesRes, weekPointsRes, monthQuotesRes, allQuotesRes, pendingRes, todayJobsRes, recentActivityRes, feedbackRes] = await Promise.all([
       // This week's quotes
       supabase
         .from('quotes')
@@ -106,6 +106,12 @@ export async function GET(request) {
         .eq('detailer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10),
+
+      // Average feedback rating
+      supabase
+        .from('feedback')
+        .select('rating')
+        .eq('detailer_id', user.id),
     ]);
 
     const weekQuotes = weekQuotesRes.data || [];
@@ -115,6 +121,7 @@ export async function GET(request) {
     const pendingQuotes = pendingRes.data || [];
     const todayJobs = todayJobsRes.data || [];
     const recentQuotesRaw = recentActivityRes.data || [];
+    const feedbackData = feedbackRes.data || [];
 
     // Calculate stats
     const weekPaidQuotes = weekQuotes.filter(q => q.status === 'paid' || q.status === 'completed');
@@ -135,6 +142,12 @@ export async function GET(request) {
 
     // Outstanding invoices (sent/viewed but unpaid)
     const outstandingTotal = pendingQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
+
+    // Average feedback rating
+    const avgRating = feedbackData.length > 0
+      ? feedbackData.reduce((sum, f) => sum + (f.rating || 0), 0) / feedbackData.length
+      : null;
+    const totalReviews = feedbackData.length;
 
     // Build recent activity feed from quote events
     const recentActivity = [];
@@ -180,6 +193,8 @@ export async function GET(request) {
       todayScheduledJobs: todayJobs.length,
       outstandingInvoices: pendingQuotes.length,
       outstandingTotal: outstandingTotal,
+      avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
+      totalReviews: totalReviews,
       activityFeed: activityFeed,
 
       // Legacy format (for backwards compatibility)

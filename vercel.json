@@ -5,6 +5,7 @@
     { "path": "/api/cron/job-reminders-sms", "schedule": "0 11 * * *" },
     { "path": "/api/cron/expirations", "schedule": "0 14 * * *" },
     { "path": "/api/cron/recurring", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/reset-quotas", "schedule": "0 0 1 * *" }
+    { "path": "/api/cron/reset-quotas", "schedule": "0 0 1 * *" },
+    { "path": "/api/cron/feedback-requests", "schedule": "0 15 * * *" }
   ]
 }
