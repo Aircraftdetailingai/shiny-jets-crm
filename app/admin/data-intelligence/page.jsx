@@ -789,7 +789,7 @@ export default function DataIntelligencePage() {
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g., Aligned with field average from 47 data points"
+                placeholder="e.g., Aligned with field average from 47 vector points"
                 rows={2}
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 resize-none"
               />

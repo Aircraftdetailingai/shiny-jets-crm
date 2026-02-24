@@ -173,13 +173,13 @@ export async function GET(request) {
 
     data.filter(d => d.variance_flag === 'over' && d.sample_count >= 10).slice(0, 3).forEach(item => {
       suggestions.push(
-        `${item.manufacturer} ${item.model} ${item.hours_field_label}: default may be ${Math.abs(item.variance_percent).toFixed(1)}% too low (${item.sample_count} data points)`
+        `${item.manufacturer} ${item.model} ${item.hours_field_label}: default may be ${Math.abs(item.variance_percent).toFixed(1)}% too low (${item.sample_count} vector points)`
       );
     });
 
     data.filter(d => d.variance_flag === 'under' && d.sample_count >= 10).slice(0, 3).forEach(item => {
       suggestions.push(
-        `${item.manufacturer} ${item.model} ${item.hours_field_label}: default may be ${Math.abs(item.variance_percent).toFixed(1)}% too high (${item.sample_count} data points)`
+        `${item.manufacturer} ${item.model} ${item.hours_field_label}: default may be ${Math.abs(item.variance_percent).toFixed(1)}% too high (${item.sample_count} vector points)`
       );
     });
 
