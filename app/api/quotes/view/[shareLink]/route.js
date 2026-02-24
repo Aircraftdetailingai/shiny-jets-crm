@@ -75,8 +75,21 @@ export async function GET(request, { params }) {
     }
   }
 
+  // Check if detailer has active Stripe connection
+  let stripeConnected = false;
+  if (detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
+    try {
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const account = await stripe.accounts.retrieve(detailer.stripe_account_id);
+      stripeConnected = account.charges_enabled && account.payouts_enabled;
+    } catch (e) {
+      console.error('Stripe account check failed:', e.message);
+    }
+  }
+
   // Remove sensitive data from response
-  const { fcm_token, ...detailerPublic } = detailer || {};
+  const { fcm_token, stripe_account_id, ...detailerPublic } = detailer || {};
 
   return new Response(JSON.stringify({
     quote: {
@@ -84,6 +97,7 @@ export async function GET(request, { params }) {
       view_count: (quote.view_count || 0) + 1,
       last_viewed_at: new Date().toISOString(),
     },
-    detailer: detailerPublic
+    detailer: detailerPublic,
+    stripe_connected: stripeConnected,
   }), { status: 200 });
 }
