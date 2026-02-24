@@ -418,8 +418,8 @@ export default function ProductsPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg w-full sm:max-w-md overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b sticky top-0 bg-white">
               <h2 className="text-lg font-semibold">
                 {editingProduct ? 'Edit Product' : 'Add Product'}
@@ -548,8 +548,8 @@ export default function ProductsPage() {
 
       {/* Adjust Quantity Modal */}
       {showAdjustModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-sm overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg w-full sm:max-w-sm overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b">
               <h2 className="text-lg font-semibold">Adjust Inventory</h2>
               <p className="text-sm text-gray-500">{showAdjustModal.name}</p>

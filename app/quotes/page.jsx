@@ -261,6 +261,7 @@ export default function QuotesPage() {
           repositioning_needed: completionData.repositioning_needed,
           customer_late: completionData.customer_late,
           issues: completionData.issues,
+          product_estimates: completeModal.product_estimates || [],
         }),
       });
 
@@ -573,7 +574,7 @@ export default function QuotesPage() {
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 mb-6">
         <div className="bg-white rounded-lg p-4 shadow">
           <p className="text-gray-500 text-sm">Total</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -630,8 +631,8 @@ export default function QuotesPage() {
 
       {/* Complete Job Modal */}
       {completeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">Complete Job</h3>
             <p className="text-gray-600 mb-4">
               {completeModal.aircraft_model || completeModal.aircraft_type}
@@ -698,6 +699,21 @@ export default function QuotesPage() {
                   <p className="text-xs text-gray-500 mt-1">
                     Quote estimate: {completeModal.total_hours?.toFixed(1) || '0'} hours
                   </p>
+                </div>
+              )}
+
+              {/* Product estimates from quote */}
+              {completeModal.product_estimates && completeModal.product_estimates.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-blue-800 mb-1">Estimated Products (from quote)</p>
+                  <div className="space-y-0.5">
+                    {completeModal.product_estimates.map((e, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-blue-700">{e.product_name}</span>
+                        <span className="font-medium text-blue-900">{e.amount}{e.unit}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -790,7 +806,7 @@ export default function QuotesPage() {
                   <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">+Points</span>
                 </p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Wait Time</label>
                     <div className="flex items-center gap-2">
@@ -868,8 +884,8 @@ export default function QuotesPage() {
 
       {/* Change Order Modal */}
       {changeOrderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-2">Create Change Order</h3>
             <p className="text-gray-600 mb-4">
               {changeOrderModal.aircraft_model || changeOrderModal.aircraft_type}

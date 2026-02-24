@@ -370,8 +370,8 @@ export default function EquipmentPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-md overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg w-full sm:max-w-md overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b">
               <h2 className="text-lg font-semibold">
                 {editingItem ? 'Edit Equipment' : 'Add Equipment'}

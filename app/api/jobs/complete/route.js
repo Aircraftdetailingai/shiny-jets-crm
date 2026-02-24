@@ -52,6 +52,7 @@ export async function POST(request) {
       product_cost = 0,
       notes = '',
       issues = '',
+      product_estimates = [],
     } = body;
 
     if (!quote_id) {
@@ -86,6 +87,7 @@ export async function POST(request) {
         product_cost: parseFloat(product_cost) || 0,
         notes,
         issues,
+        product_estimates,
       })
       .select()
       .single();

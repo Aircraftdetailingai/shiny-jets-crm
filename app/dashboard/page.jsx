@@ -5,6 +5,7 @@ import SendQuoteModal from '../../components/SendQuoteModal.jsx';
 import PushNotifications from '../../components/PushNotifications.jsx';
 import PointsBadge from '../../components/PointsBadge.jsx';
 import { formatPrice, formatPriceWhole } from '../../lib/formatPrice';
+import { calculateProductEstimates } from '../../lib/product-calculator';
 
 // Error boundary to catch render crashes and show a message instead of blank page
 class DashboardErrorBoundary extends Component {
@@ -329,6 +330,7 @@ function DashboardContent() {
   const [accessDifficulty, setAccessDifficulty] = useState(1.0);
   const [quoteNotes, setQuoteNotes] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [stripeStatus, setStripeStatus] = useState({ connected: false, status: 'CHECKING' });
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeError, setStripeError] = useState(null);
@@ -344,6 +346,7 @@ function DashboardContent() {
   const [availableAddons, setAvailableAddons] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState({});
   const [airport, setAirport] = useState('');
+  const [customProductRatios, setCustomProductRatios] = useState(null);
 
   // Fetch manufacturers on mount
   useEffect(() => {
@@ -416,7 +419,7 @@ function DashboardContent() {
       const headers = { Authorization: `Bearer ${token}` };
 
       // All fetches in parallel for speed
-      const [stripeRes, servicesRes, packagesRes, minFeeRes, tipRes, statsRes, quotesRes, addonsRes, recurringRes] = await Promise.allSettled([
+      const [stripeRes, servicesRes, packagesRes, minFeeRes, tipRes, statsRes, quotesRes, addonsRes, recurringRes, productRatiosRes] = await Promise.allSettled([
         fetch('/api/stripe/status', { headers }),
         fetch('/api/services', { headers }),
         fetch('/api/packages', { headers }),
@@ -426,6 +429,7 @@ function DashboardContent() {
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
         fetch('/api/addon-fees', { headers }),
         fetch('/api/recurring?status=active', { headers }),
+        fetch('/api/user/product-ratios', { headers }),
       ]);
 
       // Process Stripe status
@@ -484,6 +488,12 @@ function DashboardContent() {
       if (recurringRes.status === 'fulfilled' && recurringRes.value.ok) {
         const data = await recurringRes.value.json();
         setUpcomingRecurring(data.recurring || []);
+      }
+
+      // Process custom product ratios
+      if (productRatiosRes.status === 'fulfilled' && productRatiosRes.value.ok) {
+        const data = await productRatiosRes.value.json();
+        if (data.ratios) setCustomProductRatios(data.ratios);
       }
     };
 
@@ -668,6 +678,11 @@ function DashboardContent() {
   }, 0);
   const estimatedProfit = totalPrice - estimatedProductCost;
 
+  // Product usage estimates
+  const productEstimates = selectedAircraft && selectedServicesList.length > 0
+    ? calculateProductEstimates(selectedServicesList, selectedAircraft, customProductRatios)
+    : [];
+
   // Build addon fee items for storage
   const addonFeeItems = selectedAddonsList.map(a => ({
     id: a.id,
@@ -723,6 +738,7 @@ function DashboardContent() {
         addonFees: addonFeeItems,
         addonsTotal,
         airport,
+        productEstimates,
       }
     : null;
 
@@ -738,22 +754,54 @@ function DashboardContent() {
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4 text-gray-900">
       {/* Header */}
       <header className="flex justify-between items-center mb-4 text-white">
-        <div className="flex items-center space-x-2 text-2xl font-bold">
+        <div className="flex items-center space-x-2 text-xl sm:text-2xl font-bold">
           <span>&#9992;</span>
           <span>Vector</span>
-          {user && <span className="text-lg font-medium">- {user.company}</span>}
+          {user && <span className="text-sm sm:text-lg font-medium hidden sm:inline">- {user.company}</span>}
         </div>
-        <div className="flex items-center space-x-4 text-sm">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm">
           <PointsBadge />
-          <a href="/quotes" className="underline">Quotes</a>
-          <a href="/calendar" className="underline">Calendar</a>
-          <a href="/products" className="underline">Inventory</a>
-          <a href="/equipment" className="underline">Equipment</a>
-          <a href="/team" className="underline">Team</a>
-          <a href="/recurring" className="underline">Recurring</a>
-          <a href="/growth" className="underline">Growth</a>
-          <a href="/settings" className="underline">Settings</a>
-          <button onClick={handleLogout} className="underline">Logout</button>
+          {/* Desktop nav links */}
+          <div className="hidden md:flex items-center space-x-4">
+            <a href="/quotes" className="underline">Quotes</a>
+            <a href="/calendar" className="underline">Calendar</a>
+            <a href="/products" className="underline">Inventory</a>
+            <a href="/equipment" className="underline">Equipment</a>
+            <a href="/team" className="underline">Team</a>
+            <a href="/recurring" className="underline">Recurring</a>
+            <a href="/growth" className="underline">Growth</a>
+            <a href="/settings" className="underline">Settings</a>
+            <button onClick={handleLogout} className="underline">Logout</button>
+          </div>
+          {/* Mobile hamburger menu */}
+          <div className="md:hidden relative">
+            <button
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              className="p-2 rounded-lg hover:bg-white/10"
+              aria-label="Menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
+            {mobileMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1e3a5f] rounded-lg shadow-xl border border-white/10 py-2 z-50">
+                {[
+                  { href: '/quotes', label: 'Quotes' },
+                  { href: '/calendar', label: 'Calendar' },
+                  { href: '/products', label: 'Inventory' },
+                  { href: '/equipment', label: 'Equipment' },
+                  { href: '/team', label: 'Team' },
+                  { href: '/recurring', label: 'Recurring' },
+                  { href: '/growth', label: 'Growth' },
+                  { href: '/settings', label: 'Settings' },
+                ].map(link => (
+                  <a key={link.href} href={link.href} className="block px-4 py-3 hover:bg-white/10 text-sm">{link.label}</a>
+                ))}
+                <button onClick={handleLogout} className="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm border-t border-white/10">Logout</button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -770,7 +818,7 @@ function DashboardContent() {
 
       {/* Services Configuration Prompt */}
       {user && availableServices.length === 0 && (
-        <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4 flex items-center justify-between">
+        <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center">
             <span className="text-blue-600 text-xl mr-3">&#9432;</span>
             <div>
@@ -780,7 +828,7 @@ function DashboardContent() {
           </div>
           <a
             href="/settings/services"
-            className="px-4 py-2 rounded bg-blue-500 text-white font-medium hover:bg-blue-600"
+            className="px-4 py-3 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 min-h-[44px] whitespace-nowrap"
           >
             Add Services
           </a>
@@ -936,7 +984,7 @@ function DashboardContent() {
               <p className="text-sm text-gray-600 mb-3">
                 Adjust for hangar access, location, or special requirements.
               </p>
-              <div className="flex items-center space-x-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { value: 1.0, label: 'Standard', desc: 'Easy hangar access' },
                   { value: 1.15, label: 'Moderate', desc: 'Limited access' },
@@ -946,7 +994,7 @@ function DashboardContent() {
                   <button
                     key={opt.value}
                     onClick={() => setAccessDifficulty(opt.value)}
-                    className={`flex-1 py-2 px-1 rounded text-xs font-medium transition-colors ${
+                    className={`py-3 px-2 rounded text-sm font-medium transition-colors min-h-[44px] ${
                       accessDifficulty === opt.value
                         ? 'bg-amber-500 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1252,6 +1300,25 @@ function DashboardContent() {
                       </div>
                     </div>
                   )}
+
+                  {/* Product usage estimates */}
+                  {productEstimates.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-600/50">
+                      <p className="text-xs text-gray-400 mb-1">Estimated Products</p>
+                      <div className="space-y-0.5">
+                        {productEstimates.map(e => (
+                          <div key={e.product_name} className="flex justify-between text-xs">
+                            <span className="text-gray-300">{e.product_name}</span>
+                            <span className="text-amber-400">{e.amount}{e.unit}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {selectedAircraft.manufacturer} {selectedAircraft.model}
+                        {selectedAircraft.surface_area_sqft ? ` (~${Number(selectedAircraft.surface_area_sqft).toLocaleString()} sqft)` : ''}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -1276,7 +1343,7 @@ function DashboardContent() {
                     setAirport('');
                     setModelSearch('');
                   }}
-                  className="w-full mt-2 px-4 py-2 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-800 text-sm"
+                  className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-800 text-sm min-h-[44px]"
                 >
                   Start New Quote
                 </button>
@@ -1314,6 +1381,7 @@ function DashboardContent() {
             addonsTotal: addonsTotal,
             notes: quoteNotes,
             airport: airport,
+            productEstimates: quoteData.productEstimates,
           }}
           user={user}
         />

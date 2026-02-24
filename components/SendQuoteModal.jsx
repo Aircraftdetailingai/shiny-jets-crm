@@ -108,6 +108,7 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
       customer_phone: effectivePhone || null,
       customer_company: effectiveCompany || null,
       airport: quote?.airport || null,
+      product_estimates: quote?.productEstimates || [],
     };
 
     console.log('Creating quote with payload:', JSON.stringify({
@@ -257,8 +258,8 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
         {!success ? (
           <div>
             <h2 className="text-xl font-semibold mb-2">Send Quote to Client</h2>
@@ -408,11 +409,11 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
               )}
             </div>
 
-            <div className="flex justify-end space-x-2 mt-4">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border rounded text-gray-700"
+                className="px-4 py-3 border rounded-lg text-gray-700 min-h-[44px] font-medium"
               >
                 Cancel
               </button>
@@ -420,9 +421,9 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
                 type="button"
                 onClick={handleSend}
                 disabled={loading}
-                className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50"
+                className="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50 min-h-[44px] font-medium"
               >
-                {loading ? 'Sending...' : 'Send'}
+                {loading ? 'Sending...' : 'Send Quote'}
               </button>
             </div>
           </div>

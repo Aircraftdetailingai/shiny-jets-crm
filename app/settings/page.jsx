@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { DEFAULT_PRODUCT_RATIOS, SERVICE_TYPE_LABELS } from '../../lib/product-calculator';
 
 const DEFAULT_ADDON_FEES = [
   { name: 'Hazmat Fee', description: 'Hazardous material handling surcharge', fee_type: 'flat', amount: 250 },
@@ -56,6 +57,9 @@ function SettingsContent() {
   const [editingAddon, setEditingAddon] = useState(null);
   const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '' });
   const [addonError, setAddonError] = useState('');
+
+  // Product ratios state
+  const [productRatios, setProductRatios] = useState(null);
 
   // Upgrade billing toggle
   const [upgradeBilling, setUpgradeBilling] = useState('monthly');
@@ -191,12 +195,41 @@ function SettingsContent() {
     }
   };
 
+  const fetchProductRatios = async () => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/user/product-ratios', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ratios) setProductRatios(data.ratios);
+      }
+    } catch (err) {
+      console.log('Failed to fetch product ratios:', err);
+    }
+  };
+
+  const saveProductRatios = async (ratios) => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      await fetch('/api/user/product-ratios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ratios }),
+      });
+    } catch (err) {
+      console.error('Failed to save product ratios:', err);
+    }
+  };
+
   useEffect(() => {
     checkStripeStatus();
     fetchCurrency();
     fetchMinimumFee();
     fetchAddonFees();
     fetchPassFee();
+    fetchProductRatios();
   }, []);
 
   const fetchMinimumFee = async () => {
@@ -543,6 +576,7 @@ function SettingsContent() {
         promises.push(saveNotifications(allNotifs));
       }
       if (pendingChanges.has('smsEnabled')) promises.push(saveSmsSettings({ sms_enabled: smsEnabled }));
+      if (pendingChanges.has('productRatios')) promises.push(saveProductRatios(productRatios || {}));
       await Promise.all(promises);
       setPendingChanges(new Set());
       setSaveSuccess(true);
@@ -1115,6 +1149,76 @@ function SettingsContent() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Product Usage Ratios */}
+        <div className="bg-white p-4 rounded shadow">
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <h3 className="font-semibold">Product Usage Ratios</h3>
+              <p className="text-sm text-gray-600">Customize estimated product quantities per service type. Used in quote builder.</p>
+            </div>
+            <button
+              onClick={() => { setProductRatios(null); markDirty('productRatios'); }}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Reset to Defaults
+            </button>
+          </div>
+          <div className="space-y-3 mt-3">
+            {Object.entries(DEFAULT_PRODUCT_RATIOS).map(([key, defaults]) => {
+              const customProducts = productRatios?.[key] || defaults;
+              return (
+                <div key={key} className="border rounded-lg p-3">
+                  <h4 className="font-medium text-sm text-amber-700 mb-2">{SERVICE_TYPE_LABELS[key] || key}</h4>
+                  <div className="space-y-2">
+                    {customProducts.map((pr, idx) => {
+                      const isInterior = pr.ratio_type === 'interior';
+                      const perValue = isInterior ? (pr.per_ft || 10) : (pr.per_sqft || 50);
+                      return (
+                        <div key={idx} className="flex items-center gap-2 text-sm">
+                          <span className="w-40 text-gray-700">{pr.product_name}</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            value={pr.ratio}
+                            onChange={(e) => {
+                              const updated = { ...(productRatios || {}) };
+                              const arr = [...(updated[key] || [...defaults])];
+                              arr[idx] = { ...arr[idx], ratio: parseFloat(e.target.value) || 0.1 };
+                              updated[key] = arr;
+                              setProductRatios(updated);
+                              markDirty('productRatios');
+                            }}
+                            className="w-16 border rounded px-2 py-1 text-center"
+                          />
+                          <span className="text-gray-500 text-xs">{pr.unit} per</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="1"
+                            value={perValue}
+                            onChange={(e) => {
+                              const updated = { ...(productRatios || {}) };
+                              const arr = [...(updated[key] || [...defaults])];
+                              const field = isInterior ? 'per_ft' : 'per_sqft';
+                              arr[idx] = { ...arr[idx], [field]: parseInt(e.target.value) || 1 };
+                              updated[key] = arr;
+                              setProductRatios(updated);
+                              markDirty('productRatios');
+                            }}
+                            className="w-16 border rounded px-2 py-1 text-center"
+                          />
+                          <span className="text-gray-500 text-xs">{isInterior ? 'ft' : 'sqft'}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Quote Display Preference */}
