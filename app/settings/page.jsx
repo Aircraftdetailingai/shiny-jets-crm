@@ -57,6 +57,9 @@ function SettingsContent() {
   const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '' });
   const [addonError, setAddonError] = useState('');
 
+  // Upgrade billing toggle
+  const [upgradeBilling, setUpgradeBilling] = useState('monthly');
+
   // Sticky save button state
   const [pendingChanges, setPendingChanges] = useState(new Set());
   const [saving, setSaving] = useState(false);
@@ -569,70 +572,94 @@ function SettingsContent() {
             </div>
           ) : (
             <div>
-              <p className="capitalize mb-2">{user?.plan} - ${planPrice}/mo</p>
+              <p className="capitalize mb-3">{user?.plan} - ${planPrice}/mo</p>
               {!hasAllFeatures && (
-                <div className="flex flex-wrap gap-2">
-                  {user?.plan !== 'pro' && user?.plan !== 'business' && (
+                <>
+                  {/* Annual/Monthly Toggle */}
+                  <div className="flex items-center gap-2 mb-3">
                     <button
-                      onClick={async () => {
-                        try {
-                          const token = localStorage.getItem('vector_token');
-                          const res = await fetch('/api/upgrade', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ tier: 'pro' }),
-                          });
-                          const data = await res.json();
-                          if (data.url) window.location.href = data.url;
-                          else if (data.error) alert(data.error);
-                        } catch (e) { alert('Upgrade failed'); }
-                      }}
-                      className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm"
+                      onClick={() => setUpgradeBilling('monthly')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        upgradeBilling === 'monthly' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white border border-white/20'
+                      }`}
                     >
-                      Upgrade to Pro - $79/mo
+                      Monthly
                     </button>
-                  )}
-                  {user?.plan !== 'business' && user?.plan !== 'enterprise' && (
                     <button
-                      onClick={async () => {
-                        try {
-                          const token = localStorage.getItem('vector_token');
-                          const res = await fetch('/api/upgrade', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ tier: 'business' }),
-                          });
-                          const data = await res.json();
-                          if (data.url) window.location.href = data.url;
-                          else if (data.error) alert(data.error);
-                        } catch (e) { alert('Upgrade failed'); }
-                      }}
-                      className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
+                      onClick={() => setUpgradeBilling('annual')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        upgradeBilling === 'annual' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white border border-white/20'
+                      }`}
                     >
-                      Upgrade to Business - $149/mo
+                      Annual <span className="text-green-500 font-bold">-25%</span>
                     </button>
-                  )}
-                  {user?.plan !== 'enterprise' && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          const token = localStorage.getItem('vector_token');
-                          const res = await fetch('/api/upgrade', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ tier: 'enterprise' }),
-                          });
-                          const data = await res.json();
-                          if (data.url) window.location.href = data.url;
-                          else if (data.error) alert(data.error);
-                        } catch (e) { alert('Upgrade failed'); }
-                      }}
-                      className="px-4 py-2 rounded bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm"
-                    >
-                      Upgrade to Enterprise - $299/mo
-                    </button>
-                  )}
-                </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {user?.plan !== 'pro' && user?.plan !== 'business' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem('vector_token');
+                            const res = await fetch('/api/upgrade', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ tier: 'pro', billing: upgradeBilling }),
+                            });
+                            const data = await res.json();
+                            if (data.url) window.location.href = data.url;
+                            else if (data.error) alert(data.error);
+                          } catch (e) { alert('Upgrade failed'); }
+                        }}
+                        className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm"
+                      >
+                        Pro - ${upgradeBilling === 'annual' ? '59' : '79'}/mo
+                        {upgradeBilling === 'annual' && <span className="ml-1 text-xs opacity-75">($708/yr)</span>}
+                      </button>
+                    )}
+                    {user?.plan !== 'business' && user?.plan !== 'enterprise' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem('vector_token');
+                            const res = await fetch('/api/upgrade', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ tier: 'business', billing: upgradeBilling }),
+                            });
+                            const data = await res.json();
+                            if (data.url) window.location.href = data.url;
+                            else if (data.error) alert(data.error);
+                          } catch (e) { alert('Upgrade failed'); }
+                        }}
+                        className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
+                      >
+                        Business - ${upgradeBilling === 'annual' ? '112' : '149'}/mo
+                        {upgradeBilling === 'annual' && <span className="ml-1 text-xs opacity-75">($1,344/yr)</span>}
+                      </button>
+                    )}
+                    {user?.plan !== 'enterprise' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem('vector_token');
+                            const res = await fetch('/api/upgrade', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ tier: 'enterprise', billing: upgradeBilling }),
+                            });
+                            const data = await res.json();
+                            if (data.url) window.location.href = data.url;
+                            else if (data.error) alert(data.error);
+                          } catch (e) { alert('Upgrade failed'); }
+                        }}
+                        className="px-4 py-2 rounded bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm"
+                      >
+                        Enterprise - ${upgradeBilling === 'annual' ? '224' : '299'}/mo
+                        {upgradeBilling === 'annual' && <span className="ml-1 text-xs opacity-75">($2,688/yr)</span>}
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -744,7 +771,7 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">Platform Fee</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Vector charges a {hasAllFeatures ? '1%' : user?.plan === 'pro' ? '2%' : '10%'} platform fee on each job.
+            Vector charges a {user?.plan === 'enterprise' ? '0%' : hasAllFeatures ? '1%' : user?.plan === 'pro' ? '2%' : '5%'} platform fee on each job.
             Choose who pays it.
           </p>
           <div className="space-y-3">

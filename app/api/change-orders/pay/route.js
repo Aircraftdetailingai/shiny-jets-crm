@@ -93,8 +93,10 @@ export async function POST(request) {
 
     // If detailer has Stripe Connect, use application fee
     if (detailer?.stripe_account_id) {
-      // Platform takes 5% fee
-      const platformFee = Math.round(changeOrder.amount * 0.05 * 100);
+      // Platform fee based on detailer plan
+      const { PLATFORM_FEES } = await import('@/lib/pricing-tiers');
+      const feeRate = PLATFORM_FEES[detailer?.plan || 'free'] || PLATFORM_FEES.free;
+      const platformFee = Math.round(changeOrder.amount * feeRate * 100);
       sessionParams.payment_intent_data = {
         application_fee_amount: platformFee,
         transfer_data: {

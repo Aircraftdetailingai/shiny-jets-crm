@@ -604,7 +604,7 @@ export default function OnboardingPage() {
                     <div>
                       <p className="font-medium text-gray-900">Pass Platform Fee to Customer</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        When enabled, the 10% platform fee appears as a "Service Fee" line item on the customer's quote instead of being deducted from your earnings.
+                        When enabled, the platform fee appears as a "Service Fee" line item on the customer's quote instead of being deducted from your earnings.
                       </p>
                     </div>
                     <button

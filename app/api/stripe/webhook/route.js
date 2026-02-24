@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { sendPaymentReceivedEmail, sendPaymentConfirmedEmail } from '@/lib/email';
 import { notifyQuotePaid } from '@/lib/push';
 import { sendPaymentConfirmationSms } from '@/lib/sms';
-import { hasPremiumAccess } from '@/lib/pricing-tiers';
+import { hasPremiumAccess, PLATFORM_FEES } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +62,14 @@ export async function POST(request) {
         if (quote) {
           const detailer = quote.detailers;
 
+          // Calculate fee breakdown for emails
+          const plan = detailer?.plan || 'free';
+          const feeRate = PLATFORM_FEES[plan] || PLATFORM_FEES.free;
+          const passFee = detailer?.pass_fee_to_customer || false;
+          const basePrice = quote.total_price || 0;
+          const platformFeeAmount = Math.round(basePrice * feeRate * 100) / 100;
+          const yourPayout = passFee ? basePrice : basePrice - platformFeeAmount;
+
           // Send payment received notification to detailer (email)
           if (detailer?.email) {
             try {
@@ -69,6 +77,7 @@ export async function POST(request) {
                 detailerEmail: detailer.email,
                 detailerName: detailer.name,
                 quote,
+                feeBreakdown: feeRate > 0 ? { platformFee: platformFeeAmount, feeRate, yourPayout } : null,
               });
             } catch (e) {
               console.error('Failed to send detailer email:', e);
@@ -80,14 +89,18 @@ export async function POST(request) {
             notifyQuotePaid({ fcmToken: detailer.fcm_token, quote }).catch(console.error);
           }
 
-          // Send payment confirmation to customer (email)
+          // Send payment confirmation to customer (email) with fee breakdown
           if (quote.client_email) {
             try {
+              const customerPlatformFee = passFee ? platformFeeAmount : 0;
+              const customerPaid = passFee ? basePrice + customerPlatformFee : basePrice;
+
               await sendPaymentConfirmedEmail({
                 customerEmail: quote.client_email,
                 customerName: quote.client_name,
                 quote,
                 detailer,
+                feeBreakdown: passFee && feeRate > 0 ? { platformFee: customerPlatformFee, feeRate, customerPaid } : null,
               });
             } catch (e) {
               console.error('Failed to send customer confirmation:', e);

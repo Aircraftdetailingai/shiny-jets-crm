@@ -12,7 +12,8 @@ ADD COLUMN IF NOT EXISTS subscription_updated_at TIMESTAMPTZ;
 -- Add platform fee tracking to jobs table
 ALTER TABLE jobs
 ADD COLUMN IF NOT EXISTS platform_fee DECIMAL(8,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS platform_fee_rate DECIMAL(4,4) DEFAULT 0.05;
+ADD COLUMN IF NOT EXISTS platform_fee_rate DECIMAL(4,4) DEFAULT 0.05,
+ADD COLUMN IF NOT EXISTS platform_fee_percent DECIMAL(4,2) DEFAULT 5.00;
 
 -- Create usage tracking table
 CREATE TABLE IF NOT EXISTS usage_tracking (

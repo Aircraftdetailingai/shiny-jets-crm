@@ -61,7 +61,7 @@ export async function POST(request) {
     const passFee = detailer?.pass_fee_to_customer || false;
 
     // Use tier-based platform fees
-    const FEES = { free: 0.10, pro: 0.02, business: 0.01, enterprise: 0.01 };
+    const FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
     const feeRate = FEES[plan] || FEES.free;
     const applicationFee = Math.round(baseAmount * feeRate);
 

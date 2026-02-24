@@ -23,14 +23,16 @@ export async function POST(request) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const { tier } = await request.json();
+  const { tier, billing } = await request.json();
+  const isAnnual = billing === 'annual';
 
   if (!tier || !TIERS[tier]) {
     return new Response(JSON.stringify({ error: 'Invalid tier' }), { status: 400 });
   }
 
   const tierConfig = TIERS[tier];
-  if (!tierConfig.stripePriceId) {
+  const priceId = isAnnual ? tierConfig.stripeAnnualPriceId : tierConfig.stripePriceId;
+  if (!priceId) {
     return new Response(JSON.stringify({ error: 'Tier not available for purchase' }), { status: 400 });
   }
 
@@ -85,7 +87,7 @@ export async function POST(request) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: tierConfig.stripePriceId,
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -95,11 +97,13 @@ export async function POST(request) {
       metadata: {
         detailer_id: user.id,
         tier: tier,
+        billing: isAnnual ? 'annual' : 'monthly',
       },
       subscription_data: {
         metadata: {
           detailer_id: user.id,
           tier: tier,
+          billing: isAnnual ? 'annual' : 'monthly',
         },
       },
     });

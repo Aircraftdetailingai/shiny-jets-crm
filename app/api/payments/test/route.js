@@ -117,7 +117,7 @@ export async function GET(request) {
     let applicationFee;
     const plan = detailer.plan || 'free';
     if (plan === 'free' || plan === 'starter') {
-      applicationFee = Math.round(totalAmount * 0.10); // 10%
+      applicationFee = Math.round(totalAmount * 0.05); // 5%
     } else {
       applicationFee = 1000; // $10 flat
     }
