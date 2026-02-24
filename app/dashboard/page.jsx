@@ -90,6 +90,50 @@ function StripeWarningBanner({ onConnect, loading, error, onClearError }) {
   );
 }
 
+// Free Tier Usage Bar Component
+function FreeUsageBar({ user }) {
+  const [usage, setUsage] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('vector_token');
+    if (!token) return;
+    fetch('/api/usage', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setUsage(data); })
+      .catch(() => {});
+  }, []);
+
+  if (!usage || usage.tier !== 'free') return null;
+
+  const used = usage.quotesThisMonth || 0;
+  const limit = usage.quotesLimit || 3;
+  const pct = Math.min(100, (used / limit) * 100);
+  const barColor = pct >= 100 ? 'bg-red-500' : pct >= 67 ? 'bg-amber-500' : 'bg-green-500';
+
+  return (
+    <div className="bg-white rounded-lg p-4 mb-4 shadow">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="font-semibold text-gray-900 text-sm">Free Plan Usage</h3>
+        <span className="text-xs text-gray-500">{used} of {limit} quotes used</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+        <div className={`${barColor} h-3 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+      </div>
+      {pct >= 100 ? (
+        <div className="flex justify-between items-center">
+          <p className="text-red-600 text-xs font-medium">Quote limit reached this month</p>
+          <a href="/settings?tab=billing" className="text-xs text-amber-600 font-semibold hover:underline">Upgrade for Unlimited</a>
+        </div>
+      ) : (
+        <div className="flex justify-between items-center">
+          <p className="text-gray-500 text-xs">{limit - used} quote{limit - used !== 1 ? 's' : ''} remaining this month</p>
+          <a href="/settings?tab=billing" className="text-xs text-amber-600 hover:underline">Upgrade for Unlimited</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Quick Stats Bar Component (inline, fast loading)
 function QuickStats({ stats }) {
   if (!stats) return null;
@@ -1234,6 +1278,7 @@ function DashboardContent() {
       {/* Dashboard info sections - below quote builder */}
       <div className="mt-6 space-y-4">
         <QuickStats stats={quickStats} />
+        <FreeUsageBar user={user} />
         <RecentQuotes quotes={recentQuotes} />
         <UpcomingRecurring recurring={upcomingRecurring} />
 

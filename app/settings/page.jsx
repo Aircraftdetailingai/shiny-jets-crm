@@ -481,7 +481,7 @@ function SettingsContent() {
   };
 
   const hasAllFeatures = user?.is_admin || user?.plan === 'enterprise' || user?.plan === 'business';
-  const planPrice = user?.plan === 'enterprise' ? '0' : user?.plan === 'starter' ? '29.95' : user?.plan === 'pro' ? '49.95' : '79.95';
+  const planPrice = user?.plan === 'enterprise' ? '299' : user?.plan === 'business' ? '149' : user?.plan === 'pro' ? '79' : '0';
 
   return (
     <div className="space-y-4">
@@ -633,7 +633,7 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">Platform Fee</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Vector charges a {hasAllFeatures ? '1%' : user?.plan === 'pro' ? '2%' : user?.plan === 'starter' ? '3%' : '10%'} platform fee on each job.
+            Vector charges a {hasAllFeatures ? '1%' : user?.plan === 'pro' ? '2%' : '10%'} platform fee on each job.
             Choose who pays it.
           </p>
           <div className="space-y-3">
@@ -957,13 +957,13 @@ function SettingsContent() {
         {/* SMS Alerts to You */}
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">SMS Alerts to You</h3>
-          {!hasAllFeatures && user?.plan === 'starter' && (
+          {!hasAllFeatures && user?.plan === 'free' && (
             <div className="text-center py-4">
               <p className="mb-2">SMS alerts are available on Pro plans.</p>
               <a href="/settings?upgrade=pro" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">Upgrade to Pro</a>
             </div>
           )}
-          {(hasAllFeatures || (user && user.plan !== 'starter')) && (
+          {(hasAllFeatures || (user && user.plan !== 'free')) && (
             [
               { key: 'quoteViewed', label: 'Quote viewed alert' },
               { key: 'quoteExpiring', label: 'Quote expiring soon' },

@@ -46,7 +46,7 @@ export async function POST(request) {
       .single();
 
     // Check if already on this tier or higher
-    const tierOrder = ['free', 'starter', 'pro', 'business', 'enterprise'];
+    const tierOrder = ['free', 'pro', 'business', 'enterprise'];
     const currentTierIndex = tierOrder.indexOf(detailer?.plan || 'free');
     const targetTierIndex = tierOrder.indexOf(tier);
 

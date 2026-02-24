@@ -23,7 +23,7 @@ const TIERS = [
     price: '$0',
     period: '/mo',
     desc: 'Try Vector risk-free',
-    features: ['5 quotes/month', '300+ aircraft database', 'Email quotes', 'Stripe payments', '10% platform fee'],
+    features: ['3 quotes/month', '300+ aircraft database', 'Email quotes', 'Stripe payments', '10% platform fee'],
     cta: 'Start Free',
     highlight: false,
   },
@@ -51,7 +51,7 @@ const FAQS = [
   { q: 'How does pricing work?', a: 'Vector multiplies your hourly rate by the service hours for each aircraft. We pre-load default hours for 300+ models, but you can upload your own or adjust hours on any quote. A G450 ceramic coating might default to 7.2 hours — at $190/hr that\'s $1,368 — but you can change it to whatever fits your crew.' },
   { q: 'Can I customize my services?', a: 'Absolutely. Add any service you offer — exterior wash, interior detail, ceramic coating, brightwork, decon, or create your own. Bundle them into packages with automatic discounts.' },
   { q: 'What payment methods do you accept?', a: 'Clients pay via Stripe — all major credit cards, Apple Pay, and Google Pay. Funds go directly to your connected Stripe account.' },
-  { q: 'Is there a long-term contract?', a: 'No contracts. Start free, upgrade anytime, cancel anytime. The free plan is free forever with up to 5 quotes per month.' },
+  { q: 'Is there a long-term contract?', a: 'No contracts. Start free, upgrade anytime, cancel anytime. The free plan is free forever with up to 3 quotes per month.' },
   { q: 'How accurate are the aircraft hours?', a: 'Our database covers 300+ aircraft with default hours derived from real-world detailing data. You can use the defaults as-is, upload your own hours for any aircraft, or adjust hours directly on each quote. The platform learns from actual job data over time and improves defaults for everyone.' },
 ];
 

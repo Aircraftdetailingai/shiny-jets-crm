@@ -60,12 +60,10 @@ export async function POST(request) {
     const plan = detailer?.plan || 'free';
     const passFee = detailer?.pass_fee_to_customer || false;
 
-    let applicationFee;
-    if (plan === 'free' || plan === 'starter') {
-      applicationFee = Math.round(baseAmount * 0.10); // 10% platform fee
-    } else {
-      applicationFee = 1000; // $10 flat fee in cents
-    }
+    // Use tier-based platform fees
+    const FEES = { free: 0.10, pro: 0.02, business: 0.01, enterprise: 0.01 };
+    const feeRate = FEES[plan] || FEES.free;
+    const applicationFee = Math.round(baseAmount * feeRate);
 
     // When pass-through is enabled, add service fee to the total charged to customer
     // The application fee stays the same — it just comes from the customer instead of the detailer
