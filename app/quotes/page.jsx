@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DataTable from '@/components/DataTable';
 import { formatPrice, formatPriceWhole } from '@/lib/formatPrice';
+import ExportGate from '@/components/ExportGate';
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-700',
@@ -54,12 +55,17 @@ export default function QuotesPage() {
   });
   const [submittingChangeOrder, setSubmittingChangeOrder] = useState(false);
   const [servicesMap, setServicesMap] = useState({});
+  const [userPlan, setUserPlan] = useState('free');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) {
       router.push('/login');
       return;
+    }
+    const stored = localStorage.getItem('vector_user');
+    if (stored) {
+      try { setUserPlan(JSON.parse(stored).plan || 'free'); } catch (e) {}
     }
 
     const fetchQuotes = async () => {
@@ -517,12 +523,53 @@ export default function QuotesPage() {
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
           <h1 className="text-2xl font-bold">Quote History</h1>
         </div>
-        <a
-          href="/dashboard"
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90"
-        >
-          New Quote
-        </a>
+        <div className="flex items-center gap-3">
+          <ExportGate plan={userPlan}>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (quotes.length === 0) return;
+                  const escCSV = (v) => { const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s; };
+                  const rows = quotes.map(q => [
+                    q.created_at ? new Date(q.created_at).toISOString().split('T')[0] : '',
+                    q.client_name || '', q.aircraft_model || q.aircraft_type || '',
+                    q.total_price?.toFixed(2) || '0.00', q.status || 'draft',
+                  ]);
+                  const csv = ['date,customer,aircraft,amount,status', ...rows.map(r => r.map(escCSV).join(','))].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                  a.download = `quotes-export-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click(); URL.revokeObjectURL(a.href);
+                }}
+                disabled={quotes.length === 0}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 text-sm"
+              >
+                Export Quotes
+              </button>
+              <button
+                onClick={async () => {
+                  const token = localStorage.getItem('vector_token');
+                  const res = await fetch('/api/customers/export', { headers: { Authorization: `Bearer ${token}` } });
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                    a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click(); URL.revokeObjectURL(a.href);
+                  }
+                }}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 text-sm"
+              >
+                Export Customers
+              </button>
+            </div>
+          </ExportGate>
+          <a
+            href="/dashboard"
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90"
+          >
+            New Quote
+          </a>
+        </div>
       </header>
 
       {/* Stats Cards */}

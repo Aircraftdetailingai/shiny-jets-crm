@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ExportGate from '@/components/ExportGate';
 
 export default function JobsPage() {
   const router = useRouter();
@@ -9,12 +10,17 @@ export default function JobsPage() {
   const [stats, setStats] = useState(null);
   const [period, setPeriod] = useState(30);
   const [error, setError] = useState(null);
+  const [userPlan, setUserPlan] = useState('free');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) {
       router.push('/login');
       return;
+    }
+    const stored = localStorage.getItem('vector_user');
+    if (stored) {
+      try { setUserPlan(JSON.parse(stored).plan || 'free'); } catch (e) {}
     }
     fetchJobs(token);
   }, [router, period]);
@@ -105,13 +111,15 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold">Job History</h1>
         </div>
         <div className="flex items-center space-x-3">
-          <button
-            onClick={exportCSV}
-            disabled={jobs.length === 0}
-            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Export CSV
-          </button>
+          <ExportGate plan={userPlan}>
+            <button
+              onClick={exportCSV}
+              disabled={jobs.length === 0}
+              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Export CSV
+            </button>
+          </ExportGate>
           <select
             value={period}
             onChange={(e) => setPeriod(parseInt(e.target.value))}

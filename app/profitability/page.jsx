@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ExportGate from '@/components/ExportGate';
 
 export default function ProfitabilityPage() {
   const router = useRouter();
@@ -8,12 +9,17 @@ export default function ProfitabilityPage() {
   const [period, setPeriod] = useState(90);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [userPlan, setUserPlan] = useState('free');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) {
       router.push('/login');
       return;
+    }
+    const stored = localStorage.getItem('vector_user');
+    if (stored) {
+      try { setUserPlan(JSON.parse(stored).plan || 'free'); } catch (e) {}
     }
     fetchStats(token);
   }, [router, period]);
@@ -52,16 +58,44 @@ export default function ProfitabilityPage() {
           <a href="/dashboard" className="text-2xl">&#8592;</a>
           <h1 className="text-2xl font-bold">Profitability</h1>
         </div>
-        <select
-          value={period}
-          onChange={(e) => setPeriod(parseInt(e.target.value))}
-          className="bg-white/10 text-white border border-white/20 rounded px-3 py-1"
-        >
-          <option value={30} className="text-gray-900">Last 30 days</option>
-          <option value={90} className="text-gray-900">Last 90 days</option>
-          <option value={180} className="text-gray-900">Last 6 months</option>
-          <option value={365} className="text-gray-900">Last year</option>
-        </select>
+        <div className="flex items-center gap-3">
+          <ExportGate plan={userPlan}>
+            <button
+              onClick={() => {
+                if (!stats) return;
+                const lines = [
+                  `Profitability Report - Last ${period} days`,
+                  `Generated: ${new Date().toISOString().split('T')[0]}`,
+                  '',
+                  `Total Revenue,$${stats.totalRevenue?.toFixed(2) || '0.00'}`,
+                  `Total Jobs,${stats.totalJobs || 0}`,
+                  `Avg Job Value,$${stats.avgJobValue?.toFixed(2) || '0.00'}`,
+                  `Material Costs,$${stats.materialCosts?.toFixed(2) || '0.00'}`,
+                  `Platform Fees,$${stats.platformFees?.toFixed(2) || '0.00'}`,
+                  `Effective Hourly Rate,$${stats.effectiveHourlyRate?.toFixed(2) || '0.00'}`,
+                ];
+                const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = `profitability-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click(); URL.revokeObjectURL(a.href);
+              }}
+              disabled={!stats}
+              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 text-sm"
+            >
+              Export CSV
+            </button>
+          </ExportGate>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(parseInt(e.target.value))}
+            className="bg-white/10 text-white border border-white/20 rounded px-3 py-1"
+          >
+            <option value={30} className="text-gray-900">Last 30 days</option>
+            <option value={90} className="text-gray-900">Last 90 days</option>
+            <option value={180} className="text-gray-900">Last 6 months</option>
+            <option value={365} className="text-gray-900">Last year</option>
+          </select>
+        </div>
       </header>
 
       {loading ? (
