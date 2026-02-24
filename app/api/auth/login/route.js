@@ -36,7 +36,7 @@ export async function POST(request) {
       try {
         valid = await comparePassword(password, data.password_hash);
       } catch (e) {
-        // Hash format might be incompatible (e.g., copied from Supabase Auth)
+        // bcrypt comparison failed, will fall through to Supabase Auth
       }
     }
 
@@ -49,12 +49,11 @@ export async function POST(request) {
         });
         if (!authError && authData?.user) {
           valid = true;
-          // Re-hash with bcryptjs so future logins work directly
           const newHash = await hashPassword(password);
           await supabase.from('detailers').update({ password_hash: newHash }).eq('id', data.id);
         }
       } catch (e) {
-        // Supabase Auth might not be configured, continue
+        // Supabase Auth fallback failed
       }
     }
 
@@ -75,7 +74,7 @@ export async function POST(request) {
         path: '/',
       });
     } catch (e) {
-      // Cookie setting might fail in some contexts, continue anyway
+      // Cookie setting can fail in certain contexts, non-critical
     }
 
     const user = {
@@ -98,6 +97,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (err) {
+    console.error('Login error:', err);
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 });
   }
 }
