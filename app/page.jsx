@@ -265,7 +265,7 @@ export default function LandingPage() {
               return (
               <div
                 key={tier.name}
-                className={`rounded-2xl p-8 flex flex-col ${
+                className={`rounded-2xl p-5 sm:p-8 flex flex-col ${
                   tier.highlight
                     ? 'bg-gradient-to-b from-amber-500/10 to-amber-600/5 border-2 border-amber-500 relative'
                     : 'bg-white/[0.03] border border-white/10'
@@ -279,7 +279,7 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold text-white">{tier.name}</h3>
                 <p className="text-gray-400 text-sm mt-1 mb-6">{tier.desc}</p>
                 <div className="mb-8">
-                  <span className="text-5xl font-bold text-white">{price === 0 ? '$0' : `$${price}`}</span>
+                  <span className="text-4xl sm:text-5xl font-bold text-white">{price === 0 ? '$0' : `$${price}`}</span>
                   <span className="text-gray-400 text-sm">/mo</span>
                   {showSavings && (
                     <div className="mt-1">

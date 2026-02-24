@@ -519,12 +519,12 @@ export default function QuotesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4">
       {/* Header */}
-      <header className="flex justify-between items-center mb-6 text-white">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 text-white">
         <div className="flex items-center space-x-4">
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
-          <h1 className="text-2xl font-bold">Quote History</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Quote History</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <ExportGate plan={userPlan}>
             <div className="flex items-center gap-2">
               <button

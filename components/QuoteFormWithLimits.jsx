@@ -97,22 +97,22 @@ export default function QuoteFormWithLimits({ children, onQuoteCreated }) {
     <>
       {/* Usage Warning Banner */}
       {showUsageBanner && (
-        <div className={`mb-4 p-3 rounded-lg flex items-center justify-between ${
+        <div className={`mb-4 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
           quotesRemaining === 0
             ? 'bg-red-100 border border-red-300'
             : 'bg-amber-100 border border-amber-300'
         }`}>
           <div className="flex items-center">
-            <span className={`text-xl mr-3 ${quotesRemaining === 0 ? 'text-red-500' : 'text-amber-500'}`}>
+            <span className={`text-lg sm:text-xl mr-3 ${quotesRemaining === 0 ? 'text-red-500' : 'text-amber-500'}`}>
               {quotesRemaining === 0 ? '⚠️' : '📊'}
             </span>
             <div>
-              <p className={`font-medium ${quotesRemaining === 0 ? 'text-red-800' : 'text-amber-800'}`}>
+              <p className={`font-medium text-sm sm:text-base ${quotesRemaining === 0 ? 'text-red-800' : 'text-amber-800'}`}>
                 {quotesRemaining === 0
                   ? 'Quote limit reached!'
                   : `${quotesRemaining} quote${quotesRemaining === 1 ? '' : 's'} remaining this month`}
               </p>
-              <p className={`text-sm ${quotesRemaining === 0 ? 'text-red-600' : 'text-amber-600'}`}>
+              <p className={`text-xs sm:text-sm ${quotesRemaining === 0 ? 'text-red-600' : 'text-amber-600'}`}>
                 {quotesRemaining === 0
                   ? 'Upgrade to continue sending quotes'
                   : `You've used ${usage.quotesThisMonth} of ${quotesLimit} quotes`}
@@ -121,7 +121,7 @@ export default function QuoteFormWithLimits({ children, onQuoteCreated }) {
           </div>
           <button
             onClick={() => setShowUpgradeModal(true)}
-            className={`px-4 py-2 rounded-lg font-medium ${
+            className={`px-4 py-3 rounded-lg font-medium min-h-[44px] whitespace-nowrap ${
               quotesRemaining === 0
                 ? 'bg-red-500 text-white hover:bg-red-600'
                 : 'bg-amber-500 text-white hover:bg-amber-600'

@@ -125,8 +125,8 @@ export default function ROIPage() {
 
       {/* Testimonial Prompt Modal */}
       {showTestimonial && testimonialData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl p-5 sm:p-6 sm:max-w-md w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="text-center mb-4">
               <span className="text-5xl">🎉</span>
               <h2 className="text-xl font-bold text-gray-900 mt-2">
