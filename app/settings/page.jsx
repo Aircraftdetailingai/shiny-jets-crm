@@ -88,8 +88,8 @@ function SettingsContent() {
         jobReminderSms: u.notification_settings?.jobReminderSms || false,
         paymentConfirmSms: u.notification_settings?.paymentConfirmSms || false,
       });
-      // Fetch SMS settings for business users
-      if (u.plan === 'business') {
+      // Fetch SMS settings for business/enterprise/admin users
+      if (u.plan === 'business' || u.plan === 'enterprise' || u.is_admin) {
         fetch('/api/sms/settings', {
           headers: { Authorization: `Bearer ${token}` },
         }).then(r => r.json()).then(data => {
@@ -480,16 +480,67 @@ function SettingsContent() {
     finally { setAddonLoading(false); }
   };
 
-  const planPrice = user?.plan === 'starter' ? '29.95' : user?.plan === 'pro' ? '49.95' : '79.95';
+  const hasAllFeatures = user?.is_admin || user?.plan === 'enterprise' || user?.plan === 'business';
+  const planPrice = user?.plan === 'enterprise' ? '0' : user?.plan === 'starter' ? '29.95' : user?.plan === 'pro' ? '49.95' : '79.95';
 
   return (
     <div className="space-y-4">
-        {/* Plan banner */}
+        {/* Plan & Billing */}
         <div className="bg-[#0f172a] text-white p-4 rounded">
-          <h2 className="text-lg font-semibold mb-1">Current Plan</h2>
-          <p className="capitalize mb-2">{user?.plan} - ${planPrice}/mo</p>
-          {user?.plan !== 'business' && (
-            <a href="/settings?upgrade=business" className="inline-block px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">Upgrade</a>
+          <h2 className="text-lg font-semibold mb-1">Plan & Billing</h2>
+          {user?.is_admin ? (
+            <div>
+              <p className="mb-1 capitalize">{user?.plan || 'enterprise'} Plan</p>
+              <span className="inline-block px-3 py-1 rounded bg-green-600 text-white text-sm font-medium">Admin Access - All Features</span>
+            </div>
+          ) : (
+            <div>
+              <p className="capitalize mb-2">{user?.plan} - ${planPrice}/mo</p>
+              {!hasAllFeatures && (
+                <div className="flex flex-wrap gap-2">
+                  {user?.plan !== 'pro' && user?.plan !== 'business' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('vector_token');
+                          const res = await fetch('/api/upgrade', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ tier: 'pro' }),
+                          });
+                          const data = await res.json();
+                          if (data.url) window.location.href = data.url;
+                          else if (data.error) alert(data.error);
+                        } catch (e) { alert('Upgrade failed'); }
+                      }}
+                      className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm"
+                    >
+                      Upgrade to Pro - $49.95/mo
+                    </button>
+                  )}
+                  {user?.plan !== 'business' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('vector_token');
+                          const res = await fetch('/api/upgrade', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ tier: 'business' }),
+                          });
+                          const data = await res.json();
+                          if (data.url) window.location.href = data.url;
+                          else if (data.error) alert(data.error);
+                        } catch (e) { alert('Upgrade failed'); }
+                      }}
+                      className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
+                    >
+                      Upgrade to Business - $79.95/mo
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -582,7 +633,7 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">Platform Fee</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Vector charges a {user?.plan === 'business' ? '1%' : user?.plan === 'pro' ? '2%' : user?.plan === 'starter' ? '3%' : '10%'} platform fee on each job.
+            Vector charges a {hasAllFeatures ? '1%' : user?.plan === 'pro' ? '2%' : user?.plan === 'starter' ? '3%' : '10%'} platform fee on each job.
             Choose who pays it.
           </p>
           <div className="space-y-3">
@@ -906,13 +957,13 @@ function SettingsContent() {
         {/* SMS Alerts to You */}
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">SMS Alerts to You</h3>
-          {user?.plan === 'starter' && (
+          {!hasAllFeatures && user?.plan === 'starter' && (
             <div className="text-center py-4">
               <p className="mb-2">SMS alerts are available on Pro plans.</p>
               <a href="/settings?upgrade=pro" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">Upgrade to Pro</a>
             </div>
           )}
-          {user && user.plan !== 'starter' && (
+          {(hasAllFeatures || (user && user.plan !== 'starter')) && (
             [
               { key: 'quoteViewed', label: 'Quote viewed alert' },
               { key: 'quoteExpiring', label: 'Quote expiring soon' },
@@ -935,13 +986,13 @@ function SettingsContent() {
         {/* SMS to Your Clients */}
         <div id="smsClients" className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">SMS to Your Clients</h3>
-          {user?.plan !== 'business' && (
+          {!hasAllFeatures && (
             <div className="text-center py-4">
               <p className="mb-2">Texting clients is available on the Business plan.</p>
               <a href="/settings?upgrade=business" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">Upgrade to Business</a>
             </div>
           )}
-          {user?.plan === 'business' && (
+          {hasAllFeatures && (
             <>
               {/* Master SMS Toggle */}
               <div className="flex items-center justify-between mb-4 pb-3 border-b">

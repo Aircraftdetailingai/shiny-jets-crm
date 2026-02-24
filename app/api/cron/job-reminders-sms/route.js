@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendJobReminderSms } from '@/lib/sms';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 export async function POST(request) {
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization') || '';
@@ -33,7 +34,7 @@ export async function POST(request) {
   for (const quote of quotes || []) {
     const detailer = quote.detailers;
 
-    if (detailer?.plan !== 'business') { skipped++; continue; }
+    if (!hasPremiumAccess(detailer?.plan)) { skipped++; continue; }
     if (detailer?.sms_enabled === false) { skipped++; continue; }
 
     const settings = detailer.notification_settings || {};

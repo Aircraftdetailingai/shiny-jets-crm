@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { sendPaymentReceivedEmail, sendPaymentConfirmedEmail } from '@/lib/email';
 import { notifyQuotePaid } from '@/lib/push';
 import { sendPaymentConfirmationSms } from '@/lib/sms';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +95,7 @@ export async function POST(request) {
           }
 
           // Send payment confirmation to customer (SMS - business plan only)
-          if (detailer?.plan === 'business' && detailer?.sms_enabled !== false && quote.client_phone) {
+          if (hasPremiumAccess(detailer?.plan) && detailer?.sms_enabled !== false && quote.client_phone) {
             try {
               const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(quote.total_price || 0);
               await sendPaymentConfirmationSms({

@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { sendQuoteSentEmail } from '@/lib/email';
 import { sendQuoteSms } from '@/lib/sms';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -211,7 +212,7 @@ export async function POST(request, { params }) {
   }
 
   // Send SMS for business plan
-  if (detailer?.plan === 'business' && detailer?.sms_enabled !== false && clientPhone) {
+  if (hasPremiumAccess(detailer?.plan) && detailer?.sms_enabled !== false && clientPhone) {
     try {
       const smsResult = await sendQuoteSms({
         clientPhone,

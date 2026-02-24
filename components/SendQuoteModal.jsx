@@ -26,7 +26,7 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
   // Close when not open
   if (!isOpen) return null;
 
-  const isBusiness = user?.plan === "business";
+  const isBusiness = user?.plan === "business" || user?.plan === "enterprise" || user?.is_admin;
   const requiresSms = method === "sms" || method === "both";
   const requiresEmail = method === "email" || method === "both";
 
@@ -173,6 +173,36 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
         throw new Error(data?.error || "Failed to send quote");
       }
       const sendResult = await res.json();
+
+      // Set up recurring if selected
+      if (isRecurring) {
+        const interval = recurringInterval || 'monthly';
+        const nextDate = new Date();
+        switch (interval) {
+          case '4_weeks': nextDate.setDate(nextDate.getDate() + 28); break;
+          case '6_weeks': nextDate.setDate(nextDate.getDate() + 42); break;
+          case 'quarterly': nextDate.setMonth(nextDate.getMonth() + 3); break;
+          default: nextDate.setMonth(nextDate.getMonth() + 1);
+        }
+        try {
+          await fetch('/api/recurring', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+            },
+            body: JSON.stringify({
+              quote_id: id,
+              recurring_enabled: true,
+              recurring_interval: interval,
+              next_service_date: nextDate.toISOString().split('T')[0],
+            }),
+          });
+        } catch (recurErr) {
+          console.error('Failed to set recurring:', recurErr);
+        }
+      }
+
       // Warn if email failed but quote was sent
       if (sendResult.emailError) {
         console.error('Email send failed:', sendResult.emailError);

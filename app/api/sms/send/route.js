@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { sendSms } from '@/lib/sms';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export async function POST(request) {
     .eq('id', user.id)
     .single();
 
-  if (detailer?.plan !== 'business') {
+  if (!hasPremiumAccess(detailer?.plan)) {
     return Response.json({ error: 'SMS requires Business plan' }, { status: 403 });
   }
 

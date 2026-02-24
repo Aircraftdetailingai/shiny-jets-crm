@@ -2,6 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import { comparePassword, hashPassword, createToken } from '../../../../lib/auth';
 import { cookies } from 'next/headers';
 
+const ADMIN_EMAILS = [
+  'brett@aircraftdetailing.ai',
+  'admin@aircraftdetailing.ai',
+  'brett@shinyjets.com',
+];
+
 function getSupabase() {
   return createClient(
     process.env.SUPABASE_URL,
@@ -77,13 +83,15 @@ export async function POST(request) {
       // Cookie setting can fail in certain contexts, non-critical
     }
 
+    const isAdmin = ADMIN_EMAILS.includes(data.email?.toLowerCase());
     const user = {
       id: data.id,
       email: data.email,
       name: data.name,
       phone: data.phone,
       company: data.company,
-      plan: data.plan,
+      plan: isAdmin ? (data.plan === 'enterprise' ? 'enterprise' : data.plan || 'enterprise') : data.plan,
+      is_admin: isAdmin,
       status: data.status,
       rates: data.rates || {},
       notification_settings: data.notification_settings || {},

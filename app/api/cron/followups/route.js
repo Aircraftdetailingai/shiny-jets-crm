@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendFollowup3DaySms, sendFollowup7DaySms } from '@/lib/sms';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 export async function POST(request) {
   // Verify CRON_SECRET from Authorization header
@@ -52,7 +53,7 @@ export async function POST(request) {
         continue;
       }
       // Cancel if detailer plan is not business or SMS disabled
-      if (detailer.plan !== 'business' || detailer.sms_enabled === false) {
+      if (!hasPremiumAccess(detailer.plan) || detailer.sms_enabled === false) {
         await supabase.from('scheduled_followups').update({ cancelled_at: nowISO, cancel_reason: 'downgraded' }).eq('id', followup.id);
         continue;
       }

@@ -179,6 +179,53 @@ function RecentQuotes({ quotes, onViewQuote }) {
 }
 
 
+// Upcoming Recurring Services Component
+function UpcomingRecurring({ recurring }) {
+  if (!recurring || recurring.length === 0) return null;
+
+  const intervalLabels = {
+    weekly: 'Weekly',
+    biweekly: 'Bi-weekly',
+    '4_weeks': '4 weeks',
+    monthly: 'Monthly',
+    '6_weeks': '6 weeks',
+    quarterly: 'Quarterly',
+  };
+
+  return (
+    <div className="bg-white rounded-lg p-4 mb-4 shadow">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold">Upcoming Recurring Services</h3>
+        <a href="/recurring" className="text-sm text-amber-600 hover:underline">Manage All</a>
+      </div>
+      <div className="space-y-2">
+        {recurring.slice(0, 5).map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+          >
+            <div className="flex-1">
+              <p className="font-medium text-gray-900">
+                {item.customer_name || item.client_name || 'Customer'}
+              </p>
+              <p className="text-sm text-gray-500">
+                {item.aircraft_model || item.aircraft_type || 'Aircraft'}
+                <span className="ml-2 text-xs text-gray-400">{intervalLabels[item.recurring_interval] || item.recurring_interval}</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-gray-900">${(parseFloat(item.total_price) || 0).toFixed(0)}</p>
+              <p className="text-xs text-amber-600">
+                {item.next_service_date ? new Date(item.next_service_date).toLocaleDateString() : 'No date'}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -206,6 +253,7 @@ function DashboardContent() {
   const [tipDismissed, setTipDismissed] = useState(false);
   const [quickStats, setQuickStats] = useState(null);
   const [recentQuotes, setRecentQuotes] = useState([]);
+  const [upcomingRecurring, setUpcomingRecurring] = useState([]);
   const [availableAddons, setAvailableAddons] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState({});
   const [airport, setAirport] = useState('');
@@ -281,7 +329,7 @@ function DashboardContent() {
       const headers = { Authorization: `Bearer ${token}` };
 
       // All fetches in parallel for speed
-      const [stripeRes, servicesRes, packagesRes, minFeeRes, tipRes, statsRes, quotesRes, addonsRes] = await Promise.allSettled([
+      const [stripeRes, servicesRes, packagesRes, minFeeRes, tipRes, statsRes, quotesRes, addonsRes, recurringRes] = await Promise.allSettled([
         fetch('/api/stripe/status', { headers }),
         fetch('/api/services', { headers }),
         fetch('/api/packages', { headers }),
@@ -290,6 +338,7 @@ function DashboardContent() {
         fetch('/api/dashboard/stats', { headers }),
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
         fetch('/api/addon-fees', { headers }),
+        fetch('/api/recurring?status=active', { headers }),
       ]);
 
       // Process Stripe status
@@ -342,6 +391,12 @@ function DashboardContent() {
       if (addonsRes.status === 'fulfilled' && addonsRes.value.ok) {
         const data = await addonsRes.value.json();
         setAvailableAddons(data.fees || []);
+      }
+
+      // Process recurring services
+      if (recurringRes.status === 'fulfilled' && recurringRes.value.ok) {
+        const data = await recurringRes.value.json();
+        setUpcomingRecurring(data.recurring || []);
       }
     };
 
@@ -608,6 +663,7 @@ function DashboardContent() {
           <a href="/products" className="underline">Inventory</a>
           <a href="/equipment" className="underline">Equipment</a>
           <a href="/team" className="underline">Team</a>
+          <a href="/recurring" className="underline">Recurring</a>
           <a href="/growth" className="underline">Growth</a>
           <a href="/settings" className="underline">Settings</a>
           <button onClick={handleLogout} className="underline">Logout</button>
@@ -1179,6 +1235,7 @@ function DashboardContent() {
       <div className="mt-6 space-y-4">
         <QuickStats stats={quickStats} />
         <RecentQuotes quotes={recentQuotes} />
+        <UpcomingRecurring recurring={upcomingRecurring} />
 
         {/* Daily Tip */}
         {dailyTip && !tipDismissed && (

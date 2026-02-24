@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendExpirationAlertSms, sendExpirationWarningSms } from '@/lib/sms';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 export async function POST(request) {
   // Verify CRON_SECRET from Authorization header
@@ -42,7 +43,7 @@ export async function POST(request) {
       const plan = detailer.plan || 'starter';
       const quoteViewed = quote.status === 'viewed';
       // SMS to detailer if plan is pro or business and smsQuoteExpiring enabled
-      if ((plan === 'pro' || plan === 'business') && settings.smsQuoteExpiring && detailer.phone) {
+      if ((plan === 'pro' || hasPremiumAccess(plan)) && settings.smsQuoteExpiring && detailer.phone) {
         try {
           const statusText = quoteViewed ? 'viewed' : 'not viewed';
           await sendExpirationAlertSms({
@@ -56,7 +57,7 @@ export async function POST(request) {
         }
       }
       // SMS to client if plan is business, SMS enabled, and smsClientExpiration enabled
-      if (plan === 'business' && detailer.sms_enabled !== false && settings.smsClientExpiration && quote.client_phone) {
+      if (hasPremiumAccess(plan) && detailer.sms_enabled !== false && settings.smsClientExpiration && quote.client_phone) {
         try {
           const link = `https://app.aircraftdetailing.ai/q/${quote.share_link}`;
           await sendExpirationWarningSms({

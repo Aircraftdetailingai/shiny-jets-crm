@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { hasPremiumAccess } from '@/lib/pricing-tiers';
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
@@ -39,7 +40,7 @@ export async function POST(request) {
     .eq('id', user.id)
     .single();
 
-  if (detailer?.plan !== 'business') {
+  if (!hasPremiumAccess(detailer?.plan)) {
     return Response.json({ error: 'SMS settings require Business plan' }, { status: 403 });
   }
 
