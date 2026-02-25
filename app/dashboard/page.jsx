@@ -10,6 +10,7 @@ import LoadingSpinner from '../../components/LoadingSpinner.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { formatPrice, formatPriceWhole, currencySymbol } from '../../lib/formatPrice';
 import { calculateProductEstimates } from '../../lib/product-calculator';
+import DashboardTour from '../../components/DashboardTour.jsx';
 
 const categoryLabels = {
   piston: 'Pistons',
@@ -123,30 +124,78 @@ function FreeUsageBar({ user }) {
 // Low Stock Alert Component
 function LowStockAlert() {
   const [lowStock, setLowStock] = useState(null);
+  const [totalValue, setTotalValue] = useState(0);
+  const [productCount, setProductCount] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) return;
     fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.lowStock?.length) setLowStock(data.lowStock); })
+      .then(data => {
+        if (data) {
+          if (data.lowStock?.length) setLowStock(data.lowStock);
+          setTotalValue(data.totalValue || 0);
+          setProductCount((data.products || []).length);
+        }
+      })
       .catch(() => {});
   }, []);
 
   if (!lowStock || lowStock.length === 0) return null;
 
   return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 shadow">
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-lg shadow overflow-hidden mb-4">
+      <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-red-500 text-lg">&#9888;</span>
           <div>
             <p className="text-red-800 text-sm font-semibold">Low Stock ({lowStock.length})</p>
-            <p className="text-red-600 text-xs">{lowStock.map(p => p.name).join(', ')}</p>
+            {productCount > 0 && totalValue > 0 && (
+              <p className="text-xs text-gray-500">Inventory: {currencySymbol()}{totalValue.toLocaleString()} across {productCount} products</p>
+            )}
           </div>
         </div>
-        <a href="/products" className="text-xs text-red-700 font-medium hover:underline whitespace-nowrap">View Inventory</a>
+        <a href="/products" className="text-xs text-red-700 font-medium hover:underline whitespace-nowrap">View All</a>
       </div>
+      <div className="divide-y">
+        {lowStock.slice(0, 5).map(p => (
+          <div key={p.id} className="px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {p.image_url && (
+                <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0 bg-gray-100" onError={(e) => { e.target.style.display = 'none'; }} />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                <p className="text-xs text-gray-500">
+                  <span className="text-red-600 font-semibold">{p.current_quantity || 0}</span>
+                  <span className="text-gray-400"> / {p.reorder_threshold} {p.unit || ''}</span>
+                  {p.brand && <span className="text-gray-400 ml-1">&#183; {p.brand}</span>}
+                </p>
+              </div>
+            </div>
+            {p.product_url ? (
+              <a
+                href={p.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 text-xs bg-amber-500 text-white font-medium rounded hover:bg-amber-600 whitespace-nowrap flex-shrink-0"
+              >
+                Reorder
+              </a>
+            ) : (
+              <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full flex-shrink-0">Low</span>
+            )}
+          </div>
+        ))}
+      </div>
+      {lowStock.length > 5 && (
+        <div className="px-4 py-2 bg-gray-50 border-t text-center">
+          <a href="/products" className="text-xs text-amber-600 font-medium hover:underline">
+            +{lowStock.length - 5} more low stock items
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -929,6 +978,7 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4 text-gray-900">
+      <DashboardTour />
       {/* Header */}
       <header className="flex justify-between items-center mb-4 text-white">
         <div className="flex items-center space-x-2 text-xl sm:text-2xl font-bold">
@@ -943,14 +993,14 @@ function DashboardContent() {
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center space-x-4">
             <a href="/quotes" className="underline">Quotes</a>
-            <a href="/calendar" className="underline">Calendar</a>
+            <a href="/calendar" className="underline" data-tour="nav-calendar">Calendar</a>
             <a href="/products" className="underline">Inventory</a>
             <a href="/equipment" className="underline">Equipment</a>
             <a href="/team" className="underline">Team</a>
             <a href="/recurring" className="underline">Recurring</a>
-            <a href="/analytics" className="underline">Analytics</a>
+            <a href="/analytics" className="underline" data-tour="nav-analytics">Analytics</a>
             <a href="/growth" className="underline">Growth</a>
-            <a href="/settings" className="underline">Settings</a>
+            <a href="/settings" className="underline" data-tour="nav-settings">Settings</a>
             <button onClick={handleLogout} className="underline">Logout</button>
           </div>
           {/* Mobile hamburger menu */}
@@ -999,7 +1049,7 @@ function DashboardContent() {
 
       {/* Services Configuration Prompt */}
       {user && availableServices.length === 0 && (
-        <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div data-tour="services-prompt" className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center">
             <span className="text-blue-600 text-xl mr-3">&#9432;</span>
             <div>
@@ -1016,7 +1066,7 @@ function DashboardContent() {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4" data-tour="quote-builder">
         {/* Left column */}
         <div className="flex-1">
           {/* Aircraft Selection */}
@@ -1570,7 +1620,9 @@ function DashboardContent() {
 
       {/* Dashboard info sections - below quote builder */}
       <div className="mt-6 space-y-4">
-        <QuickStats stats={quickStats} onNewQuote={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+        <div data-tour="quick-stats">
+          <QuickStats stats={quickStats} onNewQuote={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+        </div>
         <FreeUsageBar user={user} />
         <LowStockAlert />
         <RecentQuotes quotes={recentQuotes} />

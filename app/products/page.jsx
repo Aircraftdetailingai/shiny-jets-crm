@@ -342,13 +342,29 @@ export default function ProductsPage() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
               <span className="text-xl">&#9888;</span>
-              <div>
-                <p className="font-semibold text-red-800">Low Stock Alert</p>
-                <ul className="text-sm text-red-700 mt-1">
+              <div className="flex-1">
+                <p className="font-semibold text-red-800">Low Stock Alert ({lowStock.length})</p>
+                <div className="mt-2 space-y-2">
                   {lowStock.map(p => (
-                    <li key={p.id}>{p.name}: {p.current_quantity} {p.unit} remaining</li>
+                    <div key={p.id} className="flex items-center justify-between">
+                      <div className="text-sm text-red-700">
+                        <span className="font-medium">{p.name}</span>
+                        <span className="text-red-500 ml-1">&#8212; {p.current_quantity} {p.unit} remaining</span>
+                        <span className="text-red-400 text-xs ml-1">(reorder at {p.reorder_threshold})</span>
+                      </div>
+                      {p.product_url && (
+                        <a
+                          href={p.product_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 text-xs bg-amber-500 text-white font-medium rounded hover:bg-amber-600 whitespace-nowrap ml-3"
+                        >
+                          Reorder
+                        </a>
+                      )}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             </div>
           </div>

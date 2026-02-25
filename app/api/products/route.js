@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { sendLowStockAlertEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -248,10 +249,10 @@ export async function PATCH(request) {
     return Response.json({ error: 'Product ID and adjustment required' }, { status: 400 });
   }
 
-  // Get current quantity
+  // Get current quantity and reorder info
   const { data: product } = await supabase
     .from('products')
-    .select('current_quantity')
+    .select('*')
     .eq('id', id)
     .eq('detailer_id', user.id)
     .single();
@@ -260,7 +261,8 @@ export async function PATCH(request) {
     return Response.json({ error: 'Product not found' }, { status: 404 });
   }
 
-  const newQuantity = Math.max(0, (product.current_quantity || 0) + parseFloat(adjustment));
+  const oldQuantity = product.current_quantity || 0;
+  const newQuantity = Math.max(0, oldQuantity + parseFloat(adjustment));
 
   const { data: updated, error } = await supabase
     .from('products')
@@ -275,6 +277,27 @@ export async function PATCH(request) {
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  // Send low stock email alert if product just crossed below reorder threshold
+  const threshold = product.reorder_threshold || 0;
+  if (threshold > 0 && newQuantity <= threshold && oldQuantity > threshold) {
+    try {
+      const { data: detailer } = await supabase
+        .from('detailers')
+        .select('id, name, email, company')
+        .eq('id', user.id)
+        .single();
+
+      if (detailer?.email) {
+        sendLowStockAlertEmail({
+          products: [{ ...updated, reorder_threshold: threshold }],
+          detailer,
+        }).catch(() => {});
+      }
+    } catch (e) {
+      // Never fail the main operation for email
+    }
   }
 
   return Response.json({ product: updated });
