@@ -86,22 +86,43 @@ export default function DashboardTour({ onComplete }) {
     }
   }, [step, findTarget]);
 
-  useEffect(() => {
-    if (!active) return;
-    // Delay to allow scroll
-    const timer = setTimeout(updatePosition, 300);
-    window.addEventListener('resize', updatePosition);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updatePosition);
-    };
-  }, [active, step, updatePosition]);
-
   const completeTour = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, 'true');
     setActive(false);
     onComplete?.();
   }, [onComplete]);
+
+  // Position update + safety: auto-skip steps with missing targets
+  useEffect(() => {
+    if (!active) return;
+    const timer = setTimeout(() => {
+      updatePosition();
+      // Safety: if no target found after render, skip this step or complete tour
+      const el = findTarget(step);
+      if (!el) {
+        if (step < TOUR_STEPS.length - 1) {
+          setStep(step + 1);
+        } else {
+          completeTour();
+        }
+      }
+    }, 300);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [active, step, updatePosition, findTarget, completeTour]);
+
+  // Escape key dismisses the tour
+  useEffect(() => {
+    if (!active) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') completeTour();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [active, completeTour]);
 
   const nextStep = () => {
     if (step < TOUR_STEPS.length - 1) {
@@ -148,11 +169,10 @@ export default function DashboardTour({ onComplete }) {
 
   return (
     <div className="fixed inset-0 z-[9999]" style={{ pointerEvents: 'none' }}>
-      {/* Overlay with cutout */}
+      {/* Overlay with cutout - pointer-events:none so clicks pass through to page */}
       <svg
         className="absolute inset-0 w-full h-full"
-        style={{ pointerEvents: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
+        style={{ pointerEvents: 'none' }}
       >
         <defs>
           <mask id="tour-mask">
@@ -172,7 +192,7 @@ export default function DashboardTour({ onComplete }) {
         <rect
           x="0" y="0"
           width="100%"
-          height={Math.max(document.documentElement.scrollHeight, window.innerHeight)}
+          height="200%"
           fill="rgba(0,0,0,0.6)"
           mask="url(#tour-mask)"
         />
