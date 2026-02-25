@@ -162,6 +162,7 @@
     "jobLocation": "Local do trabalho",
     "quoteSummary": "Resumo do orçamento",
     "estimatedProducts": "Produtos estimados",
+    "noProductsAssigned": "Nenhum produto atribuído a este serviço",
     "startNewQuote": "Novo orçamento",
     "sendToClient": "Enviar ao cliente",
     "enterAirport": "Insira um aeroporto para enviar",

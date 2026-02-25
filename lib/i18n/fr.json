@@ -162,6 +162,7 @@
     "jobLocation": "Lieu du travail",
     "quoteSummary": "Résumé du devis",
     "estimatedProducts": "Produits estimés",
+    "noProductsAssigned": "Aucun produit assigné à ce service",
     "startNewQuote": "Nouveau devis",
     "sendToClient": "Envoyer au client",
     "enterAirport": "Entrer un aéroport pour envoyer",
