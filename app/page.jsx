@@ -72,21 +72,21 @@ const TIERS = [
     key: 'pro',
     monthlyPrice: 79,
     annualPrice: 59,
-    featureKeys: ['proF1', 'proF2', 'proF3', 'proF4', 'proF5', 'proF6'],
+    featureKeys: ['proF1', 'proF2', 'proF3', 'proF4', 'proF5'],
     highlight: true,
   },
   {
     key: 'business',
     monthlyPrice: 149,
     annualPrice: 112,
-    featureKeys: ['businessF1', 'businessF2', 'businessF3', 'businessF4', 'businessF5', 'businessF6'],
+    featureKeys: ['businessF1', 'businessF2', 'businessF3', 'businessF4', 'businessF5'],
     highlight: false,
   },
   {
     key: 'enterprise',
     monthlyPrice: 299,
     annualPrice: 224,
-    featureKeys: ['enterpriseF1', 'enterpriseF2', 'enterpriseF3', 'enterpriseF4', 'enterpriseF5', 'enterpriseF6', 'enterpriseF7'],
+    featureKeys: ['enterpriseF1', 'enterpriseF2', 'enterpriseF3', 'enterpriseF4', 'enterpriseF5', 'enterpriseF6'],
     highlight: false,
   },
 ];
@@ -114,14 +114,19 @@ export default function LandingPage() {
   const router = useRouter();
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [openCategory, setOpenCategory] = useState(0);
+  const [lang, setLang] = useState('en');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     const user = localStorage.getItem('vector_user');
     if (token && user) {
       router.push('/dashboard');
+      return;
     }
+    setLang(detectBrowserLanguage());
   }, [router]);
+
+  const P = (key) => tp(lang, key);
 
   return (
     <div className="min-h-screen bg-[#0a0f1e]">
@@ -360,37 +365,63 @@ export default function LandingPage() {
       <section id="pricing" className="py-20 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto mb-8">Start free and upgrade as you grow. No hidden fees, no long-term contracts.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{P('pricingTitle')}</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto mb-6">{P('pricingSubtitle')}</p>
 
-            {/* Billing Toggle */}
-            <div className="inline-flex items-center gap-3 bg-white/[0.05] border border-white/10 rounded-full p-1.5">
-              <button
-                onClick={() => setBillingAnnual(false)}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  !billingAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBillingAnnual(true)}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  billingAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Annual
-                <span className="ml-1.5 text-xs font-bold text-green-500">-25%</span>
-              </button>
+            {/* Promo Code Callout */}
+            <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-full px-5 py-2 mb-8">
+              <span className="text-green-400 text-lg">{'\uD83C\uDF89'}</span>
+              <span className="text-green-400 text-sm font-semibold">{P('promoCode')}</span>
+            </div>
+
+            {/* Billing Toggle + Language Selector */}
+            <div className="flex justify-center items-center gap-4 flex-wrap">
+              <div className="inline-flex items-center gap-3 bg-white/[0.05] border border-white/10 rounded-full p-1.5">
+                <button
+                  onClick={() => setBillingAnnual(false)}
+                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                    !billingAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {P('monthly')}
+                </button>
+                <button
+                  onClick={() => setBillingAnnual(true)}
+                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+                    billingAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {P('annual')}
+                  <span className="text-xs font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">{P('save25')}</span>
+                </button>
+              </div>
+
+              {/* Language Selector */}
+              <div className="relative">
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value)}
+                  className="appearance-none bg-white/[0.05] border border-white/10 text-gray-300 text-sm rounded-full px-4 py-2 pr-8 cursor-pointer hover:bg-white/[0.08] transition-colors"
+                >
+                  {SUPPORTED_LANGUAGES.map(l => (
+                    <option key={l.code} value={l.code} className="bg-gray-900 text-white">{l.label}</option>
+                  ))}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">{'\uD83C\uDF10'}</span>
+              </div>
             </div>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
             {TIERS.map((tier) => {
               const price = billingAnnual ? tier.annualPrice : tier.monthlyPrice;
               const showSavings = billingAnnual && tier.monthlyPrice > 0;
+              const tierName = P(`${tier.key}Name`);
+              const tierDesc = P(`${tier.key}Desc`);
+              const tierCta = P(`${tier.key}Cta`);
               return (
               <div
-                key={tier.name}
+                key={tier.key}
                 className={`rounded-2xl p-5 sm:p-6 flex flex-col ${
                   tier.highlight
                     ? 'bg-gradient-to-b from-amber-500/10 to-amber-600/5 border-2 border-amber-500 relative'
@@ -399,29 +430,29 @@ export default function LandingPage() {
               >
                 {tier.highlight && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
-                    MOST POPULAR
+                    {P('mostPopular')}
                   </div>
                 )}
-                <h3 className="text-xl font-bold text-white">{tier.name}</h3>
-                <p className="text-gray-400 text-sm mt-1 mb-5">{tier.desc}</p>
+                <h3 className="text-xl font-bold text-white">{tierName}</h3>
+                <p className="text-gray-400 text-sm mt-1 mb-5">{tierDesc}</p>
                 <div className="mb-6">
                   <span className="text-4xl font-bold text-white">{price === 0 ? '$0' : `$${price}`}</span>
-                  <span className="text-gray-400 text-sm">/mo</span>
+                  <span className="text-gray-400 text-sm">{P('perMonth')}</span>
                   {showSavings && (
                     <div className="mt-1">
-                      <span className="text-gray-500 text-sm line-through">${tier.monthlyPrice}/mo</span>
-                      <span className="ml-2 text-green-400 text-xs font-semibold">Save ${(tier.monthlyPrice - tier.annualPrice) * 12}/yr</span>
+                      <span className="text-gray-500 text-sm line-through">${tier.monthlyPrice}{P('perMonth')}</span>
+                      <span className="ml-2 text-green-400 text-xs font-semibold">{P('savePerYear').replace('${amount}', String((tier.monthlyPrice - tier.annualPrice) * 12))}</span>
                     </div>
                   )}
                   {billingAnnual && price > 0 && (
-                    <p className="text-gray-500 text-xs mt-1">Billed ${price * 12}/year</p>
+                    <p className="text-gray-500 text-xs mt-1">{P('billedYearly').replace('${amount}', String(price * 12))}</p>
                   )}
                 </div>
                 <ul className="space-y-2.5 mb-6 flex-1">
-                  {tier.features.map((f, i) => (
+                  {tier.featureKeys.map((fk, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm">
                       <span className="text-amber-400 mt-0.5 flex-shrink-0">{'\u2713'}</span>
-                      <span className="text-gray-300">{f}</span>
+                      <span className="text-gray-300">{P(fk)}</span>
                     </li>
                   ))}
                 </ul>
@@ -433,14 +464,14 @@ export default function LandingPage() {
                       : 'border border-white/20 text-white hover:bg-white/5'
                   }`}
                 >
-                  {tier.cta}
+                  {tierCta}
                 </a>
               </div>
               );
             })}
           </div>
           <p className="text-center text-gray-500 mt-8 text-sm">
-            All plans include Stripe payment processing. Platform fee covers payment processing, hosting, and support.
+            {P('platformFeeNote')}
           </p>
         </div>
       </section>
