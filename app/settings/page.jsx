@@ -49,6 +49,8 @@ function SettingsContent() {
   const [currency, setCurrency] = useState('USD');
   const [currencies, setCurrencies] = useState([]);
   const [currencyLoading, setCurrencyLoading] = useState(false);
+  const [language, setLanguage] = useState('en');
+  const [languages, setLanguages] = useState([]);
   const [minimumFee, setMinimumFee] = useState(0);
   const [minimumFeeLocations, setMinimumFeeLocations] = useState([]);
   const [newLocation, setNewLocation] = useState('');
@@ -302,6 +304,7 @@ function SettingsContent() {
     checkStripeStatus();
     fetchStripeMode();
     fetchCurrency();
+    fetchLanguage();
     fetchMinimumFee();
     fetchAddonFees();
     fetchPassFee();
@@ -403,6 +406,44 @@ function SettingsContent() {
       console.error('Failed to save currency:', err);
     } finally {
       setCurrencyLoading(false);
+    }
+  };
+
+  const fetchLanguage = async () => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/user/language', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLanguage(data.language || 'en');
+        setLanguages(data.languages || []);
+      }
+    } catch (err) {
+      console.log('Failed to fetch language:', err);
+    }
+  };
+
+  const saveLanguage = async (code) => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      await fetch('/api/user/language', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ language: code }),
+      });
+      const stored = localStorage.getItem('vector_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        u.language = code;
+        localStorage.setItem('vector_user', JSON.stringify(u));
+      }
+    } catch (err) {
+      console.error('Failed to save language:', err);
     }
   };
 
@@ -662,6 +703,7 @@ function SettingsContent() {
       if (pendingChanges.has('efficiencyFactor')) promises.push(saveEfficiencyFactor(efficiencyFactor));
       if (pendingChanges.has('minimumFee')) promises.push(saveMinimumFee(parseFloat(minimumFee) || 0, minimumFeeLocations));
       if (pendingChanges.has('currency')) promises.push(saveCurrency(currency));
+      if (pendingChanges.has('language')) promises.push(saveLanguage(language));
       if (pendingChanges.has('homeAirport')) promises.push(saveHomeAirport(homeAirport.toUpperCase().trim()));
       if (pendingChanges.has('passFee')) promises.push(savePassFee(passFeeToCustomer));
       if (pendingChanges.has('quoteDisplay')) promises.push(saveQuoteDisplayPref(quoteDisplayPref));
@@ -1119,31 +1161,57 @@ function SettingsContent() {
           </div>
         </div>
 
-        {/* Currency */}
+        {/* Localization */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Currency</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            Select your preferred currency for quotes and payments.
+          <h3 className="font-semibold mb-2">Localization</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Set your preferred language and currency for your account.
           </p>
-          <select
-            value={currency}
-            onChange={(e) => { setCurrency(e.target.value); markDirty('currency'); }}
-            disabled={currencyLoading}
-            className="w-full md:w-auto border rounded px-3 py-2 disabled:opacity-50"
-          >
-            {currencies.length > 0 ? (
-              currencies.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.symbol} {c.code} - {c.name}
-                </option>
-              ))
-            ) : (
-              <option value="USD">$ USD - US Dollar</option>
-            )}
-          </select>
-          <p className="text-xs text-gray-400 mt-2">
-            All prices will be displayed in this currency. Stripe handles conversion for international payments.
-          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+              <select
+                value={language}
+                onChange={(e) => { setLanguage(e.target.value); markDirty('language'); }}
+                className="w-full border rounded px-3 py-2"
+              >
+                {languages.length > 0 ? (
+                  languages.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.native} ({l.name})
+                    </option>
+                  ))
+                ) : (
+                  <option value="en">English (English)</option>
+                )}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Sets your preferred language for customer-facing documents.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+              <select
+                value={currency}
+                onChange={(e) => { setCurrency(e.target.value); markDirty('currency'); }}
+                disabled={currencyLoading}
+                className="w-full border rounded px-3 py-2 disabled:opacity-50"
+              >
+                {currencies.length > 0 ? (
+                  currencies.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.symbol} {c.code} - {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="USD">$ USD - US Dollar</option>
+                )}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                All prices displayed in this currency. Stripe handles conversion.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Efficiency Factor */}
