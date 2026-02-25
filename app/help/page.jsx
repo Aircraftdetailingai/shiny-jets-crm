@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { restartTour } from '@/components/DashboardTour';
 
 const FAQ_ITEMS = [
   {
@@ -199,7 +200,16 @@ export default function HelpPage() {
         {/* Getting Started Tab */}
         {activeTab === 'guides' && (
           <div>
-            <p className="text-gray-400 text-sm mb-4">Follow these guides to set up Vector and start sending professional quotes.</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-gray-400 text-sm">Follow these guides to set up Vector and start sending professional quotes.</p>
+              <button
+                onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors whitespace-nowrap ml-4"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Restart Tour
+              </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {GUIDES.map((guide, i) => (
                 <a

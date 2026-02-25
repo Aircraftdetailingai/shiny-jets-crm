@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { DEFAULT_PRODUCT_RATIOS, SERVICE_TYPE_LABELS } from '../../lib/product-calculator';
 import { setUserCurrency } from '@/lib/currency';
 import { currencySymbol } from '@/lib/formatPrice';
+import { restartTour } from '@/components/DashboardTour';
 
 const DEFAULT_ADDON_FEES = [
   { name: 'Hazmat Fee', description: 'Hazardous material handling surcharge', fee_type: 'flat', amount: 250 },
@@ -1369,6 +1370,15 @@ function SettingsContent() {
           <h3 className="font-semibold mb-2">Account</h3>
           <p className="mb-2">Email: {user?.email}</p>
           <a href="#" className="text-blue-600 underline mb-2 inline-block">Change Password</a>
+          <div className="mt-3 pt-3 border-t">
+            <button
+              onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
+              className="text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              Restart Dashboard Tour
+            </button>
+          </div>
           <div className="mt-2">
             <label className="block mb-1">Price Review Reminder</label>
             <select
