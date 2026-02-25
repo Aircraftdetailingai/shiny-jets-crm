@@ -8,7 +8,7 @@ import NotificationBell from '../../components/NotificationBell.jsx';
 import GlobalSearch from '../../components/GlobalSearch.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
 import { useToast } from '../../components/Toast.jsx';
-import { formatPrice, formatPriceWhole } from '../../lib/formatPrice';
+import { formatPrice, formatPriceWhole, currencySymbol } from '../../lib/formatPrice';
 import { calculateProductEstimates } from '../../lib/product-calculator';
 
 const categoryLabels = {
@@ -152,6 +152,106 @@ function LowStockAlert() {
 }
 
 // Quick Stats Bar Component (inline, fast loading)
+function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
+  const [extending, setExtending] = useState(null);
+
+  if (expiring.length === 0 && expired.length === 0) return null;
+
+  const handleExtend = async (quoteId, days = 7) => {
+    setExtending(quoteId);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/quotes/${quoteId}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ days }),
+      });
+      if (res.ok) {
+        // Remove from the list by reloading
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Extend failed:', err);
+    } finally {
+      setExtending(null);
+    }
+  };
+
+  const formatExpiry = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const diff = Math.ceil((d - new Date()) / (1000 * 60 * 60));
+    if (diff > 0 && diff < 24) return `${diff}h left`;
+    if (diff <= 0) {
+      const daysAgo = Math.abs(Math.floor(diff / 24));
+      return daysAgo === 0 ? 'Today' : `${daysAgo}d ago`;
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Expiring Soon */}
+      {expiring.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 className="font-semibold text-sm text-amber-900 mb-2 flex items-center gap-2">
+            <span>&#9200;</span> Expiring Soon ({expiring.length})
+          </h3>
+          <div className="space-y-2">
+            {expiring.map((q) => (
+              <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{q.client_name || 'Customer'}</p>
+                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; ${(q.total_price || 0).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-600 font-medium">{formatExpiry(q.valid_until)}</span>
+                  <button
+                    onClick={() => handleExtend(q.id)}
+                    disabled={extending === q.id}
+                    className="px-2.5 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 font-medium"
+                  >
+                    {extending === q.id ? '...' : '+7 Days'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recently Expired */}
+      {expired.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="font-semibold text-sm text-red-900 mb-2 flex items-center gap-2">
+            <span>&#128683;</span> Recently Expired ({expired.length})
+          </h3>
+          <div className="space-y-2">
+            {expired.slice(0, 5).map((q) => (
+              <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{q.client_name || 'Customer'}</p>
+                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; ${(q.total_price || 0).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-500">{formatExpiry(q.valid_until)}</span>
+                  <button
+                    onClick={() => handleExtend(q.id)}
+                    disabled={extending === q.id}
+                    className="px-2.5 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 font-medium"
+                  >
+                    {extending === q.id ? '...' : 'Reactivate'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuickStats({ stats, onNewQuote }) {
   if (!stats) return null;
 
@@ -278,6 +378,9 @@ function QuickStats({ stats, onNewQuote }) {
           </div>
         </div>
       )}
+
+      {/* Expiring & Expired Quotes Widget */}
+      <ExpiringQuotesWidget expiring={stats.expiringQuotes} expired={stats.recentlyExpired} />
     </div>
   );
 }

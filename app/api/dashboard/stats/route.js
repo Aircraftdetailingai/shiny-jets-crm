@@ -54,8 +54,11 @@ export async function GET(request) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
 
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const nowISO = now.toISOString();
+
     // Fetch all data in parallel for speed
-    const [weekQuotesRes, weekPointsRes, monthQuotesRes, allQuotesRes, pendingRes, todayJobsRes, recentActivityRes, feedbackRes] = await Promise.all([
+    const [weekQuotesRes, weekPointsRes, monthQuotesRes, allQuotesRes, pendingRes, todayJobsRes, recentActivityRes, feedbackRes, expiringRes, expiredRes] = await Promise.all([
       // This week's quotes
       supabase
         .from('quotes')
@@ -112,6 +115,25 @@ export async function GET(request) {
         .from('feedback')
         .select('rating')
         .eq('detailer_id', user.id),
+
+      // Quotes expiring within 24h
+      supabase
+        .from('quotes')
+        .select('id, client_name, aircraft_model, aircraft_type, total_price, valid_until, status, share_link')
+        .eq('detailer_id', user.id)
+        .gte('valid_until', nowISO)
+        .lte('valid_until', in24h)
+        .in('status', ['sent', 'viewed']),
+
+      // Recently expired quotes (last 7 days)
+      supabase
+        .from('quotes')
+        .select('id, client_name, aircraft_model, aircraft_type, total_price, valid_until, status, share_link')
+        .eq('detailer_id', user.id)
+        .eq('status', 'expired')
+        .gte('valid_until', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('valid_until', { ascending: false })
+        .limit(10),
     ]);
 
     const weekQuotes = weekQuotesRes.data || [];
@@ -122,6 +144,8 @@ export async function GET(request) {
     const todayJobs = todayJobsRes.data || [];
     const recentQuotesRaw = recentActivityRes.data || [];
     const feedbackData = feedbackRes.data || [];
+    const expiringQuotes = expiringRes.data || [];
+    const recentlyExpired = expiredRes.data || [];
 
     // Calculate stats
     const weekPaidQuotes = weekQuotes.filter(q => q.status === 'paid' || q.status === 'completed');
@@ -221,6 +245,12 @@ export async function GET(request) {
       },
       tipsEnabled: detailer?.tips_enabled,
       todaysTip: detailer?.tips_enabled ? todaysTip : null,
+
+      // Expiration data
+      expiringQuotes,
+      recentlyExpired,
+      expiringCount: expiringQuotes.length,
+      recentlyExpiredCount: recentlyExpired.length,
     });
 
   } catch (err) {
