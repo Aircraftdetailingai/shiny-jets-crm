@@ -62,8 +62,9 @@ export default function WeatherWidget() {
   }
 
   if (error || !data) return null;
+  if (!data.current || !data.forecast) return null;
 
-  const { airport, current, forecast, warnings } = data;
+  const { airport, current, forecast, warnings = [] } = data;
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">

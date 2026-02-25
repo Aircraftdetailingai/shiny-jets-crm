@@ -107,63 +107,65 @@ function getWeatherInfo(code) {
 }
 
 export async function GET(request) {
-  const user = await getAuthUser(request);
-  if (!user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const url = new URL(request.url);
-  let airport = url.searchParams.get('airport');
+    const url = new URL(request.url);
+    let airport = url.searchParams.get('airport');
 
-  // If no airport provided, fetch from user's profile
-  if (!airport) {
+    // If no airport provided, fetch from user's profile
+    if (!airport) {
+      const supabase = getSupabase();
+      const { data: detailer } = await supabase
+        .from('detailers')
+        .select('home_airport')
+        .eq('id', user.id)
+        .single();
+      airport = detailer?.home_airport;
+    }
+
+    if (!airport) {
+      return Response.json({ error: 'No airport configured', needsSetup: true }, { status: 400 });
+    }
+
+    const code = airport.toUpperCase().trim();
+    const coords = AIRPORT_COORDS[code];
+    if (!coords) {
+      return Response.json({ error: `Unknown airport code: ${code}. Use ICAO or IATA code.` }, { status: 400 });
+    }
+
+    // Also fetch scheduled jobs for weather warnings
     const supabase = getSupabase();
-    const { data: detailer } = await supabase
-      .from('detailers')
-      .select('home_airport')
-      .eq('id', user.id)
-      .single();
-    airport = detailer?.home_airport;
-  }
+    const now = new Date();
+    const sevenDays = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
+    const today = now.toISOString().split('T')[0];
 
-  if (!airport) {
-    return Response.json({ error: 'No airport configured', needsSetup: true }, { status: 400 });
-  }
+    const [weatherRes, jobsRes] = await Promise.all([
+      // Fetch 7-day forecast from Open-Meteo (5s timeout)
+      fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}` +
+        `&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max` +
+        `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=7`,
+        { signal: AbortSignal.timeout(5000) }
+      ),
+      // Fetch upcoming scheduled jobs
+      supabase
+        .from('quotes')
+        .select('id, client_name, aircraft_model, scheduled_date, total_price')
+        .eq('detailer_id', user.id)
+        .gte('scheduled_date', today)
+        .lte('scheduled_date', sevenDays)
+        .in('status', ['paid', 'scheduled', 'in_progress'])
+        .order('scheduled_date', { ascending: true }),
+    ]);
 
-  const code = airport.toUpperCase().trim();
-  const coords = AIRPORT_COORDS[code];
-  if (!coords) {
-    return Response.json({ error: `Unknown airport code: ${code}. Use ICAO or IATA code.` }, { status: 400 });
-  }
-
-  // Also fetch scheduled jobs for weather warnings
-  const supabase = getSupabase();
-  const now = new Date();
-  const sevenDays = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0];
-  const today = now.toISOString().split('T')[0];
-
-  const [weatherRes, jobsRes] = await Promise.all([
-    // Fetch 7-day forecast from Open-Meteo
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}` +
-      `&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m` +
-      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max` +
-      `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=7`
-    ),
-    // Fetch upcoming scheduled jobs
-    supabase
-      .from('quotes')
-      .select('id, client_name, aircraft_model, scheduled_date, total_price')
-      .eq('detailer_id', user.id)
-      .gte('scheduled_date', today)
-      .lte('scheduled_date', sevenDays)
-      .in('status', ['paid', 'scheduled', 'in_progress'])
-      .order('scheduled_date', { ascending: true }),
-  ]);
-
-  if (!weatherRes.ok) {
-    return Response.json({ error: 'Failed to fetch weather data' }, { status: 502 });
-  }
+    if (!weatherRes.ok) {
+      return Response.json({ error: 'Failed to fetch weather data' }, { status: 502 });
+    }
 
   const weather = await weatherRes.json();
   const jobs = jobsRes.data || [];
@@ -222,4 +224,8 @@ export async function GET(request) {
     warnings,
     scheduledJobs: jobs.length,
   });
+  } catch (err) {
+    console.error('Weather API error:', err.message);
+    return Response.json({ error: 'Weather temporarily unavailable' }, { status: 502 });
+  }
 }
