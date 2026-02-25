@@ -35,6 +35,13 @@ export default function CrewDashboard() {
   const [equipment, setEquipment] = useState([]);
   const [issueForm, setIssueForm] = useState({ equipment_id: '', issue: '' });
 
+  // Job materials state (products & equipment needed for selected job)
+  const [jobMaterials, setJobMaterials] = useState(null);
+  const [jobMaterialsLoading, setJobMaterialsLoading] = useState(false);
+  const [checkedProducts, setCheckedProducts] = useState({});
+  const [checkedEquipment, setCheckedEquipment] = useState({});
+  const [missingReport, setMissingReport] = useState({ type: '', item_id: '', item_name: '', notes: '' });
+
   // Messages
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('success');
@@ -97,6 +104,24 @@ export default function CrewDashboard() {
     if (data.equipment) setEquipment(data.equipment);
   }, [token, user]);
 
+  // Fetch job materials (products & equipment needed for a specific job)
+  const fetchJobMaterials = useCallback(async (jobId) => {
+    if (!token || (!user?.can_see_inventory && !user?.can_see_equipment)) return;
+    setJobMaterialsLoading(true);
+    try {
+      const data = await API(`/api/crew/jobs/${jobId}/materials`, token);
+      setJobMaterials(data);
+      // Initialize checked state from existing product_usage
+      const checked = {};
+      (data.product_usage || []).forEach(u => { checked[u.product_id] = true; });
+      setCheckedProducts(checked);
+      setCheckedEquipment({});
+    } catch {
+      setJobMaterials(null);
+    }
+    setJobMaterialsLoading(false);
+  }, [token, user]);
+
   // Initial load
   useEffect(() => {
     if (!token) return;
@@ -110,10 +135,17 @@ export default function CrewDashboard() {
     if (tab === 'equipment') fetchEquipment();
   }, [tab, fetchProducts, fetchEquipment]);
 
-  // Load photos when job selected
+  // Load photos and materials when job selected
   useEffect(() => {
-    if (selectedJob) fetchPhotos();
-  }, [selectedJob, fetchPhotos]);
+    if (selectedJob) {
+      fetchPhotos();
+      fetchJobMaterials(selectedJob.id);
+    } else {
+      setJobMaterials(null);
+      setCheckedProducts({});
+      setCheckedEquipment({});
+    }
+  }, [selectedJob, fetchPhotos, fetchJobMaterials]);
 
   // Clock elapsed timer
   useEffect(() => {
@@ -212,6 +244,45 @@ export default function CrewDashboard() {
       showMsg(t('crew.usageLogged'));
       setUsageForm({ product_id: '', amount_used: '', notes: '' });
       fetchProducts();
+    } else {
+      showMsg(data.error || 'Failed', 'error');
+    }
+  };
+
+  // Toggle product checked (log usage when checking, no undo)
+  const handleToggleProduct = async (product) => {
+    if (checkedProducts[product.id]) return; // already checked
+    setCheckedProducts(prev => ({ ...prev, [product.id]: true }));
+    // Log minimal usage to mark it as used
+    await API('/api/crew/products', token, {
+      method: 'POST',
+      body: JSON.stringify({
+        quote_id: selectedJob.id,
+        product_id: product.id,
+        amount_used: product.quantity_needed || 1,
+        notes: 'Auto-logged from job checklist',
+      }),
+    });
+  };
+
+  // Toggle equipment checked (local only, no DB tracking needed)
+  const handleToggleEquipment = (equipId) => {
+    setCheckedEquipment(prev => ({ ...prev, [equipId]: !prev[equipId] }));
+  };
+
+  // Report missing item
+  const handleReportMissing = async () => {
+    if (!missingReport.item_name || !missingReport.type || !selectedJob) {
+      showMsg('Select an item type and describe what is missing', 'error');
+      return;
+    }
+    const data = await API(`/api/crew/jobs/${selectedJob.id}/materials`, token, {
+      method: 'POST',
+      body: JSON.stringify(missingReport),
+    });
+    if (data.success) {
+      showMsg(t('crew.missingReported'));
+      setMissingReport({ type: '', item_id: '', item_name: '', notes: '' });
     } else {
       showMsg(data.error || 'Failed', 'error');
     }
@@ -407,6 +478,83 @@ export default function CrewDashboard() {
                 </div>
               )}
 
+              {/* Products Needed */}
+              {user.can_see_inventory && jobMaterials?.products?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-white/50 text-xs uppercase tracking-wide mb-2">{t('crew.productsNeeded')}</p>
+                  <div className="space-y-1">
+                    {jobMaterials.products.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleToggleProduct(p)}
+                        className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+                          checkedProducts[p.id] ? 'bg-green-500/20' : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          checkedProducts[p.id] ? 'bg-green-500 border-green-500' : 'border-white/30'
+                        }`}>
+                          {checkedProducts[p.id] && <span className="text-white text-xs">✓</span>}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${checkedProducts[p.id] ? 'text-white/50 line-through' : 'text-white'}`}>
+                            {p.name}
+                          </p>
+                          <p className="text-white/40 text-xs">
+                            {p.quantity_needed > 0 && `${p.quantity_needed.toFixed(1)} ${p.unit}`}
+                            {p.for_services?.length > 0 && ` · ${p.for_services.join(', ')}`}
+                          </p>
+                        </div>
+                        {p.low_stock && (
+                          <span className="text-red-400 text-xs font-medium px-2 py-0.5 bg-red-400/10 rounded">{t('crew.lowStockBadge')}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Equipment Needed */}
+              {user.can_see_equipment && jobMaterials?.equipment?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-white/50 text-xs uppercase tracking-wide mb-2">{t('crew.equipmentNeeded')}</p>
+                  <div className="space-y-1">
+                    {jobMaterials.equipment.map(e => (
+                      <button
+                        key={e.id}
+                        onClick={() => handleToggleEquipment(e.id)}
+                        className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+                          checkedEquipment[e.id] ? 'bg-green-500/20' : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          checkedEquipment[e.id] ? 'bg-green-500 border-green-500' : 'border-white/30'
+                        }`}>
+                          {checkedEquipment[e.id] && <span className="text-white text-xs">✓</span>}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${checkedEquipment[e.id] ? 'text-white/50 line-through' : 'text-white'}`}>
+                            {e.name}
+                          </p>
+                          <p className="text-white/40 text-xs">
+                            {[e.brand, e.model].filter(Boolean).join(' ')}
+                            {e.for_services?.length > 0 && ` · ${e.for_services.join(', ')}`}
+                          </p>
+                        </div>
+                        {e.status === 'needs_repair' && (
+                          <span className="text-red-400 text-xs font-medium px-2 py-0.5 bg-red-400/10 rounded">{t('crew.needsRepair')}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Materials loading indicator */}
+              {jobMaterialsLoading && (user.can_see_inventory || user.can_see_equipment) && (
+                <p className="text-white/40 text-xs mb-3">{t('common.loading')}</p>
+              )}
+
               {/* Action buttons */}
               <div className="flex gap-2 mt-4">
                 {['paid', 'accepted', 'scheduled', 'in_progress'].includes(selectedJob.status) && (
@@ -494,6 +642,73 @@ export default function CrewDashboard() {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Report Missing Item */}
+            {(user.can_see_inventory || user.can_see_equipment) && (
+              <div className="bg-white/10 backdrop-blur rounded-xl p-4">
+                <h3 className="text-white font-semibold mb-3">{t('crew.reportMissing')}</h3>
+                <div className="space-y-2">
+                  <select
+                    value={missingReport.type}
+                    onChange={e => setMissingReport(f => ({ ...f, type: e.target.value, item_id: '', item_name: '' }))}
+                    className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
+                  >
+                    <option value="" className="text-gray-900">{t('crew.selectType')}</option>
+                    {user.can_see_inventory && <option value="product" className="text-gray-900">{t('nav.products')}</option>}
+                    {user.can_see_equipment && <option value="equipment" className="text-gray-900">{t('nav.equipment')}</option>}
+                  </select>
+                  {missingReport.type === 'product' && jobMaterials?.products?.length > 0 && (
+                    <select
+                      value={missingReport.item_id}
+                      onChange={e => {
+                        const p = jobMaterials.products.find(x => x.id === e.target.value);
+                        setMissingReport(f => ({ ...f, item_id: e.target.value, item_name: p?.name || '' }));
+                      }}
+                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
+                    >
+                      <option value="" className="text-gray-900">{t('crew.selectProduct')}</option>
+                      {jobMaterials.products.map(p => (
+                        <option key={p.id} value={p.id} className="text-gray-900">{p.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {missingReport.type === 'equipment' && jobMaterials?.equipment?.length > 0 && (
+                    <select
+                      value={missingReport.item_id}
+                      onChange={e => {
+                        const eq = jobMaterials.equipment.find(x => x.id === e.target.value);
+                        setMissingReport(f => ({ ...f, item_id: e.target.value, item_name: eq?.name || '' }));
+                      }}
+                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
+                    >
+                      <option value="" className="text-gray-900">{t('crew.selectEquipment')}</option>
+                      {jobMaterials.equipment.map(e => (
+                        <option key={e.id} value={e.id} className="text-gray-900">{e.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <input
+                    type="text"
+                    placeholder={t('crew.missingItemName')}
+                    value={missingReport.item_name}
+                    onChange={e => setMissingReport(f => ({ ...f, item_name: e.target.value }))}
+                    className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40"
+                  />
+                  <textarea
+                    placeholder={t('crew.missingNotes')}
+                    value={missingReport.notes}
+                    onChange={e => setMissingReport(f => ({ ...f, notes: e.target.value }))}
+                    className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40 min-h-[60px]"
+                  />
+                  <button
+                    onClick={handleReportMissing}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {t('crew.reportMissing')}
+                  </button>
+                </div>
               </div>
             )}
           </div>

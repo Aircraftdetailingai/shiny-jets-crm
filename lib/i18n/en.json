@@ -164,6 +164,7 @@
     "jobLocation": "Job Location",
     "quoteSummary": "Quote Summary",
     "estimatedProducts": "Estimated Products",
+    "noProductsAssigned": "No products assigned to this service",
     "startNewQuote": "Start New Quote",
     "sendToClient": "Send to Client",
     "enterAirport": "Enter Airport to Send",
@@ -692,7 +693,15 @@
     "since": "Since",
     "left": "left",
     "lowStockBadge": "Low stock",
-    "needsMaintenance": "Maintenance due"
+    "needsMaintenance": "Maintenance due",
+    "productsNeeded": "Products Needed",
+    "equipmentNeeded": "Equipment Needed",
+    "needsRepair": "Needs repair",
+    "reportMissing": "Report Missing Item",
+    "selectType": "Select type...",
+    "missingItemName": "Item name",
+    "missingNotes": "Additional notes (optional)...",
+    "missingReported": "Missing item reported!"
   },
   "notifications": {
     "title": "Notifications",
