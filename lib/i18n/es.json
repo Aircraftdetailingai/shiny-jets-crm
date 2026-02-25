@@ -162,6 +162,7 @@
     "jobLocation": "Ubicacion del trabajo",
     "quoteSummary": "Resumen de cotizacion",
     "estimatedProducts": "Productos estimados",
+    "noProductsAssigned": "No hay productos asignados a este servicio",
     "startNewQuote": "Nueva cotizacion",
     "sendToClient": "Enviar al cliente",
     "enterAirport": "Ingresa un aeropuerto para enviar",
