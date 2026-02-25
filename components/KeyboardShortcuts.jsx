@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 const SHORTCUTS = [
   { keys: ['⌘/Ctrl', 'N'], description: 'New Quote', scope: 'Global' },
   { keys: ['⌘/Ctrl', 'K'], description: 'Search', scope: 'Global' },
+  { keys: ['⌘/Ctrl', '⇧', 'A'], description: 'Quick Actions', scope: 'Global' },
   { keys: ['⌘/Ctrl', 'S'], description: 'Save form', scope: 'Forms' },
   { keys: ['Esc'], description: 'Close modal', scope: 'Global' },
   { keys: ['?'], description: 'Show shortcuts', scope: 'Global' },

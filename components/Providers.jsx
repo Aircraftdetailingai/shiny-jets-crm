@@ -4,6 +4,7 @@ import ErrorBoundary from './ErrorBoundary';
 import OfflineBanner from './OfflineBanner';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import GlobalSearch from './GlobalSearch';
+import QuickActionsMenu from './QuickActionsMenu';
 
 export default function Providers({ children }) {
   return (
@@ -13,6 +14,7 @@ export default function Providers({ children }) {
         {children}
         <KeyboardShortcuts />
         <GlobalSearch />
+        <QuickActionsMenu />
       </ToastProvider>
     </ErrorBoundary>
   );
