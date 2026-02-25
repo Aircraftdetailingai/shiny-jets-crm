@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  devIndicators: false,
+  devIndicators: { buildActivity: false },
   experimental: {
     serverComponentsExternalPackages: ['bcryptjs', 'jose', 'nanoid']
   }
