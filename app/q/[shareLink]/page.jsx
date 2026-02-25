@@ -248,6 +248,18 @@ export default function QuoteViewPage() {
             </div>
           </div>
 
+          {/* Download Quote PDF */}
+          <div className="text-center mb-4">
+            <a
+              href={`/api/quotes/${quote.id}/pdf?token=${params.shareLink}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block px-6 py-2 border-2 border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              &#128196; Download Quote PDF
+            </a>
+          </div>
+
           {!tipsSent ? (
             <div className="text-center">
               <p className="text-gray-700 mb-4">Would you like tips to prepare for your detail?</p>
@@ -425,6 +437,18 @@ export default function QuoteViewPage() {
             )}
           </div>
         )}
+
+        {/* Download Quote PDF */}
+        <div className="text-center mb-4">
+          <a
+            href={`/api/quotes/${quote.id}/pdf?token=${params.shareLink}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block px-6 py-2 border-2 border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            &#128196; Download Quote PDF
+          </a>
+        </div>
 
         {/* Pay Button or Payment Unavailable */}
         {stripeConnected ? (

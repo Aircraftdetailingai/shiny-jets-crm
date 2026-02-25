@@ -295,6 +295,20 @@ export default function PortalPage() {
               )}
             </div>
 
+            {/* Download Quote PDF */}
+            {quote && (
+              <a
+                href={`/api/quotes/${quote.id}/pdf?token=${token}`}
+                target="_blank"
+                rel="noreferrer"
+                className="block bg-white border-2 border-gray-200 text-gray-700 rounded-xl p-4 text-center hover:bg-gray-50 transition-colors"
+              >
+                <div className="text-2xl mb-1">&#128196;</div>
+                <p className="font-semibold text-sm">Download Quote PDF</p>
+                <p className="text-xs text-gray-500">Print / Save as PDF</p>
+              </a>
+            )}
+
             {/* Actions */}
             <div className="grid grid-cols-2 gap-3">
               {/* Rebook */}

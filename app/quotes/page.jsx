@@ -687,6 +687,15 @@ export default function QuotesPage() {
                 </button>
               </>
             )}
+            <a
+              href={`/api/quotes/${quote.id}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-gray-600 hover:text-gray-900 text-xs font-medium"
+            >
+              PDF
+            </a>
             <button
               onClick={(e) => {
                 e.stopPropagation();
