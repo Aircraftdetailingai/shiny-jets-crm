@@ -374,25 +374,25 @@ function QuickStats({ stats, onNewQuote }) {
       <div className="flex gap-2 flex-wrap">
         <button
           onClick={onNewQuote}
-          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 shadow"
+          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 shadow min-h-[44px]"
         >
           <span>+</span> New Quote
         </button>
         <a
           href="/customers"
-          className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]"
         >
           <span>&#128100;</span> Add Customer
         </a>
         <a
           href="/calendar"
-          className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]"
         >
           <span>&#128197;</span> View Calendar
         </a>
         <a
           href="/quotes"
-          className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]"
         >
           <span>&#128196;</span> All Quotes
         </a>
@@ -981,7 +981,7 @@ function DashboardContent() {
     <div className="min-h-screen overflow-y-auto bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4 pb-24 text-gray-900">
       <DashboardTour />
       {/* Header */}
-      <header className="flex justify-between items-center mb-4 text-white">
+      <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-1 bg-gradient-to-b from-[#0f172a] via-[#0f172a] to-transparent flex justify-between items-center text-white">
         <div className="flex items-center space-x-2 text-xl sm:text-2xl font-bold">
           <span>&#9992;</span>
           <span>Vector</span>
@@ -1425,7 +1425,7 @@ function DashboardContent() {
 
         {/* Right column - Quote summary */}
         <div className="w-full lg:w-80">
-          <div className="sticky top-4 bg-[#0f172a] text-white rounded-lg p-4 shadow-lg">
+          <div className="lg:sticky lg:top-16 bg-[#0f172a] text-white rounded-lg p-4 shadow-lg">
             <h3 className="text-lg font-semibold mb-3">Quote Summary</h3>
             {selectedAircraft ? (
               <>
@@ -1659,19 +1659,19 @@ function DashboardContent() {
 
         {/* Quick Links */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <a href="/products" className="flex flex-col items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white">
+          <a href="/products" className="flex flex-col items-center p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white min-h-[60px]">
             <span className="text-2xl mb-1">&#128230;</span>
             <span className="text-sm font-medium">Inventory</span>
           </a>
-          <a href="/equipment" className="flex flex-col items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white">
+          <a href="/equipment" className="flex flex-col items-center p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white min-h-[60px]">
             <span className="text-2xl mb-1">&#128295;</span>
             <span className="text-sm font-medium">Equipment</span>
           </a>
-          <a href="/growth" className="flex flex-col items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white">
+          <a href="/growth" className="flex flex-col items-center p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white min-h-[60px]">
             <span className="text-2xl mb-1">&#128200;</span>
             <span className="text-sm font-medium">Growth</span>
           </a>
-          <a href="/settings/services" className="flex flex-col items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white">
+          <a href="/settings/services" className="flex flex-col items-center p-4 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-white min-h-[60px]">
             <span className="text-2xl mb-1">&#9881;</span>
             <span className="text-sm font-medium">Services</span>
           </a>
