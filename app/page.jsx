@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { tp, SUPPORTED_LANGUAGES, detectBrowserLanguage } from '@/lib/translations';
+import LandingLanguageSelector from '@/components/LandingLanguageSelector';
+import { getTranslation } from '@/lib/landing-translations';
 
 const FEATURE_CATEGORIES = [
   {
@@ -122,10 +125,17 @@ export default function LandingPage() {
       router.push('/dashboard');
       return;
     }
-    setLang(detectBrowserLanguage());
+    const saved = localStorage.getItem('vector_landing_lang');
+    setLang(saved || detectBrowserLanguage());
   }, [router]);
 
+  const handleLangChange = (code) => {
+    setLang(code);
+    localStorage.setItem('vector_landing_lang', code);
+  };
+
   const P = (key) => tp(lang, key);
+  const T = getTranslation(lang);
 
   return (
     <div className="min-h-screen bg-[#0a0f1e]">
@@ -137,12 +147,13 @@ export default function LandingPage() {
             <span>Vector</span>
           </div>
           <div className="flex items-center space-x-4 sm:space-x-6">
-            <a href="#features" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">Features</a>
-            <a href="#pricing" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">Pricing</a>
-            <a href="#faq" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">FAQ</a>
-            <a href="/login" className="text-gray-300 hover:text-white text-sm transition-colors">Sign In</a>
+            <a href="#features" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">{T.nav.features}</a>
+            <a href="#pricing" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">{T.nav.pricing}</a>
+            <a href="#faq" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">{T.nav.faq}</a>
+            <LandingLanguageSelector lang={lang} onChange={handleLangChange} />
+            <a href="/login" className="text-gray-300 hover:text-white text-sm transition-colors">{T.nav.signIn}</a>
             <a href="/login" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-              Start Free
+              {T.nav.startFree}
             </a>
           </div>
         </div>
@@ -153,32 +164,32 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-8">
-              Trusted by 100+ Aircraft Detailers
+              {T.hero.badge}
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
-              The #1 CRM Built for{' '}
+              {T.hero.headline}{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
-                Aircraft Detailers
+                {T.hero.headlineHighlight}
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-              Quote in 60 seconds. Get paid instantly. Grow your business.
+              {T.hero.sub}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="/login"
                 className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-amber-500/25 transition-opacity"
               >
-                Start Free Trial
+                {T.hero.cta}
               </a>
               <a
                 href="#how-it-works"
                 className="px-8 py-4 border border-white/15 text-white font-semibold rounded-xl text-lg hover:bg-white/5 transition-colors"
               >
-                See How It Works
+                {T.hero.cta2}
               </a>
             </div>
-            <p className="text-gray-500 mt-6 text-sm">No credit card required. Free plan available forever.</p>
+            <p className="text-gray-500 mt-6 text-sm">{T.hero.noCc}</p>
           </div>
 
           {/* Dashboard mockup */}
@@ -262,21 +273,13 @@ export default function LandingPage() {
       <section className="py-20 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-8 rounded-xl bg-white/[0.03] border border-white/5">
-              <div className="text-4xl mb-4">{'\u23F1\uFE0F'}</div>
-              <h3 className="text-xl font-bold text-white mb-3">Stop Wasting Hours on Quotes</h3>
-              <p className="text-gray-400">No more spreadsheets, calculators, or back-of-napkin math. Vector automates the entire process.</p>
-            </div>
-            <div className="text-center p-8 rounded-xl bg-white/[0.03] border border-white/5">
-              <div className="text-4xl mb-4">{'\u2708\uFE0F'}</div>
-              <h3 className="text-xl font-bold text-white mb-3">300+ Aircraft, Your Hours</h3>
-              <p className="text-gray-400">Default hours for 300+ aircraft from a Robinson R22 to a Boeing 747. Use ours, upload yours, or adjust per job.</p>
-            </div>
-            <div className="text-center p-8 rounded-xl bg-white/[0.03] border border-white/5">
-              <div className="text-4xl mb-4">{'\uD83D\uDCA1'}</div>
-              <h3 className="text-xl font-bold text-white mb-3">Your Rate &times; Your Hours</h3>
-              <p className="text-gray-400">Set your hourly rate. Pick the aircraft. Adjust the hours if you want. Vector handles the math — you control the numbers.</p>
-            </div>
+            {['\u23F1\uFE0F', '\u2708\uFE0F', '\uD83D\uDCA1'].map((icon, i) => (
+              <div key={i} className="text-center p-8 rounded-xl bg-white/[0.03] border border-white/5">
+                <div className="text-4xl mb-4">{icon}</div>
+                <h3 className="text-xl font-bold text-white mb-3">{T.problems[i].title}</h3>
+                <p className="text-gray-400">{T.problems[i].desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -285,14 +288,14 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-20 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">How It Works</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">From setup to getting paid — three simple steps.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{T.howItWorks.title}</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">{T.howItWorks.sub}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {STEPS.map((step) => (
-              <div key={step.num} className="relative">
+            {T.steps.map((step, i) => (
+              <div key={i} className="relative">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white text-xl font-bold mb-5 shadow-lg shadow-amber-500/20">
-                  {step.num}
+                  {i + 1}
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
                 <p className="text-gray-400 leading-relaxed">{step.desc}</p>
@@ -307,10 +310,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Everything You Need to Run Your Business
+              {T.features.title}
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Built specifically for aircraft detailers. Quoting, payments, team management, customer engagement, and analytics — all in one platform.
+              {T.features.sub}
             </p>
           </div>
 
@@ -395,19 +398,6 @@ export default function LandingPage() {
                 </button>
               </div>
 
-              {/* Language Selector */}
-              <div className="relative">
-                <select
-                  value={lang}
-                  onChange={(e) => setLang(e.target.value)}
-                  className="appearance-none bg-white/[0.05] border border-white/10 text-gray-300 text-sm rounded-full px-4 py-2 pr-8 cursor-pointer hover:bg-white/[0.08] transition-colors"
-                >
-                  {SUPPORTED_LANGUAGES.map(l => (
-                    <option key={l.code} value={l.code} className="bg-gray-900 text-white">{l.label}</option>
-                  ))}
-                </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">{'\uD83C\uDF10'}</span>
-              </div>
             </div>
           </div>
 
@@ -479,7 +469,7 @@ export default function LandingPage() {
       <section className="py-20 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">What Detailers Are Saying</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{T.testimonials.title}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
@@ -506,7 +496,7 @@ export default function LandingPage() {
       <section id="faq" className="py-20 border-t border-white/5">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{T.faqs.title}</h2>
           </div>
           <div className="space-y-4">
             {FAQS.map((faq, i) => (
@@ -528,16 +518,16 @@ export default function LandingPage() {
       <section className="py-20 border-t border-white/5">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Ready to Grow Your Detailing Business?
+            {T.footerCta.title}
           </h2>
           <p className="text-gray-400 mb-8 text-lg">
-            Join 100+ aircraft detailing professionals who save hours every week with Vector. Start free — no credit card required.
+            {T.footerCta.sub}
           </p>
           <a
             href="/login"
             className="inline-block px-10 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-amber-500/25 transition-opacity"
           >
-            Start Free Trial
+            {T.footerCta.cta}
           </a>
           <div className="mt-8 flex flex-wrap justify-center gap-6 text-gray-500 text-sm">
             <span>No credit card required</span>
@@ -554,21 +544,21 @@ export default function LandingPage() {
             <div className="flex items-center space-x-2 text-white font-bold">
               <span className="text-xl">{'\u2708\uFE0F'}</span>
               <span>Vector</span>
-              <span className="text-gray-500 font-normal text-sm ml-2">by Aircraft Detailing 101</span>
+              <span className="text-gray-500 font-normal text-sm ml-2">{T.footer.by}</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-400">
-              <a href="/login" className="hover:text-white transition-colors">Sign In</a>
-              <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-              <a href="#features" className="hover:text-white transition-colors">Features</a>
-              <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+              <a href="/login" className="hover:text-white transition-colors">{T.nav.signIn}</a>
+              <a href="#pricing" className="hover:text-white transition-colors">{T.nav.pricing}</a>
+              <a href="#features" className="hover:text-white transition-colors">{T.nav.features}</a>
+              <a href="#faq" className="hover:text-white transition-colors">{T.nav.faq}</a>
             </div>
           </div>
           <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-gray-500 text-sm">&copy; 2025 Vector Aviation Software. All rights reserved.</p>
+            <p className="text-gray-500 text-sm">{T.footer.copy}</p>
             <div className="flex gap-6 text-sm text-gray-500">
-              <a href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</a>
-              <a href="/privacy" className="hover:text-gray-300 transition-colors">Privacy Policy</a>
-              <a href="mailto:support@vectorav.ai" className="hover:text-gray-300 transition-colors">Contact</a>
+              <a href="/terms" className="hover:text-gray-300 transition-colors">{T.footer.terms}</a>
+              <a href="/privacy" className="hover:text-gray-300 transition-colors">{T.footer.privacy}</a>
+              <a href="mailto:support@vectorav.ai" className="hover:text-gray-300 transition-colors">{T.footer.contact}</a>
             </div>
           </div>
         </div>
