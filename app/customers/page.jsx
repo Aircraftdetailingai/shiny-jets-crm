@@ -211,7 +211,7 @@ export default function CustomersPage() {
   };
 
   const deleteTag = async (tagId) => {
-    if (!confirm('Delete this custom tag? It will not be removed from customers.')) return;
+    if (!confirm(t('customersExtra.deleteTagConfirm'))) return;
     const token = localStorage.getItem('vector_token');
     try {
       await fetch(`/api/customers/tags?id=${tagId}`, {
