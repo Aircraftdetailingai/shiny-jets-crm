@@ -190,27 +190,37 @@ export default function ROIDashboard({ compact = false }) {
       {benchmarks?.benchmarks && (
         <div className="bg-white rounded-xl p-6 shadow">
           <h3 className="font-semibold text-gray-900 mb-4">How You Compare</h3>
+          <p className="text-xs text-gray-400 mb-4">Compared to industry averages for aircraft detailing</p>
           <div className="space-y-4">
-            {Object.entries(benchmarks.benchmarks).map(([key, b]) => (
-              <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{b.label}</p>
-                  <p className="text-sm text-gray-500">
-                    Platform avg: {b.format === 'percent' ? `${b.average}%` : b.format === 'currency' ? `${currencySymbol()}${b.average.toLocaleString()}` : `${b.average} min`}
-                  </p>
+            {Object.entries(benchmarks.benchmarks).map(([key, b]) => {
+              const yours = key === 'closeRate' ? m.conversionRate
+                : key === 'quoteSpeed' ? m.avgQuoteCreationMinutes
+                : key === 'avgTicket' ? (m.totalRevenue && m.quotesPaid ? Math.round(m.totalRevenue / m.quotesPaid) : 0)
+                : null;
+              const better = key === 'quoteSpeed'
+                ? yours !== null && yours <= b.average
+                : yours !== null && yours >= b.average;
+              return (
+                <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{b.label}</p>
+                    <p className="text-sm text-gray-500">
+                      Industry avg: {b.format === 'percent' ? `${b.average}%` : b.format === 'currency' ? `${currencySymbol()}${b.average.toLocaleString()}` : `${b.average} min`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {b.format === 'percent' ? `${yours ?? 0}%` : b.format === 'currency' ? `${currencySymbol()}${(yours ?? 0).toLocaleString()}` : yours !== null ? `${yours} min` : '-'}
+                    </p>
+                    {better && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        &#10003; Above Average
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {b.format === 'percent' ? `${b.yours}%` : b.format === 'currency' ? `${currencySymbol()}${b.yours?.toLocaleString() || 0}` : b.yours !== null ? `${b.yours} min` : '-'}
-                  </p>
-                  {b.better && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      ✓ Above Average
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
