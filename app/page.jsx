@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { tp, SUPPORTED_LANGUAGES, detectBrowserLanguage } from '@/lib/translations';
 
 const FEATURE_CATEGORIES = [
   {
