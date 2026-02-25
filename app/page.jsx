@@ -125,13 +125,25 @@ export default function LandingPage() {
       router.push('/dashboard');
       return;
     }
-    const saved = localStorage.getItem('vector_landing_lang');
-    setLang(saved || detectBrowserLanguage());
+    // Auto-detect browser language and redirect to localized route
+    const manualChoice = localStorage.getItem('vector_landing_lang');
+    if (!manualChoice) {
+      const detected = detectBrowserLanguage();
+      if (detected && detected !== 'en') {
+        router.replace(`/${detected}`);
+        return;
+      }
+    }
+    setLang(manualChoice || 'en');
   }, [router]);
 
   const handleLangChange = (code) => {
-    setLang(code);
     localStorage.setItem('vector_landing_lang', code);
+    if (code === 'en') {
+      setLang('en');
+    } else {
+      router.push(`/${code}`);
+    }
   };
 
   const P = (key) => tp(lang, key);

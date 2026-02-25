@@ -31,9 +31,14 @@ export default function LandingLanguageSelector({ lang, onChange }) {
       {open && (
         <div className="absolute right-0 top-full mt-2 w-44 bg-[#1a2332] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
           {LANGUAGES.map(l => (
-            <button
+            <a
               key={l.code}
-              onClick={() => { onChange(l.code); setOpen(false); }}
+              href={l.code === 'en' ? '/' : `/${l.code}`}
+              onClick={() => {
+                localStorage.setItem('vector_landing_lang', l.code);
+                if (onChange) onChange(l.code);
+                setOpen(false);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors ${
                 l.code === lang ? 'text-amber-400 bg-white/[0.03]' : 'text-gray-300'
               }`}
@@ -41,7 +46,7 @@ export default function LandingLanguageSelector({ lang, onChange }) {
               <span className="text-base">{l.flag}</span>
               <span>{l.label}</span>
               {l.code === lang && <span className="ml-auto text-amber-400 text-xs">&#10003;</span>}
-            </button>
+            </a>
           ))}
         </div>
       )}

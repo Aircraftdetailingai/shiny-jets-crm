@@ -13,6 +13,19 @@ export const metadata = {
     statusBarStyle: 'black-translucent',
     title: 'Vector',
   },
+  alternates: {
+    languages: {
+      'en': 'https://vectorav.ai',
+      'es': 'https://vectorav.ai/es',
+      'pt': 'https://vectorav.ai/pt',
+      'fr': 'https://vectorav.ai/fr',
+      'de': 'https://vectorav.ai/de',
+      'it': 'https://vectorav.ai/it',
+      'nl': 'https://vectorav.ai/nl',
+      'ja': 'https://vectorav.ai/ja',
+      'zh': 'https://vectorav.ai/zh',
+    },
+  },
 }
 
 export default function RootLayout({ children }) {
