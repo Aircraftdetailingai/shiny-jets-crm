@@ -26,6 +26,8 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
   const [quoteLimitHit, setQuoteLimitHit] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState("4_weeks"); // '4_weeks', 'monthly', 'quarterly'
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState("");
 
   // Close when not open
   if (!isOpen) return null;
@@ -158,6 +160,42 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
       }
       // Create quote if needed
       const { id, share_link } = await createQuoteIfNeeded();
+
+      // If scheduling for later, save to scheduled_quotes instead of sending now
+      if (isScheduled && scheduledDate) {
+        const sendTime = new Date(scheduledDate);
+        if (sendTime <= new Date()) {
+          throw new Error("Scheduled time must be in the future");
+        }
+        const schedRes = await fetch("/api/scheduled-quotes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("vector_token")}`,
+          },
+          body: JSON.stringify({
+            quote_id: id,
+            send_at: sendTime.toISOString(),
+            client_name: effectiveName,
+            client_email: effectiveEmail,
+            client_phone: effectivePhone || null,
+            client_company: effectiveCompany || null,
+            customer_id: effectiveCustomerId,
+            airport: quote?.airport || null,
+          }),
+        });
+        if (!schedRes.ok) {
+          const schedData = await schedRes.json().catch(() => null);
+          throw new Error(schedData?.error || "Failed to schedule quote");
+        }
+        const link = `${window.location.origin}/q/${share_link}`;
+        setQuoteLink(link);
+        setSuccess(true);
+        toastSuccess(`Quote scheduled for ${sendTime.toLocaleString()}`);
+        setLoading(false);
+        return;
+      }
+
       // Build send payload
       const sendPayload = {
         clientName: effectiveName,
@@ -373,6 +411,31 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
               </div>
             )}
 
+            {/* Schedule Send Option */}
+            <div className="mb-3 border-t pt-3">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isScheduled}
+                  onChange={(e) => { setIsScheduled(e.target.checked); if (!e.target.checked) setScheduledDate(""); }}
+                  className="mr-2 w-4 h-4 text-amber-500"
+                />
+                <span className="text-sm font-medium">Schedule for later</span>
+              </label>
+              {isScheduled && (
+                <div className="mt-2 pl-6">
+                  <input
+                    type="datetime-local"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Quote will be sent automatically at this time.</p>
+                </div>
+              )}
+            </div>
+
             {/* Recurring Service Option */}
             <div className="mb-3 border-t pt-3">
               <label className="flex items-center cursor-pointer">
@@ -427,14 +490,14 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
                 disabled={loading}
                 className="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50 min-h-[44px] font-medium"
               >
-                {loading ? 'Sending...' : 'Send Quote'}
+                {loading ? (isScheduled ? 'Scheduling...' : 'Sending...') : (isScheduled && scheduledDate ? 'Schedule Quote' : 'Send Quote')}
               </button>
             </div>
           </div>
         ) : (
           <div className="text-center">
             <div className="text-green-600 text-4xl mb-2">✓</div>
-            <h2 className="text-xl font-semibold mb-2">Quote Sent!</h2>
+            <h2 className="text-xl font-semibold mb-2">{isScheduled ? 'Quote Scheduled!' : 'Quote Sent!'}</h2>
             <p className="mb-3">
               <a
                 href={quoteLink}
