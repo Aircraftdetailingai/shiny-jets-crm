@@ -43,6 +43,9 @@ function SettingsContent() {
   const [efficiencyFactor, setEfficiencyFactor] = useState(1.0);
   const [stripeStatus, setStripeStatus] = useState({ connected: false, status: 'UNKNOWN' });
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeMode, setStripeMode] = useState('test');
+  const [stripeModeLoading, setStripeModeLoading] = useState(false);
+  const [stripeModeError, setStripeModeError] = useState(null);
   const [currency, setCurrency] = useState('USD');
   const [currencies, setCurrencies] = useState([]);
   const [currencyLoading, setCurrencyLoading] = useState(false);
@@ -228,8 +231,49 @@ function SettingsContent() {
     }
   };
 
+  const fetchStripeMode = async () => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/user/stripe-mode', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStripeMode(data.stripe_mode || 'test');
+      }
+    } catch (err) {
+      console.log('Failed to fetch stripe mode:', err);
+    }
+  };
+
+  const saveStripeMode = async (mode) => {
+    setStripeModeLoading(true);
+    setStripeModeError(null);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/user/stripe-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ stripe_mode: mode }),
+      });
+      if (res.ok) {
+        setStripeMode(mode);
+        // Re-check stripe status with new mode
+        checkStripeStatus();
+      } else {
+        const data = await res.json();
+        setStripeModeError(data.error || 'Failed to update mode');
+      }
+    } catch (err) {
+      setStripeModeError('Network error');
+    } finally {
+      setStripeModeLoading(false);
+    }
+  };
+
   useEffect(() => {
     checkStripeStatus();
+    fetchStripeMode();
     fetchCurrency();
     fetchMinimumFee();
     fetchAddonFees();
@@ -905,6 +949,101 @@ function SettingsContent() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Payment Settings - Test/Live Mode */}
+        <div className="bg-white p-4 rounded shadow">
+          <h3 className="font-semibold mb-2">Payment Settings</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Switch between test and live mode for processing payments.
+          </p>
+
+          {stripeModeError && (
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+              {stripeModeError}
+              <button onClick={() => setStripeModeError(null)} className="ml-2 text-red-500 hover:text-red-700">&times;</button>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <label
+              className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                stripeMode === 'test' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <input
+                type="radio"
+                name="stripeMode"
+                checked={stripeMode === 'test'}
+                onChange={() => saveStripeMode('test')}
+                disabled={stripeModeLoading}
+                className="mt-1 mr-3"
+              />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Test Mode</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Recommended for setup</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  No real payments are processed. Use Stripe test cards to verify your setup.
+                </p>
+              </div>
+            </label>
+
+            <label
+              className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                stripeMode === 'live' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <input
+                type="radio"
+                name="stripeMode"
+                checked={stripeMode === 'live'}
+                onChange={() => saveStripeMode('live')}
+                disabled={stripeModeLoading}
+                className="mt-1 mr-3"
+              />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Live Mode</span>
+                  {stripeMode === 'live' && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Real payments will be processed through your connected Stripe account.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {stripeMode === 'live' && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-amber-500">&#9888;</span>
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Live mode processes real payments</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Customers will be charged real money. Make sure your Stripe account is fully verified and your services/pricing are correct before enabling live mode.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {stripeModeLoading && (
+            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+              <span className="inline-block w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></span>
+              Switching mode...
+            </p>
+          )}
+
+          <div className="mt-3 flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${stripeMode === 'live' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
+            <span className="text-xs text-gray-500">
+              Currently in <strong>{stripeMode === 'live' ? 'Live' : 'Test'}</strong> mode
+            </span>
+          </div>
         </div>
 
         {/* Platform Fee */}

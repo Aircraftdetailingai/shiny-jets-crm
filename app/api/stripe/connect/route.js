@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
-import Stripe from 'stripe';
+import { createStripeClient, getStripeKey } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,31 +35,6 @@ export async function POST(request) {
   console.log('=== Stripe Connect Route ===');
 
   try {
-    // Get and validate Stripe key
-    const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
-
-    console.log('Key check:', {
-      exists: !!stripeKey,
-      length: stripeKey?.length || 0,
-      prefix: stripeKey?.substring(0, 15) || 'none',
-      suffix: stripeKey?.substring(stripeKey?.length - 4) || 'none',
-    });
-
-    if (!stripeKey) {
-      return Response.json({ error: 'STRIPE_SECRET_KEY not configured' }, { status: 500 });
-    }
-
-    if (!stripeKey.startsWith('sk_')) {
-      return Response.json({ error: 'Invalid key format - must start with sk_' }, { status: 500 });
-    }
-
-    // Initialize Stripe with explicit config
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: '2023-10-16',
-      maxNetworkRetries: 0,
-      timeout: 30000,
-    });
-
     // Get authenticated user from cookie or header
     const user = await getUser(request);
     console.log('User:', user ? { id: user.id, email: user.email } : 'none');
@@ -78,12 +53,36 @@ export async function POST(request) {
 
     const supabase = getSupabase();
 
-    // Fetch detailer
+    // Fetch detailer (including stripe_mode)
     const { data: detailer, error: dbError } = await supabase
       .from('detailers')
-      .select('stripe_account_id, email, company')
+      .select('stripe_account_id, email, company, stripe_mode')
       .eq('id', user.id)
       .single();
+
+    // Use mode-aware Stripe client
+    const mode = detailer?.stripe_mode || 'test';
+    const stripeKey = getStripeKey(mode);
+
+    console.log('Key check:', {
+      mode,
+      exists: !!stripeKey,
+      length: stripeKey?.length || 0,
+      prefix: stripeKey?.substring(0, 15) || 'none',
+    });
+
+    if (!stripeKey) {
+      return Response.json({ error: 'Stripe key not configured for ' + mode + ' mode' }, { status: 500 });
+    }
+
+    if (!stripeKey.startsWith('sk_')) {
+      return Response.json({ error: 'Invalid key format - must start with sk_' }, { status: 500 });
+    }
+
+    const stripe = createStripeClient(mode);
+    if (!stripe) {
+      return Response.json({ error: 'Failed to initialize Stripe' }, { status: 500 });
+    }
 
     if (dbError && dbError.code !== 'PGRST116') {
       console.error('DB error:', dbError);

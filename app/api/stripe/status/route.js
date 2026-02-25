@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
-import Stripe from 'stripe';
+import { createStripeClient } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,11 +29,6 @@ async function getUser(request) {
 }
 
 export async function GET(request) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return new Response(JSON.stringify({ connected: false, status: 'NOT_CONFIGURED', message: 'Stripe not configured' }), { status: 200 });
-  }
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY?.trim());
-
   const user = await getUser(request);
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -42,12 +37,19 @@ export async function GET(request) {
   const supabase = getSupabase();
 
   try {
-    // Fetch detailer's Stripe account ID
+    // Fetch detailer's Stripe account ID and mode
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_account_id')
+      .select('stripe_account_id, stripe_mode')
       .eq('id', user.id)
       .single();
+
+    const mode = detailer?.stripe_mode || 'test';
+    const stripe = createStripeClient(mode);
+
+    if (!stripe) {
+      return new Response(JSON.stringify({ connected: false, status: 'NOT_CONFIGURED', message: 'Stripe not configured for ' + mode + ' mode' }), { status: 200 });
+    }
 
     if (!detailer?.stripe_account_id) {
       return new Response(JSON.stringify({
@@ -71,6 +73,7 @@ export async function GET(request) {
     return new Response(JSON.stringify({
       connected: true,
       status,
+      stripe_mode: mode,
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
       detailsSubmitted: account.details_submitted,
