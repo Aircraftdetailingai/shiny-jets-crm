@@ -883,7 +883,7 @@ function SettingsContent() {
                             const data = await res.json();
                             if (data.url) window.location.href = data.url;
                             else if (data.error) alert(data.error);
-                          } catch (e) { alert('Upgrade failed'); }
+                          } catch (e) { alert(t('settingsExtra.upgradeFailed')); }
                         }}
                         className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm"
                       >
@@ -906,7 +906,7 @@ function SettingsContent() {
                             const data = await res.json();
                             if (data.url) window.location.href = data.url;
                             else if (data.error) alert(data.error);
-                          } catch (e) { alert('Upgrade failed'); }
+                          } catch (e) { alert(t('settingsExtra.upgradeFailed')); }
                         }}
                         className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
                       >
@@ -929,7 +929,7 @@ function SettingsContent() {
                             const data = await res.json();
                             if (data.url) window.location.href = data.url;
                             else if (data.error) alert(data.error);
-                          } catch (e) { alert('Upgrade failed'); }
+                          } catch (e) { alert(t('settingsExtra.upgradeFailed')); }
                         }}
                         className="px-4 py-2 rounded bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm"
                       >
@@ -1857,7 +1857,7 @@ function SettingsContent() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           ref.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                         }`}>
-                          {ref.status === 'completed' ? '+1 Month' : 'Pending'}
+                          {ref.status === 'completed' ? t('settingsExtra.plusOneMonth') : t('settingsExtra.pending')}
                         </span>
                       </div>
                     ))}
@@ -1867,7 +1867,7 @@ function SettingsContent() {
 
               {referralList.length === 0 && (
                 <p className="text-sm text-gray-400 text-center py-2">
-                  No referrals yet. Share your link to start earning free months!
+                  {t('settingsExtra.noReferrals')}
                 </p>
               )}
             </>
@@ -1894,12 +1894,12 @@ function SettingsContent() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.type')}</label>
                   <div className="flex gap-2">
-                    {['flat', 'percent'].map(t => (
-                      <button key={t} type="button" onClick={() => setNewAddon({ ...newAddon, fee_type: t })}
+                    {['flat', 'percent'].map(typ => (
+                      <button key={typ} type="button" onClick={() => setNewAddon({ ...newAddon, fee_type: typ })}
                         className={`flex-1 py-2 rounded text-sm font-medium border transition-colors ${
-                          newAddon.fee_type === t ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          newAddon.fee_type === typ ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                         }`}>
-                        {t === 'flat' ? 'Flat $' : 'Percent %'}
+                        {typ === 'flat' ? t('settingsExtra.flatDollar') : t('settingsExtra.percentSign')}
                       </button>
                     ))}
                   </div>
@@ -1944,12 +1944,12 @@ function SettingsContent() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.type')}</label>
                   <div className="flex gap-2">
-                    {['flat', 'percent'].map(t => (
-                      <button key={t} type="button" onClick={() => setEditingAddon({ ...editingAddon, fee_type: t })}
+                    {['flat', 'percent'].map(typ => (
+                      <button key={typ} type="button" onClick={() => setEditingAddon({ ...editingAddon, fee_type: typ })}
                         className={`flex-1 py-2 rounded text-sm font-medium border transition-colors ${
-                          editingAddon.fee_type === t ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          editingAddon.fee_type === typ ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                         }`}>
-                        {t === 'flat' ? 'Flat $' : 'Percent %'}
+                        {typ === 'flat' ? t('settingsExtra.flatDollar') : t('settingsExtra.percentSign')}
                       </button>
                     ))}
                   </div>

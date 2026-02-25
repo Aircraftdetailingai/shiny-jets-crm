@@ -1358,7 +1358,10 @@
     "noReferrals": "No referrals yet. Share your link to start earning free months!",
     "upgradeFailed": "Upgrade failed",
     "live": "Live",
-    "test": "Test"
+    "test": "Test",
+    "flatDollar": "Flat $",
+    "percentSign": "Percent %",
+    "currentlyInMode": "Currently in {mode} mode"
   },
   "teamExtra": {
     "fullNamePlaceholder": "Full name",
