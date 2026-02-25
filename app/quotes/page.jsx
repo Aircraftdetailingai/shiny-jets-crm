@@ -57,6 +57,14 @@ export default function QuotesPage() {
   const [submittingChangeOrder, setSubmittingChangeOrder] = useState(false);
   const [servicesMap, setServicesMap] = useState({});
   const [userPlan, setUserPlan] = useState('free');
+  const [duplicateModal, setDuplicateModal] = useState(null);
+  const [duplicateData, setDuplicateData] = useState({
+    client_name: '',
+    client_email: '',
+    client_phone: '',
+    notes: '',
+  });
+  const [duplicating, setDuplicating] = useState(false);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -238,6 +246,80 @@ export default function QuotesPage() {
       alert('Failed to create change order');
     } finally {
       setSubmittingChangeOrder(false);
+    }
+  };
+
+  const openDuplicateModal = (quote) => {
+    setDuplicateModal(quote);
+    setDuplicateData({
+      client_name: quote.client_name || '',
+      client_email: quote.client_email || '',
+      client_phone: quote.client_phone || '',
+      notes: quote.notes || '',
+    });
+  };
+
+  const submitDuplicate = async () => {
+    if (!duplicateModal) return;
+    setDuplicating(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const src = duplicateModal;
+      const payload = {
+        aircraft_type: src.aircraft_type,
+        aircraft_model: src.aircraft_model,
+        aircraft_id: src.aircraft_id || null,
+        surface_area_sqft: src.surface_area_sqft || null,
+        services: src.services || {},
+        selected_services: src.selected_services || [],
+        selected_package_id: src.selected_package_id || null,
+        selected_package_name: src.selected_package_name || null,
+        base_hours: src.base_hours || 0,
+        total_hours: src.total_hours || 0,
+        total_price: src.total_price || 0,
+        notes: duplicateData.notes,
+        line_items: src.line_items || [],
+        labor_total: src.labor_total || 0,
+        products_total: src.products_total || 0,
+        efficiency_factor: src.efficiency_factor || 1.0,
+        access_difficulty: src.access_difficulty || 1.0,
+        job_location: src.job_location || null,
+        minimum_fee_applied: src.minimum_fee_applied || false,
+        calculated_price: src.calculated_price || src.total_price || 0,
+        package_savings: src.package_savings || 0,
+        discount_percent: src.discount_percent || 0,
+        addon_fees: src.addon_fees || [],
+        addon_total: src.addon_total || 0,
+        product_estimates: src.product_estimates || [],
+        airport: src.airport || null,
+        // Editable customer fields from modal
+        client_name: duplicateData.client_name || null,
+        client_email: duplicateData.client_email || null,
+        customer_phone: duplicateData.client_phone || null,
+      };
+
+      const res = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || data.message || 'Failed to duplicate quote');
+        return;
+      }
+
+      const newQuote = await res.json();
+      setQuotes(prev => [{ ...newQuote, aircraft_name: newQuote.aircraft_model ? `${newQuote.aircraft_type || ''} ${newQuote.aircraft_model}`.trim() : newQuote.aircraft_type || 'Unknown Aircraft' }, ...prev]);
+      setDuplicateModal(null);
+    } catch (err) {
+      alert('Failed to duplicate quote');
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -605,6 +687,15 @@ export default function QuotesPage() {
                 </button>
               </>
             )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openDuplicateModal(quote);
+              }}
+              className="text-green-600 hover:text-green-800 text-xs font-medium"
+            >
+              Duplicate
+            </button>
             {status === 'paid' && (
               <>
                 <button
@@ -1083,6 +1174,99 @@ export default function QuotesPage() {
                 }`}
               >
                 {bulkProcessing ? 'Processing...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Quote Modal */}
+      {duplicateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2">Duplicate Quote</h3>
+            <p className="text-gray-600 mb-4">
+              Create a copy of this quote with new customer details.
+            </p>
+
+            {/* Source quote summary */}
+            <div className="bg-gray-50 p-3 rounded-lg mb-4">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-900">
+                  {duplicateModal.aircraft_model || duplicateModal.aircraft_type || 'Aircraft'}
+                </span>
+                <span className="font-bold text-[#1e3a5f]">{currencySymbol()}{formatPrice(duplicateModal.total_price)}</span>
+              </div>
+              {duplicateModal.line_items && duplicateModal.line_items.length > 0 && (
+                <div className="mt-1">
+                  {duplicateModal.line_items.slice(0, 4).map((li, i) => (
+                    <span key={i} className="text-xs text-gray-500">
+                      {li.description || li.service}{i < Math.min(duplicateModal.line_items.length, 4) - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                  {duplicateModal.line_items.length > 4 && (
+                    <span className="text-xs text-gray-400"> +{duplicateModal.line_items.length - 4} more</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                <input
+                  type="text"
+                  value={duplicateData.client_name}
+                  onChange={(e) => setDuplicateData({ ...duplicateData, client_name: e.target.value })}
+                  placeholder="Customer name"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Email</label>
+                <input
+                  type="email"
+                  value={duplicateData.client_email}
+                  onChange={(e) => setDuplicateData({ ...duplicateData, client_email: e.target.value })}
+                  placeholder="customer@email.com"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
+                <input
+                  type="tel"
+                  value={duplicateData.client_phone}
+                  onChange={(e) => setDuplicateData({ ...duplicateData, client_phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+                <textarea
+                  value={duplicateData.notes}
+                  onChange={(e) => setDuplicateData({ ...duplicateData, notes: e.target.value })}
+                  placeholder="Add notes for this quote..."
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-5">
+              <button
+                onClick={() => setDuplicateModal(null)}
+                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitDuplicate}
+                disabled={duplicating}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
+              >
+                {duplicating ? 'Creating...' : 'Create Duplicate'}
               </button>
             </div>
           </div>
