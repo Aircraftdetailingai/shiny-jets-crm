@@ -769,7 +769,7 @@ function SettingsContent() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
                   <span className="text-sm text-gray-300">
-                    {pendingChanges.size} unsaved change{pendingChanges.size !== 1 ? 's' : ''}
+                    {t('settingsExtra.unsavedChanges').replace('{count}', pendingChanges.size)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -798,7 +798,7 @@ function SettingsContent() {
           {user?.is_admin ? (
             <div>
               <p className="mb-1 capitalize">{user?.plan || 'enterprise'} Plan</p>
-              <span className="inline-block px-3 py-1 rounded bg-green-600 text-white text-sm font-medium">Admin Access - All Features</span>
+              <span className="inline-block px-3 py-1 rounded bg-green-600 text-white text-sm font-medium">{t('settingsExtra.adminAccess')}</span>
             </div>
           ) : (
             <div>
@@ -813,7 +813,7 @@ function SettingsContent() {
                         upgradeBilling === 'monthly' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white border border-white/20'
                       }`}
                     >
-                      Monthly
+                      {t('settingsExtra.monthly')}
                     </button>
                     <button
                       onClick={() => setUpgradeBilling('annual')}
@@ -821,7 +821,7 @@ function SettingsContent() {
                         upgradeBilling === 'annual' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white border border-white/20'
                       }`}
                     >
-                      Annual <span className="text-green-500 font-bold">-25%</span>
+                      {t('settingsExtra.annual')} <span className="text-green-500 font-bold">-25%</span>
                     </button>
                   </div>
                   {/* Promo Code Section */}
@@ -949,28 +949,28 @@ function SettingsContent() {
           <a href="/settings/services" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#9881;</div>
             <div className="font-medium text-sm">{t('nav.services')}</div>
-            <div className="text-xs text-gray-500">Configure rates</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.configureRates')}</div>
           </a>
           <a href="/settings/embed" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#128279;</div>
-            <div className="font-medium text-sm">Embed & QR</div>
-            <div className="text-xs text-gray-500">Website widget</div>
+            <div className="font-medium text-sm">{t('settingsExtra.embedQr')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.websiteWidget')}</div>
           </a>
           <a href="/settings/lead-intake" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#129302;</div>
-            <div className="font-medium text-sm">AI Lead Intake</div>
-            <div className="text-xs text-gray-500">Custom questions</div>
+            <div className="font-medium text-sm">{t('leadIntake.title')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.customQuestions')}</div>
           </a>
           <a href="/admin/aircraft" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#9992;</div>
-            <div className="font-medium text-sm">Aircraft DB</div>
-            <div className="text-xs text-gray-500">Add/edit models</div>
+            <div className="font-medium text-sm">{t('settingsExtra.aircraftDb')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.addEditModels')}</div>
           </a>
         </div>
 
         {/* Stripe Connect */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Stripe Payments</h3>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.stripePayments')}</h3>
           {stripeError && (
             <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
               {stripeError}
@@ -986,29 +986,29 @@ function SettingsContent() {
               {stripeStatus.bankAccount && (
                 <p className="text-sm text-gray-600 mb-2">Account: {stripeStatus.bankAccount}</p>
               )}
-              <p className="text-sm text-gray-500 mb-3">Status: Active - You can receive payments</p>
+              <p className="text-sm text-gray-500 mb-3">{t('settingsExtra.stripeActiveDesc')}</p>
               <a
                 href="https://dashboard.stripe.com"
                 target="_blank"
                 rel="noreferrer"
                 className="text-blue-600 text-sm underline"
               >
-                Manage in Stripe Dashboard
+                {t('settingsExtra.manageStripeDashboard')}
               </a>
             </div>
           ) : stripeStatus.connected && stripeStatus.status === 'PENDING' ? (
             <div>
               <div className="flex items-center mb-2">
                 <span className="text-amber-500 mr-2">&#9888;</span>
-                <span className="text-amber-700 font-medium">Pending Verification</span>
+                <span className="text-amber-700 font-medium">{t('settingsExtra.pendingVerification')}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-3">Your Stripe account is being reviewed. This usually takes 1-2 business days.</p>
+              <p className="text-sm text-gray-600 mb-3">{t('settingsExtra.stripeBeingReviewed')}</p>
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
                 className="px-4 py-2 rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
               >
-                {stripeLoading ? 'Loading...' : 'Complete Setup'}
+                {stripeLoading ? t('common.loading') : t('settingsExtra.completeSetup')}
               </button>
             </div>
           ) : stripeStatus.status === 'INCOMPLETE' ? (
@@ -1018,7 +1018,7 @@ function SettingsContent() {
                   <span className="text-red-500 mr-2">&#9888;</span>
                   <span className="text-red-700 font-medium">{t('stripe.disconnected')}</span>
                 </div>
-                <p className="text-sm text-red-600">Your Stripe account needs attention. Online payments are currently disabled on your quotes.</p>
+                <p className="text-sm text-red-600">{t('settingsExtra.stripeNeedsAttention')}</p>
               </div>
               <button
                 onClick={handleConnectStripe}
@@ -1034,7 +1034,7 @@ function SettingsContent() {
                 <span className="text-red-500 mr-2">&#10007;</span>
                 <span className="text-red-700 font-medium">{t('stripe.notConnected')}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-3">Connect Stripe to receive payments for your quotes.</p>
+              <p className="text-sm text-gray-600 mb-3">{t('settingsExtra.connectStripeDesc')}</p>
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
@@ -1048,9 +1048,9 @@ function SettingsContent() {
 
         {/* Payment Settings - Test/Live Mode */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Payment Settings</h3>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.paymentSettings')}</h3>
           <p className="text-sm text-gray-600 mb-4">
-            Switch between test and live mode for processing payments.
+            {t('settingsExtra.paymentSettingsDesc')}
           </p>
 
           {stripeModeError && (
@@ -1076,11 +1076,11 @@ function SettingsContent() {
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">Test Mode</span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Recommended for setup</span>
+                  <span className="font-medium">{t('settingsExtra.testMode')}</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t('settingsExtra.recommendedForSetup')}</span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  No real payments are processed. Use Stripe test cards to verify your setup.
+                  {t('settingsExtra.testModeDesc')}
                 </p>
               </div>
             </label>
@@ -1100,13 +1100,13 @@ function SettingsContent() {
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">Live Mode</span>
+                  <span className="font-medium">{t('settingsExtra.liveMode')}</span>
                   {stripeMode === 'live' && (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>
                   )}
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  Real payments will be processed through your connected Stripe account.
+                  {t('settingsExtra.liveModeDesc')}
                 </p>
               </div>
             </label>
@@ -1117,9 +1117,9 @@ function SettingsContent() {
               <div className="flex items-start gap-2">
                 <span className="text-amber-500">&#9888;</span>
                 <div>
-                  <p className="text-sm font-medium text-amber-800">Live mode processes real payments</p>
+                  <p className="text-sm font-medium text-amber-800">{t('settingsExtra.liveModeWarning')}</p>
                   <p className="text-xs text-amber-700 mt-1">
-                    Customers will be charged real money. Make sure your Stripe account is fully verified and your services/pricing are correct before enabling live mode.
+                    {t('settingsExtra.liveModeWarningDesc')}
                   </p>
                 </div>
               </div>
@@ -1129,14 +1129,14 @@ function SettingsContent() {
           {stripeModeLoading && (
             <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
               <span className="inline-block w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></span>
-              Switching mode...
+              {t('settingsExtra.switchingMode')}
             </p>
           )}
 
           <div className="mt-3 flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${stripeMode === 'live' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
             <span className="text-xs text-gray-500">
-              Currently in <strong>{stripeMode === 'live' ? 'Live' : 'Test'}</strong> mode
+              {t('settingsExtra.currentlyInMode').replace('{mode}', stripeMode === 'live' ? t('settingsExtra.live') : t('settingsExtra.test'))}
             </span>
           </div>
         </div>
@@ -1145,8 +1145,7 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">{t('invoices.platformFee')}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Vector charges a {user?.plan === 'enterprise' ? '0%' : hasAllFeatures ? '1%' : user?.plan === 'pro' ? '2%' : '5%'} platform fee on each job.
-            Choose who pays it.
+            {t('settingsExtra.platformFeeDesc').replace('{fee}', user?.plan === 'enterprise' ? '0' : hasAllFeatures ? '1' : user?.plan === 'pro' ? '2' : '5')}
           </p>
           <div className="space-y-3">
             <label
@@ -1162,8 +1161,8 @@ function SettingsContent() {
                 className="mt-1 mr-3"
               />
               <div>
-                <p className="font-medium">I absorb the fee</p>
-                <p className="text-sm text-gray-500">Fee is deducted from your payout. Customer sees only the quote price.</p>
+                <p className="font-medium">{t('settingsExtra.iAbsorbFee')}</p>
+                <p className="text-sm text-gray-500">{t('settingsExtra.iAbsorbFeeDesc')}</p>
               </div>
             </label>
             <label
@@ -1180,7 +1179,7 @@ function SettingsContent() {
               />
               <div>
                 <p className="font-medium">{t('settings.passFeeToCustomer')}</p>
-                <p className="text-sm text-gray-500">A "Service Fee" line item is added to the customer's quote. You receive the full quote amount.</p>
+                <p className="text-sm text-gray-500">{t('settingsExtra.passFeeDesc')}</p>
               </div>
             </label>
           </div>
@@ -1190,11 +1189,11 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">{t('settings.language')}</h3>
           <p className="text-sm text-gray-600 mb-4">
-            Set your preferred language and currency for your account.
+            {t('settingsExtra.localizationDesc')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">App Language</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('settingsExtra.appLanguage')}</label>
               <select
                 value={uiLang}
                 onChange={(e) => setUiLang(e.target.value)}
@@ -1207,7 +1206,7 @@ function SettingsContent() {
                 ))}
               </select>
               <p className="text-xs text-gray-400 mt-1">
-                Changes the app interface language.
+                {t('settingsExtra.appLanguageDesc')}
               </p>
             </div>
             <div>
@@ -1228,7 +1227,7 @@ function SettingsContent() {
                 )}
               </select>
               <p className="text-xs text-gray-400 mt-1">
-                Sets your preferred language for customer-facing documents.
+                {t('settingsExtra.customerLanguageDesc')}
               </p>
             </div>
             <div>
@@ -1250,7 +1249,7 @@ function SettingsContent() {
                 )}
               </select>
               <p className="text-xs text-gray-400 mt-1">
-                All prices displayed in this currency. Stripe handles conversion.
+                {t('settingsExtra.currencyDesc')}
               </p>
             </div>
           </div>
@@ -1258,9 +1257,9 @@ function SettingsContent() {
 
         {/* Efficiency Factor */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Efficiency Factor</h3>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.efficiencyFactor')}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Adjust estimated hours based on your team's speed. 1.0 = standard, 0.8 = 20% faster, 1.2 = 20% slower.
+            {t('settingsExtra.efficiencyFactorDesc')}
           </p>
           <div className="flex items-center space-x-4">
             <input
@@ -1279,23 +1278,23 @@ function SettingsContent() {
             <div className="w-20 text-center">
               <span className="text-2xl font-bold">{efficiencyFactor.toFixed(2)}</span>
               <p className="text-xs text-gray-500">
-                {efficiencyFactor < 1 ? `${Math.round((1 - efficiencyFactor) * 100)}% faster` :
-                 efficiencyFactor > 1 ? `${Math.round((efficiencyFactor - 1) * 100)}% slower` : 'Standard'}
+                {efficiencyFactor < 1 ? t('settingsExtra.faster').replace('{pct}', Math.round((1 - efficiencyFactor) * 100)) :
+                 efficiencyFactor > 1 ? t('settingsExtra.slower').replace('{pct}', Math.round((efficiencyFactor - 1) * 100)) : t('settingsExtra.standardSpeed')}
               </p>
             </div>
           </div>
           <div className="mt-3 flex justify-between text-xs text-gray-400">
-            <span>Faster (0.5x)</span>
-            <span>Standard (1.0x)</span>
-            <span>Slower (1.5x)</span>
+            <span>{t('settingsExtra.fasterLabel')}</span>
+            <span>{t('settingsExtra.standardLabel')}</span>
+            <span>{t('settingsExtra.slowerLabel')}</span>
           </div>
         </div>
 
         {/* Default Labor Rate for Profitability */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Default Labor Rate</h3>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.defaultLaborRate')}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Your internal labor cost per hour. Used for profitability tracking after job completion.
+            {t('settingsExtra.laborRateDesc')}
           </p>
           <div className="flex items-center space-x-2">
             <span className="text-gray-500">$</span>
@@ -1319,7 +1318,7 @@ function SettingsContent() {
             <span className="text-gray-500">/hr</span>
           </div>
           <p className="text-xs text-gray-400 mt-2">
-            This is your cost (wages, overhead), not what you charge customers.
+            {t('settingsExtra.laborCostNote')}
           </p>
         </div>
 
@@ -1327,7 +1326,7 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">{t('settings.minimumFee')}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Set a minimum charge for jobs. If the quote total is less than this amount, the minimum fee will be applied instead.
+            {t('settingsExtra.minimumFeeDesc')}
           </p>
           <div className="flex items-center space-x-2 mb-4">
             <span className="text-gray-500">$</span>
@@ -1349,13 +1348,13 @@ function SettingsContent() {
               className="w-28 border rounded px-3 py-2"
               placeholder="0.00"
             />
-            <span className="text-gray-500">minimum</span>
+            <span className="text-gray-500">{t('settingsExtra.minimum')}</span>
           </div>
 
           <div className="border-t pt-4">
-            <h4 className="font-medium mb-2">Apply to Specific Locations (Optional)</h4>
+            <h4 className="font-medium mb-2">{t('settingsExtra.applyToLocations')}</h4>
             <p className="text-sm text-gray-500 mb-3">
-              Leave empty to apply to all jobs, or add specific airports/locations where this minimum applies.
+              {t('settingsExtra.applyToLocationsDesc')}
             </p>
             <div className="flex space-x-2 mb-3">
               <input
@@ -1370,7 +1369,7 @@ function SettingsContent() {
                 onClick={addLocation}
                 className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600"
               >
-                Add
+                {t('common.add')}
               </button>
             </div>
             {minimumFeeLocations.length > 0 && (
@@ -1392,15 +1391,15 @@ function SettingsContent() {
               </div>
             )}
             {minimumFeeLocations.length === 0 && (
-              <p className="text-xs text-gray-400 italic">Minimum fee will apply to all locations</p>
+              <p className="text-xs text-gray-400 italic">{t('settingsExtra.feeAppliesToAll')}</p>
             )}
           </div>
         </div>
 
         {/* Home Airport */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Home Airport</h3>
-          <p className="text-sm text-gray-500 mb-3">Set your primary airport for weather forecasts and job-day alerts on the dashboard.</p>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.homeAirport')}</h3>
+          <p className="text-sm text-gray-500 mb-3">{t('settingsExtra.homeAirportDesc')}</p>
           <div className="flex gap-2">
             <input
               type="text"
@@ -1410,7 +1409,7 @@ function SettingsContent() {
               className="border rounded px-3 py-2 w-40 uppercase text-sm"
               maxLength={4}
             />
-            <span className="text-xs text-gray-400 self-center">ICAO or IATA code</span>
+            <span className="text-xs text-gray-400 self-center">{t('settingsExtra.icaoIata')}</span>
           </div>
         </div>
 
@@ -1419,24 +1418,24 @@ function SettingsContent() {
           <div className="flex justify-between items-start mb-3">
             <div>
               <h3 className="font-semibold">{t('settings.addonFees')}</h3>
-              <p className="text-sm text-gray-500">Flat or percentage surcharges (hazmat, after-hours, rush, etc.) added on top of service pricing.</p>
+              <p className="text-sm text-gray-500">{t('settingsExtra.addonFeesDesc')}</p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
               {addonFees.length === 0 && (
                 <button onClick={importDefaultAddons} disabled={addonLoading} className="px-3 py-1.5 text-sm border border-blue-500 text-blue-600 rounded hover:bg-blue-50 disabled:opacity-50">
-                  Import Defaults
+                  {t('settingsExtra.importDefaults')}
                 </button>
               )}
               <button onClick={() => { setNewAddon({ name: '', description: '', fee_type: 'flat', amount: '' }); setShowAddonModal(true); }} className="px-3 py-1.5 text-sm bg-amber-500 text-white rounded hover:bg-amber-600">
-                + Add Fee
+                {t('settingsExtra.addFee')}
               </button>
             </div>
           </div>
           {addonFees.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed rounded-lg">
-              <p className="text-gray-500 mb-2">No add-on fees yet</p>
+              <p className="text-gray-500 mb-2">{t('settingsExtra.noAddonFees')}</p>
               <button onClick={importDefaultAddons} disabled={addonLoading} className="text-amber-600 hover:underline">
-                Import suggested defaults
+                {t('settingsExtra.importSuggestedDefaults')}
               </button>
             </div>
           ) : (
@@ -1458,7 +1457,7 @@ function SettingsContent() {
                       {fee.fee_type === 'percent' ? `${fee.amount}%` : `${currencySymbol()}${fee.amount}`}
                     </span>
                     <span className="text-xs text-gray-500 ml-2">
-                      {fee.fee_type === 'percent' ? 'of subtotal' : 'flat fee'}
+                      {fee.fee_type === 'percent' ? t('settingsExtra.ofSubtotal') : t('settingsExtra.flatFee')}
                     </span>
                   </div>
                 </div>
@@ -1471,14 +1470,14 @@ function SettingsContent() {
         <div className="bg-white p-4 rounded shadow">
           <div className="flex justify-between items-center mb-2">
             <div>
-              <h3 className="font-semibold">Product Usage Ratios</h3>
-              <p className="text-sm text-gray-600">Customize estimated product quantities per service type. Used in quote builder.</p>
+              <h3 className="font-semibold">{t('settingsExtra.productUsageRatios')}</h3>
+              <p className="text-sm text-gray-600">{t('settingsExtra.productRatiosDesc')}</p>
             </div>
             <button
               onClick={() => { setProductRatios(null); markDirty('productRatios'); }}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
             >
-              Reset to Defaults
+              {t('settingsExtra.resetToDefaults')}
             </button>
           </div>
           <div className="space-y-3 mt-3">
@@ -1540,12 +1539,12 @@ function SettingsContent() {
         {/* Quote Display Preference */}
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">{t('settings.quoteDisplayPreference')}</h3>
-          <p className="text-sm text-gray-600 mb-3">Choose what pricing details customers see on their quotes.</p>
+          <p className="text-sm text-gray-600 mb-3">{t('settingsExtra.quoteDisplayDesc')}</p>
           <div className="space-y-3">
             {[
-              { value: 'package', label: 'Package Price Only', desc: 'Customer sees single total price (recommended)' },
-              { value: 'labor_products', label: 'Labor + Products', desc: 'Shows two line items: labor and products/materials' },
-              { value: 'full_breakdown', label: 'Full Breakdown', desc: 'Shows all service line items with individual pricing' },
+              { value: 'package', label: t('settingsExtra.packagePriceOnly'), desc: t('settingsExtra.packagePriceOnlyDesc') },
+              { value: 'labor_products', label: t('settingsExtra.laborProducts'), desc: t('settingsExtra.laborProductsDesc') },
+              { value: 'full_breakdown', label: t('settingsExtra.fullBreakdown'), desc: t('settingsExtra.fullBreakdownDesc') },
             ].map((option) => (
               <label
                 key={option.value}
@@ -1601,8 +1600,8 @@ function SettingsContent() {
           <h3 className="font-semibold mb-2">{t('settings.smsNotifications')}</h3>
           {!hasAllFeatures && user?.plan === 'free' && (
             <div className="text-center py-4">
-              <p className="mb-2">SMS alerts are available on Pro plans.</p>
-              <a href="/settings?upgrade=pro" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">Upgrade to Pro</a>
+              <p className="mb-2">{t('settingsExtra.smsProOnly')}</p>
+              <a href="/settings?upgrade=pro" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">{t('settingsExtra.upgradeToPro')}</a>
             </div>
           )}
           {(hasAllFeatures || (user && user.plan !== 'free')) && (
@@ -1627,11 +1626,11 @@ function SettingsContent() {
         </div>
         {/* SMS to Your Clients */}
         <div id="smsClients" className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">SMS to Your Clients</h3>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.smsToClients')}</h3>
           {!hasAllFeatures && (
             <div className="text-center py-4">
-              <p className="mb-2">Texting clients is available on the Business plan.</p>
-              <a href="/settings?upgrade=business" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">Upgrade to Business</a>
+              <p className="mb-2">{t('settingsExtra.smsBusinessOnly')}</p>
+              <a href="/settings?upgrade=business" className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white">{t('settingsExtra.upgradeToBusiness')}</a>
             </div>
           )}
           {hasAllFeatures && (
@@ -1639,8 +1638,8 @@ function SettingsContent() {
               {/* Master SMS Toggle */}
               <div className="flex items-center justify-between mb-4 pb-3 border-b">
                 <div>
-                  <span className="font-medium">Enable SMS</span>
-                  <p className="text-xs text-gray-500">Master toggle for all client SMS</p>
+                  <span className="font-medium">{t('settingsExtra.enableSms')}</span>
+                  <p className="text-xs text-gray-500">{t('settingsExtra.masterSmsToggle')}</p>
                 </div>
                 <input
                   type="checkbox"
@@ -1652,7 +1651,7 @@ function SettingsContent() {
                 />
               </div>
               {[
-                { key: 'quoteDelivery', label: 'Quote delivery via SMS' },
+                { key: 'quoteDelivery', label: t('settingsExtra.quoteDeliverySms') },
                 { key: 'followup3', label: t('settings.followup3') },
                 { key: 'followup7', label: t('settings.followup7') },
                 { key: 'expiration', label: t('settings.expiration') },
@@ -1678,18 +1677,18 @@ function SettingsContent() {
         </div>
         {/* Smart Follow-Up Automation */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-1">Smart Follow-Up Automation</h3>
+          <h3 className="font-semibold mb-1">{t('followUp.title')}</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Automatically follow up with customers on expiring quotes. You'll get in-app notifications for unopened and viewed-but-not-booked quotes.
+            {t('settingsExtra.followUpDesc')}
           </p>
 
           <div className="space-y-4">
             {/* Auto-discount toggle */}
             <div className="flex items-start justify-between p-3 border rounded-lg">
               <div className="flex-1 mr-3">
-                <p className="font-medium">Auto-Discount on Expiring Quotes</p>
+                <p className="font-medium">{t('settingsExtra.autoDiscountExpiring')}</p>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Automatically send a discount offer to customers 2 days before their quote expires.
+                  {t('settingsExtra.autoDiscountDesc')}
                 </p>
               </div>
               <input
@@ -1706,7 +1705,7 @@ function SettingsContent() {
             {/* Discount percentage */}
             {autoDiscountEnabled && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <label className="block text-sm font-medium text-green-800 mb-2">Discount Percentage</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">{t('followUp.discountPercent')}</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
@@ -1728,19 +1727,19 @@ function SettingsContent() {
                   <span>25%</span>
                 </div>
                 <p className="text-xs text-green-700 mt-2">
-                  Customers will receive a {followupDiscountPercent}% off email 2 days before their quote expires.
+                  {t('settingsExtra.discountMessage').replace('{pct}', followupDiscountPercent)}
                 </p>
               </div>
             )}
 
             {/* Info about what's automatic */}
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm font-medium text-blue-800 mb-2">Always Active (No opt-in needed)</p>
+              <p className="text-sm font-medium text-blue-800 mb-2">{t('settingsExtra.alwaysActive')}</p>
               <ul className="text-sm text-blue-700 space-y-1">
-                <li>&#8226; Notification when a quote isn't opened after 2 days</li>
-                <li>&#8226; Notification when customer views but doesn't book after 3 days</li>
-                <li>&#8226; Customer gets a reminder email 5 days before quote expires</li>
-                <li>&#8226; Notification when quotes are about to expire</li>
+                <li>&#8226; {t('settingsExtra.alwaysActiveItem1')}</li>
+                <li>&#8226; {t('settingsExtra.alwaysActiveItem2')}</li>
+                <li>&#8226; {t('settingsExtra.alwaysActiveItem3')}</li>
+                <li>&#8226; {t('settingsExtra.alwaysActiveItem4')}</li>
               </ul>
             </div>
           </div>
@@ -1748,20 +1747,20 @@ function SettingsContent() {
 
         {/* Account Section */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Account</h3>
+          <h3 className="font-semibold mb-2">{t('settingsExtra.account')}</h3>
           <p className="mb-2">Email: {user?.email}</p>
-          <a href="#" className="text-blue-600 underline mb-2 inline-block">Change Password</a>
+          <a href="#" className="text-blue-600 underline mb-2 inline-block">{t('settingsExtra.changePassword')}</a>
           <div className="mt-3 pt-3 border-t">
             <button
               onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
               className="text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1.5"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              Restart Dashboard Tour
+              {t('settingsExtra.restartTour')}
             </button>
           </div>
           <div className="mt-2">
-            <label className="block mb-1">Price Review Reminder</label>
+            <label className="block mb-1">{t('settingsExtra.priceReviewReminder')}</label>
             <select
               value={priceReminder}
               onChange={(e) => {
@@ -1770,31 +1769,31 @@ function SettingsContent() {
               }}
               className="border rounded px-2 py-1"
             >
-              <option value={6}>Every 6 months</option>
-              <option value={12}>Every 12 months</option>
+              <option value={6}>{t('settingsExtra.every6Months')}</option>
+              <option value={12}>{t('settingsExtra.every12Months')}</option>
             </select>
           </div>
         </div>
 
         {/* Referral Program */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-1">Referral Program</h3>
+          <h3 className="font-semibold mb-1">{t('settingsExtra.referralProgram')}</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Invite other detailers to Vector. You get 1 month free for each signup, they get a 30-day trial.
+            {t('settingsExtra.referralDesc')}
           </p>
 
           {referralLoading ? (
-            <div className="text-gray-400 text-sm py-4 text-center">Loading referral data...</div>
+            <div className="text-gray-400 text-sm py-4 text-center">{t('settingsExtra.loadingReferral')}</div>
           ) : (
             <>
               {/* Referral Link */}
               <div className="bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-lg p-4 mb-4">
-                <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">Your Referral Link</label>
+                <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">{t('settingsExtra.yourReferralLink')}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     readOnly
-                    value={referralCode ? `${typeof window !== 'undefined' ? window.location.origin : ''}/ref/${referralCode}` : 'Generating...'}
+                    value={referralCode ? `${typeof window !== 'undefined' ? window.location.origin : ''}/ref/${referralCode}` : t('settingsExtra.generating')}
                     className="flex-1 bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-700 select-all"
                     onClick={(e) => e.target.select()}
                   />
@@ -1812,7 +1811,7 @@ function SettingsContent() {
                         : 'bg-amber-500 text-white hover:bg-amber-600'
                     }`}
                   >
-                    {referralCopied ? 'Copied!' : 'Copy'}
+                    {referralCopied ? t('settingsExtra.copied') : t('settingsExtra.copy')}
                   </button>
                 </div>
                 <p className="text-xs text-amber-700 mt-2">
@@ -1824,26 +1823,26 @@ function SettingsContent() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-[#1e3a5f]">{referralStats.total}</p>
-                  <p className="text-xs text-gray-500">Total Referrals</p>
+                  <p className="text-xs text-gray-500">{t('settingsExtra.totalReferrals')}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-green-600">{referralStats.completed}</p>
-                  <p className="text-xs text-gray-500">Completed</p>
+                  <p className="text-xs text-gray-500">{t('settingsExtra.completed')}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-amber-600">{referralStats.pending}</p>
-                  <p className="text-xs text-gray-500">Pending</p>
+                  <p className="text-xs text-gray-500">{t('settingsExtra.pending')}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-purple-600">{referralStats.months_earned}</p>
-                  <p className="text-xs text-gray-500">Months Earned</p>
+                  <p className="text-xs text-gray-500">{t('settingsExtra.monthsEarned')}</p>
                 </div>
               </div>
 
               {/* Referral List */}
               {referralList.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Referral History</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('settingsExtra.referralHistory')}</h4>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {referralList.map((ref) => (
                       <div key={ref.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">

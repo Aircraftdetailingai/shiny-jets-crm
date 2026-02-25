@@ -81,7 +81,7 @@ export default function AddTeamMemberPage() {
               onChange={handleChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-              placeholder="Full name"
+              placeholder={t('teamExtra.fullNamePlaceholder')}
             />
           </div>
 
@@ -115,7 +115,7 @@ export default function AddTeamMemberPage() {
               <option value="employee">{t('team.employee')}</option>
               <option value="contractor">{t('team.contractor')}</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Role determines default permissions. Owner can customize in Team Permissions.</p>
+            <p className="text-xs text-gray-500 mt-1">{t('teamExtra.rolePermissionNote')}</p>
           </div>
 
           <div>
@@ -143,7 +143,7 @@ export default function AddTeamMemberPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hourly Pay Rate</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('teamExtra.hourlyPayRate')}</label>
             <div className="relative">
               <span className="absolute left-3 top-2 text-gray-500">$</span>
               <input
@@ -160,7 +160,7 @@ export default function AddTeamMemberPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('teamExtra.pinCode')}</label>
             <input
               type="text"
               name="pin_code"
@@ -168,9 +168,9 @@ export default function AddTeamMemberPage() {
               onChange={handleChange}
               maxLength={6}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-              placeholder="4-6 digit PIN for time logging"
+              placeholder={t('teamExtra.pinPlaceholder')}
             />
-            <p className="text-xs text-gray-500 mt-1">Workers use this PIN to log their hours at /time-log</p>
+            <p className="text-xs text-gray-500 mt-1">{t('teamExtra.pinNote')}</p>
           </div>
 
           <div className="flex space-x-3 pt-2">
