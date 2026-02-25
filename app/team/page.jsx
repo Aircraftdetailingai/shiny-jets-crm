@@ -47,12 +47,20 @@ export default function TeamPage() {
           <a href="/dashboard" className="text-white text-2xl">&#8592;</a>
           <h1 className="text-2xl font-bold text-white">Team</h1>
         </div>
-        <a
-          href="/team/add"
-          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
-        >
-          + Add Member
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="/team/permissions"
+            className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
+          >
+            Permissions
+          </a>
+          <a
+            href="/team/add"
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+          >
+            + Add Member
+          </a>
+        </div>
       </header>
 
       {/* Stats */}
@@ -100,7 +108,7 @@ export default function TeamPage() {
             <thead>
               <tr className="bg-gray-50 text-left text-sm text-gray-500">
                 <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">Type</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">Role</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">Rate</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">Hours</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">Total Pay</th>
@@ -120,11 +128,13 @@ export default function TeamPage() {
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      member.type === 'employee'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-purple-100 text-purple-700'
+                      member.role === 'owner' ? 'bg-amber-100 text-amber-800' :
+                      member.role === 'manager' ? 'bg-indigo-100 text-indigo-700' :
+                      member.role === 'lead_tech' ? 'bg-cyan-100 text-cyan-700' :
+                      member.role === 'contractor' ? 'bg-purple-100 text-purple-700' :
+                      'bg-blue-100 text-blue-700'
                     }`}>
-                      {member.type}
+                      {(member.role || member.type || '').replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 hidden md:table-cell">

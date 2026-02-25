@@ -89,18 +89,24 @@ export async function POST(request) {
       return Response.json({ error: 'Type must be employee or contractor' }, { status: 400 });
     }
 
+    const validRoles = ['owner', 'manager', 'lead_tech', 'employee', 'contractor'];
+    const role = validRoles.includes(body.role) ? body.role : body.type;
+
+    const insertData = {
+      detailer_id: user.id,
+      name: body.name,
+      email: body.email || null,
+      phone: body.phone || null,
+      type: body.type,
+      role,
+      hourly_pay: parseFloat(body.hourly_pay) || 0,
+      pin_code: body.pin_code || null,
+      status: 'active',
+    };
+
     const { data, error } = await supabase
       .from('team_members')
-      .insert({
-        detailer_id: user.id,
-        name: body.name,
-        email: body.email || null,
-        phone: body.phone || null,
-        type: body.type,
-        hourly_pay: parseFloat(body.hourly_pay) || 0,
-        pin_code: body.pin_code || null,
-        status: 'active',
-      })
+      .insert(insertData)
       .select()
       .single();
 

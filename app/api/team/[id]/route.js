@@ -102,6 +102,10 @@ export async function PATCH(request, { params }) {
     if (body.hourly_pay !== undefined) updates.hourly_pay = parseFloat(body.hourly_pay) || 0;
     if (body.status !== undefined) updates.status = body.status;
     if (body.pin_code !== undefined) updates.pin_code = body.pin_code;
+    if (body.role !== undefined) {
+      const validRoles = ['owner', 'manager', 'lead_tech', 'employee', 'contractor'];
+      if (validRoles.includes(body.role)) updates.role = body.role;
+    }
 
     const { data, error } = await supabase
       .from('team_members')

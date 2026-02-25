@@ -11,6 +11,7 @@ export default function AddTeamMemberPage() {
     email: '',
     phone: '',
     type: 'employee',
+    role: 'employee',
     hourly_pay: '',
     pin_code: '',
   });
@@ -93,6 +94,26 @@ export default function AddTeamMemberPage() {
               <option value="employee">Employee</option>
               <option value="contractor">Contractor</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+            <select
+              name="role"
+              value={form.role}
+              onChange={(e) => {
+                const role = e.target.value;
+                const type = ['employee', 'owner', 'manager', 'lead_tech'].includes(role) ? 'employee' : 'contractor';
+                setForm({ ...form, role, type });
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+            >
+              <option value="manager">Manager</option>
+              <option value="lead_tech">Lead Tech</option>
+              <option value="employee">Employee</option>
+              <option value="contractor">Contractor</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Role determines default permissions. Owner can customize in Team Permissions.</p>
           </div>
 
           <div>
