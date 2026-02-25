@@ -47,8 +47,24 @@ export default function Page() {
           localStorage.setItem('vector_user', JSON.stringify(data.user));
           setUserCurrency(data.user?.currency || 'USD');
           console.log('Saved to localStorage');
-          console.log('Stored token:', localStorage.getItem('vector_token')?.substring(0, 20) + '...');
-          console.log('Stored user:', localStorage.getItem('vector_user'));
+
+          // Claim referral if stored
+          const refCode = localStorage.getItem('vector_referral_code');
+          if (refCode) {
+            try {
+              await fetch('/api/referrals/claim', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${data.token}`,
+                },
+                body: JSON.stringify({ referral_code: refCode }),
+              });
+              localStorage.removeItem('vector_referral_code');
+            } catch (err) {
+              // Non-critical, continue with login
+            }
+          }
         }
         if (data.must_change_password) {
           console.log('Redirecting to /onboarding (must_change_password: true)');

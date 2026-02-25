@@ -68,6 +68,13 @@ function SettingsContent() {
   // Product ratios state
   const [productRatios, setProductRatios] = useState(null);
 
+  // Referral state
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStats, setReferralStats] = useState({ total: 0, completed: 0, pending: 0, months_earned: 0 });
+  const [referralList, setReferralList] = useState([]);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
+
   // Upgrade billing toggle
   const [upgradeBilling, setUpgradeBilling] = useState('monthly');
 
@@ -231,6 +238,26 @@ function SettingsContent() {
     }
   };
 
+  const fetchReferralData = async () => {
+    setReferralLoading(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/referrals', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReferralCode(data.referral_code || '');
+        setReferralStats(data.stats || { total: 0, completed: 0, pending: 0, months_earned: 0 });
+        setReferralList(data.referrals || []);
+      }
+    } catch (err) {
+      console.log('Failed to fetch referral data:', err);
+    } finally {
+      setReferralLoading(false);
+    }
+  };
+
   const fetchStripeMode = async () => {
     try {
       const token = localStorage.getItem('vector_token');
@@ -279,6 +306,7 @@ function SettingsContent() {
     fetchAddonFees();
     fetchPassFee();
     fetchProductRatios();
+    fetchReferralData();
   }, []);
 
   const fetchMinimumFee = async () => {
@@ -1566,6 +1594,105 @@ function SettingsContent() {
               <option value={12}>Every 12 months</option>
             </select>
           </div>
+        </div>
+
+        {/* Referral Program */}
+        <div className="bg-white p-4 rounded shadow">
+          <h3 className="font-semibold mb-1">Referral Program</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Invite other detailers to Vector. You get 1 month free for each signup, they get a 30-day trial.
+          </p>
+
+          {referralLoading ? (
+            <div className="text-gray-400 text-sm py-4 text-center">Loading referral data...</div>
+          ) : (
+            <>
+              {/* Referral Link */}
+              <div className="bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-lg p-4 mb-4">
+                <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">Your Referral Link</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={referralCode ? `${typeof window !== 'undefined' ? window.location.origin : ''}/ref/${referralCode}` : 'Generating...'}
+                    className="flex-1 bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-700 select-all"
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button
+                    onClick={() => {
+                      if (referralCode) {
+                        navigator.clipboard.writeText(`${window.location.origin}/ref/${referralCode}`);
+                        setReferralCopied(true);
+                        setTimeout(() => setReferralCopied(false), 2000);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      referralCopied
+                        ? 'bg-green-500 text-white'
+                        : 'bg-amber-500 text-white hover:bg-amber-600'
+                    }`}
+                  >
+                    {referralCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-xs text-amber-700 mt-2">
+                  Code: <strong>{referralCode}</strong>
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-[#1e3a5f]">{referralStats.total}</p>
+                  <p className="text-xs text-gray-500">Total Referrals</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600">{referralStats.completed}</p>
+                  <p className="text-xs text-gray-500">Completed</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{referralStats.pending}</p>
+                  <p className="text-xs text-gray-500">Pending</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-purple-600">{referralStats.months_earned}</p>
+                  <p className="text-xs text-gray-500">Months Earned</p>
+                </div>
+              </div>
+
+              {/* Referral List */}
+              {referralList.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Referral History</h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {referralList.map((ref) => (
+                      <div key={ref.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {ref.referred_user?.company || ref.referred_user?.name || ref.referred_user?.email || 'User'}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(ref.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          ref.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {ref.status === 'completed' ? '+1 Month' : 'Pending'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {referralList.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-2">
+                  No referrals yet. Share your link to start earning free months!
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         {/* Add Addon Fee Modal */}
