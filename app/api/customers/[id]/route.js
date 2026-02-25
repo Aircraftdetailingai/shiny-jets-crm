@@ -54,3 +54,53 @@ export async function GET(request, { params }) {
     },
   });
 }
+
+// PATCH - Update customer contact fields
+export async function PATCH(request, { params }) {
+  const user = await getAuthUser(request);
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const supabase = getSupabase();
+  const body = await request.json();
+
+  // Verify ownership
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('id')
+    .eq('id', id)
+    .eq('detailer_id', user.id)
+    .single();
+
+  if (!customer) {
+    return Response.json({ error: 'Customer not found' }, { status: 404 });
+  }
+
+  const updates = { updated_at: new Date().toISOString() };
+  const contactFields = ['poc_name', 'poc_phone', 'poc_email', 'poc_role',
+    'emergency_contact_name', 'emergency_contact_phone', 'contact_notes'];
+  for (const f of contactFields) {
+    if (body[f] !== undefined) updates[f] = body[f];
+  }
+
+  // Column-stripping retry
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase
+      .from('customers')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (!error) return Response.json({ customer: data });
+
+    const colMatch = error.message?.match(/column "([^"]+)" of relation "customers" does not exist/)
+      || error.message?.match(/Could not find the '([^']+)' column of 'customers'/);
+    if (colMatch) {
+      delete updates[colMatch[1]];
+      continue;
+    }
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+  return Response.json({ error: 'Update failed' }, { status: 500 });
+}

@@ -56,6 +56,10 @@ function SettingsContent() {
   const [newLocation, setNewLocation] = useState('');
   const [homeAirport, setHomeAirport] = useState('');
 
+  // Smart follow-up settings
+  const [autoDiscountEnabled, setAutoDiscountEnabled] = useState(false);
+  const [followupDiscountPercent, setFollowupDiscountPercent] = useState(10);
+
   // Platform fee pass-through
   const [passFeeToCustomer, setPassFeeToCustomer] = useState(false);
 
@@ -111,6 +115,8 @@ function SettingsContent() {
     setEfficiencyFactor(u.efficiency_factor || 1.0);
     setLaborRate(u.default_labor_rate || 25);
     setHomeAirport(u.home_airport || '');
+      setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
+      setFollowupDiscountPercent(u.followup_discount_percent || 10);
       setEmailNotifs({
         quoteCreated: u.notification_settings?.quoteCreated || false,
         quoteSent: u.notification_settings?.quoteSent || false,
@@ -544,6 +550,20 @@ function SettingsContent() {
     setUser(newUser);
   };
 
+  const saveFollowupDiscount = async (pct) => {
+    await fetch('/api/user/followup-discount', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+      },
+      body: JSON.stringify({ followup_discount_percent: pct }),
+    });
+    const newUser = { ...user, followup_discount_percent: pct };
+    localStorage.setItem('vector_user', JSON.stringify(newUser));
+    setUser(newUser);
+  };
+
   const saveNotifications = async (settings) => {
     await fetch('/api/user/notification-settings', {
       method: 'POST',
@@ -708,8 +728,11 @@ function SettingsContent() {
       if (pendingChanges.has('passFee')) promises.push(savePassFee(passFeeToCustomer));
       if (pendingChanges.has('quoteDisplay')) promises.push(saveQuoteDisplayPref(quoteDisplayPref));
       if (pendingChanges.has('notifications')) {
-        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder };
+        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled };
         promises.push(saveNotifications(allNotifs));
+      }
+      if (pendingChanges.has('followupDiscount')) {
+        promises.push(saveFollowupDiscount(followupDiscountPercent));
       }
       if (pendingChanges.has('smsEnabled')) promises.push(saveSmsSettings({ sms_enabled: smsEnabled }));
       if (pendingChanges.has('productRatios')) promises.push(saveProductRatios(productRatios || {}));
@@ -1634,6 +1657,76 @@ function SettingsContent() {
             </>
           )}
         </div>
+        {/* Smart Follow-Up Automation */}
+        <div className="bg-white p-4 rounded shadow">
+          <h3 className="font-semibold mb-1">Smart Follow-Up Automation</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Automatically follow up with customers on expiring quotes. You'll get in-app notifications for unopened and viewed-but-not-booked quotes.
+          </p>
+
+          <div className="space-y-4">
+            {/* Auto-discount toggle */}
+            <div className="flex items-start justify-between p-3 border rounded-lg">
+              <div className="flex-1 mr-3">
+                <p className="font-medium">Auto-Discount on Expiring Quotes</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Automatically send a discount offer to customers 2 days before their quote expires.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={autoDiscountEnabled}
+                onChange={(e) => {
+                  setAutoDiscountEnabled(e.target.checked);
+                  markDirty('notifications');
+                }}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Discount percentage */}
+            {autoDiscountEnabled && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <label className="block text-sm font-medium text-green-800 mb-2">Discount Percentage</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="5"
+                    max="25"
+                    step="5"
+                    value={followupDiscountPercent}
+                    onChange={(e) => {
+                      setFollowupDiscountPercent(parseInt(e.target.value));
+                      markDirty('followupDiscount');
+                    }}
+                    className="flex-1"
+                  />
+                  <span className="text-xl font-bold text-green-700 w-14 text-center">{followupDiscountPercent}%</span>
+                </div>
+                <div className="flex justify-between text-xs text-green-600 mt-1">
+                  <span>5%</span>
+                  <span>15%</span>
+                  <span>25%</span>
+                </div>
+                <p className="text-xs text-green-700 mt-2">
+                  Customers will receive a {followupDiscountPercent}% off email 2 days before their quote expires.
+                </p>
+              </div>
+            )}
+
+            {/* Info about what's automatic */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800 mb-2">Always Active (No opt-in needed)</p>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>&#8226; Notification when a quote isn't opened after 2 days</li>
+                <li>&#8226; Notification when customer views but doesn't book after 3 days</li>
+                <li>&#8226; Customer gets a reminder email 5 days before quote expires</li>
+                <li>&#8226; Notification when quotes are about to expire</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         {/* Account Section */}
         <div className="bg-white p-4 rounded shadow">
           <h3 className="font-semibold mb-2">Account</h3>

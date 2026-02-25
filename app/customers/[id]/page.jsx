@@ -284,6 +284,41 @@ export default function CustomerDetailPage() {
             )}
           </div>
 
+          {/* Aircraft Contact Info */}
+          {(customer.poc_name || customer.emergency_contact_name) && (
+            <div className="bg-white rounded-lg shadow p-5">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Aircraft Contact</h2>
+              {customer.poc_name && (
+                <div className="mb-3">
+                  <p className="text-sm font-medium text-gray-900">{customer.poc_name}</p>
+                  {customer.poc_role && <p className="text-xs text-gray-500">{customer.poc_role}</p>}
+                  <div className="mt-1 space-y-1">
+                    {customer.poc_phone && (
+                      <a href={`tel:${customer.poc_phone}`} className="block text-sm text-blue-600 hover:underline">{customer.poc_phone}</a>
+                    )}
+                    {customer.poc_email && (
+                      <a href={`mailto:${customer.poc_email}`} className="block text-sm text-blue-600 hover:underline">{customer.poc_email}</a>
+                    )}
+                  </div>
+                </div>
+              )}
+              {customer.emergency_contact_name && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">Emergency</p>
+                  <p className="text-sm font-medium text-gray-900">{customer.emergency_contact_name}</p>
+                  {customer.emergency_contact_phone && (
+                    <a href={`tel:${customer.emergency_contact_phone}`} className="text-sm text-blue-600 hover:underline">{customer.emergency_contact_phone}</a>
+                  )}
+                </div>
+              )}
+              {customer.contact_notes && (
+                <div className="mt-2 pt-2 border-t">
+                  <p className="text-xs text-gray-500 whitespace-pre-wrap">{customer.contact_notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quick Stats */}
           {quoteStats && (
             <div className="bg-white rounded-lg shadow p-5">

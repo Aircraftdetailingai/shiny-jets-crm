@@ -184,6 +184,13 @@ export async function POST(request) {
       customer_company,
       airport,
       product_estimates,
+      poc_name,
+      poc_phone,
+      poc_email,
+      poc_role,
+      emergency_contact_name,
+      emergency_contact_phone,
+      contact_notes,
     } = body;
 
     // Validate: need at minimum an aircraft type or model, and some price
@@ -255,6 +262,13 @@ export async function POST(request) {
       airport: airport || null,
       product_estimates: product_estimates || [],
       metadata: quoteMetadata,
+      poc_name: poc_name || null,
+      poc_phone: poc_phone || null,
+      poc_email: poc_email || null,
+      poc_role: poc_role || null,
+      emergency_contact_name: emergency_contact_name || null,
+      emergency_contact_phone: emergency_contact_phone || null,
+      contact_notes: contact_notes || null,
     };
 
     // Try full insert first, then strip failing columns

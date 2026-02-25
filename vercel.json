@@ -8,6 +8,7 @@
     { "path": "/api/cron/reset-quotas", "schedule": "0 0 1 * *" },
     { "path": "/api/cron/feedback-requests", "schedule": "0 15 * * *" },
     { "path": "/api/cron/scheduled-quotes", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/recalculate-averages", "schedule": "0 2 * * *" }
+    { "path": "/api/cron/recalculate-averages", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/smart-followups", "schedule": "0 12 * * *" }
   ]
 }

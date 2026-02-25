@@ -29,6 +29,16 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
 
+  // Contact fields
+  const [pocName, setPocName] = useState("");
+  const [pocPhone, setPocPhone] = useState("");
+  const [pocEmail, setPocEmail] = useState("");
+  const [pocRole, setPocRole] = useState("");
+  const [emergencyName, setEmergencyName] = useState("");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [contactNotes, setContactNotes] = useState("");
+  const [showContacts, setShowContacts] = useState(false);
+
   // Close when not open
   if (!isOpen) return null;
 
@@ -52,6 +62,15 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
     setClientEmail(customer.email || "");
     setClientPhone(customer.phone || "");
     setClientCompany(customer.company_name || "");
+    // Auto-fill contact info from saved customer
+    if (customer.poc_name) setPocName(customer.poc_name);
+    if (customer.poc_phone) setPocPhone(customer.poc_phone);
+    if (customer.poc_email) setPocEmail(customer.poc_email);
+    if (customer.poc_role) setPocRole(customer.poc_role);
+    if (customer.emergency_contact_name) setEmergencyName(customer.emergency_contact_name);
+    if (customer.emergency_contact_phone) setEmergencyPhone(customer.emergency_contact_phone);
+    if (customer.contact_notes) setContactNotes(customer.contact_notes);
+    if (customer.poc_name || customer.emergency_contact_name) setShowContacts(true);
   };
 
   const handleCustomerClear = () => {
@@ -61,6 +80,9 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
     setClientPhone("");
     setClientCompany("");
     setNewCustomerFields({ name: "", email: "", phone: "", companyName: "" });
+    setPocName(""); setPocPhone(""); setPocEmail(""); setPocRole("");
+    setEmergencyName(""); setEmergencyPhone(""); setContactNotes("");
+    setShowContacts(false);
   };
 
   const handleNewCustomerFieldChange = (updates) => {
@@ -113,6 +135,13 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
       customer_company: effectiveCompany || null,
       airport: quote?.airport || null,
       product_estimates: quote?.productEstimates || [],
+      poc_name: pocName || null,
+      poc_phone: pocPhone || null,
+      poc_email: pocEmail || null,
+      poc_role: pocRole || null,
+      emergency_contact_name: emergencyName || null,
+      emergency_contact_phone: emergencyPhone || null,
+      contact_notes: contactNotes || null,
     };
 
     console.log('Creating quote with payload:', JSON.stringify({
@@ -250,6 +279,30 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
         }
       }
 
+      // Save contact info to customer profile for reuse
+      if (effectiveCustomerId && (pocName || emergencyName)) {
+        try {
+          await fetch(`/api/customers/${effectiveCustomerId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+            },
+            body: JSON.stringify({
+              poc_name: pocName || null,
+              poc_phone: pocPhone || null,
+              poc_email: pocEmail || null,
+              poc_role: pocRole || null,
+              emergency_contact_name: emergencyName || null,
+              emergency_contact_phone: emergencyPhone || null,
+              contact_notes: contactNotes || null,
+            }),
+          });
+        } catch (e) {
+          console.error('Failed to save contacts to customer:', e);
+        }
+      }
+
       // Warn if email failed but quote was sent
       if (sendResult.emailError) {
         console.error('Email send failed:', sendResult.emailError);
@@ -370,6 +423,93 @@ export default function SendQuoteModal({ isOpen, onClose, quote, user }) {
               newCustomerFields={newCustomerFields}
               onFieldChange={handleNewCustomerFieldChange}
             />
+
+            {/* Contact Information */}
+            <div className="mb-3">
+              <button
+                type="button"
+                onClick={() => setShowContacts(!showContacts)}
+                className="w-full flex items-center justify-between text-sm font-medium text-gray-700 py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+              >
+                <span>Aircraft Contact Info {(pocName || emergencyName) && <span className="text-green-600 ml-1">&#10003;</span>}</span>
+                <span className="text-gray-400">{showContacts ? '\u25B2' : '\u25BC'}</span>
+              </button>
+              {showContacts && (
+                <div className="mt-2 space-y-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                  {/* POC Section */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Who should we contact about this aircraft?</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={pocName}
+                        onChange={(e) => setPocName(e.target.value)}
+                        placeholder="Contact name"
+                        className="col-span-2 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                      />
+                      <input
+                        type="tel"
+                        value={pocPhone}
+                        onChange={(e) => setPocPhone(e.target.value)}
+                        placeholder="Phone"
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                      />
+                      <input
+                        type="email"
+                        value={pocEmail}
+                        onChange={(e) => setPocEmail(e.target.value)}
+                        placeholder="Email"
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                    <select
+                      value={pocRole}
+                      onChange={(e) => setPocRole(e.target.value)}
+                      className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                    >
+                      <option value="">Select role...</option>
+                      <option value="Owner">Owner</option>
+                      <option value="Pilot">Pilot</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Assistant">Assistant</option>
+                      <option value="FBO">FBO</option>
+                    </select>
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Emergency contact for day of service</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={emergencyName}
+                        onChange={(e) => setEmergencyName(e.target.value)}
+                        placeholder="Emergency contact name"
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                      />
+                      <input
+                        type="tel"
+                        value={emergencyPhone}
+                        onChange={(e) => setEmergencyPhone(e.target.value)}
+                        placeholder="Emergency phone"
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <textarea
+                      value={contactNotes}
+                      onChange={(e) => setContactNotes(e.target.value)}
+                      placeholder="Contact notes (e.g., best time to call, gate access code...)"
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Method selection */}
             <div className="mb-3">
