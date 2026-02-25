@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,18 +11,30 @@ export async function POST(request) {
   const supabase = getSupabase();
 
   try {
-    const { quoteId } = await request.json();
+    const { quoteId, shareLink } = await request.json();
 
     if (!quoteId) {
       return new Response(JSON.stringify({ error: 'Quote ID required' }), { status: 400 });
     }
 
-    // Fetch quote
-    const { data: quote, error: quoteError } = await supabase
+    // Authenticate via either user session (detailer) or shareLink (customer)
+    const user = await getAuthUser(request);
+    let query = supabase
       .from('quotes')
-      .select('*')
-      .eq('id', quoteId)
-      .single();
+      .select('id, client_email, client_name, detailer_id, tips_sent_at')
+      .eq('id', quoteId);
+
+    if (user) {
+      // Detailer: must own the quote
+      query = query.eq('detailer_id', user.id);
+    } else if (shareLink) {
+      // Customer: must provide valid share_link
+      query = query.eq('share_link', shareLink);
+    } else {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
+    const { data: quote, error: quoteError } = await query.single();
 
     if (quoteError || !quote) {
       return new Response(JSON.stringify({ error: 'Quote not found' }), { status: 404 });

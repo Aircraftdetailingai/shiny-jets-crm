@@ -211,7 +211,7 @@ export default function QuotesPage() {
   const submitChangeOrder = async () => {
     const validServices = changeOrderData.services.filter(s => s.name && s.amount);
     if (validServices.length === 0) {
-      alert('Please add at least one service');
+      alert(t('quotes.addServiceRequired'));
       return;
     }
 
@@ -238,14 +238,14 @@ export default function QuotesPage() {
       });
 
       if (res.ok) {
-        alert('Change order sent to customer!');
+        alert(t('quotes.changeOrderSent'));
         setChangeOrderModal(null);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to create change order');
+        alert(data.error || t('quotes.changeOrderFailed'));
       }
     } catch (err) {
-      alert('Failed to create change order');
+      alert(t('quotes.changeOrderFailed'));
     } finally {
       setSubmittingChangeOrder(false);
     }
@@ -311,7 +311,7 @@ export default function QuotesPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || data.message || 'Failed to duplicate quote');
+        alert(data.error || data.message || t('quotes.duplicateFailed'));
         return;
       }
 
@@ -319,7 +319,7 @@ export default function QuotesPage() {
       setQuotes(prev => [{ ...newQuote, aircraft_name: newQuote.aircraft_model ? `${newQuote.aircraft_type || ''} ${newQuote.aircraft_model}`.trim() : newQuote.aircraft_type || 'Unknown Aircraft' }, ...prev]);
       setDuplicateModal(null);
     } catch (err) {
-      alert('Failed to duplicate quote');
+      alert(t('quotes.duplicateFailed'));
     } finally {
       setDuplicating(false);
     }
@@ -362,10 +362,10 @@ export default function QuotesPage() {
         setCompleteModal(null);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to complete job');
+        alert(data.error || t('quotes.completeFailed'));
       }
     } catch (err) {
-      alert('Failed to complete job');
+      alert(t('quotes.completeFailed'));
     } finally {
       setCompleting(false);
     }
@@ -449,7 +449,7 @@ export default function QuotesPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Bulk action failed');
+        alert(data.error || t('quotes.bulkActionFailed'));
         return;
       }
 
@@ -468,7 +468,7 @@ export default function QuotesPage() {
       clearSelection();
     } catch (err) {
       console.error('Bulk action error:', err);
-      alert('Bulk action failed');
+      alert(t('quotes.bulkActionFailed'));
     } finally {
       setBulkProcessing(false);
       setBulkConfirm(null);
@@ -505,7 +505,7 @@ export default function QuotesPage() {
       accessorKey: 'client_name',
       cell: ({ getValue, row }) => (
         <div>
-          <span className="font-medium">{getValue() || 'No name'}</span>
+          <span className="font-medium">{getValue() || t('common.noName')}</span>
           {row.original.client_email && (
             <span className="text-xs text-gray-500 block">{row.original.client_email}</span>
           )}
@@ -870,14 +870,14 @@ export default function QuotesPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => setBulkConfirm({ action: 'send', label: `Send ${selectedIds.size} quote${selectedIds.size !== 1 ? 's' : ''}?`, description: 'Quotes with a customer email in draft/sent status will be emailed.' })}
+              onClick={() => setBulkConfirm({ action: 'send', label: t('quotes.bulkSendConfirm', { count: selectedIds.size }), description: t('quotes.bulkSendDesc') })}
               disabled={bulkProcessing}
               className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:opacity-50"
             >
               {t('quotesExtra.sendAll')}
             </button>
             <button
-              onClick={() => setBulkConfirm({ action: 'expire', label: `Mark ${selectedIds.size} quote${selectedIds.size !== 1 ? 's' : ''} as expired?`, description: 'This will change their status to expired.' })}
+              onClick={() => setBulkConfirm({ action: 'expire', label: t('quotes.bulkExpireConfirm', { count: selectedIds.size }), description: t('quotes.bulkExpireDesc') })}
               disabled={bulkProcessing}
               className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-50"
             >
@@ -893,7 +893,7 @@ export default function QuotesPage() {
               </button>
             </ExportGate>
             <button
-              onClick={() => setBulkConfirm({ action: 'delete', label: `Delete ${selectedIds.size} quote${selectedIds.size !== 1 ? 's' : ''} permanently?`, description: 'This cannot be undone.' })}
+              onClick={() => setBulkConfirm({ action: 'delete', label: t('quotes.bulkDeleteConfirm', { count: selectedIds.size }), description: t('quotes.bulkDeleteDesc') })}
               disabled={bulkProcessing}
               className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 disabled:opacity-50"
             >
@@ -938,7 +938,7 @@ export default function QuotesPage() {
                 {completeModal.emergency_contact_name && (
                   <div className="flex items-center justify-between pt-1 border-t">
                     <div>
-                      <span className="text-xs text-red-600 font-semibold uppercase">Emergency: </span>
+                      <span className="text-xs text-red-600 font-semibold uppercase">{t('quotes.emergency')}: </span>
                       <span className="font-medium">{completeModal.emergency_contact_name}</span>
                     </div>
                     {completeModal.emergency_contact_phone && (
@@ -953,7 +953,7 @@ export default function QuotesPage() {
               {/* Per-Service Hours Breakdown */}
               {serviceHours.length > 0 ? (
                 <div>
-                  <label className="block text-sm font-medium mb-2">{t('quotes.actualHours')} Per Service *</label>
+                  <label className="block text-sm font-medium mb-2">{t('quotes.actualHours')} {t('quotes.perService')}</label>
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {serviceHours.map((sh, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
@@ -976,7 +976,7 @@ export default function QuotesPage() {
                             }}
                             className="w-20 border rounded px-2 py-1.5 text-sm text-right"
                           />
-                          <span className="text-xs text-gray-500">hrs</span>
+                          <span className="text-xs text-gray-500">{t('common.hrs')}</span>
                         </div>
                       </div>
                     ))}
@@ -997,7 +997,7 @@ export default function QuotesPage() {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium mb-1">{t('quotes.actualHours')} Worked *</label>
+                  <label className="block text-sm font-medium mb-1">{t('quotes.actualHours')} {t('quotes.worked')}</label>
                   <input
                     type="number"
                     step="0.25"
@@ -1015,7 +1015,7 @@ export default function QuotesPage() {
               {/* Product estimates from quote */}
               {completeModal.product_estimates && completeModal.product_estimates.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-blue-800 mb-1">{t('dashboard.estimatedProducts')} (from quote)</p>
+                  <p className="text-sm font-medium text-blue-800 mb-1">{t('dashboard.estimatedProducts')} {t('quotes.fromQuote')}</p>
                   <div className="space-y-0.5">
                     {completeModal.product_estimates.map((e, i) => (
                       <div key={i} className="flex justify-between text-sm">
@@ -1028,7 +1028,7 @@ export default function QuotesPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium mb-1">Products Used</label>
+                <label className="block text-sm font-medium mb-1">{t('quotes.productsUsed')}</label>
                 {inventoryProducts.length > 0 ? (
                   <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                     {selectedProducts.map((sp, idx) => (
@@ -1042,7 +1042,7 @@ export default function QuotesPage() {
                           }}
                           className="flex-1 border rounded px-2 py-1.5 text-sm"
                         >
-                          <option value="">Select product...</option>
+                          <option value="">{t('quotes.selectProduct')}</option>
                           {inventoryProducts.map(p => (
                             <option key={p.id} value={p.id}>{p.name} ({p.current_quantity} {p.unit})</option>
                           ))}
@@ -1063,7 +1063,7 @@ export default function QuotesPage() {
                             });
                             setCompletionData(prev => ({ ...prev, product_cost: totalCost.toFixed(2) }));
                           }}
-                          placeholder="Qty"
+                          placeholder={t('common.qty')}
                           className="w-20 border rounded px-2 py-1.5 text-sm text-right"
                         />
                         <button
@@ -1079,7 +1079,7 @@ export default function QuotesPage() {
                       className="text-sm text-amber-600 hover:underline"
                     >{t('quotesExtra.addProduct')}</button>
                     {selectedProducts.length > 0 && completionData.product_cost && (
-                      <p className="text-xs text-gray-500 mt-1">Estimated material cost: {currencySymbol()}{completionData.product_cost}</p>
+                      <p className="text-xs text-gray-500 mt-1">{t('quotes.estimatedMaterialCost')} {currencySymbol()}{completionData.product_cost}</p>
                     )}
                   </div>
                 ) : (
@@ -1093,7 +1093,7 @@ export default function QuotesPage() {
                       placeholder="0.00"
                       className="w-32 border rounded px-3 py-2"
                     />
-                    <a href="/products" className="text-xs text-amber-600 hover:underline">Add products to track inventory</a>
+                    <a href="/products" className="text-xs text-amber-600 hover:underline">{t('quotes.addProductsToTrack')}</a>
                   </div>
                 )}
               </div>
@@ -1103,7 +1103,7 @@ export default function QuotesPage() {
                 <textarea
                   value={completionData.notes}
                   onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })}
-                  placeholder="Any notes about this job..."
+                  placeholder={t('quotes.jobNotes')}
                   className="w-full border rounded px-3 py-2"
                   rows={2}
                 />
@@ -1290,7 +1290,7 @@ export default function QuotesPage() {
                 <textarea
                   value={duplicateData.notes}
                   onChange={(e) => setDuplicateData({ ...duplicateData, notes: e.target.value })}
-                  placeholder="Add notes for this quote..."
+                  placeholder={t('quotes.addNotesPlaceholder')}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
                   rows={2}
                 />
@@ -1377,11 +1377,11 @@ export default function QuotesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">{t('quotes.reason')} / Note for Customer</label>
+                <label className="block text-sm font-medium mb-1">{t('quotes.reason')} / {t('quotes.noteForCustomer')}</label>
                 <textarea
                   value={changeOrderData.reason}
                   onChange={(e) => setChangeOrderData({ ...changeOrderData, reason: e.target.value })}
-                  placeholder="Explain why these additional services are needed..."
+                  placeholder={t('quotes.changeOrderPlaceholder')}
                   className="w-full border rounded px-3 py-2"
                   rows={3}
                 />
@@ -1390,14 +1390,14 @@ export default function QuotesPage() {
               {/* Summary */}
               <div className="bg-amber-50 border border-amber-200 p-3 rounded">
                 <div className="flex justify-between text-sm mb-1">
-                  <span>Additional Amount:</span>
+                  <span>{t('quotes.additionalAmount')}</span>
                   <span className="font-semibold">
                     {currencySymbol()}{formatPrice(changeOrderData.services
                       .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0))}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-bold">
-                  <span>New {t('common.total')}:</span>
+                  <span>{t('quotes.newTotal')}:</span>
                   <span>
                     {currencySymbol()}{formatPrice((parseFloat(changeOrderModal.total_price) || 0) +
                       changeOrderData.services.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0))}

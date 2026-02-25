@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getAuthUser } from '@/lib/auth';
 import {
   sendQuoteSentEmail,
   sendQuoteViewedEmail,
@@ -8,11 +8,18 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
-}
+const ADMIN_EMAILS = [
+  'brett@aircraftdetailing.ai',
+  'admin@aircraftdetailing.ai',
+  'brett@shinyjets.com',
+];
 
 export async function GET(request) {
+  const user = await getAuthUser(request);
+  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase())) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type') || 'all';
   const email = searchParams.get('email');
@@ -25,37 +32,26 @@ export async function GET(request) {
     }, { status: 400 });
   }
 
-  const supabase = getSupabase();
-
-  // Get a sample quote and detailer
-  const { data: quote } = await supabase
-    .from('quotes')
-    .select('*')
-    .limit(1)
-    .single();
-
-  const { data: detailer } = await supabase
-    .from('detailers')
-    .select('*')
-    .limit(1)
-    .single();
-
-  if (!quote || !detailer) {
-    return Response.json({ error: 'No quote or detailer found for testing' }, { status: 400 });
-  }
-
-  // Override emails for testing
+  // Use mock data instead of reading real records from the database
   const testQuote = {
-    ...quote,
+    id: 'test-quote-id',
     client_email: email,
     client_name: 'Test Customer',
+    aircraft_type: 'Light Jet',
+    aircraft_model: 'Citation CJ3',
+    total_price: 1500,
+    share_link: 'test-link',
+    services: [{ name: 'Exterior Wash', price: 800 }, { name: 'Interior Detail', price: 700 }],
+    status: 'sent',
+    valid_until: new Date(Date.now() + 30 * 86400000).toISOString(),
   };
 
   const testDetailer = {
-    ...detailer,
+    id: 'test-detailer-id',
     email: email,
     name: 'Test Detailer',
     company: 'Test Aviation Detailing',
+    phone: '(555) 000-0000',
   };
 
   const results = {};

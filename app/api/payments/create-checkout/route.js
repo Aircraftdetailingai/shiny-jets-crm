@@ -13,16 +13,17 @@ export async function POST(request) {
   const supabase = getSupabase();
 
   try {
-    const { quoteId } = await request.json();
-    if (!quoteId) {
-      return new Response(JSON.stringify({ error: 'Quote ID required' }), { status: 400 });
+    const { quoteId, shareLink } = await request.json();
+    if (!quoteId || !shareLink) {
+      return new Response(JSON.stringify({ error: 'Quote ID and share link required' }), { status: 400 });
     }
 
-    // Fetch quote
+    // Fetch quote - require share_link match to prevent unauthorized access
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
-      .select('*')
+      .select('id, detailer_id, total_price, aircraft_type, aircraft_model, status, valid_until, share_link, client_name, client_email')
       .eq('id', quoteId)
+      .eq('share_link', shareLink)
       .single();
 
     if (quoteError || !quote) {

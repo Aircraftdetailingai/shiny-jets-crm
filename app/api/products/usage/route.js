@@ -42,21 +42,25 @@ export async function GET(request) {
     `)
     .order('created_at', { ascending: false });
 
+  // Always scope to user's own quotes
+  const { data: userQuotes } = await supabase
+    .from('quotes')
+    .select('id')
+    .eq('detailer_id', user.id);
+
+  const quoteIds = userQuotes?.map(q => q.id) || [];
+  if (quoteIds.length === 0) {
+    return Response.json({ usage: [] });
+  }
+
   if (quoteId) {
+    // Verify the requested quote belongs to this user
+    if (!quoteIds.includes(quoteId)) {
+      return Response.json({ error: 'Quote not found' }, { status: 404 });
+    }
     query = query.eq('quote_id', quoteId);
   } else {
-    // Get usage for user's quotes
-    const { data: userQuotes } = await supabase
-      .from('quotes')
-      .select('id')
-      .eq('detailer_id', user.id);
-
-    const quoteIds = userQuotes?.map(q => q.id) || [];
-    if (quoteIds.length > 0) {
-      query = query.in('quote_id', quoteIds);
-    } else {
-      return Response.json({ usage: [] });
-    }
+    query = query.in('quote_id', quoteIds);
   }
 
   const { data: usage } = await query.limit(100);

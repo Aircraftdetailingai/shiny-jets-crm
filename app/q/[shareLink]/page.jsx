@@ -61,7 +61,7 @@ export default function QuoteViewPage() {
       const res = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -88,7 +88,7 @@ export default function QuoteViewPage() {
       const res = await fetch('/api/quotes/request-new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ originalQuoteId: quote.id }),
+        body: JSON.stringify({ originalQuoteId: quote.id, shareLink: params.shareLink }),
       });
       if (res.ok) {
         setRequestSent(true);
@@ -106,7 +106,7 @@ export default function QuoteViewPage() {
       const res = await fetch('/api/quotes/send-tips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink }),
       });
       if (res.ok) {
         setTipsSent(true);

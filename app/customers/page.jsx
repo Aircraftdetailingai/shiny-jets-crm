@@ -429,7 +429,7 @@ export default function CustomersPage() {
 
                     {/* Quotes */}
                     <div className="col-span-2 text-sm text-gray-600">
-                      {customer.quote_count || 0} quote{(customer.quote_count || 0) !== 1 ? 's' : ''}
+                      {t('customers.quoteCount', { count: customer.quote_count || 0 })}
                     </div>
 
                     {/* Last Service */}

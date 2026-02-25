@@ -116,7 +116,7 @@ export default function PortalPage() {
       const res = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ quoteId: quote.id, shareLink: quote.share_link }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -137,7 +137,7 @@ export default function PortalPage() {
       const res = await fetch('/api/quotes/request-new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id }),
+        body: JSON.stringify({ originalQuoteId: quote.id, shareLink: quote.share_link }),
       });
       if (res.ok) {
         setRebookSuccess(true);

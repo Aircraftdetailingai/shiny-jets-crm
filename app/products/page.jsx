@@ -165,10 +165,10 @@ export default function ProductsPage() {
         }));
       } else {
         const data = await res.json();
-        setScrapeError(data.error || 'Could not extract product info');
+        setScrapeError(data.error || t('products.scrapeError'));
       }
     } catch {
-      setScrapeError('Failed to fetch product data');
+      setScrapeError(t('products.scrapeFailed'));
     } finally {
       setScraping(false);
     }
@@ -352,7 +352,7 @@ export default function ProductsPage() {
                       <div className="text-sm text-red-700">
                         <span className="font-medium">{p.name}</span>
                         <span className="text-red-500 ml-1">&#8212; {p.current_quantity} {p.unit} {t('products.remaining')}</span>
-                        <span className="text-red-400 text-xs ml-1">(reorder at {p.reorder_threshold})</span>
+                        <span className="text-red-400 text-xs ml-1">{t('products.reorderAt', { threshold: p.reorder_threshold })}</span>
                       </div>
                       {p.product_url && (
                         <a
@@ -536,7 +536,7 @@ export default function ProductsPage() {
                       type="url"
                       value={pasteUrl}
                       onChange={handlePasteUrlChange}
-                      placeholder="https://www.chemicalguys.com/product..."
+                      placeholder={t('products.scrapePlaceholder')}
                       className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 bg-white"
                     />
                     {pasteUrl && !scraping && (
@@ -558,7 +558,7 @@ export default function ProductsPage() {
                   {scrapeError && (
                     <p className="text-xs text-red-600 mt-1">{scrapeError}</p>
                   )}
-                  <p className="text-[10px] text-blue-500 mt-1">Supports: Detail King, Autogeek, Amazon, Chemical Guys, P&amp;S, and more</p>
+                  <p className="text-[10px] text-blue-500 mt-1">{t('products.supportedSites')}</p>
                 </div>
               )}
 
@@ -663,7 +663,7 @@ export default function ProductsPage() {
                   step="0.1"
                   value={formData.reorderThreshold}
                   onChange={(e) => setFormData({ ...formData, reorderThreshold: e.target.value })}
-                  placeholder="Alert when quantity falls below this"
+                  placeholder={t('products.reorderAlertPlaceholder')}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
                 />
               </div>
@@ -685,7 +685,7 @@ export default function ProductsPage() {
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={2}
-                  placeholder="Optional notes"
+                  placeholder={t('products.optionalNotes')}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 resize-none"
                 />
               </div>
@@ -718,7 +718,7 @@ export default function ProductsPage() {
             <div className="px-6 py-4 border-b">
               <h2 className="text-lg font-semibold">{t('products.adjustInventory')}</h2>
               <p className="text-sm text-gray-500">{showAdjustModal.name}</p>
-              <p className="text-xs text-gray-400">Current: {showAdjustModal.current_quantity} {showAdjustModal.unit}</p>
+              <p className="text-xs text-gray-400">{t('products.current')}: {showAdjustModal.current_quantity} {showAdjustModal.unit}</p>
             </div>
 
             <div className="p-6">

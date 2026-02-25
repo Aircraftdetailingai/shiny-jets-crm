@@ -255,7 +255,7 @@ export default function CalendarPage() {
                         key={job.id}
                         onClick={() => setSelectedJob(job)}
                         className={`text-xs p-1 rounded text-white cursor-pointer truncate ${statusColors[job.status] || 'bg-gray-500'}`}
-                        title={`${job.aircraft_model || job.aircraft_type} - ${job.client_name || 'No name'}`}
+                        title={`${job.aircraft_model || job.aircraft_type} - ${job.client_name || t('common.noName')}`}
                       >
                         {formatTime(job.scheduled_date)} {job.client_name || job.aircraft_model}
                       </div>
@@ -288,7 +288,7 @@ export default function CalendarPage() {
                   }}
                   className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
                 >
-                  <div className="font-medium text-sm">{job.client_name || 'No name'}</div>
+                  <div className="font-medium text-sm">{job.client_name || t('common.noName')}</div>
                   <div className="text-xs text-gray-500">
                     {job.aircraft_model || job.aircraft_type}
                   </div>
@@ -307,7 +307,7 @@ export default function CalendarPage() {
               {Object.entries(statusColors).map(([status, color]) => (
                 <div key={status} className="flex items-center text-xs">
                   <div className={`w-3 h-3 rounded mr-2 ${color}`}></div>
-                  <span className="capitalize">{status.replace('_', ' ')}</span>
+                  <span className="capitalize">{t('status.' + status.replace(/_([a-z])/g, (_, c) => c.toUpperCase()))}</span>
                 </div>
               ))}
             </div>
@@ -329,7 +329,7 @@ export default function CalendarPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-gray-500">{t('common.customer')}</label>
-                <p className="font-medium">{selectedJob.client_name || 'No name'}</p>
+                <p className="font-medium">{selectedJob.client_name || t('common.noName')}</p>
               </div>
 
               <div>
@@ -405,7 +405,7 @@ export default function CalendarPage() {
             <h3 className="text-lg font-semibold mb-4">{t('calendar.scheduleJob')}</h3>
 
             <div className="mb-4">
-              <p className="font-medium">{scheduleModal.client_name || 'No name'}</p>
+              <p className="font-medium">{scheduleModal.client_name || t('common.noName')}</p>
               <p className="text-sm text-gray-500">{scheduleModal.aircraft_model || scheduleModal.aircraft_type}</p>
             </div>
 

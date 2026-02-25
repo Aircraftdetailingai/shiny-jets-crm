@@ -117,7 +117,7 @@ function AcquisitionChart({ data, noDataLabel }) {
           <div
             className="w-full rounded-t transition-all duration-500 bg-purple-500 min-h-[4px]"
             style={{ height: `${Math.max((item.count / max) * 100, 3)}%` }}
-            title={`${formatMonth(item.month)}: ${item.count} new customers`}
+            title={`${formatMonth(item.month)}: ${t('reportsExtra.newCustomers', { count: item.count })}`}
           />
           <span className="text-xs text-gray-400 mt-1 truncate w-full text-center">{formatMonth(item.month)}</span>
         </div>
@@ -369,7 +369,7 @@ export default function ReportsPage() {
                           row.status === 'declined' ? 'bg-red-100 text-red-700' :
                           'bg-gray-100 text-gray-600'
                         }`}>
-                          {row.status}
+                          {t('status.' + row.status)}
                         </span>
                       </td>
                       <td className="py-2 text-right font-medium text-gray-900">{formatCurrency(row.amount)}</td>

@@ -465,7 +465,7 @@ export default function EquipmentPage() {
               <>
                 <span className="text-4xl">&#128295;</span>
                 <h3 className="text-xl font-semibold mt-4">{t('equipment.loadingEquipment').replace('Loading equipment...', t('common.noResults'))}</h3>
-                <p className="text-gray-500 mt-2">Add your tools and equipment to track usage, maintenance, and ROI</p>
+                <p className="text-gray-500 mt-2">{t('equipment.emptyDescription')}</p>
                 <button
                   onClick={() => handleOpenModal()}
                   className="mt-4 px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600"
@@ -576,7 +576,7 @@ export default function EquipmentPage() {
                             <button
                               onClick={() => handleIncrementJobs(item.id)}
                               className="px-2.5 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded font-medium"
-                              title="Log a completed job"
+                              title={t('equipment.logJob')}
                             >
                               {t('equipment.addOneJob')}
                             </button>
@@ -624,7 +624,7 @@ export default function EquipmentPage() {
                     type="url"
                     value={scrapeUrl}
                     onChange={handlePasteUrl}
-                    placeholder="https://www.amazon.com/... or any product page"
+                    placeholder={t('equipment.scrapePlaceholder')}
                     className="flex-1 border border-amber-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
                   />
                   {scraping && (
@@ -636,7 +636,7 @@ export default function EquipmentPage() {
                 {scrapeError && (
                   <p className="text-xs text-red-600 mt-1">{scrapeError}</p>
                 )}
-                <p className="text-xs text-amber-600 mt-1">Supports Amazon, Home Depot, Grainger, Detail King, Rupes, Autogeek, Fly Shiny, Real Clean Aviation, Skygeek, Aircraft Spruce, Chief Aircraft, Nuvite &amp; more</p>
+                <p className="text-xs text-amber-600 mt-1">{t('equipment.supportedSites')}</p>
               </div>
 
               {/* Image preview from scrape */}

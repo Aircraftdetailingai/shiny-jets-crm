@@ -81,7 +81,9 @@
     "perYear": "/year",
     "items": "items",
     "showing": "Showing",
-    "rows": "rows"
+    "rows": "rows",
+    "qty": "Qty",
+    "noName": "No name"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -275,7 +277,33 @@
     "reason": "Reason",
     "addService": "+ Add Service",
     "serviceName": "Service name",
-    "serviceAmount": "Amount"
+    "serviceAmount": "Amount",
+    "addServiceRequired": "Please add at least one service",
+    "changeOrderSent": "Change order sent to customer!",
+    "changeOrderFailed": "Failed to create change order",
+    "duplicateFailed": "Failed to duplicate quote",
+    "completeFailed": "Failed to complete job",
+    "bulkActionFailed": "Bulk action failed",
+    "bulkSendConfirm": "Send {count} quote(s)?",
+    "bulkSendDesc": "Quotes with a customer email in draft/sent status will be emailed.",
+    "bulkExpireConfirm": "Mark {count} quote(s) as expired?",
+    "bulkExpireDesc": "This will change their status to expired.",
+    "bulkDeleteConfirm": "Delete {count} quote(s) permanently?",
+    "bulkDeleteDesc": "This cannot be undone.",
+    "emergency": "Emergency",
+    "perService": "Per Service *",
+    "worked": "Worked *",
+    "fromQuote": "(from quote)",
+    "productsUsed": "Products Used",
+    "selectProduct": "Select product...",
+    "estimatedMaterialCost": "Estimated material cost:",
+    "addProductsToTrack": "Add products to track inventory",
+    "jobNotes": "Any notes about this job...",
+    "noteForCustomer": "Note for Customer",
+    "changeOrderPlaceholder": "Explain why these additional services are needed...",
+    "additionalAmount": "Additional Amount:",
+    "newTotal": "New Total",
+    "addNotesPlaceholder": "Add notes for this quote..."
   },
   "customers": {
     "title": "Customers",
@@ -297,7 +325,8 @@
     "createTag": "Create Tag",
     "filterByTag": "Filter by tag",
     "allCustomers": "All Customers",
-    "companyName": "Company"
+    "companyName": "Company",
+    "quoteCount": "{count} {count, plural, one {quote} other {quotes}}"
   },
   "calendar": {
     "title": "Calendar",
@@ -468,7 +497,11 @@
     "namePlaceholder": "e.g., Rupes LHR21 Mark III",
     "brandPlaceholder": "e.g., Rupes",
     "modelPlaceholder": "e.g., LHR21 Mark III",
-    "maintenancePlaceholder": "Maintenance schedule, repair history, parts to order..."
+    "maintenancePlaceholder": "Maintenance schedule, repair history, parts to order...",
+    "emptyDescription": "Add your tools and equipment to track usage, maintenance, and ROI",
+    "logJob": "Log a completed job",
+    "scrapePlaceholder": "https://www.amazon.com/... or any product page",
+    "supportedSites": "Supports Amazon, Home Depot, Grainger, Detail King, Rupes, Autogeek, Fly Shiny, Real Clean Aviation, Skygeek, Aircraft Spruce, Chief Aircraft, Nuvite & more"
   },
   "products": {
     "title": "Inventory",
@@ -516,7 +549,15 @@
     "namePlaceholder": "e.g., M105 Ultra-Cut Compound",
     "brandPlaceholder": "e.g., Meguiar's",
     "sizePlaceholder": "e.g., 32 oz",
-    "supplierPlaceholder": "e.g., Detail King, Amazon"
+    "supplierPlaceholder": "e.g., Detail King, Amazon",
+    "scrapeError": "Could not extract product info",
+    "scrapeFailed": "Failed to fetch product data",
+    "reorderAt": "(reorder at {threshold})",
+    "scrapePlaceholder": "https://www.chemicalguys.com/product...",
+    "supportedSites": "Supports: Detail King, Autogeek, Amazon, Chemical Guys, P&S, and more",
+    "reorderAlertPlaceholder": "Alert when quantity falls below this",
+    "optionalNotes": "Optional notes",
+    "current": "Current"
   },
   "documents": {
     "title": "Documents",

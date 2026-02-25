@@ -11,21 +11,22 @@ export async function POST(request) {
   const supabase = getSupabase();
 
   try {
-    const { originalQuoteId } = await request.json();
+    const { originalQuoteId, shareLink } = await request.json();
 
-    if (!originalQuoteId) {
-      return new Response(JSON.stringify({ error: 'Original quote ID required' }), { status: 400 });
+    if (!originalQuoteId || !shareLink) {
+      return new Response(JSON.stringify({ error: 'Quote ID and share link required' }), { status: 400 });
     }
 
-    // Fetch original quote
+    // Fetch original quote - require share_link match to prevent enumeration
     const { data: originalQuote, error: quoteError } = await supabase
       .from('quotes')
-      .select('*')
+      .select('id, detailer_id, client_name, client_email, client_phone, aircraft_type, aircraft_model, services, total_price, valid_until, share_link')
       .eq('id', originalQuoteId)
+      .eq('share_link', shareLink)
       .single();
 
     if (quoteError || !originalQuote) {
-      return new Response(JSON.stringify({ error: 'Original quote not found' }), { status: 404 });
+      return new Response(JSON.stringify({ error: 'Quote not found' }), { status: 404 });
     }
 
     // Create a quote request record
