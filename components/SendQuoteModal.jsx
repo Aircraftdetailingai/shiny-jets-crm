@@ -22,8 +22,10 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
   });
   const [method, setMethod] = useState("link"); // 'link', 'sms', 'email', 'both'
   const [loading, setLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [successType, setSuccessType] = useState("sent"); // 'sent' or 'draft'
   const [quoteLink, setQuoteLink] = useState("");
   const [quoteLimitHit, setQuoteLimitHit] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -97,7 +99,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
     if (updates.companyName !== undefined) setClientCompany(updates.companyName);
   };
 
-  const createQuoteIfNeeded = async () => {
+  const createQuoteIfNeeded = async (custId) => {
     // If quote already has id and share_link, return
     if (quote?.id && quote?.share_link) {
       return { id: quote.id, share_link: quote.share_link };
@@ -192,8 +194,35 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       if (requiresSms && isBusiness && !effectivePhone) {
         throw new Error("Customer phone is required for SMS");
       }
+
+      // Always save/upsert customer FIRST so we have a customer_id
+      let resolvedCustomerId = effectiveCustomerId;
+      if (!resolvedCustomerId && effectiveEmail) {
+        try {
+          const custRes = await fetch("/api/customers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("vector_token")}`,
+            },
+            body: JSON.stringify({
+              name: effectiveName,
+              email: effectiveEmail,
+              phone: effectivePhone || null,
+              company_name: effectiveCompany || null,
+            }),
+          });
+          const custData = await custRes.json();
+          if (custData.customer?.id) {
+            resolvedCustomerId = custData.customer.id;
+          }
+        } catch (e) {
+          console.error('Customer pre-save failed:', e);
+        }
+      }
+
       // Create quote if needed
-      const { id, share_link } = await createQuoteIfNeeded();
+      const { id, share_link } = await createQuoteIfNeeded(resolvedCustomerId);
 
       // If scheduling for later, save to scheduled_quotes instead of sending now
       if (isScheduled && scheduledDate) {
@@ -214,7 +243,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             client_email: effectiveEmail,
             client_phone: effectivePhone || null,
             client_company: effectiveCompany || null,
-            customer_id: effectiveCustomerId,
+            customer_id: resolvedCustomerId,
             airport: quote?.airport || null,
           }),
         });
@@ -235,7 +264,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
         clientName: effectiveName,
         clientEmail: effectiveEmail,
         clientCompany: effectiveCompany || null,
-        customerId: effectiveCustomerId,
+        customerId: resolvedCustomerId,
         airport: quote?.airport || null,
       };
       if (effectivePhone) {
@@ -285,9 +314,10 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       }
 
       // Save contact info to customer profile for reuse
-      if (effectiveCustomerId && (pocName || emergencyName)) {
+      const finalCustomerId = resolvedCustomerId || sendResult.customer_id;
+      if (finalCustomerId && (pocName || emergencyName)) {
         try {
-          await fetch(`/api/customers/${effectiveCustomerId}`, {
+          await fetch(`/api/customers/${finalCustomerId}`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -315,13 +345,14 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       // success
       const link = `${window.location.origin}/q/${share_link}`;
       setQuoteLink(link);
+      setSuccessType("sent");
       setSuccess(true);
 
       // Build status message
-      const statusParts = [];
-      if (sendResult.emailSent) statusParts.push('Email sent');
+      const statusParts = ['Customer saved'];
+      if (sendResult.emailSent) statusParts.push('email sent');
       if (sendResult.smsSent) statusParts.push('SMS sent');
-      toastSuccess(statusParts.length > 0 ? statusParts.join(' + ') : t('success.sent'));
+      toastSuccess(statusParts.length > 1 ? `Customer saved & ${statusParts.slice(1).join(' + ')}!` : 'Customer saved & quote sent!');
 
       // Show warnings for failures
       const warnings = [];
@@ -340,6 +371,103 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setError("");
+    setDraftLoading(true);
+    try {
+      // Validate name and email
+      if (!effectiveName) {
+        throw new Error("Customer name is required");
+      }
+      if (!effectiveEmail) {
+        throw new Error("Customer email is required");
+      }
+
+      const token = localStorage.getItem("vector_token");
+
+      // Save/upsert customer first to get an ID
+      let draftCustomerId = effectiveCustomerId;
+      if (effectiveEmail) {
+        try {
+          const custRes = await fetch("/api/customers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: effectiveName,
+              email: effectiveEmail,
+              phone: effectivePhone || null,
+              company_name: effectiveCompany || null,
+            }),
+          });
+          const custData = await custRes.json();
+          if (custData.customer?.id) {
+            draftCustomerId = custData.customer.id;
+          }
+        } catch (e) {
+          console.error('Customer save in draft failed:', e);
+        }
+      }
+
+      // Create quote as draft
+      const { id, share_link } = await createQuoteIfNeeded(draftCustomerId);
+
+      // Update quote with client info (stays as draft)
+      await fetch(`/api/quotes/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          client_name: effectiveName,
+          client_email: effectiveEmail,
+          client_phone: effectivePhone || null,
+          customer_id: draftCustomerId,
+          airport: quote?.airport || null,
+        }),
+      });
+
+      // Save contact info to customer profile
+      if (draftCustomerId && (pocName || emergencyName)) {
+        try {
+          await fetch(`/api/customers/${draftCustomerId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              poc_name: pocName || null,
+              poc_phone: pocPhone || null,
+              poc_email: pocEmail || null,
+              poc_role: pocRole || null,
+              emergency_contact_name: emergencyName || null,
+              emergency_contact_phone: emergencyPhone || null,
+              contact_notes: contactNotes || null,
+            }),
+          });
+        } catch (e) {
+          console.error('Failed to save contacts to customer:', e);
+        }
+      }
+
+      const link = `${window.location.origin}/q/${share_link}`;
+      setQuoteLink(link);
+      setSuccessType("draft");
+      setSuccess(true);
+      toastSuccess("Customer saved & quote saved as draft!");
+    } catch (err) {
+      if (err.message !== "QUOTE_LIMIT") {
+        setError(err.message);
+      }
+    } finally {
+      setDraftLoading(false);
     }
   };
 
@@ -647,6 +775,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
               <button
                 type="button"
                 onClick={onClose}
+                disabled={loading || draftLoading}
                 className="px-4 py-3 border rounded-lg text-gray-700 min-h-[44px] font-medium"
               >
                 {t('common.cancel')}
@@ -654,17 +783,26 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={loading}
-                className="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50 min-h-[44px] font-medium"
+                disabled={loading || draftLoading}
+                className="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50 min-h-[44px] font-medium flex items-center justify-center gap-2"
               >
-                {loading ? (isScheduled ? 'Scheduling...' : t('common.sending')) : (isScheduled && scheduledDate ? 'Schedule Quote' : t('dashboard.sendToClient'))}
+                {loading && <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+                {loading ? (isScheduled ? 'Scheduling...' : t('common.sending')) : (isScheduled && scheduledDate ? 'Schedule Quote' : 'Save & Send Quote')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={loading || draftLoading}
+                className="px-4 py-3 rounded-lg border border-amber-500 text-amber-600 hover:bg-amber-50 disabled:opacity-50 min-h-[44px] font-medium flex items-center justify-center gap-2"
+              >
+                {draftLoading ? t('common.saving') : 'Save as Draft'}
               </button>
             </div>
           </div>
         ) : (
           <div className="text-center">
             <div className="text-green-600 text-4xl mb-2">✓</div>
-            <h2 className="text-xl font-semibold mb-2">{isScheduled ? 'Quote Scheduled!' : 'Quote Sent!'}</h2>
+            <h2 className="text-xl font-semibold mb-2">{successType === 'draft' ? 'Quote Saved as Draft!' : (isScheduled ? 'Quote Scheduled!' : 'Customer Saved & Quote Sent!')}</h2>
             <p className="mb-3">
               <a
                 href={quoteLink}
@@ -684,14 +822,22 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             </p>
             <div className="text-left mb-4 text-sm">
               <p className="font-semibold mb-1">What happens next:</p>
-              {isBusiness ? (
+              {successType === 'draft' ? (
                 <ul className="list-disc list-inside">
+                  <li>Customer saved to your contacts.</li>
+                  <li>Quote saved as draft - send it when ready.</li>
+                  <li>Share the link below or send from your dashboard.</li>
+                </ul>
+              ) : isBusiness ? (
+                <ul className="list-disc list-inside">
+                  <li>Customer saved to your contacts.</li>
                   <li>Your client will receive the quote via SMS/Email.</li>
                   <li>We'll send follow-up reminders after 3 and 7 days.</li>
                   <li>You can track views and acceptance in your dashboard.</li>
                 </ul>
               ) : (
                 <ul className="list-disc list-inside">
+                  <li>Customer saved to your contacts.</li>
                   <li>Share the link with your client.</li>
                   <li>Upgrade to Business to send SMS follow-ups automatically.</li>
                 </ul>

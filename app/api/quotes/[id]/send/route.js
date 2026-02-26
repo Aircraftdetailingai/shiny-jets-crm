@@ -329,5 +329,6 @@ export async function POST(request, { params }) {
     emailError: emailError || undefined,
     smsSent,
     smsError: smsError || undefined,
+    customer_id: resolvedCustomerId || undefined,
   }), { status: 200 });
 }

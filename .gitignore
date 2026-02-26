@@ -1,5 +1,6 @@
 .vercel
 .env*.local
 .env.local.prod
+.env.sms-test
 node_modules/
 .next/
