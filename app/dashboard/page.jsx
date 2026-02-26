@@ -371,9 +371,9 @@ function QuickStats({ stats, onNewQuote }) {
       <div className="flex gap-2 flex-wrap">
         <button
           onClick={onNewQuote}
-          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 shadow min-h-[44px]"
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl text-base font-bold hover:from-amber-600 hover:to-amber-700 shadow-lg shadow-amber-500/30 min-h-[48px] transition-all"
         >
-          <span>+</span> {t('quickActions.newQuote')}
+          <span className="text-xl">+</span> {t('quickActions.newQuote')}
         </button>
         <a
           href="/customers"
@@ -1047,12 +1047,8 @@ function DashboardContent() {
           <div className="hidden md:flex items-center space-x-4">
             <a href="/quotes" className="underline">{t('nav.quotes')}</a>
             <a href="/calendar" className="underline" data-tour="nav-calendar">{t('nav.calendar')}</a>
-            <a href="/products" className="underline">{t('nav.inventory')}</a>
-            <a href="/equipment" className="underline">{t('nav.equipment')}</a>
+            <a href="/customers" className="underline">{t('nav.customers')}</a>
             <a href="/team" className="underline">{t('nav.team')}</a>
-            <a href="/recurring" className="underline">{t('nav.recurring')}</a>
-            <a href="/analytics" className="underline" data-tour="nav-analytics">{t('nav.analytics')}</a>
-            <a href="/growth" className="underline">{t('nav.growth')}</a>
             <a href="/settings" className="underline" data-tour="nav-settings">{t('nav.settings')}</a>
             <button onClick={handleLogout} className="underline">{t('common.logout')}</button>
           </div>
@@ -1072,12 +1068,8 @@ function DashboardContent() {
                 {[
                   { href: '/quotes', label: t('nav.quotes') },
                   { href: '/calendar', label: t('nav.calendar') },
-                  { href: '/products', label: t('nav.inventory') },
-                  { href: '/equipment', label: t('nav.equipment') },
+                  { href: '/customers', label: t('nav.customers') },
                   { href: '/team', label: t('nav.team') },
-                  { href: '/recurring', label: t('nav.recurring') },
-                  { href: '/analytics', label: t('nav.analytics') },
-                  { href: '/growth', label: t('nav.growth') },
                   { href: '/settings', label: t('nav.settings') },
                 ].map(link => (
                   <a key={link.href} href={link.href} className="block px-4 py-3 hover:bg-white/10 text-sm">{link.label}</a>
