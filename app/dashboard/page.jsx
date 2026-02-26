@@ -298,7 +298,8 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
   );
 }
 
-function QuickStats({ stats, onNewQuote }) {
+// QuickStats and RecentQuotes replaced by inline analytics dashboard below
+function _UnusedQuickStats({ stats, onNewQuote }) {
   const { t } = useTranslation();
   if (!stats) return null;
 
@@ -432,8 +433,7 @@ function QuickStats({ stats, onNewQuote }) {
   );
 }
 
-// Recent Quotes Component
-function RecentQuotes({ quotes, onViewQuote }) {
+function _UnusedRecentQuotes({ quotes, onViewQuote }) {
   const { t } = useTranslation();
   if (!quotes || quotes.length === 0) {
     return (
@@ -1762,16 +1762,302 @@ function DashboardContent() {
         />
       )}
 
-      {/* Dashboard info sections - below quote builder */}
+      {/* ═══════════════════════════════════════════════════════════
+          BUSINESS OVERVIEW - Analytics Dashboard
+          "How is my business doing?"
+          ═══════════════════════════════════════════════════════════ */}
       <div className="mt-6 space-y-4">
+
+        {/* ── TOP: Key Business Metrics ── */}
         <div data-tour="quick-stats">
-          <QuickStats stats={quickStats} onNewQuote={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-white">{t('dashboard.businessOverview')}</h2>
+            <a href="/analytics" className="text-sm text-amber-400 hover:underline">{t('dashboard.viewAnalytics')}</a>
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="bg-white rounded-lg p-4 shadow">
+              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.totalRevenue')}</p>
+              <p className="text-2xl font-bold text-gray-900">{currencySymbol()}{(quickStats?.monthRevenue || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-400 mt-1">{t('dashboard.thisMonth')}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow">
+              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.conversionRate')}</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {quickStats && analyticsData?.funnel ? (
+                  analyticsData.funnel.totalSent > 0
+                    ? `${Math.round((analyticsData.funnel.totalPaid / analyticsData.funnel.totalSent) * 100)}%`
+                    : '0%'
+                ) : '--'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {analyticsData?.funnel ? `${analyticsData.funnel.totalPaid} ${t('dashboard.booked')} / ${analyticsData.funnel.totalSent} ${t('dashboard.sent').toLowerCase()}` : ''}
+              </p>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow">
+              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.outstanding')}</p>
+              <p className="text-2xl font-bold text-red-500">{quickStats?.outstandingInvoices || 0}</p>
+              <p className="text-xs text-gray-400 mt-1">{currencySymbol()}{(quickStats?.outstandingTotal || 0).toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow">
+              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.avgJobValue')}</p>
+              <p className="text-2xl font-bold text-blue-600">{currencySymbol()}{formatPriceWhole(quickStats?.avgJobValue)}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow">
+              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.jobsCompleted')}</p>
+              <p className="text-2xl font-bold text-emerald-600">{quickStats?.monthJobs || 0}</p>
+              <p className="text-xs text-gray-400 mt-1">{t('dashboard.thisMonth')}</p>
+            </div>
+          </div>
         </div>
-        <WeatherWidget />
-        <FreeUsageBar user={user} />
-        <LowStockAlert />
-        <RecentQuotes quotes={recentQuotes} />
+
+        {/* Quick Actions */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 shadow min-h-[44px]"
+          >
+            <span>+</span> {t('quickActions.newQuote')}
+          </button>
+          <a href="/customers" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
+            <span>&#128100;</span> {t('dashboard.addCustomer')}
+          </a>
+          <a href="/calendar" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
+            <span>&#128197;</span> {t('dashboard.viewCalendar')}
+          </a>
+          <a href="/quotes" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
+            <span>&#128196;</span> {t('dashboard.allQuotes')}
+          </a>
+        </div>
+
+        {/* Expiring Quotes alerts */}
+        <ExpiringQuotesWidget expiring={quickStats?.expiringQuotes} expired={quickStats?.recentlyExpired} />
+
+        {/* ── MIDDLE: Charts ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Revenue by Month - Bar Chart */}
+          <div className="bg-white rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">{t('dashboard.revenueByMonth')}</h3>
+            {analyticsData?.revenueTrend && analyticsData.revenueTrend.length > 0 ? (() => {
+              const data = analyticsData.revenueTrend.slice(-6);
+              const maxRevenue = Math.max(...data.map(d => d.revenue), 1);
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-end gap-2 h-40">
+                    {data.map((d) => {
+                      const height = Math.max((d.revenue / maxRevenue) * 100, 4);
+                      const monthLabel = new Date(d.month + '-01').toLocaleDateString('en-US', { month: 'short' });
+                      return (
+                        <div key={d.month} className="flex-1 flex flex-col items-center justify-end h-full">
+                          <span className="text-xs text-gray-500 mb-1">{currencySymbol()}{d.revenue >= 1000 ? `${(d.revenue / 1000).toFixed(1)}k` : d.revenue}</span>
+                          <div
+                            className="w-full bg-gradient-to-t from-amber-500 to-amber-400 rounded-t-md transition-all duration-500"
+                            style={{ height: `${height}%`, minHeight: '4px' }}
+                          />
+                          <span className="text-xs text-gray-400 mt-1">{monthLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-400 text-center">{data.reduce((s, d) => s + d.jobs, 0)} jobs over {data.length} months</div>
+                </div>
+              );
+            })() : (
+              <p className="text-sm text-gray-400 text-center py-8">{t('dashboard.noRevenueData')}</p>
+            )}
+          </div>
+
+          {/* Quote Conversion Funnel */}
+          <div className="bg-white rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">{t('dashboard.conversionFunnel')}</h3>
+            {analyticsData?.funnel && analyticsData.funnel.totalCreated > 0 ? (() => {
+              const f = analyticsData.funnel;
+              const steps = [
+                { label: t('dashboard.created'), value: f.totalCreated, color: 'bg-gray-400' },
+                { label: t('dashboard.sent'), value: f.totalSent, color: 'bg-blue-400' },
+                { label: t('dashboard.viewed'), value: f.totalViewed, color: 'bg-purple-400' },
+                { label: t('dashboard.paid'), value: f.totalPaid, color: 'bg-green-400' },
+                { label: t('dashboard.completed'), value: f.totalCompleted, color: 'bg-emerald-500' },
+              ];
+              const maxVal = f.totalCreated || 1;
+              return (
+                <div className="space-y-2">
+                  {steps.map((step) => {
+                    const pct = Math.round((step.value / maxVal) * 100);
+                    return (
+                      <div key={step.label}>
+                        <div className="flex justify-between text-xs text-gray-600 mb-0.5">
+                          <span>{step.label}</span>
+                          <span className="font-medium">{step.value} ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-5">
+                          <div
+                            className={`${step.color} h-5 rounded-full transition-all duration-500`}
+                            style={{ width: `${Math.max(pct, 2)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })() : (
+              <p className="text-sm text-gray-400 text-center py-8">{t('dashboard.noRevenueData')}</p>
+            )}
+          </div>
+
+          {/* Top Services by Revenue */}
+          <div className="bg-white rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">{t('dashboard.topServicesByRevenue')}</h3>
+            {analyticsData?.topServices && analyticsData.topServices.length > 0 ? (() => {
+              const maxRev = analyticsData.topServices[0]?.revenue || 1;
+              return (
+                <div className="space-y-2">
+                  {analyticsData.topServices.slice(0, 5).map((svc) => {
+                    const pct = Math.round((svc.revenue / maxRev) * 100);
+                    return (
+                      <div key={svc.name}>
+                        <div className="flex justify-between text-xs text-gray-600 mb-0.5">
+                          <span className="truncate mr-2">{svc.name}</span>
+                          <span className="font-medium whitespace-nowrap">{currencySymbol()}{svc.revenue.toLocaleString()} ({svc.count})</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-3">
+                          <div
+                            className="bg-gradient-to-r from-blue-400 to-blue-500 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(pct, 2)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })() : (
+              <p className="text-sm text-gray-400 text-center py-8">{t('dashboard.noServiceData')}</p>
+            )}
+          </div>
+
+          {/* Recent Activity Feed */}
+          <div className="bg-white rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">{t('dashboard.recentActivity')}</h3>
+            {quickStats?.activityFeed && quickStats.activityFeed.length > 0 ? (
+              <div className="space-y-2">
+                {quickStats.activityFeed.map((item, i) => {
+                  const labels = {
+                    completed: { text: t('dashboard.jobCompleted'), color: 'text-emerald-600 bg-emerald-50', icon: '\u2713' },
+                    paid: { text: t('dashboard.paymentReceived'), color: 'text-green-600 bg-green-50', icon: '$' },
+                    viewed: { text: t('dashboard.quoteViewed'), color: 'text-purple-600 bg-purple-50', icon: '\u25C9' },
+                    sent: { text: t('dashboard.quoteSent'), color: 'text-blue-600 bg-blue-50', icon: '\u2192' },
+                    created: { text: t('dashboard.quoteCreated'), color: 'text-gray-600 bg-gray-50', icon: '+' },
+                  };
+                  const label = labels[item.type] || labels.created;
+                  const diff = Date.now() - new Date(item.date).getTime();
+                  const mins = Math.floor(diff / 60000);
+                  const timeStr = mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : `${Math.floor(mins / 1440)}d`;
+                  return (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${label.color} shrink-0`}>
+                          {label.icon}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-gray-800 text-xs">{label.text}</span>
+                          <span className="text-gray-400 mx-1">&#183;</span>
+                          <span className="text-gray-600 text-xs truncate">{item.name}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <span className="font-medium text-gray-900 text-sm">{currencySymbol()}{(item.price || 0).toLocaleString()}</span>
+                        <span className="text-xs text-gray-400 w-8 text-right">{timeStr}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-4">{t('dashboard.noQuotesYet')}</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── BOTTOM: Recent Quotes (compact) + Upcoming Jobs ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Compact Recent Quotes */}
+          <div className="bg-white rounded-lg p-4 shadow">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-sm text-gray-700">{t('dashboard.recentQuotes')}</h3>
+              <a href="/quotes" className="text-xs text-amber-600 hover:underline">{t('common.viewAll')}</a>
+            </div>
+            {recentQuotes.length > 0 ? (
+              <div className="space-y-1.5">
+                {recentQuotes.slice(0, 5).map((q) => {
+                  const sc = { sent: 'text-blue-600', viewed: 'text-purple-600', accepted: 'text-green-600', completed: 'text-emerald-600', paid: 'text-green-600', declined: 'text-red-500', expired: 'text-gray-400' };
+                  return (
+                    <a key={q.id} href={`/quotes/${q.id}`} className="flex items-center justify-between py-1.5 hover:bg-gray-50 rounded px-1 -mx-1 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{q.aircraft_name || q.aircraft_model || t('jobs.unknownAircraft')}</p>
+                        <p className="text-xs text-gray-400 truncate">{q.customer_name || q.customer_email || ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2 shrink-0">
+                        <span className={`text-xs font-medium ${sc[q.status] || 'text-gray-500'}`}>{q.status}</span>
+                        <span className="text-sm font-bold text-gray-900">{currencySymbol()}{formatPriceWhole(q.total_price)}</span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-4">{t('dashboard.noQuotesYet')}</p>
+            )}
+          </div>
+
+          {/* Upcoming Jobs (Next 7 Days) */}
+          <div className="bg-white rounded-lg p-4 shadow">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-sm text-gray-700">{t('dashboard.upcomingJobs')} <span className="text-xs text-gray-400 font-normal">({t('dashboard.next7Days')})</span></h3>
+              <a href="/calendar" className="text-xs text-amber-600 hover:underline">{t('dashboard.viewCalendar')}</a>
+            </div>
+            {upcomingJobs.length > 0 ? (
+              <div className="space-y-1.5">
+                {upcomingJobs.map((job) => {
+                  const d = new Date(job.scheduled_date);
+                  const isToday = d.toDateString() === new Date().toDateString();
+                  return (
+                    <div key={job.id} className="flex items-center justify-between py-1.5 px-1 -mx-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{job.aircraft_name || job.aircraft_model || t('jobs.unknownAircraft')}</p>
+                        <p className="text-xs text-gray-400 truncate">{job.customer_name || job.client_name || ''}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className={`text-xs font-medium ${isToday ? 'text-amber-600' : 'text-gray-600'}`}>
+                          {isToday ? t('common.today') : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </p>
+                        <p className="text-sm font-bold text-gray-900">{currencySymbol()}{formatPriceWhole(job.total_price)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-4">{t('dashboard.noUpcomingJobs')}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Recurring Services */}
         <UpcomingRecurring recurring={upcomingRecurring} />
+
+        {/* Alerts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <WeatherWidget />
+          <div>
+            <LowStockAlert />
+            <FreeUsageBar user={user} />
+          </div>
+        </div>
 
         {/* Daily Tip */}
         {dailyTip && !tipDismissed && (
@@ -1797,7 +2083,6 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Push Notifications Banner */}
         <PushNotifications />
 
         {/* Quick Links */}
