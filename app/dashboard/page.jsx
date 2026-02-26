@@ -613,12 +613,11 @@ function DashboardContent() {
     fetchManufacturers();
   }, []);
 
-  // Fetch models when manufacturer or category changes
+  // Fetch models when manufacturer changes
   useEffect(() => {
     const fetchModels = async () => {
       const params = new URLSearchParams();
       if (selectedManufacturer) params.set('make', selectedManufacturer);
-      if (selectedCategory) params.set('category', selectedCategory);
 
       try {
         const res = await fetch(`/api/aircraft/models?${params}`);
@@ -633,7 +632,7 @@ function DashboardContent() {
 
     fetchModels();
     setSelectedAircraft(null);
-  }, [selectedManufacturer, selectedCategory]);
+  }, [selectedManufacturer]);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -1180,36 +1179,19 @@ function DashboardContent() {
           <div className="bg-white rounded-lg p-4 mb-4 shadow">
             <h3 className="font-semibold mb-3 text-lg">{t('dashboard.selectAircraft')}</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="mb-4">
               {/* Manufacturer Dropdown */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.manufacturer')}</label>
-                <select
-                  value={selectedManufacturer}
-                  onChange={(e) => setSelectedManufacturer(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value="">{t('categories.allManufacturers')}</option>
-                  {manufacturers.map((mfr) => (
-                    <option key={mfr} value={mfr}>{mfr}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Category Dropdown */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.category')}</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value="">{t('categories.allCategories')}</option>
-                  {categoryOrder.map((cat) => (
-                    <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-                  ))}
-                </select>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.manufacturer')}</label>
+              <select
+                value={selectedManufacturer}
+                onChange={(e) => setSelectedManufacturer(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              >
+                <option value="">{t('categories.allManufacturers')}</option>
+                {manufacturers.map((mfr) => (
+                  <option key={mfr} value={mfr}>{mfr}</option>
+                ))}
+              </select>
             </div>
 
             {/* Search Input */}
@@ -1223,10 +1205,12 @@ function DashboardContent() {
               />
             </div>
 
-            {/* Models Grid */}
+            {/* Models List — sorted by size (smallest → largest) */}
             {(() => {
-              const filteredModels = models.filter(a => !modelSearch ||
-                `${a.manufacturer} ${a.model}`.toLowerCase().includes(modelSearch.toLowerCase()));
+              const filteredModels = models
+                .filter(a => !modelSearch ||
+                  `${a.manufacturer} ${a.model}`.toLowerCase().includes(modelSearch.toLowerCase()))
+                .sort((a, b) => (a.surface_area_sqft || a.seats || 0) - (b.surface_area_sqft || b.seats || 0));
               return (
                 <>
                   {models.length > 0 && (
@@ -1234,30 +1218,42 @@ function DashboardContent() {
                       {filteredModels.length} {t('common.of')} {models.length} {t('common.aircraft').toLowerCase()}
                     </p>
                   )}
-                  <div className="max-h-64 overflow-y-auto border rounded-lg">
+                  <div className="max-h-72 overflow-y-auto border rounded-lg">
                     {filteredModels.length === 0 ? (
                       <div className="p-4 text-gray-500 text-center">
                         {models.length === 0 ? t('dashboard.loadingAircraft') : t('dashboard.noMatchesFound')}
                       </div>
                     ) : (
                       <div className="divide-y">
-                        {filteredModels.map((aircraft) => (
-                          <div
-                            key={aircraft.id}
-                            onClick={() => handleSelectAircraft(aircraft)}
-                            className={`p-3 cursor-pointer hover:bg-gray-50 flex justify-between items-center ${
-                              selectedAircraft?.id === aircraft.id ? 'bg-amber-50 border-l-4 border-amber-500' : ''
-                            }`}
-                          >
-                            <div>
-                              <p className="font-medium">{aircraft.manufacturer} {aircraft.model}</p>
-                              <p className="text-sm text-gray-500">{categoryLabels[aircraft.category]} \u2022 {aircraft.seats} {t('dashboard.seats')}</p>
+                        {filteredModels.map((aircraft) => {
+                          const isSelected = selectedAircraft?.id === aircraft.id;
+                          return (
+                            <div
+                              key={aircraft.id}
+                              onClick={() => handleSelectAircraft(aircraft)}
+                              className={`p-3 cursor-pointer hover:bg-gray-50 flex items-center gap-3 ${
+                                isSelected ? 'bg-amber-50' : ''
+                              }`}
+                            >
+                              {/* Radio indicator */}
+                              <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                                isSelected ? 'border-amber-500 bg-amber-500' : 'border-gray-300'
+                              }`}>
+                                {isSelected && (
+                                  <div className="w-2 h-2 rounded-full bg-white" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium">{aircraft.manufacturer} {aircraft.model}</p>
+                                <p className="text-sm text-gray-500">
+                                  {categoryLabels[aircraft.category]}
+                                  {aircraft.seats ? ` \u2022 ${aircraft.seats} ${t('dashboard.seats')}` : ''}
+                                  {aircraft.surface_area_sqft ? ` \u2022 ${aircraft.surface_area_sqft.toLocaleString()} sq ft` : ''}
+                                </p>
+                              </div>
                             </div>
-                            {selectedAircraft?.id === aircraft.id && (
-                              <span className="text-amber-500">&#10003;</span>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
