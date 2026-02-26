@@ -1179,87 +1179,87 @@ function DashboardContent() {
           <div className="bg-white rounded-lg p-4 mb-4 shadow">
             <h3 className="font-semibold mb-3 text-lg">{t('dashboard.selectAircraft')}</h3>
 
-            <div className="mb-4">
-              {/* Manufacturer Dropdown */}
+            {/* Manufacturer Dropdown */}
+            <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.manufacturer')}</label>
               <select
                 value={selectedManufacturer}
                 onChange={(e) => setSelectedManufacturer(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
               >
-                <option value="">{t('categories.allManufacturers')}</option>
+                <option value="">{t('dashboard.selectManufacturer')}</option>
                 {manufacturers.map((mfr) => (
                   <option key={mfr} value={mfr}>{mfr}</option>
                 ))}
               </select>
             </div>
 
-            {/* Search Input */}
-            <div className="mb-3">
-              <input
-                type="text"
-                placeholder={t('dashboard.searchModels')}
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-              />
-            </div>
-
-            {/* Models List — sorted by size (smallest → largest) */}
-            {(() => {
-              const filteredModels = models
-                .filter(a => !modelSearch ||
-                  `${a.manufacturer} ${a.model}`.toLowerCase().includes(modelSearch.toLowerCase()))
-                .sort((a, b) => (a.surface_area_sqft || a.seats || 0) - (b.surface_area_sqft || b.seats || 0));
-              return (
-                <>
-                  {models.length > 0 && (
-                    <p className="text-xs text-gray-500 mb-1">
-                      {filteredModels.length} {t('common.of')} {models.length} {t('common.aircraft').toLowerCase()}
-                    </p>
-                  )}
-                  <div className="max-h-72 overflow-y-auto border rounded-lg">
-                    {filteredModels.length === 0 ? (
-                      <div className="p-4 text-gray-500 text-center">
-                        {models.length === 0 ? t('dashboard.loadingAircraft') : t('dashboard.noMatchesFound')}
-                      </div>
-                    ) : (
-                      <div className="divide-y">
-                        {filteredModels.map((aircraft) => {
-                          const isSelected = selectedAircraft?.id === aircraft.id;
-                          return (
-                            <div
-                              key={aircraft.id}
-                              onClick={() => handleSelectAircraft(aircraft)}
-                              className={`p-3 cursor-pointer hover:bg-gray-50 flex items-center gap-3 ${
-                                isSelected ? 'bg-amber-50' : ''
-                              }`}
-                            >
-                              {/* Radio indicator */}
-                              <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                                isSelected ? 'border-amber-500 bg-amber-500' : 'border-gray-300'
-                              }`}>
-                                {isSelected && (
-                                  <div className="w-2 h-2 rounded-full bg-white" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium">{aircraft.manufacturer} {aircraft.model}</p>
-                                <p className="text-sm text-gray-500">
-                                  {categoryLabels[aircraft.category]}
-                                  {aircraft.seats ? ` \u2022 ${aircraft.seats} ${t('dashboard.seats')}` : ''}
-                                  {aircraft.surface_area_sqft ? ` \u2022 ${aircraft.surface_area_sqft.toLocaleString()} sq ft` : ''}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+            {/* Models list — only shown when manufacturer is selected */}
+            {selectedManufacturer ? (
+              <>
+                {/* Search within models */}
+                {models.length > 5 && (
+                  <div className="mb-2">
+                    <input
+                      type="text"
+                      placeholder={t('dashboard.searchModels')}
+                      value={modelSearch}
+                      onChange={(e) => setModelSearch(e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
                   </div>
-                </>
-              );
-            })()}
+                )}
+
+                {/* Models sorted by size (smallest → largest) */}
+                {(() => {
+                  const filteredModels = models
+                    .filter(a => !modelSearch ||
+                      `${a.manufacturer} ${a.model}`.toLowerCase().includes(modelSearch.toLowerCase()))
+                    .sort((a, b) => (a.surface_area_sqft || a.seats || 0) - (b.surface_area_sqft || b.seats || 0));
+                  return (
+                    <div className="max-h-80 overflow-y-auto border rounded-lg">
+                      {filteredModels.length === 0 ? (
+                        <div className="p-4 text-gray-500 text-center text-sm">
+                          {models.length === 0 ? t('dashboard.loadingAircraft') : t('dashboard.noMatchesFound')}
+                        </div>
+                      ) : (
+                        <div className="divide-y">
+                          {filteredModels.map((aircraft) => {
+                            const isSelected = selectedAircraft?.id === aircraft.id;
+                            return (
+                              <div
+                                key={aircraft.id}
+                                onClick={() => handleSelectAircraft(aircraft)}
+                                className={`p-3 cursor-pointer hover:bg-gray-50 flex items-center gap-3 transition-colors ${
+                                  isSelected ? 'bg-amber-50 border-l-4 border-l-amber-500' : ''
+                                }`}
+                              >
+                                <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                                  isSelected ? 'border-amber-500 bg-amber-500' : 'border-gray-300'
+                                }`}>
+                                  {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium">{aircraft.model}</p>
+                                  <p className="text-xs text-gray-400">
+                                    {categoryLabels[aircraft.category]}
+                                    {aircraft.seats ? ` \u2022 ${aircraft.seats} seats` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <div className="border rounded-lg p-6 text-center text-gray-400 text-sm">
+                {t('dashboard.chooseManufacturerToSeeModels')}
+              </div>
+            )}
           </div>
 
           {/* 2. Select Services (auto-scroll target) */}

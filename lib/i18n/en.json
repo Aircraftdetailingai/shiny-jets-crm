@@ -154,6 +154,8 @@
     "title": "Vector",
     "selectAircraft": "Select Aircraft",
     "manufacturer": "Manufacturer",
+    "selectManufacturer": "Select Manufacturer...",
+    "chooseManufacturerToSeeModels": "Choose a manufacturer to see available models",
     "searchModels": "Search models...",
     "surfaceArea": "Surface Area",
     "wingspan": "Wingspan",
