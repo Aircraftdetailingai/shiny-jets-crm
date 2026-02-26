@@ -164,8 +164,8 @@ export default function GlobalSearch() {
   const showRecent = query.length < 2 && recentSearches.length > 0;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm">
-      <div ref={containerRef} className="w-full max-w-lg mx-4">
+    <div className="modal-overlay fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm">
+      <div ref={containerRef} className="modal-content w-full max-w-lg mx-4">
         {/* Search input */}
         <div className="bg-[#1e3a5f] rounded-xl shadow-2xl border border-white/10 overflow-hidden">
           <div className="flex items-center px-4 gap-3 border-b border-white/10">

@@ -41,7 +41,7 @@ export default function ROIDashboard({ compact = false }) {
 
   if (loading) {
     return (
-      <div className={`bg-white rounded-lg p-4 shadow ${compact ? 'mb-4' : ''}`}>
+      <div className={`card-hover bg-white rounded-lg p-4 shadow ${compact ? 'mb-4' : ''}`}>
         <div className="animate-pulse space-y-3">
           <div className="h-6 bg-gray-100 rounded w-1/3"></div>
           <div className="h-20 bg-gray-100 rounded"></div>

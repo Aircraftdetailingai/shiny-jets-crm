@@ -51,7 +51,7 @@ export default function LanguageSelector({ variant = 'dropdown', className = '' 
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border overflow-hidden z-50">
+        <div className="slide-in-right absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border overflow-hidden z-50">
           {LANGUAGES.map(l => (
             <button
               key={l.code}

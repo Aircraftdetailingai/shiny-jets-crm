@@ -45,7 +45,7 @@ export default function PointsBadge() {
             className="fixed inset-0 z-40"
             onClick={() => setShowDropdown(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="slide-in-right absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl z-50 overflow-hidden">
             <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white">
               <div className="flex justify-between items-start">
                 <div>

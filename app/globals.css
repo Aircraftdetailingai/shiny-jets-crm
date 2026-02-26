@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========== EXISTING ANIMATIONS ========== */
+
 @keyframes slide-up {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
@@ -18,7 +20,172 @@
   animation: slide-in 0.3s ease-out;
 }
 
-/* Force hide Vercel toolbar */
+/* ========== GLOBAL TRANSITIONS ========== */
+
+/* Button transitions - all interactive elements */
+button, a, [role="button"] {
+  transition: all 0.2s ease-in-out;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Link color transitions */
+a {
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+/* Input focus transitions */
+input, textarea, select {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ========== PAGE TRANSITIONS ========== */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-transition {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ========== MODAL ANIMATIONS ========== */
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-overlay {
+  animation: fadeInOverlay 0.2s ease-out;
+}
+
+.modal-content {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* ========== CARD HOVER ========== */
+
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ========== SIDEBAR / DROPDOWN TRANSITIONS ========== */
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.2s ease-out;
+}
+
+/* ========== LIST STAGGER ANIMATION ========== */
+
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-item {
+  animation: staggerIn 0.3s ease-out both;
+}
+
+/* ========== SKELETON LOADING ========== */
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton {
+  animation: pulse 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+  border-radius: 0.5rem;
+}
+
+.skeleton-light {
+  animation: pulse 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  border-radius: 0.5rem;
+}
+
+/* ========== TABLE ROW HOVER ========== */
+
+.row-hover {
+  transition: background-color 0.15s ease;
+}
+
+.row-hover:hover {
+  background-color: rgba(255,255,255,0.05);
+}
+
+/* ========== NAV ITEM HOVER ========== */
+
+.nav-hover {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-hover:hover {
+  transform: translateX(2px);
+}
+
+/* ========== BADGE / TAG TRANSITIONS ========== */
+
+.badge-transition {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.badge-transition:hover {
+  transform: scale(1.05);
+}
+
+/* ========== TOAST ANIMATION ========== */
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast-animate {
+  animation: toastIn 0.3s ease-out;
+}
+
+/* ========== SCALE ON HOVER ========== */
+
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* ========== FORCE HIDE VERCEL TOOLBAR ========== */
+
 [data-vercel-toolbar],
 #vercel-toolbar,
 #__vercel_toolbar,
@@ -32,7 +199,6 @@ iframe[src*="vercel"] {
   z-index: -9999 !important;
 }
 
-/* Also hide any fixed positioned elements from Vercel */
 body > div[style*="position: fixed"]:last-of-type {
   display: none !important;
 }

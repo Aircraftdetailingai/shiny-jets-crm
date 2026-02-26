@@ -343,6 +343,7 @@ export default function DataTable({
                   key={row.id}
                   onClick={() => onRowClick?.(row.original)}
                   className={`
+                    row-hover
                     ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
                     ${onRowClick ? 'cursor-pointer hover:bg-amber-50' : 'hover:bg-gray-100'}
                     border-b

@@ -352,7 +352,7 @@ export default function CrewDashboard() {
 
       {/* Toast */}
       {msg && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium ${
+        <div className={`toast-animate fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium ${
           msgType === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
         }`}>
           {msg}

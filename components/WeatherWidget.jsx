@@ -67,7 +67,7 @@ export default function WeatherWidget() {
   const { airport, current, forecast, warnings = [] } = data;
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="card-hover bg-white rounded-lg shadow overflow-hidden">
       {/* Current conditions header */}
       <div
         className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"

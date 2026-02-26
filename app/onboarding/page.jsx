@@ -346,7 +346,7 @@ export default function OnboardingPage() {
   const chosenServices = COMMON_SERVICES.filter((_, i) => selectedServices[i]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center p-4">
+    <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         {/* Progress bar */}
         {step > 0 && step < 6 && (

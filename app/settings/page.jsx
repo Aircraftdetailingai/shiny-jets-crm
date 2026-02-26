@@ -1988,7 +1988,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<div className="text-gray-500 p-4">Loading...</div>}>
+    <Suspense fallback={<div className="page-transition text-gray-500 p-4">Loading...</div>}>
       <SettingsContent />
     </Suspense>
   );
