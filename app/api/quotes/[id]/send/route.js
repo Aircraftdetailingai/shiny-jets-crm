@@ -167,11 +167,32 @@ export async function POST(request, { params }) {
   }
 
   // Fetch detailer info for email (includes currency for proper formatting)
-  const { data: detailer } = await supabase
-    .from('detailers')
-    .select('id, name, email, phone, company, plan, is_admin, notification_settings, sms_enabled, currency')
-    .eq('id', user.id)
-    .single();
+  // Use column-stripping retry in case sms_enabled or notification_settings don't exist yet
+  let detailer = null;
+  {
+    let detailerCols = 'id, name, email, phone, company, plan, is_admin, notification_settings, sms_enabled, currency';
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data, error: detErr } = await supabase
+        .from('detailers')
+        .select(detailerCols)
+        .eq('id', user.id)
+        .single();
+      if (!detErr) {
+        detailer = data;
+        break;
+      }
+      const colMatch = detErr.message?.match(/column .*?(\w+).*? does not exist/)
+        || detErr.message?.match(/Could not find the '([^']+)' column/);
+      if (colMatch) {
+        console.log(`Detailer fetch: stripping unknown column "${colMatch[1]}", retrying...`);
+        detailerCols = detailerCols.replace(new RegExp(',?\\s*' + colMatch[1]), '').replace(/^,\\s*/, '');
+        continue;
+      }
+      console.error('Detailer fetch error:', detErr.message || detErr);
+      break;
+    }
+  }
+  console.log('Detailer fetched:', detailer ? `plan=${detailer.plan}, is_admin=${detailer.is_admin}, sms_enabled=${detailer.sms_enabled}` : 'NULL - fetch failed!');
 
   // Fetch customer's preferred language (if they have one saved)
   let customerLanguage = null;
@@ -230,16 +251,24 @@ export async function POST(request, { params }) {
     console.log('No clientEmail provided, skipping email');
   }
 
-  // Send SMS for business plan
+  // Send SMS - log all gate checks for debugging
+  if (!detailer) {
+    console.error('=== SMS BLOCKED: detailer is null (fetch failed). SMS cannot proceed. ===');
+  }
   const smsChecks = {
+    detailerExists: !!detailer,
     hasPremium: hasPremiumAccess(detailer?.plan, detailer?.is_admin),
     smsEnabled: detailer?.sms_enabled !== false,
     hasPhone: !!clientPhone,
-    plan: detailer?.plan,
+    clientPhone: clientPhone || 'NONE',
+    plan: detailer?.plan || 'UNKNOWN',
     isAdmin: detailer?.is_admin,
     smsEnabledRaw: detailer?.sms_enabled,
+    hasTwilioSid: !!process.env.TWILIO_ACCOUNT_SID,
+    hasTwilioToken: !!process.env.TWILIO_AUTH_TOKEN,
+    twilioFrom: process.env.TWILIO_PHONE_NUMBER || 'MISSING',
   };
-  console.log('SMS gate checks:', JSON.stringify(smsChecks));
+  console.log('=== SMS GATE CHECKS ===', JSON.stringify(smsChecks));
 
   if (smsChecks.hasPremium && smsChecks.smsEnabled && smsChecks.hasPhone) {
     try {
