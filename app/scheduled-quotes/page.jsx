@@ -140,7 +140,7 @@ export default function ScheduledQuotesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
+      <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
       </div>
     );

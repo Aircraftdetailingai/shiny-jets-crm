@@ -315,7 +315,7 @@ export default function CrewDashboard() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
+      <div className="page-transition min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
         <div className="text-white text-lg">{t('common.loading')}</div>
       </div>
     );

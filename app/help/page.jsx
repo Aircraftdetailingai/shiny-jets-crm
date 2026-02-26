@@ -145,7 +145,7 @@ export default function HelpPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4">
+    <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <header className="flex items-center gap-4 mb-6 text-white">

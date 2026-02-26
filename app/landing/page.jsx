@@ -95,7 +95,7 @@ export default function LandingPage() {
   const [annualBilling, setAnnualBilling] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
+    <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
         <div className="flex items-center space-x-2 text-white text-2xl font-bold">

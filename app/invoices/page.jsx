@@ -211,7 +211,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4">
+    <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
         <div className="flex items-center gap-3">
