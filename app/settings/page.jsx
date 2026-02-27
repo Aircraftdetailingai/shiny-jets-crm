@@ -808,6 +808,40 @@ function SettingsContent() {
           </>
         )}
 
+        {/* Company Info */}
+        <div className="bg-white p-4 rounded shadow">
+          <h3 className="font-semibold mb-3 text-lg">Company Info</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Company</p>
+                <p className="text-gray-900">{user?.company || 'Not set'}</p>
+              </div>
+              <a href="/settings/services" className="text-sm text-amber-600 hover:underline">Edit in Services</a>
+            </div>
+            <div className="border-t pt-3">
+              <p className="text-sm font-medium text-gray-700">Email</p>
+              <p className="text-gray-900">{user?.email}</p>
+            </div>
+            {user?.phone && (
+              <div className="border-t pt-3">
+                <p className="text-sm font-medium text-gray-700">Phone</p>
+                <p className="text-gray-900">{user.phone}</p>
+              </div>
+            )}
+            <div className="border-t pt-3 flex items-center justify-between">
+              <a href="#" className="text-sm text-blue-600 hover:underline">{t('settingsExtra.changePassword')}</a>
+              <button
+                onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
+                className="text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                {t('settingsExtra.restartTour')}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Plan & Billing */}
         <div className="bg-[#0f172a] text-white p-4 rounded">
           <h2 className="text-lg font-semibold mb-1">{t('settings.billing')}</h2>
@@ -958,30 +992,6 @@ function SettingsContent() {
               )}
             </div>
           )}
-        </div>
-
-        {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <a href="/settings/services" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
-            <div className="text-2xl mb-1">&#9881;</div>
-            <div className="font-medium text-sm">{t('nav.services')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.configureRates')}</div>
-          </a>
-          <a href="/settings/embed" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
-            <div className="text-2xl mb-1">&#128279;</div>
-            <div className="font-medium text-sm">{t('settingsExtra.embedQr')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.websiteWidget')}</div>
-          </a>
-          <a href="/settings/lead-intake" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
-            <div className="text-2xl mb-1">&#129302;</div>
-            <div className="font-medium text-sm">{t('leadIntake.title')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.customQuestions')}</div>
-          </a>
-          <a href="/admin/aircraft" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
-            <div className="text-2xl mb-1">&#9992;</div>
-            <div className="font-medium text-sm">{t('settingsExtra.aircraftDb')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.addEditModels')}</div>
-          </a>
         </div>
 
         {/* Stripe Connect */}
@@ -1249,6 +1259,30 @@ function SettingsContent() {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Services & Tools */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <a href="/settings/services" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
+            <div className="text-2xl mb-1">&#9881;</div>
+            <div className="font-medium text-sm">{t('nav.services')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.configureRates')}</div>
+          </a>
+          <a href="/settings/embed" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
+            <div className="text-2xl mb-1">&#128279;</div>
+            <div className="font-medium text-sm">{t('settingsExtra.embedQr')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.websiteWidget')}</div>
+          </a>
+          <a href="/settings/lead-intake" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
+            <div className="text-2xl mb-1">&#129302;</div>
+            <div className="font-medium text-sm">{t('leadIntake.title')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.customQuestions')}</div>
+          </a>
+          <a href="/admin/aircraft" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
+            <div className="text-2xl mb-1">&#9992;</div>
+            <div className="font-medium text-sm">{t('settingsExtra.aircraftDb')}</div>
+            <div className="text-xs text-gray-500">{t('settingsExtra.addEditModels')}</div>
+          </a>
         </div>
 
         {/* Efficiency Factor */}
@@ -1530,6 +1564,20 @@ function SettingsContent() {
               />
             </div>
           ))}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t">
+            <label className="text-sm">{t('settingsExtra.priceReviewReminder')}</label>
+            <select
+              value={priceReminder}
+              onChange={(e) => {
+                setPriceReminder(parseInt(e.target.value));
+                markDirty('notifications');
+              }}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value={6}>{t('settingsExtra.every6Months')}</option>
+              <option value={12}>{t('settingsExtra.every12Months')}</option>
+            </select>
+          </div>
         </div>
         {/* SMS Alerts to You */}
         <div className="bg-white p-4 rounded shadow">
@@ -1678,36 +1726,6 @@ function SettingsContent() {
                 <li>&#8226; {t('settingsExtra.alwaysActiveItem4')}</li>
               </ul>
             </div>
-          </div>
-        </div>
-
-        {/* Account Section */}
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">{t('settingsExtra.account')}</h3>
-          <p className="mb-2">Email: {user?.email}</p>
-          <a href="#" className="text-blue-600 underline mb-2 inline-block">{t('settingsExtra.changePassword')}</a>
-          <div className="mt-3 pt-3 border-t">
-            <button
-              onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
-              className="text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              {t('settingsExtra.restartTour')}
-            </button>
-          </div>
-          <div className="mt-2">
-            <label className="block mb-1">{t('settingsExtra.priceReviewReminder')}</label>
-            <select
-              value={priceReminder}
-              onChange={(e) => {
-                setPriceReminder(parseInt(e.target.value));
-                markDirty('notifications');
-              }}
-              className="border rounded px-2 py-1"
-            >
-              <option value={6}>{t('settingsExtra.every6Months')}</option>
-              <option value={12}>{t('settingsExtra.every12Months')}</option>
-            </select>
           </div>
         </div>
 
