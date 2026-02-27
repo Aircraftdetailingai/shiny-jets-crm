@@ -5,6 +5,7 @@ import Link from 'next/link';
 const navItems = [
   { href: '/settings', label: 'General', icon: '⚙️' },
   { href: '/settings/services', label: 'Services', icon: '🛠️' },
+  { href: '/settings/integrations', label: 'Integrations', icon: '🔗' },
 ];
 
 export default function SettingsLayout({ children }) {

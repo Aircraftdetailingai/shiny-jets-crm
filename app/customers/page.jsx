@@ -42,6 +42,10 @@ export default function CustomersPage() {
   const [creatingTag, setCreatingTag] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
 
+  // QuickBooks import state
+  const [qbConnected, setQbConnected] = useState(false);
+  const [qbImporting, setQbImporting] = useState(false);
+
   // Add Customer modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', email: '', phone: '', company_name: '', airport: '', notes: '', contactPref: 'email', tags: [] });
@@ -114,10 +118,37 @@ export default function CustomersPage() {
         const data = await tagsRes.json();
         setAllTags(data.tags || []);
       }
+      // Check QuickBooks connection (non-blocking)
+      fetch('/api/quickbooks/status', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.connected && data?.status === 'ACTIVE') setQbConnected(true); })
+        .catch(() => {});
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQBImport = async () => {
+    setQbImporting(true);
+    const token = localStorage.getItem('vector_token');
+    try {
+      const res = await fetch('/api/quickbooks/import-customers', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toastSuccess(`Imported ${data.imported} customers from QuickBooks`);
+        fetchData();
+      } else {
+        toastError(data.error || 'Import failed');
+      }
+    } catch (err) {
+      toastError('Import failed');
+    } finally {
+      setQbImporting(false);
     }
   };
 
@@ -297,6 +328,15 @@ export default function CustomersPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {qbConnected && (
+            <button
+              onClick={handleQBImport}
+              disabled={qbImporting}
+              className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-semibold"
+            >
+              {qbImporting ? 'Importing...' : 'Import from QB'}
+            </button>
+          )}
           <button
             onClick={() => { resetAddForm(); setShowAddModal(true); }}
             className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:opacity-90 text-sm font-semibold shadow-md"
