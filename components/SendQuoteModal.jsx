@@ -139,6 +139,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       customer_phone: effectivePhone || null,
       customer_company: effectiveCompany || null,
       airport: quote?.airport || null,
+      tail_number: quote?.tailNumber || null,
       product_estimates: quote?.productEstimates || [],
       linked_products: quote?.linkedProducts || [],
       linked_equipment: quote?.linkedEquipment || [],

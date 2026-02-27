@@ -118,6 +118,7 @@ export async function POST(request) {
       detailer_phone: detailer?.phone || '',
       // Job info
       aircraft: quote.aircraft_model || quote.aircraft_type || '',
+      tail_number: quote.tail_number || '',
       line_items: quote.line_items || [],
       addon_fees: quote.addon_fees || [],
       subtotal,

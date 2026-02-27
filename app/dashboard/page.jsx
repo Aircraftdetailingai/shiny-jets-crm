@@ -580,6 +580,7 @@ function DashboardContent() {
   const [availableAddons, setAvailableAddons] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState({});
   const [airport, setAirport] = useState('');
+  const [tailNumber, setTailNumber] = useState('');
   const [customProductRatios, setCustomProductRatios] = useState(null);
 
   // Service-linked products & equipment
@@ -1063,6 +1064,7 @@ function DashboardContent() {
         addonFees: addonFeeItems,
         addonsTotal,
         airport,
+        tailNumber,
         productEstimates,
         linkedProducts: serviceProductLinks.filter(l => selectedServicesList.some(s => s.id === l.service_id)).map(l => {
           const svc = selectedServicesList.find(s => s.id === l.service_id);
@@ -1264,6 +1266,22 @@ function DashboardContent() {
               </div>
             )}
           </div>
+
+          {/* Tail Number */}
+          {selectedAircraft && (
+            <div className="bg-white rounded-lg p-4 mb-4 shadow">
+              <h3 className="font-semibold mb-2">Tail Number</h3>
+              <input
+                type="text"
+                value={tailNumber}
+                onChange={(e) => setTailNumber(e.target.value.toUpperCase())}
+                placeholder="N12345"
+                maxLength={10}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 uppercase font-mono tracking-wider"
+              />
+              <p className="text-xs text-gray-400 mt-1">Optional — aircraft registration number</p>
+            </div>
+          )}
 
           {/* 2. Select Services (auto-scroll target) */}
           {selectedAircraft && (

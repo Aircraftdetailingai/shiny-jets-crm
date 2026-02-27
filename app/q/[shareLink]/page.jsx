@@ -233,6 +233,12 @@ export default function QuoteViewPage() {
                 <span className="text-gray-600">Aircraft:</span>
                 <span className="font-medium">{quote.aircraft_model || quote.aircraft_type}</span>
               </div>
+              {quote.tail_number && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Tail Number:</span>
+                  <span className="font-medium font-mono">{quote.tail_number}</span>
+                </div>
+              )}
               <div>
                 <span className="text-gray-600">Services:</span>
                 <ul className="mt-1 ml-4 list-disc list-inside">
@@ -321,6 +327,12 @@ export default function QuoteViewPage() {
               <span className="text-gray-600">Aircraft:</span>
               <span className="font-medium">{quote.aircraft_model || quote.aircraft_type}</span>
             </div>
+            {quote.tail_number && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tail Number:</span>
+                <span className="font-medium font-mono">{quote.tail_number}</span>
+              </div>
+            )}
 
             <div>
               <span className="text-gray-600">Services:</span>

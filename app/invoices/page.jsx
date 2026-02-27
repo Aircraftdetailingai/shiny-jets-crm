@@ -364,7 +364,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               </div>
             </div>
 
-            {viewInvoice.aircraft && <p className="text-sm text-gray-600 mb-1">{t('common.aircraft')}: <strong>{viewInvoice.aircraft}</strong></p>}
+            {viewInvoice.aircraft && <p className="text-sm text-gray-600 mb-1">{t('common.aircraft')}: <strong>{viewInvoice.aircraft}</strong>{viewInvoice.tail_number ? ` (${viewInvoice.tail_number})` : ''}</p>}
             {viewInvoice.airport && <p className="text-sm text-gray-600 mb-3">{t('common.airport')}: <strong>{viewInvoice.airport}</strong></p>}
 
             {/* Line items */}
