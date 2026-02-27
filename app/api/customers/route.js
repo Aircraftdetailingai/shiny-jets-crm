@@ -26,13 +26,16 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit')) || 20;
+    const tag = searchParams.get('tag');
 
-    // Try to fetch from customers table
+    // Column-stripping retry for GET (handles missing columns gracefully)
+    let selectCols = 'id, name, email, phone, company_name, notes, tags, poc_name, poc_phone, poc_email, poc_role, emergency_contact_name, emergency_contact_phone, contact_notes, created_at, updated_at';
     let customers = [];
-    try {
+
+    for (let attempt = 0; attempt < 6; attempt++) {
       let query = supabase
         .from('customers')
-        .select('id, name, email, phone, company_name, notes, tags, poc_name, poc_phone, poc_email, poc_role, emergency_contact_name, emergency_contact_phone, contact_notes, created_at')
+        .select(selectCols)
         .eq('detailer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -40,31 +43,42 @@ export async function GET(request) {
       if (q) {
         query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`);
       }
-
-      // Filter by tag if provided
-      const tag = searchParams.get('tag');
       if (tag) {
         query = query.contains('tags', [tag]);
       }
 
       const { data, error } = await query;
-      if (error) {
-        // Table doesn't exist yet - fall back to quotes-based customer list
-        if (error.code === '42P01' || error.code === 'PGRST205') {
-          customers = await getCustomersFromQuotes(supabase, user.id, q, limit);
-        } else {
-          console.error('Customers fetch error:', error);
-          return Response.json({ error: error.message }, { status: 500 });
-        }
-      } else {
+
+      if (!error) {
         customers = data || [];
+        console.log(`=== CUSTOMERS GET === user=${user.id} found=${customers.length} cols=${selectCols}`);
+        break;
       }
-    } catch (e) {
-      console.error('Customers query failed:', e);
-      customers = await getCustomersFromQuotes(supabase, user.id, q, limit);
+
+      // Table doesn't exist - fall back to quotes
+      if (error.code === '42P01' || error.code === 'PGRST205') {
+        console.log('=== CUSTOMERS GET === table does not exist, falling back to quotes');
+        customers = await getCustomersFromQuotes(supabase, user.id, q, limit);
+        break;
+      }
+
+      // Unknown column - strip it and retry
+      const colMatch = error.message?.match(/column (\w+)\.(\w+) does not exist/)
+        || error.message?.match(/Could not find the '([^']+)' column/)
+        || error.message?.match(/column "([^"]+)" of relation "customers" does not exist/);
+      if (colMatch) {
+        const badCol = colMatch[2] || colMatch[1];
+        console.log(`=== CUSTOMERS GET === stripping missing column: ${badCol}`);
+        selectCols = selectCols.split(',').map(c => c.trim()).filter(c => c !== badCol).join(', ');
+        continue;
+      }
+
+      // Other error
+      console.error('=== CUSTOMERS GET ERROR ===', error);
+      return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Enrich with quote history (use client_email - the actual column name)
+    // Enrich with quote history
     const enriched = await Promise.all(customers.map(async (c) => {
       try {
         const { data: quotes } = await supabase
@@ -90,12 +104,12 @@ export async function GET(request) {
     return Response.json({ customers: enriched });
 
   } catch (err) {
-    console.error('Customers API error:', err);
+    console.error('=== CUSTOMERS GET EXCEPTION ===', err);
     return Response.json({ error: 'Failed to fetch customers' }, { status: 500 });
   }
 }
 
-// Fallback: build customer list from existing quotes (uses actual column names)
+// Fallback: build customer list from existing quotes
 async function getCustomersFromQuotes(supabase, detailerId, q, limit) {
   try {
     let query = supabase
@@ -111,7 +125,7 @@ async function getCustomersFromQuotes(supabase, detailerId, q, limit) {
     const { data } = await query;
     if (!data) return [];
 
-    // Deduplicate by email, keep most recent data
+    // Deduplicate by email
     const seen = new Map();
     for (const row of data) {
       if (row.client_email && !seen.has(row.client_email.toLowerCase())) {
@@ -134,34 +148,47 @@ async function getCustomersFromQuotes(supabase, detailerId, q, limit) {
 
 // POST - Create or upsert a customer
 export async function POST(request) {
+  console.log('=== CUSTOMER CREATE START ===');
   try {
     const user = await getAuthUser(request);
     if (!user) {
+      console.log('=== CUSTOMER CREATE === unauthorized');
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('=== CUSTOMER CREATE === user:', user.id, user.email);
 
     const supabase = getSupabase();
     if (!supabase) {
+      console.error('=== CUSTOMER CREATE === database not configured');
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
     const body = await request.json();
     const { name, email, phone, company_name, notes, tags } = body;
+    console.log('=== CUSTOMER CREATE === body:', JSON.stringify({ name, email, phone, company_name, hasTags: !!tags }));
 
     if (!name || !email) {
+      console.log('=== CUSTOMER CREATE === missing name or email');
       return Response.json({ error: 'Name and email are required' }, { status: 400 });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Check if customer already exists
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupErr } = await supabase
         .from('customers')
         .select('*')
         .eq('detailer_id', user.id)
-        .eq('email', email.toLowerCase().trim())
+        .eq('email', normalizedEmail)
         .single();
 
+      if (lookupErr) {
+        console.log('=== CUSTOMER CREATE === lookup error (ok if not found):', lookupErr.code, lookupErr.message);
+      }
+
       if (existing) {
+        console.log('=== CUSTOMER CREATE === found existing:', existing.id);
         // Update existing customer
         const updates = {};
         if (name) updates.name = name;
@@ -170,29 +197,37 @@ export async function POST(request) {
         if (notes !== undefined) updates.notes = notes;
         if (tags !== undefined) updates.tags = tags;
 
-        const { data: updated } = await supabase
+        const { data: updated, error: updateErr } = await supabase
           .from('customers')
           .update(updates)
           .eq('id', existing.id)
           .select()
           .single();
 
+        if (updateErr) {
+          console.error('=== CUSTOMER UPDATE ERROR ===', updateErr);
+        } else {
+          console.log('=== CUSTOMER UPDATED ===', updated?.id);
+        }
+
         return Response.json({ customer: updated || existing, created: false });
       }
-    } catch {
-      // Table might not exist or no match - continue to create
+    } catch (e) {
+      console.log('=== CUSTOMER CREATE === lookup exception (continuing to create):', e.message);
     }
 
     // Create new customer
     const row = {
       detailer_id: user.id,
       name,
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       phone: phone || null,
       company_name: company_name || null,
       notes: notes || '',
       tags: Array.isArray(tags) ? tags : [],
     };
+
+    console.log('=== CUSTOMER CREATE === inserting row:', JSON.stringify(row));
 
     // Column-stripping retry pattern
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -203,30 +238,33 @@ export async function POST(request) {
         .single();
 
       if (!error) {
+        console.log('=== CUSTOMER CREATED ===', data?.id, data?.name, data?.email);
         return Response.json({ customer: data, created: true }, { status: 201 });
       }
 
       const colMatch = error.message?.match(/column "([^"]+)" of relation "customers" does not exist/)
         || error.message?.match(/Could not find the '([^']+)' column of 'customers'/);
       if (colMatch) {
+        console.log(`=== CUSTOMER CREATE === stripping missing column: ${colMatch[1]}`);
         delete row[colMatch[1]];
         continue;
       }
 
       // Table doesn't exist
       if (error.code === '42P01' || error.code === 'PGRST205') {
-        console.log('Customers table does not exist yet - skipping create.');
+        console.log('=== CUSTOMER CREATE === customers table does not exist');
         return Response.json({ error: 'Customers table not set up yet', customer: null, created: false }, { status: 200 });
       }
 
-      console.error('Customer create error:', error);
+      console.error('=== CUSTOMER CREATE ERROR ===', error.code, error.message, error.details);
       return Response.json({ error: error.message }, { status: 500 });
     }
 
+    console.error('=== CUSTOMER CREATE === exhausted retries');
     return Response.json({ error: 'Failed to create customer' }, { status: 500 });
 
   } catch (err) {
-    console.error('Customers POST error:', err);
+    console.error('=== CUSTOMER CREATE EXCEPTION ===', err.message, err.stack);
     return Response.json({ error: 'Failed to save customer' }, { status: 500 });
   }
 }

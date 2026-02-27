@@ -35,6 +35,10 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
         setError(data.error || 'Failed to save customer');
         return;
       }
+      if (!data.customer) {
+        setError(data.error || 'Customer was not saved. Please try again.');
+        return;
+      }
       resetForm();
       if (onSuccess) onSuccess(data);
       onClose();
