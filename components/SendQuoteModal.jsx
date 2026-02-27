@@ -24,9 +24,6 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
   const [loading, setLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [successType, setSuccessType] = useState("sent"); // 'sent' or 'draft'
-  const [quoteLink, setQuoteLink] = useState("");
   const [quoteLimitHit, setQuoteLimitHit] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState("4_weeks"); // '4_weeks', 'monthly', 'quarterly'
@@ -252,11 +249,9 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
           const schedData = await schedRes.json().catch(() => null);
           throw new Error(schedData?.error || "Failed to schedule quote");
         }
-        const link = `${window.location.origin}/q/${share_link}`;
-        setQuoteLink(link);
-        setSuccess(true);
         toastSuccess(`Quote scheduled for ${sendTime.toLocaleString()}`);
         setLoading(false);
+        if (onSuccess) { onSuccess(); } else { onClose(); }
         return;
       }
 
@@ -343,28 +338,44 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       if (sendResult.emailError) {
         console.error('Email send failed:', sendResult.emailError);
       }
-      // success
+      // success - build toast based on send method
       const link = `${window.location.origin}/q/${share_link}`;
-      setQuoteLink(link);
-      setSuccessType("sent");
-      setSuccess(true);
 
-      // Build status message
-      const statusParts = ['Customer saved'];
-      if (sendResult.emailSent) statusParts.push('email sent');
-      if (sendResult.smsSent) statusParts.push('SMS sent');
-      toastSuccess(statusParts.length > 1 ? `Customer saved & ${statusParts.slice(1).join(' + ')}!` : 'Customer saved & quote sent!');
+      // Method-aware success toast
+      const toastMsg = {
+        sms: sendResult.smsSent ? `SMS sent to ${effectivePhone}!` : 'Quote sent!',
+        email: sendResult.emailSent ? `Email sent to ${effectiveEmail}!` : 'Quote sent!',
+        both: [
+          sendResult.smsSent && `SMS sent to ${effectivePhone}`,
+          sendResult.emailSent && `Email sent to ${effectiveEmail}`,
+        ].filter(Boolean).join(' & ') || 'Quote sent!',
+        link: 'Quote link copied!',
+      }[method] || 'Quote sent!';
 
-      // Show warnings for failures
+      // Show warnings for failures inline in the toast
       const warnings = [];
       if (sendResult.emailSent === false && sendResult.emailError) {
         warnings.push(`Email failed: ${sendResult.emailError}`);
       }
-      if (effectivePhone && sendResult.smsSent === false) {
+      if (effectivePhone && sendResult.smsSent === false && (method === 'sms' || method === 'both')) {
         warnings.push(`SMS failed: ${sendResult.smsError || 'check Twilio config or plan'}`);
       }
+
       if (warnings.length > 0) {
-        setError(`Quote sent. ${warnings.join('. ')}`);
+        toastError(warnings.join('. '));
+      }
+      toastSuccess(toastMsg);
+
+      // Copy link for 'link' method
+      if (method === 'link') {
+        try { await navigator.clipboard.writeText(link); } catch {}
+      }
+
+      // Auto-close modal and reset
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose();
       }
     } catch (err) {
       if (err.message !== "QUOTE_LIMIT") {
@@ -458,26 +469,20 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
         }
       }
 
-      const link = `${window.location.origin}/q/${share_link}`;
-      setQuoteLink(link);
-      setSuccessType("draft");
-      setSuccess(true);
-      toastSuccess("Customer saved & quote saved as draft!");
+      toastSuccess("Quote saved as draft!");
+
+      // Auto-close modal and reset
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose();
+      }
     } catch (err) {
       if (err.message !== "QUOTE_LIMIT") {
         setError(err.message);
       }
     } finally {
       setDraftLoading(false);
-    }
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(quoteLink);
-      toastSuccess(t('success.copied'));
-    } catch (e) {
-      toastError("Failed to copy link");
     }
   };
 
@@ -511,8 +516,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
       <div className="modal-content bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
-        {!success ? (
-          <div>
+        <div>
             <h2 className="text-xl font-semibold mb-2">{t('dashboard.sendToClient')}</h2>
             <p className="mb-4 text-gray-600">
               {aircraftName && `${t('common.aircraft')}: ${aircraftName}`}{quote?.airport ? ` • ${quote.airport}` : ''} • {t('common.total')}: {currencySymbol()}{formatPrice(totalPrice)}
@@ -702,7 +706,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             {requiresSms && isBusiness && effectiveName && effectivePhone && (
               <div className="mb-3">
                 <div className="bg-green-100 text-green-800 p-3 rounded text-sm whitespace-pre-line">
-                  {`Hi ${effectiveName.split(' ')[0]}, your ${aircraftName || 'aircraft'} quote is ready! View: ${quoteLink || '[link]'} - ${user?.company || user?.name || ''}`}
+                  {`Hi ${effectiveName.split(' ')[0]}, your ${aircraftName || 'aircraft'} quote is ready! View: [link] - ${user?.company || user?.name || ''}`}
                 </div>
               </div>
             )}
@@ -800,66 +804,6 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
               </button>
             </div>
           </div>
-        ) : (
-          <div className="text-center">
-            <div className="text-green-600 text-4xl mb-2">✓</div>
-            <h2 className="text-xl font-semibold mb-2">{successType === 'draft' ? 'Quote Saved as Draft!' : (isScheduled ? 'Quote Scheduled!' : 'Customer Saved & Quote Sent!')}</h2>
-            <p className="mb-3">
-              <a
-                href={quoteLink}
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-600 underline break-words"
-              >
-                {quoteLink}
-              </a>
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="ml-2 text-sm text-blue-600 underline"
-              >
-                Copy
-              </button>
-            </p>
-            <div className="text-left mb-4 text-sm">
-              <p className="font-semibold mb-1">What happens next:</p>
-              {successType === 'draft' ? (
-                <ul className="list-disc list-inside">
-                  <li>Customer saved to your contacts.</li>
-                  <li>Quote saved as draft - send it when ready.</li>
-                  <li>Share the link below or send from your dashboard.</li>
-                </ul>
-              ) : isBusiness ? (
-                <ul className="list-disc list-inside">
-                  <li>Customer saved to your contacts.</li>
-                  <li>Your client will receive the quote via SMS/Email.</li>
-                  <li>We'll send follow-up reminders after 3 and 7 days.</li>
-                  <li>You can track views and acceptance in your dashboard.</li>
-                </ul>
-              ) : (
-                <ul className="list-disc list-inside">
-                  <li>Customer saved to your contacts.</li>
-                  <li>Share the link with your client.</li>
-                  <li>Upgrade to Business to send SMS follow-ups automatically.</li>
-                </ul>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSuccess(false);
-                if (onSuccess) {
-                  onSuccess();
-                } else {
-                  onClose();
-                }
-              }}
-              className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white"
-            >
-              Done
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
