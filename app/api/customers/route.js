@@ -28,11 +28,11 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 20;
     const tag = searchParams.get('tag');
 
-    // Column-stripping retry for GET (handles missing columns gracefully)
-    let selectCols = 'id, name, email, phone, company_name, notes, tags, poc_name, poc_phone, poc_email, poc_role, emergency_contact_name, emergency_contact_phone, contact_notes, created_at, updated_at';
+    // Core columns that exist in the customers table
+    let selectCols = 'id, name, email, phone, company_name, notes, tags, created_at';
     let customers = [];
 
-    for (let attempt = 0; attempt < 6; attempt++) {
+    for (let attempt = 0; attempt < 10; attempt++) {
       let query = supabase
         .from('customers')
         .select(selectCols)
