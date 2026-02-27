@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import SendQuoteModal from '../../../components/SendQuoteModal.jsx';
 import LoadingSpinner from '../../../components/LoadingSpinner.jsx';
 import { useToast } from '../../../components/Toast.jsx';
-import { formatPrice, formatPriceWhole, currencySymbol } from '../../../lib/formatPrice';
+import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
 import { calculateProductEstimates } from '../../../lib/product-calculator';
 
 const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super_midsize_jet', 'large_jet', 'helicopter'];
@@ -883,7 +883,10 @@ function NewQuoteContent() {
             addonsTotal: addonsTotal,
             notes: quoteNotes,
             airport: airport,
+            tailNumber: tailNumber,
             productEstimates: quoteData.productEstimates,
+            linkedProducts: quoteData.linkedProducts,
+            linkedEquipment: quoteData.linkedEquipment,
           }}
           user={user}
         />
