@@ -2,11 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ExportGate from '@/components/ExportGate';
-import { useTranslation } from '@/lib/i18n';
 
 export default function JobsPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
@@ -38,10 +36,10 @@ export default function JobsPage() {
         setJobs(data.jobs || []);
         setStats(data.stats);
       } else {
-        setError(t('errors.failedToFetch'));
+        setError('Failed to fetch');
       }
     } catch (err) {
-      setError(t('errors.failedToFetch'));
+      setError('Failed to fetch');
     } finally {
       setLoading(false);
     }
@@ -110,7 +108,7 @@ export default function JobsPage() {
       <header className="text-white flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <a href="/profitability" className="text-2xl">&#8592;</a>
-          <h1 className="text-2xl font-bold">{t('jobs.jobHistory')}</h1>
+          <h1 className="text-2xl font-bold">{'Job History'}</h1>
         </div>
         <div className="flex items-center space-x-3">
           <ExportGate plan={userPlan}>
@@ -119,7 +117,7 @@ export default function JobsPage() {
               disabled={jobs.length === 0}
               className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {t('reports.exportCsv')}
+              {'Export CSV'}
             </button>
           </ExportGate>
           <select
@@ -127,10 +125,10 @@ export default function JobsPage() {
             onChange={(e) => setPeriod(parseInt(e.target.value))}
             className="bg-white/10 text-white border border-white/20 rounded px-3 py-1"
           >
-            <option value={30} className="text-gray-900">{t('jobs.last30Days')}</option>
-            <option value={90} className="text-gray-900">{t('jobs.last90Days')}</option>
-            <option value={180} className="text-gray-900">{t('jobs.last6Months')}</option>
-            <option value={365} className="text-gray-900">{t('jobs.lastYear')}</option>
+            <option value={30} className="text-gray-900">{'Last 30 days'}</option>
+            <option value={90} className="text-gray-900">{'Last 90 days'}</option>
+            <option value={180} className="text-gray-900">{'Last 6 months'}</option>
+            <option value={365} className="text-gray-900">{'Last year'}</option>
           </select>
         </div>
       </header>
@@ -141,37 +139,37 @@ export default function JobsPage() {
           <div className="grid grid-cols-5 gap-2 text-center">
             <div>
               <p className="text-xl font-bold text-amber-600">{stats.totalJobs}</p>
-              <p className="text-xs text-gray-500">{t('nav.jobs')}</p>
+              <p className="text-xs text-gray-500">{'Jobs'}</p>
             </div>
             <div>
               <p className="text-xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
-              <p className="text-xs text-gray-500">{t('jobs.revenue')}</p>
+              <p className="text-xs text-gray-500">{'Revenue'}</p>
             </div>
             <div>
               <p className="text-xl font-bold text-blue-600">{formatCurrency(stats.totalProfit)}</p>
-              <p className="text-xs text-gray-500">{t('jobs.profit')}</p>
+              <p className="text-xs text-gray-500">{'Profit'}</p>
             </div>
             <div>
               <p className="text-xl font-bold">{stats.totalHours.toFixed(1)}h</p>
-              <p className="text-xs text-gray-500">{t('jobs.hours')}</p>
+              <p className="text-xs text-gray-500">{'Hours'}</p>
             </div>
             <div>
               <p className="text-xl font-bold text-purple-600">{stats.avgMargin.toFixed(1)}%</p>
-              <p className="text-xs text-gray-500">{t('jobs.margin')}</p>
+              <p className="text-xs text-gray-500">{'Margin'}</p>
             </div>
           </div>
         </div>
       )}
 
       {loading ? (
-        <div className="text-white text-center py-12">{t('jobs.loadingJobs')}</div>
+        <div className="text-white text-center py-12">{'Loading jobs...'}</div>
       ) : error ? (
         <div className="text-red-400 text-center py-12">{error}</div>
       ) : jobs.length === 0 ? (
         <div className="bg-white rounded-lg p-8 text-center">
-          <p className="text-xl font-semibold mb-2">{t('jobs.noCompletedJobs')}</p>
-          <p className="text-gray-500 mb-4">{t('jobs.jobsWillAppear')}</p>
-          <a href="/dashboard" className="text-amber-600 underline">{t('jobs.goToDashboard')}</a>
+          <p className="text-xl font-semibold mb-2">{'No completed jobs'}</p>
+          <p className="text-gray-500 mb-4">{'Jobs will appear here after you complete quotes and log hours.'}</p>
+          <a href="/dashboard" className="text-amber-600 underline">{'Go to Dashboard'}</a>
         </div>
       ) : (
         <div className="space-y-3">
@@ -180,10 +178,10 @@ export default function JobsPage() {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="font-semibold">
-                    {job.quotes?.client_name || t('jobs.unknownClient')}
+                    {job.quotes?.client_name || 'Unknown Client'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {job.quotes?.aircraft_model || t('jobs.unknownAircraft')}
+                    {job.quotes?.aircraft_model || 'Unknown Aircraft'}
                   </p>
                 </div>
                 <span className="text-sm text-gray-400">{formatDate(job.completed_at)}</span>
@@ -192,19 +190,19 @@ export default function JobsPage() {
               <div className="grid grid-cols-4 gap-2 text-center mt-3 pt-3 border-t">
                 <div>
                   <p className="font-semibold">{formatCurrency(job.revenue)}</p>
-                  <p className="text-xs text-gray-500">{t('jobs.revenue')}</p>
+                  <p className="text-xs text-gray-500">{'Revenue'}</p>
                 </div>
                 <div>
                   <p className="font-semibold">{job.actual_hours}h</p>
-                  <p className="text-xs text-gray-500">{t('jobs.hours')}</p>
+                  <p className="text-xs text-gray-500">{'Hours'}</p>
                 </div>
                 <div>
                   <p className="font-semibold text-green-600">{formatCurrency(job.profit)}</p>
-                  <p className="text-xs text-gray-500">{t('jobs.profit')}</p>
+                  <p className="text-xs text-gray-500">{'Profit'}</p>
                 </div>
                 <div>
                   <p className="font-semibold text-purple-600">{job.margin_percent?.toFixed(1)}%</p>
-                  <p className="text-xs text-gray-500">{t('jobs.margin')}</p>
+                  <p className="text-xs text-gray-500">{'Margin'}</p>
                 </div>
               </div>
 

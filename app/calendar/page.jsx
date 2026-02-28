@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 import { formatPrice } from '@/lib/formatPrice';
 
 const statusColors = {
@@ -13,7 +12,6 @@ const statusColors = {
 
 export default function CalendarPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +158,7 @@ export default function CalendarPage() {
   };
 
   const days = getDaysInMonth(currentDate);
-  const weekDays = [t('calendar.sun'), t('calendar.mon'), t('calendar.tue'), t('calendar.wed'), t('calendar.thu'), t('calendar.fri'), t('calendar.sat')];
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
   const today = new Date();
   const unscheduledJobs = getUnscheduledJobs();
@@ -168,7 +166,7 @@ export default function CalendarPage() {
   if (loading) {
     return (
       <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-        <div className="text-white text-xl">{t('calendar.loadingCalendar')}</div>
+        <div className="text-white text-xl">{'Loading calendar...'}</div>
       </div>
     );
   }
@@ -179,11 +177,11 @@ export default function CalendarPage() {
       <header className="flex justify-between items-center mb-6 text-white">
         <div className="flex items-center space-x-4">
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&larr;</a>
-          <h1 className="text-2xl font-bold">{t('calendar.title')}</h1>
+          <h1 className="text-2xl font-bold">{'Calendar'}</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <a href="/quotes" className="text-amber-400 hover:underline">{t('nav.quotes')}</a>
-          <a href="/dashboard" className="hover:underline">{t('nav.dashboard')}</a>
+          <a href="/quotes" className="text-amber-400 hover:underline">{'Quotes'}</a>
+          <a href="/dashboard" className="hover:underline">{'Dashboard'}</a>
         </div>
       </header>
 
@@ -212,7 +210,7 @@ export default function CalendarPage() {
                 onClick={() => setCurrentDate(new Date())}
                 className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
               >
-                {t('common.today')}
+                {'Today'}
               </button>
             </div>
           </div>
@@ -255,13 +253,13 @@ export default function CalendarPage() {
                         key={job.id}
                         onClick={() => setSelectedJob(job)}
                         className={`text-xs p-1 rounded text-white cursor-pointer truncate ${statusColors[job.status] || 'bg-gray-500'}`}
-                        title={`${job.aircraft_model || job.aircraft_type} - ${job.client_name || t('common.noName')}`}
+                        title={`${job.aircraft_model || job.aircraft_type} - ${job.client_name || 'No name'}`}
                       >
                         {formatTime(job.scheduled_date)} {job.client_name || job.aircraft_model}
                       </div>
                     ))}
                     {dayJobs.length > 3 && (
-                      <div className="text-xs text-gray-500">{t('calendar.more', { n: dayJobs.length - 3 })}</div>
+                      <div className="text-xs text-gray-500">{`+${dayJobs.length - 3} more`}</div>
                     )}
                   </div>
                 </div>
@@ -272,11 +270,11 @@ export default function CalendarPage() {
 
         {/* Sidebar - Unscheduled Jobs */}
         <div className="w-80 bg-white rounded-lg shadow p-4">
-          <h3 className="font-semibold mb-3">{t('calendar.unscheduledJobs')} ({unscheduledJobs.length})</h3>
-          <p className="text-sm text-gray-500 mb-4">{t('calendar.dragToSchedule')}</p>
+          <h3 className="font-semibold mb-3">{'Unscheduled Jobs'} ({unscheduledJobs.length})</h3>
+          <p className="text-sm text-gray-500 mb-4">{'Drag to calendar or click to schedule'}</p>
 
           {unscheduledJobs.length === 0 ? (
-            <p className="text-gray-400 text-sm">{t('calendar.noUnscheduled')}</p>
+            <p className="text-gray-400 text-sm">{'No unscheduled jobs'}</p>
           ) : (
             <div className="space-y-2 max-h-[500px] overflow-y-auto">
               {unscheduledJobs.map((job) => (
@@ -288,7 +286,7 @@ export default function CalendarPage() {
                   }}
                   className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
                 >
-                  <div className="font-medium text-sm">{job.client_name || t('common.noName')}</div>
+                  <div className="font-medium text-sm">{job.client_name || 'No name'}</div>
                   <div className="text-xs text-gray-500">
                     {job.aircraft_model || job.aircraft_type}
                   </div>
@@ -302,7 +300,7 @@ export default function CalendarPage() {
 
           {/* Legend */}
           <div className="mt-6 pt-4 border-t">
-            <h4 className="text-sm font-medium mb-2">{t('calendar.statusLegend')}</h4>
+            <h4 className="text-sm font-medium mb-2">{'Status Legend'}</h4>
             <div className="space-y-1">
               {Object.entries(statusColors).map(([status, color]) => (
                 <div key={status} className="flex items-center text-xs">
@@ -320,7 +318,7 @@ export default function CalendarPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold">{t('calendar.jobDetails')}</h3>
+              <h3 className="text-lg font-semibold">{'Job Details'}</h3>
               <button onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600">
                 &times;
               </button>
@@ -328,40 +326,40 @@ export default function CalendarPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="text-sm text-gray-500">{t('common.customer')}</label>
-                <p className="font-medium">{selectedJob.client_name || t('common.noName')}</p>
+                <label className="text-sm text-gray-500">{'Customer'}</label>
+                <p className="font-medium">{selectedJob.client_name || 'No name'}</p>
               </div>
 
               <div>
-                <label className="text-sm text-gray-500">{t('common.aircraft')}</label>
+                <label className="text-sm text-gray-500">{'Aircraft'}</label>
                 <p className="font-medium">{selectedJob.aircraft_model || selectedJob.aircraft_type}</p>
               </div>
 
               {selectedJob.tail_number && (
                 <div>
-                  <label className="text-sm text-gray-500">{t('calendar.tailNumber')}</label>
+                  <label className="text-sm text-gray-500">{'Tail Number'}</label>
                   <p className="font-medium">{selectedJob.tail_number}</p>
                 </div>
               )}
 
               <div>
-                <label className="text-sm text-gray-500">{t('status.scheduled')}</label>
+                <label className="text-sm text-gray-500">{'Scheduled'}</label>
                 <p className="font-medium">
                   {selectedJob.scheduled_date
                     ? new Date(selectedJob.scheduled_date).toLocaleString()
-                    : t('calendar.notScheduled')}
+                    : 'Not scheduled'}
                 </p>
               </div>
 
               <div>
-                <label className="text-sm text-gray-500">{t('common.status')}</label>
+                <label className="text-sm text-gray-500">{'Status'}</label>
                 <p className={`inline-block px-2 py-1 rounded text-sm text-white ${statusColors[selectedJob.status] || 'bg-gray-500'}`}>
                   {selectedJob.status}
                 </p>
               </div>
 
               <div>
-                <label className="text-sm text-gray-500">{t('common.total')}</label>
+                <label className="text-sm text-gray-500">{'Total'}</label>
                 <p className="font-semibold text-lg text-green-600">
                   ${formatPrice(selectedJob.total_price)}
                 </p>
@@ -373,7 +371,7 @@ export default function CalendarPage() {
                 href={`/jobs/${selectedJob.id}/photos`}
                 className="w-full py-2 bg-blue-500 text-white rounded text-center hover:bg-blue-600 flex items-center justify-center gap-2"
               >
-                <span>&#128247;</span> {t('calendar.documentJob')}
+                <span>&#128247;</span> {'Document Job'}
               </a>
               <div className="flex gap-2">
                 <button
@@ -383,14 +381,14 @@ export default function CalendarPage() {
                   }}
                   className="flex-1 py-2 border border-amber-500 text-amber-500 rounded hover:bg-amber-50"
                 >
-                  {t('calendar.reschedule')}
+                  {'Reschedule'}
                 </button>
                 <a
                   href={`/q/${selectedJob.share_link}`}
                   target="_blank"
                   className="flex-1 py-2 bg-amber-500 text-white rounded text-center hover:bg-amber-600"
                 >
-                  {t('calendar.viewQuote')}
+                  {'View Quote'}
                 </a>
               </div>
             </div>
@@ -402,16 +400,16 @@ export default function CalendarPage() {
       {scheduleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">{t('calendar.scheduleJob')}</h3>
+            <h3 className="text-lg font-semibold mb-4">{'Schedule Job'}</h3>
 
             <div className="mb-4">
-              <p className="font-medium">{scheduleModal.client_name || t('common.noName')}</p>
+              <p className="font-medium">{scheduleModal.client_name || 'No name'}</p>
               <p className="text-sm text-gray-500">{scheduleModal.aircraft_model || scheduleModal.aircraft_type}</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">{t('common.date')}</label>
+                <label className="block text-sm font-medium mb-1">{'Date'}</label>
                 <input
                   type="date"
                   value={scheduleDate}
@@ -421,7 +419,7 @@ export default function CalendarPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">{t('common.time')}</label>
+                <label className="block text-sm font-medium mb-1">{'Time'}</label>
                 <input
                   type="time"
                   value={scheduleTime}
@@ -436,14 +434,14 @@ export default function CalendarPage() {
                 onClick={() => setScheduleModal(null)}
                 className="flex-1 py-2 border rounded hover:bg-gray-50"
               >
-                {t('common.cancel')}
+                {'Cancel'}
               </button>
               <button
                 onClick={handleScheduleJob}
                 disabled={!scheduleDate}
                 className="flex-1 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50"
               >
-                {t('calendar.schedule')}
+                {'Schedule'}
               </button>
             </div>
           </div>

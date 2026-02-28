@@ -1,9 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { useTranslation } from '@/lib/i18n';
 
 export default function OfflineBanner() {
-  const { t } = useTranslation();
   const [offline, setOffline] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -30,7 +28,7 @@ export default function OfflineBanner() {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M12 12h.01" />
       </svg>
       <span>You&apos;re offline. Some features may be unavailable.</span>
-      <button onClick={() => setDismissed(true)} className="ml-2 hover:text-white/80" aria-label={t('common.close')}>
+      <button onClick={() => setDismissed(true)} className="ml-2 hover:text-white/80" aria-label={'Close'}>
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>

@@ -1,11 +1,9 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 
 export default function CustomerLoginPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [step, setStep] = useState('email'); // email | code
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,13 +27,13 @@ export default function CustomerLoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || t('errors.failedToSend'));
+        setError(data.error || 'Failed to send');
         return;
       }
 
       setStep('code');
     } catch (err) {
-      setError(t('errors.networkError', { error: err.message }));
+      setError(`Network error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -67,7 +65,7 @@ export default function CustomerLoginPage() {
       localStorage.setItem('customer_user', JSON.stringify(data.customer));
       router.push('/customer/dashboard');
     } catch (err) {
-      setError(t('errors.networkError', { error: err.message }));
+      setError(`Network error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -79,9 +77,9 @@ export default function CustomerLoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white flex items-center justify-center gap-2">
-            <span>&#9992;</span> {t('dashboard.title')}
+            <span>&#9992;</span> {'Vector'}
           </h1>
-          <p className="text-blue-200 mt-2">{t('common.customer')} Portal</p>
+          <p className="text-blue-200 mt-2">{'Customer'} Portal</p>
         </div>
 
         {/* Login Card */}
@@ -102,7 +100,7 @@ export default function CustomerLoginPage() {
               <form onSubmit={handleRequestCode} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('common.email')} Address
+                    {'Email'} Address
                   </label>
                   <input
                     type="email"
@@ -120,7 +118,7 @@ export default function CustomerLoginPage() {
                   disabled={loading || !email}
                   className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
                 >
-                  {loading ? t('common.sending') : 'Send Login Code'}
+                  {loading ? 'Sending...' : 'Send Login Code'}
                 </button>
               </form>
 
@@ -163,7 +161,7 @@ export default function CustomerLoginPage() {
                   disabled={loading || code.length !== 6}
                   className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
                 >
-                  {loading ? 'Verifying...' : t('common.login')}
+                  {loading ? 'Verifying...' : 'Login'}
                 </button>
               </form>
 

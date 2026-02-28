@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { useTranslation } from '@/lib/i18n';
 
 const LANGUAGES = [
   { code: 'en', label: 'English', flag: '\u{1F1FA}\u{1F1F8}' },
@@ -57,7 +56,6 @@ const STEPS = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -340,7 +338,7 @@ export default function OnboardingPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner message={t('common.loading')} />;
+    return <LoadingSpinner message={'Loading...'} />;
   }
 
   const chosenServices = COMMON_SERVICES.filter((_, i) => selectedServices[i]);
@@ -387,7 +385,7 @@ export default function OnboardingPage() {
           {step === 0 && (
             <div className="text-center py-6">
               <div className="text-6xl mb-4" dangerouslySetInnerHTML={{ __html: '&#9992;' }} />
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to {t('dashboard.title')}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to {'Vector'}</h1>
               <p className="text-gray-600 mb-6">
                 Let's get your account set up in about 2 minutes. We'll configure your services, rates, and preferences so you can start quoting immediately.
               </p>
@@ -426,13 +424,13 @@ export default function OnboardingPage() {
           {/* Step 1: Company Info */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">{t('settings.companyInfo')}</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{'Company Information'}</h2>
               <p className="text-sm text-gray-500 mb-6">Tell us about your business</p>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('settings.companyName')} <span className="text-red-500">*</span>
+                    {'Company Name'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -444,7 +442,7 @@ export default function OnboardingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.name')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Name'}</label>
                   <input
                     type="text"
                     value={name}
@@ -455,7 +453,7 @@ export default function OnboardingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.phone')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Phone'}</label>
                   <input
                     type="tel"
                     value={phone}
@@ -469,14 +467,14 @@ export default function OnboardingPage() {
 
               <div className="mt-6 flex justify-between">
                 <button onClick={goBack} className="px-4 py-2 text-gray-500 hover:text-gray-700">
-                  {t('common.back')}
+                  {'Back'}
                 </button>
                 <button
                   onClick={saveCompany}
                   disabled={saving}
                   className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90 disabled:opacity-50"
                 >
-                  {saving ? t('common.saving') : t('common.next')}
+                  {saving ? 'Saving...' : 'Next'}
                 </button>
               </div>
             </div>
@@ -485,8 +483,8 @@ export default function OnboardingPage() {
           {/* Step 2: Services Setup */}
           {step === 2 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">{t('common.services')}</h2>
-              <p className="text-sm text-gray-500 mb-4">Select the services you offer. You can add more later in {t('nav.settings')}.</p>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{'Services'}</h2>
+              <p className="text-sm text-gray-500 mb-4">Select the services you offer. You can add more later in {'Settings'}.</p>
 
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {COMMON_SERVICES.map((svc, i) => (
@@ -524,23 +522,23 @@ export default function OnboardingPage() {
                   }}
                   className="text-sm text-amber-600 hover:underline"
                 >
-                  {t('quotes.selectAll')}
+                  {'Select All'}
                 </button>
                 <span className="text-sm text-gray-400">
-                  {Object.values(selectedServices).filter(Boolean).length} {t('quotes.selected')}
+                  {Object.values(selectedServices).filter(Boolean).length} {'selected'}
                 </span>
               </div>
 
               <div className="mt-4 flex justify-between">
                 <button onClick={goBack} className="px-4 py-2 text-gray-500 hover:text-gray-700">
-                  {t('common.back')}
+                  {'Back'}
                 </button>
                 <button
                   onClick={saveServices}
                   disabled={saving}
                   className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90 disabled:opacity-50"
                 >
-                  {saving ? t('common.saving') : t('common.next')}
+                  {saving ? 'Saving...' : 'Next'}
                 </button>
               </div>
             </div>
@@ -567,7 +565,7 @@ export default function OnboardingPage() {
                         placeholder={String(svc.defaultRate)}
                         className="w-20 border border-gray-300 rounded px-2 py-1.5 text-right focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                       />
-                      <span className="text-gray-400 text-sm">{t('common.perHour')}</span>
+                      <span className="text-gray-400 text-sm">{'/hr'}</span>
                     </div>
                   </div>
                 ))}
@@ -589,14 +587,14 @@ export default function OnboardingPage() {
 
               <div className="mt-4 flex justify-between">
                 <button onClick={goBack} className="px-4 py-2 text-gray-500 hover:text-gray-700">
-                  {t('common.back')}
+                  {'Back'}
                 </button>
                 <button
                   onClick={saveRates}
                   disabled={saving}
                   className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90 disabled:opacity-50"
                 >
-                  {saving ? t('common.creating') : t('common.next')}
+                  {saving ? 'Creating...' : 'Next'}
                 </button>
               </div>
             </div>
@@ -612,7 +610,7 @@ export default function OnboardingPage() {
                 {/* Language & Currency */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.language')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{'Language'}</label>
                     <select
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
@@ -624,7 +622,7 @@ export default function OnboardingPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.currency')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{'Currency'}</label>
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
@@ -639,7 +637,7 @@ export default function OnboardingPage() {
 
                 {/* Minimum fee */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.minimumFee')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Minimum Fee'}</label>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">{CURRENCIES.find(c => c.code === currency)?.symbol || '$'}</span>
                     <input
@@ -659,7 +657,7 @@ export default function OnboardingPage() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-gray-900">{t('settings.passFeeToCustomer')}</p>
+                      <p className="font-medium text-gray-900">{'Pass platform fee to customer'}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         When enabled, the platform fee appears as a "Service Fee" line item on the customer's quote instead of being deducted from your earnings.
                       </p>
@@ -682,14 +680,14 @@ export default function OnboardingPage() {
 
               <div className="mt-6 flex justify-between">
                 <button onClick={goBack} className="px-4 py-2 text-gray-500 hover:text-gray-700">
-                  {t('common.back')}
+                  {'Back'}
                 </button>
                 <button
                   onClick={savePreferences}
                   disabled={saving}
                   className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90 disabled:opacity-50"
                 >
-                  {saving ? t('common.saving') : t('common.next')}
+                  {saving ? 'Saving...' : 'Next'}
                 </button>
               </div>
             </div>
@@ -700,13 +698,13 @@ export default function OnboardingPage() {
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Build a Test Quote</h2>
               <p className="text-sm text-gray-500 mb-4">
-                Pick an aircraft and see how {t('dashboard.title')} calculates your quote using the rates you just set.
+                Pick an aircraft and see how {'Vector'} calculates your quote using the rates you just set.
               </p>
 
               {!testAircraft ? (
                 <div>
                   <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('dashboard.manufacturer')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{'Manufacturer'}</label>
                     <select
                       value={selectedMfr}
                       onChange={(e) => fetchModels(e.target.value)}
@@ -728,14 +726,14 @@ export default function OnboardingPage() {
                           className="p-3 cursor-pointer hover:bg-amber-50 transition-colors"
                         >
                           <p className="font-medium text-gray-900">{a.manufacturer} {a.model}</p>
-                          <p className="text-xs text-gray-500">{a.category} &bull; {a.seats} {t('dashboard.seats')}</p>
+                          <p className="text-xs text-gray-500">{a.category} &bull; {a.seats} {'seats'}</p>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {selectedMfr && models.length === 0 && (
-                    <p className="text-gray-400 text-sm text-center py-4">{t('dashboard.loadingAircraft')}</p>
+                    <p className="text-gray-400 text-sm text-center py-4">{'Loading aircraft...'}</p>
                   )}
                 </div>
               ) : (
@@ -745,7 +743,7 @@ export default function OnboardingPage() {
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="font-semibold text-blue-900">{testAircraft.manufacturer} {testAircraft.model}</p>
-                        <p className="text-xs text-blue-600">{testAircraft.surface_area_sqft?.toLocaleString()} {t('dashboard.sqft')}</p>
+                        <p className="text-xs text-blue-600">{testAircraft.surface_area_sqft?.toLocaleString()} {'sq ft'}</p>
                       </div>
                       <button
                         onClick={() => setTestAircraft(null)}
@@ -791,16 +789,16 @@ export default function OnboardingPage() {
                   {/* Quote total */}
                   <div className="bg-[#0f172a] text-white rounded-lg p-4">
                     <div className="flex justify-between text-sm text-gray-400 mb-1">
-                      <span>{t('dashboard.estHours')}</span>
+                      <span>{'Est. Hours'}</span>
                       <span>{testTotalHours.toFixed(1)}h</span>
                     </div>
                     <div className="flex justify-between text-xl font-bold">
-                      <span>{t('dashboard.quoteSummary')}</span>
+                      <span>{'Quote Summary'}</span>
                       <span>{currencySymbol()}{formatPrice(testTotal)}</span>
                     </div>
                     {parseFloat(minimumFee) > 0 && testTotal > 0 && testTotal < parseFloat(minimumFee) && (
                       <div className="mt-2 text-xs text-amber-400">
-                        {t('dashboard.minimumFeeOf')} ${formatPriceWhole(minimumFee)} would apply
+                        {'Minimum fee of'} ${formatPriceWhole(minimumFee)} would apply
                       </div>
                     )}
                   </div>
@@ -813,7 +811,7 @@ export default function OnboardingPage() {
 
               <div className="mt-4 flex justify-between">
                 <button onClick={goBack} className="px-4 py-2 text-gray-500 hover:text-gray-700">
-                  {t('common.back')}
+                  {'Back'}
                 </button>
                 <button
                   onClick={goNext}
@@ -830,7 +828,7 @@ export default function OnboardingPage() {
             <div className="text-center py-4">
               <div className="text-6xl mb-3" dangerouslySetInnerHTML={{ __html: '&#127881;' }} />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">You're All Set!</h2>
-              <p className="text-gray-600 mb-6">Your {t('dashboard.title')} account is configured and ready to go.</p>
+              <p className="text-gray-600 mb-6">Your {'Vector'} account is configured and ready to go.</p>
 
               <div className="text-left space-y-3 max-w-xs mx-auto mb-6">
                 {[
@@ -859,7 +857,7 @@ export default function OnboardingPage() {
                 disabled={saving}
                 className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold text-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                {saving ? 'Finishing...' : `Go to ${t('nav.dashboard')}`}
+                {saving ? 'Finishing...' : `Go to ${'Dashboard'}`}
               </button>
             </div>
           )}

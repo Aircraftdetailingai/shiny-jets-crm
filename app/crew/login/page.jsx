@@ -1,11 +1,9 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 
 export default function CrewLoginPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +53,7 @@ export default function CrewLoginPage() {
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm p-8">
         <div className="flex flex-col items-center mb-6">
           <h1 className="text-2xl font-bold text-[#1e3a5f] flex items-center">
-            <span className="mr-2">✈️</span> Crew {t('common.login')}
+            <span className="mr-2">✈️</span> Crew {'Login'}
           </h1>
           <p className="text-gray-500 mt-1 text-center text-sm">
             Enter your PIN to access the crew dashboard
@@ -129,7 +127,7 @@ export default function CrewLoginPage() {
 
         <div className="mt-4 text-center">
           <a href="/login" className="text-sm text-blue-600 hover:underline">
-            Owner {t('common.login')} →
+            Owner {'Login'} →
           </a>
         </div>
       </div>

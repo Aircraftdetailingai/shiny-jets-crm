@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 
 const statusColors = {
   paid: 'bg-green-100 text-green-700',
@@ -16,7 +15,6 @@ function formatCurrency(val) {
 
 export default function InvoicesPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -89,10 +87,10 @@ export default function InvoicesPage() {
         setCreateModal(false);
         setSelectedQuoteId('');
       } else {
-        setError(data.error || t('errors.failedToCreate'));
+        setError(data.error || 'Failed to create');
       }
     } catch (err) {
-      setError(t('errors.failedToCreate'));
+      setError('Failed to create');
     } finally {
       setActionLoading(false);
     }
@@ -128,14 +126,14 @@ export default function InvoicesPage() {
         headers: headers(),
       });
       if (res.ok) {
-        alert(t('invoices.invoiceEmailed') + ' ' + invoice.customer_email);
+        alert('Invoice emailed to' + ' ' + invoice.customer_email);
         setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, emailed_at: new Date().toISOString() } : inv));
       } else {
         const data = await res.json();
-        alert(data.error || t('errors.failedToSend'));
+        alert(data.error || 'Failed to send');
       }
     } catch (err) {
-      alert(t('errors.failedToSend'));
+      alert('Failed to send');
     } finally {
       setActionLoading(false);
     }
@@ -154,7 +152,7 @@ export default function InvoicesPage() {
       `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">${a.name || 'Add-on'}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#666">${formatCurrency(a.calculated || a.amount || 0)}</td></tr>`
     ).join('');
 
-    const html = `<!DOCTYPE html><html><head><title>${t('invoices.invoice')} ${invoice.invoice_number}</title>
+    const html = `<!DOCTYPE html><html><head><title>${'Invoice'} ${invoice.invoice_number}</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#333}
 .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px}
 .inv-num{font-size:28px;font-weight:700;color:#1e3a5f}
@@ -171,26 +169,26 @@ th:last-child{text-align:right}
 @media print{body{margin:0;padding:20px}}</style></head>
 <body>
 <div class="header">
-  <div><div class="inv-num">${t('invoices.invoice')} ${invoice.invoice_number}</div>
+  <div><div class="inv-num">${'Invoice'} ${invoice.invoice_number}</div>
   <div style="color:#6b7280">${new Date(invoice.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div></div>
   <span class="status ${invoice.status === 'paid' ? 'paid' : 'unpaid'}">${(invoice.status || 'unpaid').toUpperCase()}</span>
 </div>
 <div class="info-grid">
-  <div><div class="label">${t('common.from')}</div><div class="name">${invoice.detailer_company || invoice.detailer_name || ''}</div>
+  <div><div class="label">${'From'}</div><div class="name">${invoice.detailer_company || invoice.detailer_name || ''}</div>
   ${invoice.detailer_email ? `<div style="color:#6b7280;font-size:14px">${invoice.detailer_email}</div>` : ''}
   ${invoice.detailer_phone ? `<div style="color:#6b7280;font-size:14px">${invoice.detailer_phone}</div>` : ''}</div>
-  <div><div class="label">${t('invoices.billTo')}</div><div class="name">${invoice.customer_name || t('common.customer')}</div>
+  <div><div class="label">${'Bill To'}</div><div class="name">${invoice.customer_name || 'Customer'}</div>
   ${invoice.customer_company ? `<div style="color:#6b7280;font-size:14px">${invoice.customer_company}</div>` : ''}
   ${invoice.customer_email ? `<div style="color:#6b7280;font-size:14px">${invoice.customer_email}</div>` : ''}</div>
 </div>
-${invoice.aircraft ? `<p style="color:#6b7280;margin:0 0 4px">${t('common.aircraft')}: <strong style="color:#1f2937">${invoice.aircraft}</strong></p>` : ''}
-${invoice.airport ? `<p style="color:#6b7280;margin:0 0 16px">${t('common.airport')}: <strong style="color:#1f2937">${invoice.airport}</strong></p>` : ''}
-<table><thead><tr><th>${t('common.description')}</th><th>${t('common.amount')}</th></tr></thead><tbody>${lineRows}${addonRows}</tbody></table>
-${invoice.platform_fee > 0 ? `<div style="color:#9ca3af;font-size:13px;text-align:right">${t('invoices.platformFee')} (${(invoice.platform_fee_rate * 100).toFixed(0)}%): ${formatCurrency(invoice.platform_fee)}</div>` : ''}
-<div class="total-row"><span class="total-label">${t('common.total')}</span><span class="total-amount">${formatCurrency(invoice.total)}</span></div>
-${invoice.status !== 'paid' && invoice.due_date ? `<p style="color:#d97706;margin-top:16px">${t('invoices.dueBy')} ${new Date(invoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
-${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a"><strong>${t('common.notes')}:</strong> ${invoice.notes}</div>` : ''}
-${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14px">${t('invoices.paymentMethod')}: ${invoice.payment_method}</p>` : ''}
+${invoice.aircraft ? `<p style="color:#6b7280;margin:0 0 4px">${'Aircraft'}: <strong style="color:#1f2937">${invoice.aircraft}</strong></p>` : ''}
+${invoice.airport ? `<p style="color:#6b7280;margin:0 0 16px">${'Airport'}: <strong style="color:#1f2937">${invoice.airport}</strong></p>` : ''}
+<table><thead><tr><th>${'Description'}</th><th>${'Amount'}</th></tr></thead><tbody>${lineRows}${addonRows}</tbody></table>
+${invoice.platform_fee > 0 ? `<div style="color:#9ca3af;font-size:13px;text-align:right">${'Platform fee'} (${(invoice.platform_fee_rate * 100).toFixed(0)}%): ${formatCurrency(invoice.platform_fee)}</div>` : ''}
+<div class="total-row"><span class="total-label">${'Total'}</span><span class="total-amount">${formatCurrency(invoice.total)}</span></div>
+${invoice.status !== 'paid' && invoice.due_date ? `<p style="color:#d97706;margin-top:16px">${'Due by'} ${new Date(invoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
+${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a"><strong>${'Notes'}:</strong> ${invoice.notes}</div>` : ''}
+${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14px">${'Payment method'}: ${invoice.payment_method}</p>` : ''}
 </body></html>`;
 
     const win = window.open('', '_blank');
@@ -205,9 +203,9 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
 
   const filterLabels = {
-    all: t('common.all'),
-    unpaid: t('status.unpaid'),
-    paid: t('status.paid'),
+    all: 'All',
+    unpaid: 'Unpaid',
+    paid: 'Paid',
   };
 
   return (
@@ -216,7 +214,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
         <div className="flex items-center gap-3">
           <a href="/dashboard" className="text-white text-2xl hover:opacity-70">&larr;</a>
-          <h1 className="text-2xl font-bold text-white">{t('invoices.title')}</h1>
+          <h1 className="text-2xl font-bold text-white">{'Invoices'}</h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {['all', 'unpaid', 'paid'].map(f => (
@@ -234,7 +232,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
             onClick={() => { setCreateModal(true); fetchPaidQuotes(); }}
             className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow"
           >
-            {t('invoices.createInvoice')}
+            {'+ Create Invoice'}
           </button>
         </div>
       </div>
@@ -242,15 +240,15 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
         <div className="bg-white rounded-lg p-3 shadow">
-          <p className="text-gray-500 text-xs">{t('invoices.totalInvoices')}</p>
+          <p className="text-gray-500 text-xs">{'Total Invoices'}</p>
           <p className="text-xl font-bold text-gray-900">{invoices.length}</p>
         </div>
         <div className="bg-white rounded-lg p-3 shadow">
-          <p className="text-gray-500 text-xs">{t('invoices.outstandingAmount')}</p>
+          <p className="text-gray-500 text-xs">{'Outstanding'}</p>
           <p className="text-xl font-bold text-amber-600">{formatCurrency(totalUnpaid)}</p>
         </div>
         <div className="bg-white rounded-lg p-3 shadow">
-          <p className="text-gray-500 text-xs">{t('invoices.collected')}</p>
+          <p className="text-gray-500 text-xs">{'Collected'}</p>
           <p className="text-xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
         </div>
       </div>
@@ -259,7 +257,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
       {loading && (
         <div className="text-white text-center py-16">
           <div className="inline-block w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mb-3" />
-          <p>{t('invoices.loadingInvoices')}</p>
+          <p>{'Loading invoices...'}</p>
         </div>
       )}
 
@@ -268,7 +266,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
         <div className="space-y-2">
           {filtered.length === 0 ? (
             <div className="bg-white rounded-lg p-8 text-center shadow">
-              <p className="text-gray-500">{t('invoices.noInvoices')}</p>
+              <p className="text-gray-500">{'No invoices yet. Create one from a completed job.'}</p>
             </div>
           ) : (
             filtered.map(inv => (
@@ -282,16 +280,16 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-900">{inv.invoice_number}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[inv.status] || statusColors.unpaid}`}>
-                        {inv.status || t('status.unpaid')}
+                        {inv.status || 'Unpaid'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mt-0.5">
-                      {inv.customer_name || t('common.customer')}
+                      {inv.customer_name || 'Customer'}
                       {inv.aircraft ? ` \u00B7 ${inv.aircraft}` : ''}
                     </p>
                     <p className="text-xs text-gray-400">
                       {new Date(inv.created_at).toLocaleDateString()}
-                      {inv.emailed_at ? ` \u00B7 ${t('invoices.emailed')}` : ''}
+                      {inv.emailed_at ? ` \u00B7 ${'Emailed'}` : ''}
                       {inv.payment_method ? ` \u00B7 ${inv.payment_method}` : ''}
                     </p>
                   </div>
@@ -301,25 +299,25 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                       <button
                         onClick={(e) => { e.stopPropagation(); downloadPDF(inv); }}
                         className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 text-gray-600"
-                        title={t('invoices.downloadPdf')}
+                        title={'Download PDF'}
                       >
-                        {t('invoices.pdf')}
+                        {'PDF'}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); emailInvoice(inv); }}
                         disabled={!inv.customer_email || actionLoading}
                         className="text-xs px-2 py-1 bg-blue-100 rounded hover:bg-blue-200 text-blue-700 disabled:opacity-40"
-                        title={t('invoices.emailInvoice')}
+                        title={'Email Invoice'}
                       >
-                        {t('common.email')}
+                        {'Email'}
                       </button>
                       {inv.status !== 'paid' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setMarkPaidModal(inv); setPaymentMethod('cash'); }}
                           className="text-xs px-2 py-1 bg-green-100 rounded hover:bg-green-200 text-green-700"
-                          title={t('invoices.markPaid')}
+                          title={'Mark as Paid'}
                         >
-                          {t('invoices.markPaid')}
+                          {'Mark as Paid'}
                         </button>
                       )}
                     </div>
@@ -342,7 +340,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs px-3 py-1 rounded-full font-medium ${statusColors[viewInvoice.status] || statusColors.unpaid}`}>
-                  {(viewInvoice.status || t('status.unpaid')).toUpperCase()}
+                  {(viewInvoice.status || 'Unpaid').toUpperCase()}
                 </span>
                 <button onClick={() => setViewInvoice(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
               </div>
@@ -351,21 +349,21 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
             {/* From / To */}
             <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-3 mb-4 text-sm">
               <div>
-                <p className="text-xs text-gray-400 uppercase">{t('common.from')}</p>
+                <p className="text-xs text-gray-400 uppercase">{'From'}</p>
                 <p className="font-semibold">{viewInvoice.detailer_company || viewInvoice.detailer_name}</p>
                 {viewInvoice.detailer_email && <p className="text-gray-500">{viewInvoice.detailer_email}</p>}
                 {viewInvoice.detailer_phone && <p className="text-gray-500">{viewInvoice.detailer_phone}</p>}
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase">{t('invoices.billTo')}</p>
-                <p className="font-semibold">{viewInvoice.customer_name || t('common.customer')}</p>
+                <p className="text-xs text-gray-400 uppercase">{'Bill To'}</p>
+                <p className="font-semibold">{viewInvoice.customer_name || 'Customer'}</p>
                 {viewInvoice.customer_company && <p className="text-gray-500">{viewInvoice.customer_company}</p>}
                 {viewInvoice.customer_email && <p className="text-gray-500">{viewInvoice.customer_email}</p>}
               </div>
             </div>
 
-            {viewInvoice.aircraft && <p className="text-sm text-gray-600 mb-1">{t('common.aircraft')}: <strong>{viewInvoice.aircraft}</strong>{viewInvoice.tail_number ? ` (${viewInvoice.tail_number})` : ''}</p>}
-            {viewInvoice.airport && <p className="text-sm text-gray-600 mb-3">{t('common.airport')}: <strong>{viewInvoice.airport}</strong></p>}
+            {viewInvoice.aircraft && <p className="text-sm text-gray-600 mb-1">{'Aircraft'}: <strong>{viewInvoice.aircraft}</strong>{viewInvoice.tail_number ? ` (${viewInvoice.tail_number})` : ''}</p>}
+            {viewInvoice.airport && <p className="text-sm text-gray-600 mb-3">{'Airport'}: <strong>{viewInvoice.airport}</strong></p>}
 
             {/* Line items */}
             {(viewInvoice.line_items || []).length > 0 && (
@@ -373,8 +371,8 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left px-3 py-2 text-gray-500 text-xs uppercase">{t('common.services')}</th>
-                      <th className="text-right px-3 py-2 text-gray-500 text-xs uppercase">{t('common.amount')}</th>
+                      <th className="text-left px-3 py-2 text-gray-500 text-xs uppercase">{'Services'}</th>
+                      <th className="text-right px-3 py-2 text-gray-500 text-xs uppercase">{'Amount'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -405,44 +403,44 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
             <div className="border-t-2 border-[#1e3a5f] pt-3">
               {viewInvoice.platform_fee > 0 && (
                 <div className="flex justify-between text-sm text-gray-400 mb-1">
-                  <span>{t('invoices.platformFee')} ({(viewInvoice.platform_fee_rate * 100).toFixed(0)}%)</span>
+                  <span>{'Platform fee'} ({(viewInvoice.platform_fee_rate * 100).toFixed(0)}%)</span>
                   <span>{formatCurrency(viewInvoice.platform_fee)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-lg font-bold">{t('common.total')}</span>
+                <span className="text-lg font-bold">{'Total'}</span>
                 <span className="text-2xl font-bold text-[#1e3a5f]">{formatCurrency(viewInvoice.total)}</span>
               </div>
             </div>
 
             {viewInvoice.notes && (
               <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-sm text-amber-800">
-                <strong>{t('common.notes')}:</strong> {viewInvoice.notes}
+                <strong>{'Notes'}:</strong> {viewInvoice.notes}
               </div>
             )}
 
             {viewInvoice.payment_method && (
-              <p className="text-sm text-gray-500 mt-2">{t('invoices.paymentMethod')}: {viewInvoice.payment_method}</p>
+              <p className="text-sm text-gray-500 mt-2">{'Payment method'}: {viewInvoice.payment_method}</p>
             )}
 
             {/* Actions */}
             <div className="flex gap-2 mt-4 flex-wrap">
               <button onClick={() => downloadPDF(viewInvoice)} className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200">
-                {t('invoices.downloadPdf')}
+                {'Download PDF'}
               </button>
               <button
                 onClick={() => emailInvoice(viewInvoice)}
                 disabled={!viewInvoice.customer_email || actionLoading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
               >
-                {actionLoading ? t('common.sending') : t('invoices.emailInvoice')}
+                {actionLoading ? 'Sending...' : 'Email Invoice'}
               </button>
               {viewInvoice.status !== 'paid' && (
                 <button
                   onClick={() => { setMarkPaidModal(viewInvoice); setPaymentMethod('cash'); }}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
                 >
-                  {t('invoices.markPaid')}
+                  {'Mark as Paid'}
                 </button>
               )}
             </div>
@@ -454,9 +452,9 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
       {markPaidModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setMarkPaidModal(null)}>
           <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-3">{t('invoices.markPaid')}</h3>
+            <h3 className="text-lg font-bold mb-3">{'Mark as Paid'}</h3>
             <p className="text-sm text-gray-600 mb-3">{markPaidModal.invoice_number} &mdash; {formatCurrency(markPaidModal.total)}</p>
-            <label className="block text-sm font-medium mb-1">{t('invoices.paymentMethod')}</label>
+            <label className="block text-sm font-medium mb-1">{'Payment method'}</label>
             <div className="flex gap-2 mb-4">
               {['cash', 'check', 'wire', 'other'].map(m => (
                 <button
@@ -466,18 +464,18 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                     paymentMethod === m ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  {m === 'cash' ? t('invoices.cash') : m === 'check' ? t('invoices.check') : m === 'wire' ? t('invoices.wire') : t('invoices.otherPayment')}
+                  {m === 'cash' ? 'Cash' : m === 'check' ? 'Check' : m === 'wire' ? 'Wire' : 'Other'}
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setMarkPaidModal(null)} className="flex-1 px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
+              <button onClick={() => setMarkPaidModal(null)} className="flex-1 px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">{'Cancel'}</button>
               <button
                 onClick={markAsPaid}
                 disabled={actionLoading}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
               >
-                {actionLoading ? t('common.saving') : t('invoices.confirmPaid')}
+                {actionLoading ? 'Saving...' : 'Confirm Paid'}
               </button>
             </div>
           </div>
@@ -488,11 +486,11 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
       {createModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setCreateModal(false)}>
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-3">{t('invoices.createFromJob')}</h3>
+            <h3 className="text-lg font-bold mb-3">{'Create Invoice from Job'}</h3>
             <p className="text-sm text-gray-600 mb-3">Select a paid or completed job to generate an invoice.</p>
             {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
             {paidQuotes.length === 0 ? (
-              <p className="text-gray-400 text-center py-6">{t('invoices.noPaidJobs')}</p>
+              <p className="text-gray-400 text-center py-6">{'No paid jobs without invoices found.'}</p>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
                 {paidQuotes.map(q => (
@@ -512,8 +510,8 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                         className="accent-amber-500"
                       />
                       <div>
-                        <p className="text-sm font-medium">{q.client_name || q.customer_name || t('common.customer')}</p>
-                        <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || t('common.aircraft')} &middot; {new Date(q.created_at).toLocaleDateString()}</p>
+                        <p className="text-sm font-medium">{q.client_name || q.customer_name || 'Customer'}</p>
+                        <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &middot; {new Date(q.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <span className="font-bold text-gray-900">{formatCurrency(q.total_price)}</span>
@@ -522,13 +520,13 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               </div>
             )}
             <div className="flex gap-2">
-              <button onClick={() => setCreateModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
+              <button onClick={() => setCreateModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">{'Cancel'}</button>
               <button
                 onClick={createInvoice}
                 disabled={!selectedQuoteId || actionLoading}
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50"
               >
-                {actionLoading ? t('common.creating') : t('invoices.createInvoice')}
+                {actionLoading ? 'Creating...' : '+ Create Invoice'}
               </button>
             </div>
           </div>

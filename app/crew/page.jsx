@@ -1,14 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 
 const API = (path, token, opts = {}) =>
   fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...opts.headers } }).then(r => r.json());
 
 export default function CrewDashboard() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [tab, setTab] = useState('jobs');
@@ -170,7 +168,7 @@ export default function CrewDashboard() {
       body: JSON.stringify({ action, quote_id: selectedJob?.id }),
     });
     if (data.success) {
-      showMsg(action === 'clock_in' ? t('crew.clockedInMsg') : t('crew.clockedOutMsg', { hours: data.hours_worked || 0 }));
+      showMsg(action === 'clock_in' ? 'Clocked in!' : `Clocked out! ${data.hours_worked || 0}h logged`);
       fetchClock();
     } else {
       showMsg(data.error || 'Failed', 'error');
@@ -180,13 +178,13 @@ export default function CrewDashboard() {
 
   // Mark job complete
   const handleComplete = async (jobId) => {
-    if (!confirm(t('crew.confirmComplete'))) return;
+    if (!confirm('Mark this job as complete?')) return;
     const data = await API('/api/crew/complete', token, {
       method: 'POST',
       body: JSON.stringify({ quote_id: jobId }),
     });
     if (data.success) {
-      showMsg(t('crew.jobMarkedComplete'));
+      showMsg('Job marked complete!');
       fetchJobs();
       setSelectedJob(null);
     } else {
@@ -211,16 +209,16 @@ export default function CrewDashboard() {
           }),
         });
         if (data.success) {
-          showMsg(t('crew.photoUploaded'));
+          showMsg('Photo uploaded!');
           fetchPhotos();
         } else {
-          showMsg(data.error || t('errors.failedToUpload'), 'error');
+          showMsg(data.error || 'Failed to upload', 'error');
         }
         setPhotoUploading(false);
       };
       reader.readAsDataURL(file);
     } catch {
-      showMsg(t('errors.failedToUpload'), 'error');
+      showMsg('Failed to upload', 'error');
       setPhotoUploading(false);
     }
   };
@@ -241,7 +239,7 @@ export default function CrewDashboard() {
       }),
     });
     if (data.success) {
-      showMsg(t('crew.usageLogged'));
+      showMsg('Product usage logged!');
       setUsageForm({ product_id: '', amount_used: '', notes: '' });
       fetchProducts();
     } else {
@@ -281,7 +279,7 @@ export default function CrewDashboard() {
       body: JSON.stringify(missingReport),
     });
     if (data.success) {
-      showMsg(t('crew.missingReported'));
+      showMsg('Missing item reported!');
       setMissingReport({ type: '', item_id: '', item_name: '', notes: '' });
     } else {
       showMsg(data.error || 'Failed', 'error');
@@ -299,7 +297,7 @@ export default function CrewDashboard() {
       body: JSON.stringify(issueForm),
     });
     if (data.success) {
-      showMsg(t('crew.issueReported'));
+      showMsg('Issue reported!');
       setIssueForm({ equipment_id: '', issue: '' });
       fetchEquipment();
     } else {
@@ -316,7 +314,7 @@ export default function CrewDashboard() {
   if (loading || !user) {
     return (
       <div className="page-transition min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
-        <div className="text-white text-lg">{t('common.loading')}</div>
+        <div className="text-white text-lg">{'Loading...'}</div>
       </div>
     );
   }
@@ -329,10 +327,10 @@ export default function CrewDashboard() {
   };
 
   const tabs = [
-    { id: 'jobs', label: t('nav.jobs'), icon: '📋' },
-    { id: 'clock', label: t('crew.timeClock'), icon: '⏱️' },
-    ...(user.can_see_inventory ? [{ id: 'products', label: t('nav.products'), icon: '🧴' }] : []),
-    ...(user.can_see_equipment ? [{ id: 'equipment', label: t('nav.equipment'), icon: '🔧' }] : []),
+    { id: 'jobs', label: 'Jobs', icon: '📋' },
+    { id: 'clock', label: 'Time Clock', icon: '⏱️' },
+    ...(user.can_see_inventory ? [{ id: 'products', label: 'Products', icon: '🧴' }] : []),
+    ...(user.can_see_equipment ? [{ id: 'equipment', label: 'Equipment', icon: '🔧' }] : []),
   ];
 
   return (
@@ -341,12 +339,12 @@ export default function CrewDashboard() {
       <div className="bg-[#0f172a]/80 border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-white font-bold text-lg flex items-center gap-2">
-            <span>✈️</span> {t('crew.title')}
+            <span>✈️</span> {'Vector Crew'}
           </h1>
-          <p className="text-white/60 text-sm">{user.name} {user.is_lead_tech && <span className="text-amber-400 text-xs ml-1">{t('crew.leadTech')}</span>}</p>
+          <p className="text-white/60 text-sm">{user.name} {user.is_lead_tech && <span className="text-amber-400 text-xs ml-1">{'Lead Tech'}</span>}</p>
         </div>
         <button onClick={logout} className="text-white/60 hover:text-white text-sm px-3 py-1 rounded border border-white/20">
-          {t('common.logout')}
+          {'Logout'}
         </button>
       </div>
 
@@ -380,9 +378,9 @@ export default function CrewDashboard() {
         {/* ===== JOBS TAB ===== */}
         {tab === 'jobs' && !selectedJob && (
           <div className="space-y-3">
-            <h2 className="text-white font-semibold text-lg mb-3">{t('crew.activeJobs')}</h2>
+            <h2 className="text-white font-semibold text-lg mb-3">{'Active Jobs'}</h2>
             {jobs.length === 0 && (
-              <div className="text-white/50 text-center py-8">{t('crew.noActiveJobs')}</div>
+              <div className="text-white/50 text-center py-8">{'No active jobs'}</div>
             )}
             {jobs.map(job => (
               <button
@@ -422,7 +420,7 @@ export default function CrewDashboard() {
         {tab === 'jobs' && selectedJob && (
           <div className="space-y-4">
             <button onClick={() => setSelectedJob(null)} className="text-amber-400 text-sm hover:underline">
-              {t('crew.backToJobs')}
+              {'← Back to Jobs'}
             </button>
 
             <div className="bg-white/10 backdrop-blur rounded-xl p-4">
@@ -438,14 +436,14 @@ export default function CrewDashboard() {
 
               {selectedJob.scheduled_date && (
                 <p className="text-white/70 text-sm mb-2">
-                  {t('status.scheduled')}: {new Date(selectedJob.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  {'Scheduled'}: {new Date(selectedJob.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 </p>
               )}
 
               {/* Lead tech contact info */}
               {user.is_lead_tech && (selectedJob.client_name || selectedJob.client_phone) && (
                 <div className="bg-amber-400/10 border border-amber-400/30 rounded-lg p-3 mb-3">
-                  <p className="text-amber-400 text-xs font-medium mb-1">{t('crew.clientContact')}</p>
+                  <p className="text-amber-400 text-xs font-medium mb-1">{'Client Contact (Lead Tech)'}</p>
                   {selectedJob.client_name && <p className="text-white text-sm">{selectedJob.client_name}</p>}
                   {selectedJob.client_phone && (
                     <a href={`tel:${selectedJob.client_phone}`} className="text-amber-400 text-sm hover:underline">{selectedJob.client_phone}</a>
@@ -459,12 +457,12 @@ export default function CrewDashboard() {
               {/* Services */}
               {selectedJob.services?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-white/50 text-xs uppercase tracking-wide mb-1">{t('common.services')}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide mb-1">{'Services'}</p>
                   <div className="space-y-1">
                     {selectedJob.services.map((s, i) => (
                       <div key={i} className="text-white text-sm flex justify-between">
                         <span>{s.description}</span>
-                        {s.hours > 0 && <span className="text-white/50">{s.hours}{t('common.hrs')}</span>}
+                        {s.hours > 0 && <span className="text-white/50">{s.hours}{'h'}</span>}
                       </div>
                     ))}
                   </div>
@@ -473,7 +471,7 @@ export default function CrewDashboard() {
 
               {selectedJob.notes && (
                 <div className="mb-3">
-                  <p className="text-white/50 text-xs uppercase tracking-wide mb-1">{t('common.notes')}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide mb-1">{'Notes'}</p>
                   <p className="text-white/80 text-sm">{selectedJob.notes}</p>
                 </div>
               )}
@@ -481,7 +479,7 @@ export default function CrewDashboard() {
               {/* Products Needed */}
               {user.can_see_inventory && jobMaterials?.products?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-white/50 text-xs uppercase tracking-wide mb-2">{t('crew.productsNeeded')}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide mb-2">{'Products Needed'}</p>
                   <div className="space-y-1">
                     {jobMaterials.products.map(p => (
                       <button
@@ -506,7 +504,7 @@ export default function CrewDashboard() {
                           </p>
                         </div>
                         {p.low_stock && (
-                          <span className="text-red-400 text-xs font-medium px-2 py-0.5 bg-red-400/10 rounded">{t('crew.lowStockBadge')}</span>
+                          <span className="text-red-400 text-xs font-medium px-2 py-0.5 bg-red-400/10 rounded">{'Low stock'}</span>
                         )}
                       </button>
                     ))}
@@ -517,7 +515,7 @@ export default function CrewDashboard() {
               {/* Equipment Needed */}
               {user.can_see_equipment && jobMaterials?.equipment?.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-white/50 text-xs uppercase tracking-wide mb-2">{t('crew.equipmentNeeded')}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide mb-2">{'Equipment Needed'}</p>
                   <div className="space-y-1">
                     {jobMaterials.equipment.map(e => (
                       <button
@@ -542,7 +540,7 @@ export default function CrewDashboard() {
                           </p>
                         </div>
                         {e.status === 'needs_repair' && (
-                          <span className="text-red-400 text-xs font-medium px-2 py-0.5 bg-red-400/10 rounded">{t('crew.needsRepair')}</span>
+                          <span className="text-red-400 text-xs font-medium px-2 py-0.5 bg-red-400/10 rounded">{'Needs repair'}</span>
                         )}
                       </button>
                     ))}
@@ -552,7 +550,7 @@ export default function CrewDashboard() {
 
               {/* Materials loading indicator */}
               {jobMaterialsLoading && (user.can_see_inventory || user.can_see_equipment) && (
-                <p className="text-white/40 text-xs mb-3">{t('common.loading')}</p>
+                <p className="text-white/40 text-xs mb-3">{'Loading...'}</p>
               )}
 
               {/* Action buttons */}
@@ -562,7 +560,7 @@ export default function CrewDashboard() {
                     onClick={() => handleComplete(selectedJob.id)}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium text-sm transition-colors"
                   >
-                    {t('crew.markComplete')}
+                    {'Mark Complete'}
                   </button>
                 )}
               </div>
@@ -570,7 +568,7 @@ export default function CrewDashboard() {
 
             {/* Photo upload section */}
             <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-3">{t('crew.photos')}</h3>
+              <h3 className="text-white font-semibold mb-3">{'Photos'}</h3>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {['before_photo', 'after_photo'].map(type => (
                   <label key={type} className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg p-3 text-center transition-colors">
@@ -583,11 +581,11 @@ export default function CrewDashboard() {
                       disabled={photoUploading}
                     />
                     <div className="text-2xl mb-1">{type === 'before_photo' ? '📸' : '✅'}</div>
-                    <p className="text-white text-xs">{type === 'before_photo' ? t('crew.beforePhoto') : t('crew.afterPhoto')}</p>
+                    <p className="text-white text-xs">{type === 'before_photo' ? 'Before Photo' : 'After Photo'}</p>
                   </label>
                 ))}
               </div>
-              {photoUploading && <p className="text-amber-400 text-sm text-center">{t('crew.uploading')}</p>}
+              {photoUploading && <p className="text-amber-400 text-sm text-center">{'Uploading...'}</p>}
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   {photos.map(p => (
@@ -608,9 +606,9 @@ export default function CrewDashboard() {
             )}
             {user.can_see_inventory && (
               <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-3">{t('crew.logProductUsage')}</h3>
+                <h3 className="text-white font-semibold mb-3">{'Log Product Usage'}</h3>
                 {products.length === 0 ? (
-                  <button onClick={fetchProducts} className="text-amber-400 text-sm hover:underline">{t('crew.loadProducts')}</button>
+                  <button onClick={fetchProducts} className="text-amber-400 text-sm hover:underline">{'Load products'}</button>
                 ) : (
                   <div className="space-y-2">
                     <select
@@ -618,16 +616,16 @@ export default function CrewDashboard() {
                       onChange={e => setUsageForm(f => ({ ...f, product_id: e.target.value }))}
                       className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
                     >
-                      <option value="" className="text-gray-900">{t('crew.selectProduct')}</option>
+                      <option value="" className="text-gray-900">{'Select product'}</option>
                       {products.map(p => (
                         <option key={p.id} value={p.id} className="text-gray-900">
-                          {p.name} ({p.current_quantity} {p.unit} {t('crew.left')})
+                          {p.name} ({p.current_quantity} {p.unit} {'left'})
                         </option>
                       ))}
                     </select>
                     <input
                       type="number"
-                      placeholder={t('crew.amountUsed')}
+                      placeholder={'Amount used'}
                       value={usageForm.amount_used}
                       onChange={e => setUsageForm(f => ({ ...f, amount_used: e.target.value }))}
                       className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40"
@@ -638,7 +636,7 @@ export default function CrewDashboard() {
                       onClick={handleLogUsage}
                       className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
                     >
-                      {t('crew.logUsage')}
+                      {'Log Usage'}
                     </button>
                   </div>
                 )}
@@ -648,16 +646,16 @@ export default function CrewDashboard() {
             {/* Report Missing Item */}
             {(user.can_see_inventory || user.can_see_equipment) && (
               <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-3">{t('crew.reportMissing')}</h3>
+                <h3 className="text-white font-semibold mb-3">{'Report Missing Item'}</h3>
                 <div className="space-y-2">
                   <select
                     value={missingReport.type}
                     onChange={e => setMissingReport(f => ({ ...f, type: e.target.value, item_id: '', item_name: '' }))}
                     className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
                   >
-                    <option value="" className="text-gray-900">{t('crew.selectType')}</option>
-                    {user.can_see_inventory && <option value="product" className="text-gray-900">{t('nav.products')}</option>}
-                    {user.can_see_equipment && <option value="equipment" className="text-gray-900">{t('nav.equipment')}</option>}
+                    <option value="" className="text-gray-900">{'Select type...'}</option>
+                    {user.can_see_inventory && <option value="product" className="text-gray-900">{'Products'}</option>}
+                    {user.can_see_equipment && <option value="equipment" className="text-gray-900">{'Equipment'}</option>}
                   </select>
                   {missingReport.type === 'product' && jobMaterials?.products?.length > 0 && (
                     <select
@@ -668,7 +666,7 @@ export default function CrewDashboard() {
                       }}
                       className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
                     >
-                      <option value="" className="text-gray-900">{t('crew.selectProduct')}</option>
+                      <option value="" className="text-gray-900">{'Select product'}</option>
                       {jobMaterials.products.map(p => (
                         <option key={p.id} value={p.id} className="text-gray-900">{p.name}</option>
                       ))}
@@ -683,7 +681,7 @@ export default function CrewDashboard() {
                       }}
                       className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
                     >
-                      <option value="" className="text-gray-900">{t('crew.selectEquipment')}</option>
+                      <option value="" className="text-gray-900">{'Select equipment'}</option>
                       {jobMaterials.equipment.map(e => (
                         <option key={e.id} value={e.id} className="text-gray-900">{e.name}</option>
                       ))}
@@ -691,13 +689,13 @@ export default function CrewDashboard() {
                   )}
                   <input
                     type="text"
-                    placeholder={t('crew.missingItemName')}
+                    placeholder={'Item name'}
                     value={missingReport.item_name}
                     onChange={e => setMissingReport(f => ({ ...f, item_name: e.target.value }))}
                     className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40"
                   />
                   <textarea
-                    placeholder={t('crew.missingNotes')}
+                    placeholder={'Additional notes (optional)...'}
                     value={missingReport.notes}
                     onChange={e => setMissingReport(f => ({ ...f, notes: e.target.value }))}
                     className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40 min-h-[60px]"
@@ -706,7 +704,7 @@ export default function CrewDashboard() {
                     onClick={handleReportMissing}
                     className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
                   >
-                    {t('crew.reportMissing')}
+                    {'Report Missing Item'}
                   </button>
                 </div>
               </div>
@@ -717,40 +715,40 @@ export default function CrewDashboard() {
         {/* ===== CLOCK TAB ===== */}
         {tab === 'clock' && (
           <div className="space-y-4">
-            <h2 className="text-white font-semibold text-lg">{t('crew.timeClock')}</h2>
+            <h2 className="text-white font-semibold text-lg">{'Time Clock'}</h2>
 
             <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
               {clockStatus?.clocked_in ? (
                 <>
-                  <div className="text-green-400 text-sm font-medium mb-2">{t('crew.clockedIn')}</div>
+                  <div className="text-green-400 text-sm font-medium mb-2">{'Clocked In'}</div>
                   <div className="text-white text-4xl font-mono font-bold mb-4">{clockElapsed}</div>
                   <p className="text-white/50 text-sm mb-4">
-                    {t('crew.since')} {new Date(clockStatus.clock_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    {'Since'} {new Date(clockStatus.clock_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   </p>
                   <button
                     onClick={() => handleClock('clock_out')}
                     disabled={clockLoading}
                     className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg transition-colors"
                   >
-                    {clockLoading ? t('common.processing') : t('crew.clockOut')}
+                    {clockLoading ? 'Processing...' : 'Clock Out'}
                   </button>
                 </>
               ) : (
                 <>
-                  <div className="text-white/50 text-sm mb-4">{t('crew.notClockedIn')}</div>
+                  <div className="text-white/50 text-sm mb-4">{'Not clocked in'}</div>
                   <button
                     onClick={() => handleClock('clock_in')}
                     disabled={clockLoading}
                     className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg transition-colors"
                   >
-                    {clockLoading ? t('common.processing') : t('crew.clockIn')}
+                    {clockLoading ? 'Processing...' : 'Clock In'}
                   </button>
                 </>
               )}
 
               {clockStatus?.today_hours > 0 && (
                 <p className="text-white/50 text-sm mt-4">
-                  {t('crew.todayHours')} {clockStatus.today_hours.toFixed(2)} hours
+                  {'Today:'} {clockStatus.today_hours.toFixed(2)} hours
                 </p>
               )}
             </div>
@@ -760,9 +758,9 @@ export default function CrewDashboard() {
         {/* ===== PRODUCTS TAB ===== */}
         {tab === 'products' && (
           <div className="space-y-3">
-            <h2 className="text-white font-semibold text-lg mb-3">{t('nav.products')}</h2>
+            <h2 className="text-white font-semibold text-lg mb-3">{'Products'}</h2>
             {products.length === 0 && (
-              <div className="text-white/50 text-center py-8">{t('products.noProducts')}</div>
+              <div className="text-white/50 text-center py-8">{'No products yet'}</div>
             )}
             {products.map(p => (
               <div key={p.id} className="bg-white/10 backdrop-blur rounded-xl p-4">
@@ -775,7 +773,7 @@ export default function CrewDashboard() {
                     <p className={`font-medium ${p.low_stock ? 'text-red-400' : 'text-white'}`}>
                       {p.current_quantity} {p.unit}
                     </p>
-                    {p.low_stock && <p className="text-red-400 text-xs">{t('crew.lowStockBadge')}</p>}
+                    {p.low_stock && <p className="text-red-400 text-xs">{'Low stock'}</p>}
                   </div>
                 </div>
               </div>
@@ -786,9 +784,9 @@ export default function CrewDashboard() {
         {/* ===== EQUIPMENT TAB ===== */}
         {tab === 'equipment' && (
           <div className="space-y-3">
-            <h2 className="text-white font-semibold text-lg mb-3">{t('nav.equipment')}</h2>
+            <h2 className="text-white font-semibold text-lg mb-3">{'Equipment'}</h2>
             {equipment.length === 0 && (
-              <div className="text-white/50 text-center py-8">{t('products.noProducts')}</div>
+              <div className="text-white/50 text-center py-8">{'No products yet'}</div>
             )}
             {equipment.map(e => (
               <div key={e.id} className="bg-white/10 backdrop-blur rounded-xl p-4">
@@ -807,27 +805,27 @@ export default function CrewDashboard() {
                   </span>
                 </div>
                 {e.needs_maintenance && (
-                  <p className="text-amber-400 text-xs mb-1">{t('crew.needsMaintenance')}</p>
+                  <p className="text-amber-400 text-xs mb-1">{'Maintenance due'}</p>
                 )}
               </div>
             ))}
 
             {/* Report issue form */}
             <div className="bg-white/10 backdrop-blur rounded-xl p-4 mt-4">
-              <h3 className="text-white font-semibold mb-3">{t('crew.reportIssue')}</h3>
+              <h3 className="text-white font-semibold mb-3">{'Report an Issue'}</h3>
               <div className="space-y-2">
                 <select
                   value={issueForm.equipment_id}
                   onChange={e => setIssueForm(f => ({ ...f, equipment_id: e.target.value }))}
                   className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
                 >
-                  <option value="" className="text-gray-900">{t('crew.selectEquipment')}</option>
+                  <option value="" className="text-gray-900">{'Select equipment'}</option>
                   {equipment.map(e => (
                     <option key={e.id} value={e.id} className="text-gray-900">{e.name}</option>
                   ))}
                 </select>
                 <textarea
-                  placeholder={t('crew.describeIssue')}
+                  placeholder={'Describe the issue...'}
                   value={issueForm.issue}
                   onChange={e => setIssueForm(f => ({ ...f, issue: e.target.value }))}
                   className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40 min-h-[80px]"
@@ -836,7 +834,7 @@ export default function CrewDashboard() {
                   onClick={handleReportIssue}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  {t('crew.reportIssue')}
+                  {'Report an Issue'}
                 </button>
               </div>
             </div>

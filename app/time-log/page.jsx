@@ -1,9 +1,7 @@
 "use client";
 import { useState } from 'react';
-import { useTranslation } from '@/lib/i18n';
 
 export default function TimeLogPage() {
-  const { t } = useTranslation();
   const [pin, setPin] = useState('');
   const [worker, setWorker] = useState(null);
   const [error, setError] = useState('');
@@ -31,7 +29,7 @@ export default function TimeLogPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error === 'Invalid PIN' ? t('timeLog.invalidPin') : data.error);
+        throw new Error(data.error === 'Invalid PIN' ? 'Invalid PIN. Please try again.' : data.error);
       }
 
       setWorker({ pin_code: pin, name: data.name, type: data.type });
@@ -63,9 +61,9 @@ export default function TimeLogPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t('timeLog.failedToLogTime'));
+      if (!res.ok) throw new Error(data.error || 'Failed to log time');
 
-      setSuccess(t('timeLog.loggedHours', { hours: form.hours_worked, date: form.date }));
+      setSuccess(`Logged ${form.hours_worked} hours for ${form.date}`);
       setForm({
         date: new Date().toISOString().split('T')[0],
         hours_worked: '',
@@ -93,15 +91,15 @@ export default function TimeLogPage() {
         <div className="text-center mb-8">
           <div className="text-white text-3xl font-bold flex items-center justify-center space-x-2">
             <span>&#9992;</span>
-            <span>{t('timeLog.vectorTimeLog')}</span>
+            <span>{'Vector Time Log'}</span>
           </div>
-          <p className="text-white/60 mt-2">{t('timeLog.logYourWorkHours')}</p>
+          <p className="text-white/60 mt-2">{'Log your work hours'}</p>
         </div>
 
         {!worker ? (
           /* PIN Entry */
           <form onSubmit={handlePinSubmit} className="bg-white rounded-lg p-6 space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900 text-center">{t('timeLog.enterYourPin')}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 text-center">{'Enter Your PIN'}</h2>
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm text-center">
@@ -128,7 +126,7 @@ export default function TimeLogPage() {
               disabled={loading || pin.length < 4}
               className="w-full py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-lg disabled:opacity-50"
             >
-              {loading ? t('timeLog.checking') : t('timeLog.continue')}
+              {loading ? 'Checking...' : 'Continue'}
             </button>
           </form>
         ) : (
@@ -136,15 +134,15 @@ export default function TimeLogPage() {
           <form onSubmit={handleLogTime} className="bg-white rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">{t('timeLog.logHours')}</h2>
-                <p className="text-sm text-gray-500">{t('timeLog.welcome', { name: worker.name })}</p>
+                <h2 className="text-xl font-semibold text-gray-900">{'Log Hours'}</h2>
+                <p className="text-sm text-gray-500">{`Welcome, ${worker.name}`}</p>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
                 className="text-sm text-gray-500 hover:text-gray-700"
               >
-                {t('timeLog.switchUser')}
+                {'Switch User'}
               </button>
             </div>
 
@@ -161,7 +159,7 @@ export default function TimeLogPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.date')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{'Date'}</label>
               <input
                 type="date"
                 value={form.date}
@@ -172,7 +170,7 @@ export default function TimeLogPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('timeLog.hoursWorked')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{'Hours Worked'}</label>
               <input
                 type="number"
                 step="0.25"
@@ -199,31 +197,31 @@ export default function TimeLogPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('timeLog.serviceType')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{'Service Type'}</label>
               <select
                 value={form.service_type}
                 onChange={(e) => setForm({ ...form, service_type: e.target.value })}
                 className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
               >
-                <option value="">{t('timeLog.selectService')}</option>
-                <option value="Exterior Wash">{t('serviceTypes.extWash')}</option>
-                <option value="Interior Detail">{t('serviceTypes.intDetail')}</option>
-                <option value="Full Detail">{t('timeLog.fullDetail')}</option>
-                <option value="Ceramic Coating">{t('serviceTypes.ceramic')}</option>
-                <option value="Leather Treatment">{t('serviceTypes.leather')}</option>
-                <option value="Brightwork">{t('serviceTypes.brightwork')}</option>
-                <option value="Other">{t('timeLog.other')}</option>
+                <option value="">{'Select service...'}</option>
+                <option value="Exterior Wash">{'Exterior Wash'}</option>
+                <option value="Interior Detail">{'Interior Detail'}</option>
+                <option value="Full Detail">{'Full Detail'}</option>
+                <option value="Ceramic Coating">{'Ceramic Coating'}</option>
+                <option value="Leather Treatment">{'Leather Treatment'}</option>
+                <option value="Brightwork">{'Brightwork'}</option>
+                <option value="Other">{'Other'}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.notes')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{'Notes'}</label>
               <textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                placeholder={t('timeLog.optionalNotes')}
+                placeholder={'Optional notes about the work'}
               />
             </div>
 
@@ -232,7 +230,7 @@ export default function TimeLogPage() {
               disabled={loading}
               className="w-full py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-lg disabled:opacity-50"
             >
-              {loading ? t('timeLog.logging') : t('timeLog.logTime')}
+              {loading ? 'Logging...' : 'Log Time'}
             </button>
           </form>
         )}

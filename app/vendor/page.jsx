@@ -1,11 +1,9 @@
 "use client";
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 
 export default function VendorPage() {
   const router = useRouter();
-  const { t } = useTranslation();
 
   useEffect(() => {
     const token = localStorage.getItem('vendor_token');

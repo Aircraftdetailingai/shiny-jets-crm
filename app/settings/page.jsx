@@ -18,7 +18,7 @@ const DEFAULT_ADDON_FEES = [
 function SettingsContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const { t, lang: uiLang, setLang: setUiLang } = useTranslation();
+  const { lang: uiLang, setLang: setUiLang } = useTranslation();
   const [user, setUser] = useState(null);
   const [laborRate, setLaborRate] = useState(25);
   const [emailNotifs, setEmailNotifs] = useState({
@@ -776,7 +776,7 @@ function SettingsContent() {
                 {saveSuccess ? (
                   <div className="flex items-center gap-2 w-full justify-center">
                     <span className="text-lg">&#10003;</span>
-                    <span className="font-medium">{t('settings.saved')}</span>
+                    <span className="font-medium">{'Settings saved'}</span>
                   </div>
                 ) : (
                   <>
@@ -811,11 +811,11 @@ function SettingsContent() {
 
         {/* Plan & Billing */}
         <div className="bg-[#0f172a] text-white p-4 rounded">
-          <h2 className="text-lg font-semibold mb-1">{t('settings.billing')}</h2>
+          <h2 className="text-lg font-semibold mb-1">{'Billing'}</h2>
           {user?.is_admin ? (
             <div>
               <p className="mb-1 capitalize">{user?.plan || 'enterprise'} Plan</p>
-              <span className="inline-block px-3 py-1 rounded bg-green-600 text-white text-sm font-medium">{t('settingsExtra.adminAccess')}</span>
+              <span className="inline-block px-3 py-1 rounded bg-green-600 text-white text-sm font-medium">{'Admin Access - All Features'}</span>
             </div>
           ) : (
             <div>
@@ -830,7 +830,7 @@ function SettingsContent() {
                         upgradeBilling === 'monthly' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white border border-white/20'
                       }`}
                     >
-                      {t('settingsExtra.monthly')}
+                      {'Monthly'}
                     </button>
                     <button
                       onClick={() => setUpgradeBilling('annual')}
@@ -838,7 +838,7 @@ function SettingsContent() {
                         upgradeBilling === 'annual' ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white border border-white/20'
                       }`}
                     >
-                      {t('settingsExtra.annual')} <span className="text-green-500 font-bold">-25%</span>
+                      {'Annual'} <span className="text-green-500 font-bold">-25%</span>
                     </button>
                   </div>
                   {/* Promo Code Section */}
@@ -847,7 +847,7 @@ function SettingsContent() {
                       onClick={() => setShowPromo(!showPromo)}
                       className="text-sm text-gray-400 hover:text-white transition-colors"
                     >
-                      {showPromo ? t('upgrade.hidePromoCode') : t('upgrade.havePromoCode')}
+                      {showPromo ? 'Hide promo code' : 'Have a promo code?'}
                     </button>
                     {showPromo && (
                       <div className="mt-2 flex items-center gap-2">
@@ -865,7 +865,7 @@ function SettingsContent() {
                           className="px-3 py-1.5 rounded bg-white/10 border border-white/20 text-white placeholder-gray-500 text-sm w-40"
                         />
                         {promoValidating && (
-                          <span className="text-xs text-gray-400">{t('upgrade.checking')}</span>
+                          <span className="text-xs text-gray-400">{'Checking...'}</span>
                         )}
                         {promoResult && (
                           <span className="text-xs text-green-400 font-medium">
@@ -900,7 +900,7 @@ function SettingsContent() {
                             const data = await res.json();
                             if (data.url) window.location.href = data.url;
                             else if (data.error) alert(data.error);
-                          } catch (e) { alert(t('settingsExtra.upgradeFailed')); }
+                          } catch (e) { alert('Upgrade failed'); }
                         }}
                         className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm"
                       >
@@ -923,7 +923,7 @@ function SettingsContent() {
                             const data = await res.json();
                             if (data.url) window.location.href = data.url;
                             else if (data.error) alert(data.error);
-                          } catch (e) { alert(t('settingsExtra.upgradeFailed')); }
+                          } catch (e) { alert('Upgrade failed'); }
                         }}
                         className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
                       >
@@ -946,7 +946,7 @@ function SettingsContent() {
                             const data = await res.json();
                             if (data.url) window.location.href = data.url;
                             else if (data.error) alert(data.error);
-                          } catch (e) { alert(t('settingsExtra.upgradeFailed')); }
+                          } catch (e) { alert('Upgrade failed'); }
                         }}
                         className="px-4 py-2 rounded bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm"
                       >
@@ -963,7 +963,7 @@ function SettingsContent() {
 
         {/* Stripe Connect */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">{t('settingsExtra.stripePayments')}</h3>
+          <h3 className="font-semibold mb-2">{'Stripe Payments'}</h3>
           {stripeError && (
             <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
               {stripeError}
@@ -974,34 +974,34 @@ function SettingsContent() {
             <div>
               <div className="flex items-center mb-2">
                 <span className="text-green-500 mr-2">&#10003;</span>
-                <span className="text-green-700 font-medium">{t('common.active')}</span>
+                <span className="text-green-700 font-medium">{'Active'}</span>
               </div>
               {stripeStatus.bankAccount && (
                 <p className="text-sm text-gray-600 mb-2">Account: {stripeStatus.bankAccount}</p>
               )}
-              <p className="text-sm text-gray-500 mb-3">{t('settingsExtra.stripeActiveDesc')}</p>
+              <p className="text-sm text-gray-500 mb-3">{'Active - You can receive payments'}</p>
               <a
                 href="https://dashboard.stripe.com"
                 target="_blank"
                 rel="noreferrer"
                 className="text-blue-600 text-sm underline"
               >
-                {t('settingsExtra.manageStripeDashboard')}
+                {'Manage in Stripe Dashboard'}
               </a>
             </div>
           ) : stripeStatus.connected && stripeStatus.status === 'PENDING' ? (
             <div>
               <div className="flex items-center mb-2">
                 <span className="text-amber-500 mr-2">&#9888;</span>
-                <span className="text-amber-700 font-medium">{t('settingsExtra.pendingVerification')}</span>
+                <span className="text-amber-700 font-medium">{'Pending Verification'}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-3">{t('settingsExtra.stripeBeingReviewed')}</p>
+              <p className="text-sm text-gray-600 mb-3">{'Your Stripe account is being reviewed. This usually takes 1-2 business days.'}</p>
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
                 className="px-4 py-2 rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
               >
-                {stripeLoading ? t('common.loading') : t('settingsExtra.completeSetup')}
+                {stripeLoading ? 'Loading...' : 'Complete Setup'}
               </button>
             </div>
           ) : stripeStatus.status === 'INCOMPLETE' ? (
@@ -1009,31 +1009,31 @@ function SettingsContent() {
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
                 <div className="flex items-center mb-1">
                   <span className="text-red-500 mr-2">&#9888;</span>
-                  <span className="text-red-700 font-medium">{t('stripe.disconnected')}</span>
+                  <span className="text-red-700 font-medium">{'Stripe disconnected - payments disabled'}</span>
                 </div>
-                <p className="text-sm text-red-600">{t('settingsExtra.stripeNeedsAttention')}</p>
+                <p className="text-sm text-red-600">{'Your Stripe account needs attention. Online payments are currently disabled on your quotes.'}</p>
               </div>
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
                 className="w-full px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 font-medium"
               >
-                {stripeLoading ? t('common.connecting') : t('stripe.reconnect')}
+                {stripeLoading ? 'Connecting...' : 'Reconnect Stripe'}
               </button>
             </div>
           ) : (
             <div>
               <div className="flex items-center mb-2">
                 <span className="text-red-500 mr-2">&#10007;</span>
-                <span className="text-red-700 font-medium">{t('stripe.notConnected')}</span>
+                <span className="text-red-700 font-medium">{'Stripe not connected'}</span>
               </div>
-              <p className="text-sm text-gray-600 mb-3">{t('settingsExtra.connectStripeDesc')}</p>
+              <p className="text-sm text-gray-600 mb-3">{'Connect Stripe to receive payments for your quotes.'}</p>
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
                 className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 disabled:opacity-50"
               >
-                {stripeLoading ? t('common.connecting') : t('stripe.connect')}
+                {stripeLoading ? 'Connecting...' : 'Connect Stripe'}
               </button>
             </div>
           )}
@@ -1041,9 +1041,9 @@ function SettingsContent() {
 
         {/* Payment Settings - Test/Live Mode */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">{t('settingsExtra.paymentSettings')}</h3>
+          <h3 className="font-semibold mb-2">{'Payment Settings'}</h3>
           <p className="text-sm text-gray-600 mb-4">
-            {t('settingsExtra.paymentSettingsDesc')}
+            {'Switch between test and live mode for processing payments.'}
           </p>
 
           {stripeModeError && (
@@ -1069,11 +1069,11 @@ function SettingsContent() {
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{t('settingsExtra.testMode')}</span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t('settingsExtra.recommendedForSetup')}</span>
+                  <span className="font-medium">{'Test Mode'}</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{'Recommended for setup'}</span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  {t('settingsExtra.testModeDesc')}
+                  {'No real payments are processed. Use Stripe test cards to verify your setup.'}
                 </p>
               </div>
             </label>
@@ -1093,13 +1093,13 @@ function SettingsContent() {
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{t('settingsExtra.liveMode')}</span>
+                  <span className="font-medium">{'Live Mode'}</span>
                   {stripeMode === 'live' && (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>
                   )}
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  {t('settingsExtra.liveModeDesc')}
+                  {'Real payments will be processed through your connected Stripe account.'}
                 </p>
               </div>
             </label>
@@ -1110,9 +1110,9 @@ function SettingsContent() {
               <div className="flex items-start gap-2">
                 <span className="text-amber-500">&#9888;</span>
                 <div>
-                  <p className="text-sm font-medium text-amber-800">{t('settingsExtra.liveModeWarning')}</p>
+                  <p className="text-sm font-medium text-amber-800">{'Live mode processes real payments'}</p>
                   <p className="text-xs text-amber-700 mt-1">
-                    {t('settingsExtra.liveModeWarningDesc')}
+                    {'Customers will be charged real money. Make sure your Stripe account is fully verified and your services/pricing are correct before enabling live mode.'}
                   </p>
                 </div>
               </div>
@@ -1122,23 +1122,23 @@ function SettingsContent() {
           {stripeModeLoading && (
             <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
               <span className="inline-block w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></span>
-              {t('settingsExtra.switchingMode')}
+              {'Switching mode...'}
             </p>
           )}
 
           <div className="mt-3 flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${stripeMode === 'live' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
             <span className="text-xs text-gray-500">
-              {t('settingsExtra.currentlyInMode').replace('{mode}', stripeMode === 'live' ? t('settingsExtra.live') : t('settingsExtra.test'))}
+              {'Currently in {mode} mode'.replace('{mode}', stripeMode === 'live' ? 'Live' : 'Test')}
             </span>
           </div>
         </div>
 
         {/* Platform Fee */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">{t('invoices.platformFee')}</h3>
+          <h3 className="font-semibold mb-2">{'Platform fee'}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            {t('settingsExtra.platformFeeDesc').replace('{fee}', user?.plan === 'enterprise' ? '0' : hasAllFeatures ? '1' : user?.plan === 'pro' ? '2' : '5')}
+            {'Vector charges a {rate} platform fee on each job. Choose who pays it.'.replace('{fee}', user?.plan === 'enterprise' ? '0' : hasAllFeatures ? '1' : user?.plan === 'pro' ? '2' : '5')}
           </p>
           <div className="space-y-3">
             <label
@@ -1154,8 +1154,8 @@ function SettingsContent() {
                 className="mt-1 mr-3"
               />
               <div>
-                <p className="font-medium">{t('settingsExtra.iAbsorbFee')}</p>
-                <p className="text-sm text-gray-500">{t('settingsExtra.iAbsorbFeeDesc')}</p>
+                <p className="font-medium">{'I absorb the fee'}</p>
+                <p className="text-sm text-gray-500">{'Fee is deducted from your payout. Customer sees only the quote price.'}</p>
               </div>
             </label>
             <label
@@ -1171,8 +1171,8 @@ function SettingsContent() {
                 className="mt-1 mr-3"
               />
               <div>
-                <p className="font-medium">{t('settings.passFeeToCustomer')}</p>
-                <p className="text-sm text-gray-500">{t('settingsExtra.passFeeDesc')}</p>
+                <p className="font-medium">{'Pass platform fee to customer'}</p>
+                <p className="text-sm text-gray-500">{'A "Service Fee" line item is added to the customer\'s quote. You receive the full quote amount.'}</p>
               </div>
             </label>
           </div>
@@ -1180,10 +1180,10 @@ function SettingsContent() {
 
         {/* Language & Currency */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">{t('settings.language')} & {t('settings.currency')}</h3>
+          <h3 className="font-semibold mb-2">{'Language'} & {'Currency'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('settingsExtra.appLanguage')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{'App Language'}</label>
               <select
                 value={uiLang}
                 onChange={(e) => {
@@ -1204,7 +1204,7 @@ function SettingsContent() {
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.currency')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{'Currency'}</label>
               <select
                 value={currency}
                 onChange={(e) => { setCurrency(e.target.value); markDirty('currency'); }}
@@ -1222,7 +1222,7 @@ function SettingsContent() {
                 )}
               </select>
               <p className="text-xs text-gray-400 mt-1">
-                {t('settingsExtra.currencyDesc')}
+                {'All prices displayed in this currency. Stripe handles conversion.'}
               </p>
             </div>
           </div>
@@ -1232,23 +1232,23 @@ function SettingsContent() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <a href="/settings/services" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#9881;</div>
-            <div className="font-medium text-sm">{t('nav.services')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.configureRates')}</div>
+            <div className="font-medium text-sm">{'Services'}</div>
+            <div className="text-xs text-gray-500">{'Configure rates'}</div>
           </a>
           <a href="/settings/embed" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#128279;</div>
-            <div className="font-medium text-sm">{t('settingsExtra.embedQr')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.websiteWidget')}</div>
+            <div className="font-medium text-sm">{'Embed & QR'}</div>
+            <div className="text-xs text-gray-500">{'Website widget'}</div>
           </a>
           <a href="/settings/lead-intake" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#129302;</div>
-            <div className="font-medium text-sm">{t('leadIntake.title')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.customQuestions')}</div>
+            <div className="font-medium text-sm">{'AI Lead Intake'}</div>
+            <div className="text-xs text-gray-500">{'Custom questions'}</div>
           </a>
           <a href="/admin/aircraft" className="bg-white p-4 rounded shadow hover:shadow-md transition-shadow text-center">
             <div className="text-2xl mb-1">&#9992;</div>
-            <div className="font-medium text-sm">{t('settingsExtra.aircraftDb')}</div>
-            <div className="text-xs text-gray-500">{t('settingsExtra.addEditModels')}</div>
+            <div className="font-medium text-sm">{'Aircraft DB'}</div>
+            <div className="text-xs text-gray-500">{'Add/edit models'}</div>
           </a>
         </div>
 
@@ -1256,9 +1256,9 @@ function SettingsContent() {
 
         {/* Minimum Call Out Fee */}
         <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">{t('settings.minimumFee')}</h3>
+          <h3 className="font-semibold mb-2">{'Minimum Fee'}</h3>
           <p className="text-sm text-gray-600 mb-3">
-            {t('settingsExtra.minimumFeeDesc')}
+            {'Set a minimum charge for jobs. If the quote total is less than this amount, the minimum fee will be applied instead.'}
           </p>
           <div className="flex items-center space-x-2">
             <span className="text-gray-500">$</span>
@@ -1280,7 +1280,7 @@ function SettingsContent() {
               className="w-28 border rounded px-3 py-2"
               placeholder="0.00"
             />
-            <span className="text-gray-500">{t('settingsExtra.minimum')}</span>
+            <span className="text-gray-500">{'minimum'}</span>
           </div>
           <p className="text-xs text-gray-400 mt-2">Applies to all jobs. Quotes below this amount will be bumped up.</p>
         </div>

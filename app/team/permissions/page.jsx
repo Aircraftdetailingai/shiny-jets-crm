@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 import {
   ROLES,
   PERMISSION_LABELS,
@@ -24,7 +23,6 @@ const editableRoles = ROLES.filter(r => r.value !== 'owner');
 
 export default function TeamPermissionsPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [permissions, setPermissions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,13 +98,13 @@ export default function TeamPermissionsPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || t('errors.failedToSave'));
+        setError(data.error || 'Failed to save');
         return;
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      setError(t('errors.failedToSave'));
+      setError('Failed to save');
     } finally {
       setSaving(false);
     }
@@ -115,7 +113,7 @@ export default function TeamPermissionsPage() {
   if (loading) {
     return (
       <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4 flex items-center justify-center">
-        <div className="text-white text-lg">{t('common.loading')}</div>
+        <div className="text-white text-lg">{'Loading...'}</div>
       </div>
     );
   }
@@ -127,8 +125,8 @@ export default function TeamPermissionsPage() {
         <div className="flex items-center space-x-3">
           <a href="/team" className="text-white text-2xl">&#8592;</a>
           <div>
-            <h1 className="text-2xl font-bold text-white">{t('nav.permissions')}</h1>
-            <p className="text-white/60 text-sm">{t('teamExtra.controlPermissions')}</p>
+            <h1 className="text-2xl font-bold text-white">{'Permissions'}</h1>
+            <p className="text-white/60 text-sm">{'Control what each role can see and do'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -136,7 +134,7 @@ export default function TeamPermissionsPage() {
             onClick={resetToDefaults}
             className="px-4 py-2 text-white/70 border border-white/20 rounded-lg hover:bg-white/10 transition-colors text-sm"
           >
-            {t('teamExtra.resetDefaults')}
+            {'Reset Defaults'}
           </button>
           <button
             onClick={savePermissions}
@@ -147,7 +145,7 @@ export default function TeamPermissionsPage() {
                 : 'bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50'
             }`}
           >
-            {saving ? t('common.saving') : saved ? t('settings.saved') : t('common.save')}
+            {saving ? 'Saving...' : saved ? 'Settings saved' : 'Save'}
           </button>
         </div>
       </header>
@@ -161,7 +159,7 @@ export default function TeamPermissionsPage() {
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b-2 border-gray-200">
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[220px]">{t('nav.permissions')}</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[220px]">{'Permissions'}</th>
               {ROLES.map(role => (
                 <th key={role.value} className="px-3 py-3 text-center text-sm font-semibold text-gray-700">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
@@ -238,7 +236,7 @@ export default function TeamPermissionsPage() {
 
       {/* Legend */}
       <div className="mt-6 bg-white/10 rounded-lg p-4">
-        <h3 className="text-white/80 text-sm font-semibold mb-3">{t('teamExtra.roleDescriptions')}</h3>
+        <h3 className="text-white/80 text-sm font-semibold mb-3">{'Role Descriptions'}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {ROLES.map(role => (
             <div key={role.value} className="flex items-start gap-2">
@@ -252,11 +250,11 @@ export default function TeamPermissionsPage() {
                 {role.label}
               </span>
               <p className="text-white/60 text-xs">
-                {role.value === 'owner' && t('teamExtra.ownerDesc')}
-                {role.value === 'manager' && t('teamExtra.managerDesc')}
-                {role.value === 'lead_tech' && t('teamExtra.leadTechDesc')}
-                {role.value === 'employee' && t('teamExtra.employeeDesc')}
-                {role.value === 'contractor' && t('teamExtra.contractorDesc')}
+                {role.value === 'owner' && 'Full access to everything. Cannot be restricted.'}
+                {role.value === 'manager' && 'Day-to-day operations. Full schedule and customer access.'}
+                {role.value === 'lead_tech' && 'Senior technician. Customer contact and limited schedule.'}
+                {role.value === 'employee' && 'Standard worker. Today\'s jobs and photo uploads only.'}
+                {role.value === 'contractor' && 'External contractor. Today\'s jobs and photo uploads only.'}
               </p>
             </div>
           ))}

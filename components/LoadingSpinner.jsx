@@ -1,9 +1,7 @@
 "use client";
-import { useTranslation } from '@/lib/i18n';
 
 export default function LoadingSpinner({ message, fullScreen = true }) {
-  const { t } = useTranslation();
-  const displayMessage = message !== undefined ? message : t('common.loading');
+  const displayMessage = message !== undefined ? message : 'Loading...';
 
   const spinner = (
     <div className="flex flex-col items-center gap-3">

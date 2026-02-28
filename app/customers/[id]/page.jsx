@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 const ACTIVITY_CONFIG = {
@@ -24,15 +23,14 @@ const ACTIVITY_CONFIG = {
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { t } = useTranslation();
   const customerId = params.id;
 
   const FILTER_TABS = [
-    { key: 'all', label: t('common.all') },
-    { key: 'quotes', label: t('nav.quotes') },
-    { key: 'payments', label: t('nav.invoices') },
-    { key: 'jobs', label: t('nav.jobs') },
-    { key: 'notes', label: t('common.notes') },
+    { key: 'all', label: 'All' },
+    { key: 'quotes', label: 'Quotes' },
+    { key: 'payments', label: 'Invoices' },
+    { key: 'jobs', label: 'Jobs' },
+    { key: 'notes', label: 'Notes' },
     { key: 'feedback', label: 'Feedback' },
   ];
 
@@ -177,12 +175,12 @@ export default function CustomerDetailPage() {
     if (!dateStr) return '';
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return t('notifications.justNow');
-    if (mins < 60) return t('notifications.minutesAgo', { n: mins });
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `$${mins}m ago`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return t('notifications.hoursAgo', { n: hours });
+    if (hours < 24) return `$${hours}h ago`;
     const days = Math.floor(hours / 24);
-    if (days < 30) return t('notifications.daysAgo', { n: days });
+    if (days < 30) return `$${days}d ago`;
     return formatDate(dateStr);
   };
 
@@ -217,15 +215,15 @@ export default function CustomerDetailPage() {
   }, [activity]);
 
   if (loading) {
-    return <LoadingSpinner message={t('common.loading')} />;
+    return <LoadingSpinner message={'Loading...'} />;
   }
 
   if (!customer) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-8 text-center max-w-sm">
-          <p className="text-gray-500 mb-4">{t('common.noResults')}</p>
-          <a href="/customers" className="text-amber-600 hover:underline">{t('common.back')} {t('common.to').toLowerCase()} {t('nav.customers').toLowerCase()}</a>
+          <p className="text-gray-500 mb-4">{'No results found'}</p>
+          <a href="/customers" className="text-amber-600 hover:underline">{'Back'} {'to'.toLowerCase()} {'Customers'.toLowerCase()}</a>
         </div>
       </div>
     );
@@ -240,14 +238,14 @@ export default function CustomerDetailPage() {
       <header className="flex items-center gap-4 mb-6 text-white">
         <a href="/customers" className="text-2xl hover:text-amber-400">&larr;</a>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{customer.name || t('common.customer')}</h1>
+          <h1 className="text-2xl font-bold">{customer.name || 'Customer'}</h1>
           <p className="text-sm text-white/60">{customer.email}</p>
         </div>
         <a
           href={`/quotes?search=${encodeURIComponent(customer.email)}`}
           className="px-4 py-2 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20"
         >
-          {t('calendar.viewQuote')}
+          {'View Quote'}
         </a>
       </header>
 
@@ -256,7 +254,7 @@ export default function CustomerDetailPage() {
         <div className="lg:col-span-1 space-y-4">
           {/* Contact Info */}
           <div className="bg-white rounded-lg shadow p-5">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('common.customer')}</h2>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{'Customer'}</h2>
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-gray-400 w-5 text-center">&lt;@&gt;</span>
@@ -289,7 +287,7 @@ export default function CustomerDetailPage() {
           {/* Aircraft Contact Info */}
           {(customer.poc_name || customer.emergency_contact_name) && (
             <div className="bg-white rounded-lg shadow p-5">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('common.aircraft')}</h2>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{'Aircraft'}</h2>
               {customer.poc_name && (
                 <div className="mb-3">
                   <p className="text-sm font-medium text-gray-900">{customer.poc_name}</p>
@@ -324,22 +322,22 @@ export default function CustomerDetailPage() {
           {/* Quick Stats */}
           {quoteStats && (
             <div className="bg-white rounded-lg shadow p-5">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('common.details')}</h2>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">{'Details'}</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs text-gray-400">{t('customers.totalQuotes')}</p>
+                  <p className="text-xs text-gray-400">{'Total Quotes'}</p>
                   <p className="text-lg font-bold text-gray-900">{quoteStats.totalQuotes || 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">{t('reports.totalRevenue')}</p>
+                  <p className="text-xs text-gray-400">{'Total Revenue'}</p>
                   <p className="text-lg font-bold text-green-600">${(quoteStats.totalRevenue || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">{t('status.completed')}</p>
+                  <p className="text-xs text-gray-400">{'Completed'}</p>
                   <p className="text-lg font-bold text-emerald-600">{quoteStats.completedJobs || 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">{t('customers.lastQuote')}</p>
+                  <p className="text-xs text-gray-400">{'Last Quote'}</p>
                   <p className="text-sm font-medium text-gray-700">{quoteStats.lastService ? formatDate(quoteStats.lastService) : '-'}</p>
                 </div>
               </div>
@@ -353,7 +351,7 @@ export default function CustomerDetailPage() {
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
                 </svg>
-                {t('common.notes')}
+                {'Notes'}
               </h2>
               <div className="space-y-2">
                 {pinnedNotes.map(note => (
@@ -380,7 +378,7 @@ export default function CustomerDetailPage() {
                     : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
               >
-                {tab === 'activity' ? `Timeline (${activity.length})` : `${t('common.notes')} (${notes.length})`}
+                {tab === 'activity' ? `Timeline (${activity.length})` : `${'Notes'} (${notes.length})`}
               </button>
             ))}
           </div>
@@ -474,7 +472,7 @@ export default function CustomerDetailPage() {
                 <textarea
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
-                  placeholder={t('dashboard.notesPlaceholder')}
+                  placeholder={'Add notes for this quote (visible to customer)...'}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none resize-none"
                 />
@@ -484,7 +482,7 @@ export default function CustomerDetailPage() {
                     disabled={noteSaving || !newNote.trim()}
                     className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-50 font-medium"
                   >
-                    {noteSaving ? t('common.saving') : t('common.add') + ' ' + t('common.notes')}
+                    {noteSaving ? 'Saving...' : 'Add' + ' ' + 'Notes'}
                   </button>
                 </div>
               </div>
@@ -492,7 +490,7 @@ export default function CustomerDetailPage() {
               {/* Notes list */}
               {notes.length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400 text-sm">
-                  {t('common.noResults')}
+                  {'No results found'}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -507,8 +505,8 @@ export default function CustomerDetailPage() {
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none resize-none mb-2"
                           />
                           <div className="flex justify-end gap-2">
-                            <button onClick={() => setEditingNote(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">{t('common.cancel')}</button>
-                            <button onClick={saveEdit} className="px-3 py-1.5 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600">{t('common.save')}</button>
+                            <button onClick={() => setEditingNote(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">{'Cancel'}</button>
+                            <button onClick={saveEdit} className="px-3 py-1.5 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600">{'Save'}</button>
                           </div>
                         </div>
                       ) : (
@@ -517,7 +515,7 @@ export default function CustomerDetailPage() {
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                             <p className="text-xs text-gray-400">
                               {timeAgo(note.created_at)}
-                              {note.pinned && <span className="ml-2 text-amber-500 font-medium">{t('status.pending')}</span>}
+                              {note.pinned && <span className="ml-2 text-amber-500 font-medium">{'Pending'}</span>}
                             </p>
                             <div className="flex items-center gap-1">
                               <button
@@ -532,7 +530,7 @@ export default function CustomerDetailPage() {
                               <button
                                 onClick={() => { setEditingNote(note.id); setEditContent(note.content); }}
                                 className="p-1.5 rounded hover:bg-gray-100 text-gray-400 text-xs"
-                                title={t('common.edit')}
+                                title={'Edit'}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -541,7 +539,7 @@ export default function CustomerDetailPage() {
                               <button
                                 onClick={() => deleteNote(note.id)}
                                 className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 text-xs"
-                                title={t('common.delete')}
+                                title={'Delete'}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

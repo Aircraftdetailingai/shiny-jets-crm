@@ -2,11 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setUserCurrency } from '@/lib/currency';
-import { useTranslation } from '@/lib/i18n';
 
 export default function Page() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -92,7 +90,7 @@ export default function Page() {
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-6">
           <h1 className="text-2xl font-bold text-[#1e3a5f] flex items-center">
-            <span className="mr-2">✈️</span> {t('dashboard.title')}
+            <span className="mr-2">✈️</span> {'Vector'}
           </h1>
           <p className="text-gray-500 mt-1 text-center">
             Professional Aircraft Detailing Quotes
@@ -101,7 +99,7 @@ export default function Page() {
         {error && <div className="text-red-600 mb-4">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.email')}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{'Email'}</label>
             <input
               type="email"
               className="w-full border border-gray-300 rounded-md p-2"
@@ -125,7 +123,7 @@ export default function Page() {
             className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90"
             disabled={loading}
           >
-            {loading ? 'Signing in...' : t('common.signIn')}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
         <div className="mt-2 text-right">
@@ -135,7 +133,7 @@ export default function Page() {
         </div>
         <div className="my-6 flex items-center">
           <div className="flex-grow border-t border-gray-300"></div>
-          <span className="mx-2 text-gray-500 text-sm">New to {t('dashboard.title')}?</span>
+          <span className="mx-2 text-gray-500 text-sm">New to {'Vector'}?</span>
           <div className="flex-grow border-t border-gray-300"></div>
         </div>
         <a

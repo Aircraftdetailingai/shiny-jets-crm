@@ -1,7 +1,6 @@
 "use client";
 import { useState } from 'react';
 import { restartTour } from '@/components/DashboardTour';
-import { useTranslation } from '@/lib/i18n';
 
 const FAQ_ITEMS = [
   {
@@ -109,7 +108,6 @@ function FAQAccordion({ items }) {
 }
 
 export default function HelpPage() {
-  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('faq');
   const [contactForm, setContactForm] = useState({ subject: '', message: '' });
   const [sending, setSending] = useState(false);
@@ -151,8 +149,8 @@ export default function HelpPage() {
         <header className="flex items-center gap-4 mb-6 text-white">
           <a href="/dashboard" className="text-2xl hover:text-gray-300">&larr;</a>
           <div>
-            <h1 className="text-2xl font-bold">{t('nav.help')} & Support</h1>
-            <p className="text-gray-400 text-sm">Everything you need to get the most out of {t('dashboard.title')}</p>
+            <h1 className="text-2xl font-bold">{'Help'} & Support</h1>
+            <p className="text-gray-400 text-sm">Everything you need to get the most out of {'Vector'}</p>
           </div>
         </header>
 
@@ -203,7 +201,7 @@ export default function HelpPage() {
         {activeTab === 'guides' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-gray-400 text-sm">Follow these guides to set up {t('dashboard.title')} and start sending professional quotes.</p>
+              <p className="text-gray-400 text-sm">Follow these guides to set up {'Vector'} and start sending professional quotes.</p>
               <button
                 onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors whitespace-nowrap ml-4"
@@ -241,7 +239,7 @@ export default function HelpPage() {
         {/* Videos Tab */}
         {activeTab === 'videos' && (
           <div>
-            <p className="text-gray-400 text-sm mb-4">Video walkthroughs to help you learn {t('dashboard.title')} quickly.</p>
+            <p className="text-gray-400 text-sm mb-4">Video walkthroughs to help you learn {'Vector'} quickly.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {VIDEOS.map((video, i) => (
                 <div
@@ -275,7 +273,7 @@ export default function HelpPage() {
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shortcut</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -312,7 +310,7 @@ export default function HelpPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-white font-semibold text-lg mb-2">{t('success.sent')}</h3>
+                <h3 className="text-white font-semibold text-lg mb-2">{'Sent successfully'}</h3>
                 <p className="text-gray-400 text-sm mb-4">We&apos;ll get back to you within 24 hours.</p>
                 <button
                   onClick={() => setSent(false)}
@@ -359,7 +357,7 @@ export default function HelpPage() {
                     disabled={sending}
                     className="px-5 py-2.5 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors"
                   >
-                    {sending ? t('common.sending') : t('common.send') + ' Message'}
+                    {sending ? 'Sending...' : 'Send' + ' Message'}
                   </button>
                 </div>
               </form>

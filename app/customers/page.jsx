@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast } from '@/components/Toast';
 import AddCustomerModal from '@/components/AddCustomerModal';
@@ -23,7 +22,6 @@ function getTagStyle(tagName) {
 
 export default function CustomersPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const { success: toastSuccess, error: toastError } = useToast();
   const [customers, setCustomers] = useState([]);
   const [allTags, setAllTags] = useState([]);
@@ -238,7 +236,7 @@ export default function CustomersPage() {
         setNewTagColor('#6b7280');
       } else {
         const data = await res.json();
-        alert(data.error || t('errors.failedToCreate'));
+        alert(data.error || 'Failed to create');
       }
     } catch (err) {
       console.error('Create tag error:', err);
@@ -248,7 +246,7 @@ export default function CustomersPage() {
   };
 
   const deleteTag = async (tagId) => {
-    if (!confirm(t('customersExtra.deleteTagConfirm'))) return;
+    if (!confirm('Delete this custom tag? It will not be removed from customers.')) return;
     const token = localStorage.getItem('vector_token');
     try {
       await fetch(`/api/customers/tags?id=${tagId}`, {
@@ -269,7 +267,7 @@ export default function CustomersPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner message={t('common.loading')} />;
+    return <LoadingSpinner message={'Loading...'} />;
   }
 
   return (
@@ -279,8 +277,8 @@ export default function CustomersPage() {
         <div className="flex items-center space-x-4">
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
           <div>
-            <h1 className="text-2xl font-bold">{t('customers.title')}</h1>
-            <p className="text-sm text-white/60">{customers.length} {t('common.total').toLowerCase()}</p>
+            <h1 className="text-2xl font-bold">{'Customers'}</h1>
+            <p className="text-sm text-white/60">{customers.length} {'Total'.toLowerCase()}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -303,7 +301,7 @@ export default function CustomersPage() {
             onClick={() => setShowTagManager(!showTagManager)}
             className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 text-sm"
           >
-            {t('customers.manageTags')}
+            {'Manage Tags'}
           </button>
         </div>
       </header>
@@ -313,7 +311,7 @@ export default function CustomersPage() {
         {showTagManager && (
           <div className="bg-white rounded-lg shadow p-5 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">{t('customers.manageTags')}</h2>
+              <h2 className="font-semibold text-gray-900">{'Manage Tags'}</h2>
               <button onClick={() => setShowTagManager(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -337,7 +335,7 @@ export default function CustomersPage() {
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && createTag()}
-                placeholder={t('customers.newTagName')}
+                placeholder={'Tag name'}
                 className="border rounded-lg px-3 py-2 text-sm flex-1"
               />
               <input
@@ -351,7 +349,7 @@ export default function CustomersPage() {
                 disabled={creatingTag || !newTagName.trim()}
                 className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 text-sm font-medium"
               >
-                {creatingTag ? '...' : t('common.create')}
+                {creatingTag ? '...' : 'Create'}
               </button>
             </div>
           </div>
@@ -363,7 +361,7 @@ export default function CustomersPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('customers.search')}
+            placeholder={'Search customers...'}
             className="flex-1 border rounded-lg px-4 py-2 bg-white shadow-sm"
           />
           <select
@@ -371,7 +369,7 @@ export default function CustomersPage() {
             onChange={(e) => setFilterTag(e.target.value)}
             className="border rounded-lg px-4 py-2 bg-white shadow-sm text-sm"
           >
-            <option value="">{t('customers.allCustomers')}</option>
+            <option value="">{'All Customers'}</option>
             {usedTags.map((tag) => (
               <option key={tag} value={tag}>{tag}</option>
             ))}
@@ -383,10 +381,10 @@ export default function CustomersPage() {
           <div className="bg-white border border-amber-300 rounded-lg px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-gray-900">
-                {selectedIds.size} {t('quotes.selected')}
+                {selectedIds.size} {'selected'}
               </span>
               <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-500 hover:text-gray-700 underline">
-                {t('common.close')}
+                {'Close'}
               </button>
             </div>
             <button
@@ -397,7 +395,7 @@ export default function CustomersPage() {
               }}
               className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600"
             >
-              {t('customers.manageTags')}
+              {'Manage Tags'}
             </button>
           </div>
         )}
@@ -414,10 +412,10 @@ export default function CustomersPage() {
                 className="w-4 h-4 rounded border-gray-300 text-amber-500 cursor-pointer"
               />
             </div>
-            <div className="col-span-3">{t('common.customer')}</div>
-            <div className="col-span-3">{t('customers.tags')}</div>
-            <div className="col-span-2">{t('nav.quotes')}</div>
-            <div className="col-span-2">{t('customers.lastQuote')}</div>
+            <div className="col-span-3">{'Customer'}</div>
+            <div className="col-span-3">{'Tags'}</div>
+            <div className="col-span-2">{'Quotes'}</div>
+            <div className="col-span-2">{'Last Quote'}</div>
             <div className="col-span-1"></div>
           </div>
 
@@ -438,7 +436,7 @@ export default function CustomersPage() {
               </div>
             ) : (
               <div className="p-8 text-center text-gray-500">
-                {t('common.noResults')}
+                {'No results found'}
               </div>
             )
           ) : (
@@ -461,7 +459,7 @@ export default function CustomersPage() {
 
                     {/* Customer Info */}
                     <div className="col-span-3 cursor-pointer" onClick={() => customer.id && router.push(`/customers/${customer.id}`)}>
-                      <p className="font-medium text-gray-900 hover:text-amber-600">{customer.name || t('common.name')}</p>
+                      <p className="font-medium text-gray-900 hover:text-amber-600">{customer.name || 'Name'}</p>
                       <p className="text-xs text-gray-500">{customer.email}</p>
                       {customer.company_name && (
                         <p className="text-xs text-gray-400">{customer.company_name}</p>
@@ -484,7 +482,7 @@ export default function CustomersPage() {
                             }}
                             className="px-2 py-0.5 rounded-full text-xs text-gray-400 border border-dashed border-gray-300 hover:border-amber-400 hover:text-amber-600"
                           >
-                            + {t('customers.tags')}
+                            + {'Tags'}
                           </button>
                         )}
                       </div>
@@ -492,7 +490,7 @@ export default function CustomersPage() {
 
                     {/* Quotes */}
                     <div className="col-span-2 text-sm text-gray-600">
-                      {t('customers.quoteCount', { count: customer.quote_count || 0 })}
+                      {`${customer.quote_count || 0} {count, plural, one ${quote} other ${quotes}}`}
                     </div>
 
                     {/* Last Service */}
@@ -507,7 +505,7 @@ export default function CustomersPage() {
                           onClick={() => router.push(`/customers/${customer.id}`)}
                           className="hidden sm:inline-flex text-xs text-amber-600 hover:text-amber-700 font-medium"
                         >
-                          {t('common.view')}
+                          {'View'}
                         </button>
                       )}
                       {customer.id && (
@@ -527,7 +525,7 @@ export default function CustomersPage() {
 
           {/* Footer */}
           <div className="p-3 border-t bg-gray-50 text-sm text-gray-500">
-            {t('common.showing')} {filteredCustomers.length} {t('common.of')} {customers.length} {t('nav.customers').toLowerCase()}
+            {'Showing'} {filteredCustomers.length} {'of'} {customers.length} {'Customers'.toLowerCase()}
           </div>
         </div>
       </div>
@@ -536,13 +534,13 @@ export default function CustomersPage() {
       {editCustomer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('customers.editCustomer')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{'Edit Customer'}</h3>
             <p className="text-sm text-gray-500 mb-4">{editCustomer.name} &mdash; {editCustomer.email}</p>
 
             {/* Current tags */}
             <div className="flex flex-wrap gap-2 mb-4 min-h-[32px]">
               {editTags.length === 0 && (
-                <span className="text-sm text-gray-400">{t('common.none')}</span>
+                <span className="text-sm text-gray-400">{'None'}</span>
               )}
               {editTags.map((tag) => (
                 <span key={tag} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-medium border ${getTagStyle(tag)}`}>
@@ -558,7 +556,7 @@ export default function CustomersPage() {
             </div>
 
             {/* Available tags to add */}
-            <p className="text-xs font-medium text-gray-500 mb-2">{t('customers.tags')}</p>
+            <p className="text-xs font-medium text-gray-500 mb-2">{'Tags'}</p>
             <div className="flex flex-wrap gap-2 mb-6">
               {usedTags.filter(t => !editTags.includes(t)).map((tag) => (
                 <button
@@ -570,7 +568,7 @@ export default function CustomersPage() {
                 </button>
               ))}
               {usedTags.filter(t => !editTags.includes(t)).length === 0 && (
-                <span className="text-sm text-gray-400">{t('common.none')}</span>
+                <span className="text-sm text-gray-400">{'None'}</span>
               )}
             </div>
 
@@ -579,14 +577,14 @@ export default function CustomersPage() {
                 onClick={() => setEditCustomer(null)}
                 className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
               >
-                {t('common.cancel')}
+                {'Cancel'}
               </button>
               <button
                 onClick={() => saveCustomerTags(editCustomer.id, editTags)}
                 disabled={editSaving}
                 className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
               >
-                {editSaving ? t('common.saving') : t('common.save')}
+                {editSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -609,14 +607,14 @@ export default function CustomersPage() {
       {bulkTagModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('customers.manageTags')}</h3>
-            <p className="text-sm text-gray-500 mb-4">{selectedIds.size} {t('common.customer').toLowerCase()}{selectedIds.size !== 1 ? 's' : ''} {t('quotes.selected')}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{'Manage Tags'}</h3>
+            <p className="text-sm text-gray-500 mb-4">{selectedIds.size} {'Customer'.toLowerCase()}{selectedIds.size !== 1 ? 's' : ''} {'selected'}</p>
 
             {/* Action toggle */}
             <div className="flex gap-2 mb-4">
               {[
-                { value: 'add', label: t('customers.bulkAddTags') },
-                { value: 'remove', label: t('customers.bulkRemoveTags') },
+                { value: 'add', label: 'Add Tags' },
+                { value: 'remove', label: 'Remove Tags' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -661,14 +659,14 @@ export default function CustomersPage() {
                 onClick={() => { setBulkTagModal(false); setBulkTagSelection([]); }}
                 className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
               >
-                {t('common.cancel')}
+                {'Cancel'}
               </button>
               <button
                 onClick={executeBulkTag}
                 disabled={bulkProcessing || bulkTagSelection.length === 0}
                 className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
               >
-                {bulkProcessing ? t('common.processing') : `${bulkTagAction === 'add' ? t('common.add') : t('common.remove')} ${t('customers.tags')}`}
+                {bulkProcessing ? 'Processing...' : `${bulkTagAction === 'add' ? 'Add' : 'Remove'} ${'Tags'}`}
               </button>
             </div>
           </div>

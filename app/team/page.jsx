@@ -2,11 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
-import { useTranslation } from '@/lib/i18n';
 
 export default function TeamPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,7 +24,7 @@ export default function TeamPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t('errors.failedToFetch'));
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch');
       setMembers(data.members || []);
     } catch (err) {
       setError(err.message);
@@ -47,20 +45,20 @@ export default function TeamPage() {
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <a href="/dashboard" className="text-white text-2xl">&#8592;</a>
-          <h1 className="text-2xl font-bold text-white">{t('team.title')}</h1>
+          <h1 className="text-2xl font-bold text-white">{'Team'}</h1>
         </div>
         <div className="flex items-center gap-2">
           <a
             href="/team/permissions"
             className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
           >
-            {t('nav.permissions')}
+            {'Permissions'}
           </a>
           <a
             href="/team/add"
             className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
           >
-            {t('team.addMember')}
+            {'+ Add Member'}
           </a>
         </div>
       </header>
@@ -68,40 +66,40 @@ export default function TeamPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{t('common.active')}</p>
+          <p className="text-white/60 text-xs">{'Active'}</p>
           <p className="text-white text-xl font-bold">{activeCount}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{t('team.employees')}</p>
+          <p className="text-white/60 text-xs">{'Employees'}</p>
           <p className="text-white text-xl font-bold">{employeeCount}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{t('team.contractors')}</p>
+          <p className="text-white/60 text-xs">{'Contractors'}</p>
           <p className="text-white text-xl font-bold">{contractorCount}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{t('team.totalHours')}</p>
+          <p className="text-white/60 text-xs">{'Total Hours'}</p>
           <p className="text-white text-xl font-bold">{totalHours.toFixed(1)}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{t('team.totalPay')}</p>
+          <p className="text-white/60 text-xs">{'Total Pay'}</p>
           <p className="text-white text-xl font-bold">{currencySymbol()}{formatPrice(totalPay)}</p>
         </div>
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="text-white text-center py-12">{t('team.loadingTeam')}</div>
+        <div className="text-white text-center py-12">{'Loading team...'}</div>
       ) : error ? (
         <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-200">{error}</div>
       ) : members.length === 0 ? (
         <div className="bg-white/10 rounded-lg p-8 text-center">
-          <p className="text-white/60 text-lg mb-4">{t('team.noMembers')}</p>
+          <p className="text-white/60 text-lg mb-4">{'No team members yet'}</p>
           <a
             href="/team/add"
             className="px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium inline-block"
           >
-            {t('team.addFirst')}
+            {'Add Your First Team Member'}
           </a>
         </div>
       ) : (
@@ -109,12 +107,12 @@ export default function TeamPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 text-left text-sm text-gray-500">
-                <th className="px-4 py-3 font-medium">{t('common.name')}</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">{t('team.role')}</th>
-                <th className="px-4 py-3 font-medium hidden md:table-cell">{t('team.rate')}</th>
-                <th className="px-4 py-3 font-medium hidden md:table-cell">{t('team.hours')}</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">{t('team.totalPay')}</th>
-                <th className="px-4 py-3 font-medium">{t('common.status')}</th>
+                <th className="px-4 py-3 font-medium">{'Name'}</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Role'}</th>
+                <th className="px-4 py-3 font-medium hidden md:table-cell">{'Rate'}</th>
+                <th className="px-4 py-3 font-medium hidden md:table-cell">{'Hours'}</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Total Pay'}</th>
+                <th className="px-4 py-3 font-medium">{'Status'}</th>
               </tr>
             </thead>
             <tbody>
@@ -140,7 +138,7 @@ export default function TeamPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
-                    ${parseFloat(member.hourly_pay || 0).toFixed(2)}{t('common.perHour')}
+                    ${parseFloat(member.hourly_pay || 0).toFixed(2)}{'/hr'}
                   </td>
                   <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
                     {(member.total_hours || 0).toFixed(1)}

@@ -5,7 +5,6 @@ import { PLATFORM_FEES } from '@/lib/pricing-tiers';
 import { formatPrice } from '@/lib/formatPrice';
 import { getCurrencySymbol } from '@/lib/currency';
 import { t, detectBrowserLanguage, SUPPORTED_LANGUAGES } from '@/lib/translations';
-import { useTranslation } from '@/lib/i18n';
 
 const STATUS_LABELS = {
   draft: 'Draft',
@@ -36,7 +35,7 @@ const STATUS_COLORS = {
 export default function PortalPage() {
   const params = useParams();
   const token = params.token;
-  const { t: ti } = useTranslation();
+
   const [quote, setQuote] = useState(null);
   const [detailer, setDetailer] = useState(null);
   const [history, setHistory] = useState([]);

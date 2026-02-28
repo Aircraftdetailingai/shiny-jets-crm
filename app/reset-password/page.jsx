@@ -1,10 +1,8 @@
 "use client";
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useTranslation } from '@/lib/i18n';
 
 function ResetPasswordContent() {
-  const { t } = useTranslation();
   const params = useSearchParams();
   const token = params.get('token');
   const [password, setPassword] = useState('');
@@ -68,7 +66,7 @@ function ResetPasswordContent() {
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-6">
           <h1 className="text-2xl font-bold text-[#1e3a5f] flex items-center">
-            <span className="mr-2">&#9992;&#65039;</span> {t('dashboard.title')}
+            <span className="mr-2">&#9992;&#65039;</span> {'Vector'}
           </h1>
           <p className="text-gray-500 mt-1 text-center">Set New Password</p>
         </div>
@@ -82,7 +80,7 @@ function ResetPasswordContent() {
               href="/login"
               className="inline-block w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90 text-center"
             >
-              {t('common.signIn')}
+              {'Sign In'}
             </a>
           </div>
         ) : (

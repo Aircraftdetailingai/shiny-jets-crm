@@ -3,11 +3,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { useTranslation } from '@/lib/i18n';
 
 export default function GrowthPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState([]);
   const [stats, setStats] = useState(null);
@@ -72,7 +70,7 @@ export default function GrowthPage() {
     .sort((a, b) => a.costPerJob - b.costPerJob);
 
   if (loading) {
-    return <LoadingSpinner message={t('common.loading')} />;
+    return <LoadingSpinner message={'Loading...'} />;
   }
 
   return (
@@ -81,11 +79,11 @@ export default function GrowthPage() {
       <header className="text-white flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
-          <h1 className="text-2xl font-bold">{t('growth.title')}</h1>
+          <h1 className="text-2xl font-bold">{'Business Growth'}</h1>
         </div>
         <div className="space-x-4 text-sm">
-          <a href="/products" className="underline">{t('nav.inventory')}</a>
-          <a href="/equipment" className="underline">{t('nav.equipment')}</a>
+          <a href="/products" className="underline">{'Inventory'}</a>
+          <a href="/equipment" className="underline">{'Equipment'}</a>
           <a href="/roi" className="underline">ROI</a>
         </div>
       </header>
@@ -95,8 +93,8 @@ export default function GrowthPage() {
         <a href="/growth/sales-assistant" className="block bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-5 shadow-lg hover:opacity-95 transition-opacity">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-white text-lg font-bold">{t('growth.aiSalesAssistant')}</h2>
-              <p className="text-indigo-200 text-sm mt-1">{t('growth.aiDesc')}</p>
+              <h2 className="text-white text-lg font-bold">{'AI Sales Assistant'}</h2>
+              <p className="text-indigo-200 text-sm mt-1">{'Research prospects and generate personalized cold call, email, and LinkedIn scripts'}</p>
             </div>
             <span className="text-white text-2xl">&#8594;</span>
           </div>
@@ -106,21 +104,21 @@ export default function GrowthPage() {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs">{t('growth.thisMonthRevenue')}</p>
+              <p className="text-gray-500 text-xs">{'This Month Revenue'}</p>
               <p className="text-2xl font-bold text-gray-900">
                 ${(stats.monthRevenue || 0).toLocaleString()}
               </p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs">{t('growth.jobsCompleted')}</p>
+              <p className="text-gray-500 text-xs">{'Jobs Completed'}</p>
               <p className="text-2xl font-bold text-blue-600">{stats.monthJobs || 0}</p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs">{t('growth.activeServices')}</p>
+              <p className="text-gray-500 text-xs">{'Active Services'}</p>
               <p className="text-2xl font-bold text-purple-600">{enabledServices.length}</p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs">{t('growth.avgHourlyRate')}</p>
+              <p className="text-gray-500 text-xs">{'Avg Hourly Rate'}</p>
               <p className="text-2xl font-bold text-green-600">{currencySymbol()}{formatPriceWhole(avgRate)}</p>
             </div>
           </div>
@@ -128,17 +126,17 @@ export default function GrowthPage() {
 
         {/* Business Growth Tips */}
         <div className="bg-white rounded-xl p-6 shadow">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">{t('growth.growthOpportunities')}</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">{'Growth Opportunities'}</h2>
           <div className="space-y-4">
             <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
               <span className="text-2xl">&#128200;</span>
               <div>
-                <p className="font-medium text-amber-900">{t('growth.reviewRates')}</p>
+                <p className="font-medium text-amber-900">{'Review Your Rates Annually'}</p>
                 <p className="text-sm text-amber-700 mt-1">
-                  {t('growth.reviewRatesDesc')}
+                  {'Most detailers undercharge. Consider a 10% rate increase for long-term customers - most will stay.'}
                 </p>
                 <a href="/settings/services" className="text-sm text-amber-600 font-medium mt-2 inline-block hover:underline">
-                  {t('growth.updateServiceRates')} &#8594;
+                  {'Update Service Rates'} &#8594;
                 </a>
               </div>
             </div>
@@ -146,12 +144,12 @@ export default function GrowthPage() {
             <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <span className="text-2xl">&#128230;</span>
               <div>
-                <p className="font-medium text-blue-900">{t('growth.trackMaterials')}</p>
+                <p className="font-medium text-blue-900">{'Track Your Material Costs'}</p>
                 <p className="text-sm text-blue-700 mt-1">
-                  {t('growth.trackMaterialsDesc')}
+                  {'Know exactly what each job costs you. Track inventory and see your true profit margins.'}
                 </p>
                 <a href="/products" className="text-sm text-blue-600 font-medium mt-2 inline-block hover:underline">
-                  {t('growth.manageInventory')} &#8594;
+                  {'Manage Inventory'} &#8594;
                 </a>
               </div>
             </div>
@@ -159,12 +157,12 @@ export default function GrowthPage() {
             <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg border border-green-200">
               <span className="text-2xl">&#128295;</span>
               <div>
-                <p className="font-medium text-green-900">{t('growth.knowEquipmentRoi')}</p>
+                <p className="font-medium text-green-900">{'Know Your Equipment ROI'}</p>
                 <p className="text-sm text-green-700 mt-1">
-                  {t('growth.knowEquipmentRoiDesc')}
+                  {'Track jobs per tool to understand which equipment investments paid off.'}
                 </p>
                 <a href="/equipment" className="text-sm text-green-600 font-medium mt-2 inline-block hover:underline">
-                  {t('growth.viewEquipment')} &#8594;
+                  {'View Equipment'} &#8594;
                 </a>
               </div>
             </div>
@@ -175,8 +173,8 @@ export default function GrowthPage() {
         {equipmentWithROI.length > 0 && (
           <div className="bg-white rounded-xl p-6 shadow">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-900">{t('growth.equipmentRoi')}</h2>
-              <a href="/equipment" className="text-sm text-amber-600 hover:underline">{t('common.viewAll')}</a>
+              <h2 className="text-lg font-bold text-gray-900">{'Equipment ROI'}</h2>
+              <a href="/equipment" className="text-sm text-amber-600 hover:underline">{'View All'}</a>
             </div>
             <div className="space-y-2">
               {equipmentWithROI.slice(0, 5).map((item, idx) => (
@@ -185,12 +183,12 @@ export default function GrowthPage() {
                     <span className="text-lg">{idx === 0 ? '&#129351;' : idx === 1 ? '&#129352;' : idx === 2 ? '&#129353;' : '&#128295;'}</span>
                     <div>
                       <p className="font-medium text-gray-900">{item.name}</p>
-                      <p className="text-xs text-gray-500">{item.jobs_completed} {t('equipment.jobs')} {t('status.completed').toLowerCase()}</p>
+                      <p className="text-xs text-gray-500">{item.jobs_completed} {'jobs'} {'Completed'.toLowerCase()}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-600">{currencySymbol()}{formatPriceWhole(item.costPerJob)}{t('equipment.perJob')}</p>
-                    <p className="text-xs text-gray-400">{currencySymbol()}{formatPriceWhole(item.purchase_price)} {t('growth.invested')}</p>
+                    <p className="font-bold text-green-600">{currencySymbol()}{formatPriceWhole(item.costPerJob)}{'/job'}</p>
+                    <p className="text-xs text-gray-400">{currencySymbol()}{formatPriceWhole(item.purchase_price)} {'invested'}</p>
                   </div>
                 </div>
               ))}
@@ -201,11 +199,11 @@ export default function GrowthPage() {
         {/* Your Services */}
         <div className="bg-white rounded-xl p-6 shadow">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900">{t('growth.yourServices')}</h2>
-            <a href="/settings/services" className="text-sm text-amber-600 hover:underline">{t('common.manage')}</a>
+            <h2 className="text-lg font-bold text-gray-900">{'Your Services'}</h2>
+            <a href="/settings/services" className="text-sm text-amber-600 hover:underline">{'Manage'}</a>
           </div>
           {enabledServices.length === 0 ? (
-            <p className="text-gray-500">{t('dashboard.noServicesConfigured')}</p>
+            <p className="text-gray-500">{'No services configured yet.'}</p>
           ) : (
             <div className="grid gap-2">
               {enabledServices.map((svc) => (
@@ -216,7 +214,7 @@ export default function GrowthPage() {
                       <span className="text-xs text-gray-400 ml-2">{svc.category}</span>
                     )}
                   </div>
-                  <span className="text-gray-600 font-medium">${svc.hourly_rate}{t('common.perHour')}</span>
+                  <span className="text-gray-600 font-medium">${svc.hourly_rate}{'/hr'}</span>
                 </div>
               ))}
             </div>

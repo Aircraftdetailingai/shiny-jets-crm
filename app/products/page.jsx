@@ -3,11 +3,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { useTranslation } from '@/lib/i18n';
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
@@ -40,17 +38,17 @@ export default function ProductsPage() {
   const [scrapeError, setScrapeError] = useState('');
 
   const CATEGORY_LABELS = {
-    compound: t('products.compound'),
-    polish: t('products.polish'),
-    wax: t('products.wax'),
-    ceramic: t('products.ceramicCoating'),
-    cleaner: t('products.cleaner'),
-    degreaser: t('products.degreaser'),
-    brightwork: t('products.brightwork'),
-    leather: t('products.leatherCare'),
-    towels: t('products.towels'),
-    applicators: t('products.applicators'),
-    other: t('products.other'),
+    compound: 'Compound',
+    polish: 'Polish',
+    wax: 'Wax',
+    ceramic: 'Ceramic Coating',
+    cleaner: 'Cleaner',
+    degreaser: 'Degreaser',
+    brightwork: 'Brightwork',
+    leather: 'Leather Care',
+    towels: 'Towels & Cloths',
+    applicators: 'Applicators',
+    other: 'Other',
   };
 
   useEffect(() => {
@@ -165,10 +163,10 @@ export default function ProductsPage() {
         }));
       } else {
         const data = await res.json();
-        setScrapeError(data.error || t('products.scrapeError'));
+        setScrapeError(data.error || 'Could not extract product info');
       }
     } catch {
-      setScrapeError(t('products.scrapeFailed'));
+      setScrapeError('Failed to fetch product data');
     } finally {
       setScraping(false);
     }
@@ -272,7 +270,7 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm(t('products.deleteConfirm'))) return;
+    if (!confirm('Are you sure you want to delete this product?')) return;
 
     const token = localStorage.getItem('vector_token');
     try {
@@ -296,7 +294,7 @@ export default function ProductsPage() {
   }, {});
 
   if (loading) {
-    return <LoadingSpinner message={t('products.loadingProducts')} />;
+    return <LoadingSpinner message={'Loading...'} />;
   }
 
   return (
@@ -305,12 +303,12 @@ export default function ProductsPage() {
       <header className="flex justify-between items-center mb-6 text-white">
         <div className="flex items-center space-x-4">
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
-          <h1 className="text-2xl font-bold">{t('products.title')}</h1>
+          <h1 className="text-2xl font-bold">{'Inventory'}</h1>
         </div>
         <div className="space-x-4 text-sm">
-          <a href="/equipment" className="underline">{t('nav.equipment')}</a>
-          <a href="/dashboard" className="underline">{t('nav.dashboard')}</a>
-          <a href="/settings" className="underline">{t('nav.settings')}</a>
+          <a href="/equipment" className="underline">{'Equipment'}</a>
+          <a href="/dashboard" className="underline">{'Dashboard'}</a>
+          <a href="/settings" className="underline">{'Settings'}</a>
         </div>
       </header>
 
@@ -318,21 +316,21 @@ export default function ProductsPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg p-4 shadow">
-            <p className="text-gray-500 text-xs">{t('products.inventoryValue')}</p>
+            <p className="text-gray-500 text-xs">{'Inventory Value'}</p>
             <p className="text-2xl font-bold text-gray-900">{currencySymbol()}{formatPriceWhole(totalValue)}</p>
           </div>
           <div className="bg-white rounded-lg p-4 shadow">
-            <p className="text-gray-500 text-xs">{t('products.productsTracked')}</p>
+            <p className="text-gray-500 text-xs">{'Products Tracked'}</p>
             <p className="text-2xl font-bold text-gray-900">{products.length}</p>
           </div>
           {insights && (
             <>
               <div className="bg-white rounded-lg p-4 shadow">
-                <p className="text-gray-500 text-xs">{t('products.materialCostMonth')}</p>
+                <p className="text-gray-500 text-xs">{'Material Cost (Month)'}</p>
                 <p className="text-2xl font-bold text-blue-600">{currencySymbol()}{formatPriceWhole(insights.summary.totalMaterialCost)}</p>
               </div>
               <div className="bg-white rounded-lg p-4 shadow">
-                <p className="text-gray-500 text-xs">{t('products.avgCostPerJob')}</p>
+                <p className="text-gray-500 text-xs">{'Avg Cost/Job'}</p>
                 <p className="text-2xl font-bold text-purple-600">{currencySymbol()}{formatPriceWhole(insights.summary.avgMaterialCostPerJob)}</p>
               </div>
             </>
@@ -345,14 +343,14 @@ export default function ProductsPage() {
             <div className="flex items-start gap-3">
               <span className="text-xl">&#9888;</span>
               <div className="flex-1">
-                <p className="font-semibold text-red-800">{t('products.lowStockAlert')} ({lowStock.length})</p>
+                <p className="font-semibold text-red-800">{'Low Stock Alert'} ({lowStock.length})</p>
                 <div className="mt-2 space-y-2">
                   {lowStock.map(p => (
                     <div key={p.id} className="flex items-center justify-between">
                       <div className="text-sm text-red-700">
                         <span className="font-medium">{p.name}</span>
-                        <span className="text-red-500 ml-1">&#8212; {p.current_quantity} {p.unit} {t('products.remaining')}</span>
-                        <span className="text-red-400 text-xs ml-1">{t('products.reorderAt', { threshold: p.reorder_threshold })}</span>
+                        <span className="text-red-500 ml-1">&#8212; {p.current_quantity} {p.unit} {'remaining'}</span>
+                        <span className="text-red-400 text-xs ml-1">{`(reorder at ${p.reorder_threshold})`}</span>
                       </div>
                       {p.product_url && (
                         <a
@@ -361,7 +359,7 @@ export default function ProductsPage() {
                           rel="noopener noreferrer"
                           className="px-3 py-1 text-xs bg-amber-500 text-white font-medium rounded hover:bg-amber-600 whitespace-nowrap ml-3"
                         >
-                          {t('lowStock.reorder')}
+                          {'Reorder'}
                         </a>
                       )}
                     </div>
@@ -375,13 +373,13 @@ export default function ProductsPage() {
         {/* Page Header */}
         <div className="flex justify-between items-center mb-4">
           <div>
-            <p className="text-gray-400 text-sm">{t('products.trackProducts')}</p>
+            <p className="text-gray-400 text-sm">{'Track your products and materials'}</p>
           </div>
           <button
             onClick={() => handleOpenModal()}
             className="px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600"
           >
-            {t('products.addProduct')}
+            {'+ Add Product'}
           </button>
         </div>
 
@@ -389,13 +387,13 @@ export default function ProductsPage() {
         {products.length === 0 ? (
           <div className="bg-white rounded-lg p-8 text-center">
             <span className="text-4xl">&#128230;</span>
-            <h3 className="text-xl font-semibold mt-4">{t('products.noProducts')}</h3>
-            <p className="text-gray-500 mt-2">{t('products.addProductsDesc')}</p>
+            <h3 className="text-xl font-semibold mt-4">{'No products yet'}</h3>
+            <p className="text-gray-500 mt-2">{'Add your detailing products to track inventory and costs'}</p>
             <button
               onClick={() => handleOpenModal()}
               className="mt-4 px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600"
             >
-              {t('products.addFirst')}
+              {'Add Your First Product'}
             </button>
           </div>
         ) : (
@@ -404,7 +402,7 @@ export default function ProductsPage() {
               <div key={category} className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
                   <h3 className="font-semibold text-gray-700">{CATEGORY_LABELS[category] || category}</h3>
-                  <span className="text-xs text-gray-400">{categoryProducts.length} {t('common.items')}</span>
+                  <span className="text-xs text-gray-400">{categoryProducts.length} {'items'}</span>
                 </div>
                 <div className="divide-y">
                   {categoryProducts.map((product) => (
@@ -429,11 +427,11 @@ export default function ProductsPage() {
                                 <span className="text-xs text-gray-400">{product.size}</span>
                               )}
                               {product.reorder_threshold > 0 && product.current_quantity <= product.reorder_threshold && (
-                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex-shrink-0">{t('lowStock.low')}</span>
+                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex-shrink-0">{'Low'}</span>
                               )}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                              <span>{t('common.quantity')}: <strong>{product.current_quantity || 0}</strong> {product.unit}</span>
+                              <span>{'Quantity'}: <strong>{product.current_quantity || 0}</strong> {product.unit}</span>
                               {product.cost_per_unit > 0 && (
                                 <span>${product.cost_per_unit.toFixed(2)}/{product.unit}</span>
                               )}
@@ -441,7 +439,7 @@ export default function ProductsPage() {
                                 <span className="text-gray-400">{product.supplier}</span>
                               )}
                               {product.product_url && (
-                                <a href={product.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600 text-xs">{t('lowStock.reorder')}</a>
+                                <a href={product.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600 text-xs">{'Reorder'}</a>
                               )}
                             </div>
                           </div>
@@ -454,19 +452,19 @@ export default function ProductsPage() {
                             }}
                             className="px-3 py-1 text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded"
                           >
-                            {t('products.adjustQty')}
+                            {'Adjust Qty'}
                           </button>
                           <button
                             onClick={() => handleOpenModal(product)}
                             className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded"
                           >
-                            {t('common.edit')}
+                            {'Edit'}
                           </button>
                           <button
                             onClick={() => handleDelete(product.id)}
                             className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
                           >
-                            {t('common.delete')}
+                            {'Delete'}
                           </button>
                         </div>
                       </div>
@@ -481,7 +479,7 @@ export default function ProductsPage() {
         {/* Business Insights Card */}
         {insights && insights.costBreakdown && (
           <div className="mt-6 bg-white rounded-lg p-6 shadow">
-            <h3 className="font-semibold text-gray-900 mb-4">{t('products.costBreakdown')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{'Cost Breakdown'}</h3>
             <div className="flex items-center gap-4">
               <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden flex">
                 <div
@@ -501,15 +499,15 @@ export default function ProductsPage() {
             <div className="flex justify-between mt-2 text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 bg-blue-500 rounded"></span>
-                {t('products.labor')} {insights.costBreakdown.labor}%
+                {'Labor'} {insights.costBreakdown.labor}%
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 bg-amber-500 rounded"></span>
-                {t('products.materials')} {insights.costBreakdown.materials}%
+                {'Materials'} {insights.costBreakdown.materials}%
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 bg-gray-400 rounded"></span>
-                {t('products.overhead')} {insights.costBreakdown.overhead}%
+                {'Overhead'} {insights.costBreakdown.overhead}%
               </span>
             </div>
           </div>
@@ -522,7 +520,7 @@ export default function ProductsPage() {
           <div className="bg-white rounded-t-2xl sm:rounded-lg w-full sm:max-w-md overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b sticky top-0 bg-white">
               <h2 className="text-lg font-semibold">
-                {editingProduct ? t('products.editProduct') : t('products.addProductTitle')}
+                {editingProduct ? 'Edit Product' : 'Add Product'}
               </h2>
             </div>
 
@@ -530,13 +528,13 @@ export default function ProductsPage() {
               {/* Paste Product Link */}
               {!editingProduct && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <label className="block text-sm font-medium text-blue-800 mb-1">{t('equipment.pasteProductLink')}</label>
+                  <label className="block text-sm font-medium text-blue-800 mb-1">{'Paste Product Link'}</label>
                   <div className="flex gap-2">
                     <input
                       type="url"
                       value={pasteUrl}
                       onChange={handlePasteUrlChange}
-                      placeholder={t('products.scrapePlaceholder')}
+                      placeholder={'https://www.chemicalguys.com/product...'}
                       className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 bg-white"
                     />
                     {pasteUrl && !scraping && (
@@ -545,20 +543,20 @@ export default function ProductsPage() {
                         onClick={() => handleScrapeUrl(pasteUrl)}
                         className="px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600"
                       >
-                        {t('products.fetchProductInfo')}
+                        {'Fetch'}
                       </button>
                     )}
                   </div>
                   {scraping && (
                     <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                       <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
-                      {t('products.extracting')}
+                      {'Extracting product info...'}
                     </p>
                   )}
                   {scrapeError && (
                     <p className="text-xs text-red-600 mt-1">{scrapeError}</p>
                   )}
-                  <p className="text-[10px] text-blue-500 mt-1">{t('products.supportedSites')}</p>
+                  <p className="text-[10px] text-blue-500 mt-1">{'Supports: Detail King, Autogeek, Amazon, Chemical Guys, P&S, and more'}</p>
                 </div>
               )}
 
@@ -566,39 +564,39 @@ export default function ProductsPage() {
               {formData.imageUrl && (
                 <div className="flex items-center gap-3">
                   <img src={formData.imageUrl} alt="" className="w-16 h-16 rounded-lg object-cover bg-gray-100 border" onError={(e) => { e.target.style.display = 'none'; }} />
-                  <button type="button" onClick={() => setFormData({ ...formData, imageUrl: '' })} className="text-xs text-gray-400 hover:text-red-500">{t('equipment.removeImage')}</button>
+                  <button type="button" onClick={() => setFormData({ ...formData, imageUrl: '' })} className="text-xs text-gray-400 hover:text-red-500">{'Remove image'}</button>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.productName')} *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Product Name'} *</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    placeholder={t('products.namePlaceholder')}
+                    placeholder={'e.g., M105 Ultra-Cut Compound'}
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('equipment.brand')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Brand'}</label>
                   <input
                     type="text"
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    placeholder={t('products.brandPlaceholder')}
+                    placeholder={'e.g., Meguiar\'s'}
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.size')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Size'}</label>
                   <input
                     type="text"
                     value={formData.size}
                     onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                    placeholder={t('products.sizePlaceholder')}
+                    placeholder={'e.g., 32 oz'}
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -606,7 +604,7 @@ export default function ProductsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.category')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Category'}</label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -618,7 +616,7 @@ export default function ProductsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.unit')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Unit'}</label>
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -633,7 +631,7 @@ export default function ProductsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.costPerUnit')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Cost per Unit ($)'}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -644,7 +642,7 @@ export default function ProductsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.currentQuantity')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{'Current Quantity'}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -657,35 +655,35 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.reorderThreshold')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{'Reorder Alert Threshold'}</label>
                 <input
                   type="number"
                   step="0.1"
                   value={formData.reorderThreshold}
                   onChange={(e) => setFormData({ ...formData, reorderThreshold: e.target.value })}
-                  placeholder={t('products.reorderAlertPlaceholder')}
+                  placeholder={'Alert when quantity falls below this'}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('products.supplier')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{'Supplier (optional)'}</label>
                 <input
                   type="text"
                   value={formData.supplier}
                   onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  placeholder={t('products.supplierPlaceholder')}
+                  placeholder={'e.g., Detail King, Amazon'}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.notes')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{'Notes'}</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={2}
-                  placeholder={t('products.optionalNotes')}
+                  placeholder={'Optional notes'}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 resize-none"
                 />
               </div>
@@ -696,14 +694,14 @@ export default function ProductsPage() {
                   onClick={handleCloseModal}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
-                  {t('common.cancel')}
+                  {'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !formData.name}
                   className="px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50"
                 >
-                  {saving ? t('common.saving') : editingProduct ? t('common.update') : t('products.addProduct')}
+                  {saving ? 'Saving...' : editingProduct ? 'Update' : '+ Add Product'}
                 </button>
               </div>
             </form>
@@ -716,9 +714,9 @@ export default function ProductsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-lg w-full sm:max-w-sm overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">{t('products.adjustInventory')}</h2>
+              <h2 className="text-lg font-semibold">{'Adjust Inventory'}</h2>
               <p className="text-sm text-gray-500">{showAdjustModal.name}</p>
-              <p className="text-xs text-gray-400">{t('products.current')}: {showAdjustModal.current_quantity} {showAdjustModal.unit}</p>
+              <p className="text-xs text-gray-400">{'Current'}: {showAdjustModal.current_quantity} {showAdjustModal.unit}</p>
             </div>
 
             <div className="p-6">
@@ -727,7 +725,7 @@ export default function ProductsPage() {
                 step="0.1"
                 value={adjustAmount}
                 onChange={(e) => setAdjustAmount(e.target.value)}
-                placeholder={t('common.amount')}
+                placeholder={'Amount'}
                 className="w-full border rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-amber-500"
               />
 
@@ -737,14 +735,14 @@ export default function ProductsPage() {
                   disabled={!adjustAmount}
                   className="px-4 py-2 bg-red-100 text-red-700 font-medium rounded-lg hover:bg-red-200 disabled:opacity-50"
                 >
-                  - {t('common.remove')}
+                  - {'Remove'}
                 </button>
                 <button
                   onClick={() => handleAdjustInventory(true)}
                   disabled={!adjustAmount}
                   className="px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg hover:bg-green-200 disabled:opacity-50"
                 >
-                  + {t('common.add')}
+                  + {'Add'}
                 </button>
               </div>
 
@@ -755,7 +753,7 @@ export default function ProductsPage() {
                 }}
                 className="w-full mt-3 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               >
-                {t('common.cancel')}
+                {'Cancel'}
               </button>
             </div>
           </div>
