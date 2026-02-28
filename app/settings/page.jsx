@@ -110,7 +110,8 @@ function SettingsContent() {
       router.push('/login');
       return;
     }
-    let u = JSON.parse(stored);
+    let u;
+    try { u = JSON.parse(stored); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
     setUser(u);
     // Refresh user data from server to get latest plan/permissions
     fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } })
@@ -221,9 +222,7 @@ function SettingsContent() {
       });
       const stored = localStorage.getItem('vector_user');
       if (stored) {
-        const u = JSON.parse(stored);
-        u.pass_fee_to_customer = val;
-        localStorage.setItem('vector_user', JSON.stringify(u));
+        try { const u = JSON.parse(stored); u.pass_fee_to_customer = val; localStorage.setItem('vector_user', JSON.stringify(u)); } catch {}
       }
     } catch (err) {
       console.error('Failed to save pass fee setting:', err);
@@ -415,9 +414,7 @@ function SettingsContent() {
         // Update local storage
         const stored = localStorage.getItem('vector_user');
         if (stored) {
-          const u = JSON.parse(stored);
-          u.currency = code;
-          localStorage.setItem('vector_user', JSON.stringify(u));
+          try { const u = JSON.parse(stored); u.currency = code; localStorage.setItem('vector_user', JSON.stringify(u)); } catch {}
         }
       }
     } catch (err) {
@@ -456,9 +453,7 @@ function SettingsContent() {
       });
       const stored = localStorage.getItem('vector_user');
       if (stored) {
-        const u = JSON.parse(stored);
-        u.language = code;
-        localStorage.setItem('vector_user', JSON.stringify(u));
+        try { const u = JSON.parse(stored); u.language = code; localStorage.setItem('vector_user', JSON.stringify(u)); } catch {}
       }
     } catch (err) {
       console.error('Failed to save language:', err);

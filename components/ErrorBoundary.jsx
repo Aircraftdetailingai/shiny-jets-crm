@@ -12,7 +12,20 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('ErrorBoundary caught:', error, info);
+    console.error('App Error:', error, info);
+    // Log to help debug mobile crashes
+    try {
+      const errorLog = JSON.parse(localStorage.getItem('vector_error_log') || '[]');
+      errorLog.unshift({
+        message: error?.message,
+        stack: error?.stack?.slice(0, 500),
+        component: info?.componentStack?.slice(0, 300),
+        time: new Date().toISOString(),
+        url: window.location.href,
+        ua: navigator.userAgent,
+      });
+      localStorage.setItem('vector_error_log', JSON.stringify(errorLog.slice(0, 5)));
+    } catch {}
   }
 
   handleRetry = () => {
@@ -30,9 +43,14 @@ export default class ErrorBoundary extends Component {
               </svg>
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
-            <p className="text-gray-500 text-sm mb-6">
+            <p className="text-gray-500 text-sm mb-2">
               An unexpected error occurred. Please try again or reload the page.
             </p>
+            {this.state.error?.message && (
+              <p className="text-red-400 text-xs bg-red-50 rounded p-2 mb-4 font-mono break-all">
+                {this.state.error.message}
+              </p>
+            )}
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleRetry}

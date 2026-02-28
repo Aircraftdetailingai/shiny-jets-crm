@@ -6,11 +6,12 @@ export default function OfflineBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const goOffline = () => setOffline(true);
     const goOnline = () => { setOffline(false); setDismissed(false); };
 
     // Check initial state
-    if (!navigator.onLine) setOffline(true);
+    if (typeof navigator !== 'undefined' && !navigator.onLine) setOffline(true);
 
     window.addEventListener('offline', goOffline);
     window.addEventListener('online', goOnline);

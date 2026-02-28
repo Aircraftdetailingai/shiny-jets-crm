@@ -21,7 +21,7 @@ export default function ROIPage() {
       router.push('/login');
       return;
     }
-    setUser(JSON.parse(stored));
+    try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
     setLoading(false);
 
     // Check for testimonial prompt

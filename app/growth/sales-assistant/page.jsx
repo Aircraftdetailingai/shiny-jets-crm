@@ -189,7 +189,7 @@ export default function SalesAssistantPage() {
   };
 
   const copyScript = (text, idx) => {
-    navigator.clipboard.writeText(text);
+    try { navigator.clipboard?.writeText(text); } catch {}
     setCopied(idx);
     setTimeout(() => setCopied(null), 2000);
   };

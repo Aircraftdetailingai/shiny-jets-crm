@@ -19,7 +19,7 @@ export default function EmbedSettingsPage() {
       router.push('/login');
       return;
     }
-    setUser(JSON.parse(stored));
+    try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
   }, [router]);
 
   const detailerId = user?.id || 'YOUR_DETAILER_ID';

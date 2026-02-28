@@ -243,7 +243,7 @@ export default function LeadIntakeSettingsPage() {
   };
 
   const copyWidgetCode = () => {
-    navigator.clipboard.writeText(getWidgetCode());
+    try { navigator.clipboard?.writeText(getWidgetCode()); } catch {}
     alert('Copied to clipboard');
   };
 

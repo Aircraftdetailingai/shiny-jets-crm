@@ -226,7 +226,7 @@ export default function GlobalSearch() {
                   const config = TYPE_CONFIG[type];
                   return (
                     <div key={type} className="mb-2">
-                      <p className="text-xs text-gray-500 px-1 mb-1 uppercase tracking-wider">{t(config.labelKey)}s</p>
+                      <p className="text-xs text-gray-500 px-1 mb-1 uppercase tracking-wider">{type}s</p>
                       {typed.map((result) => {
                         const globalIdx = results.indexOf(result);
                         return (

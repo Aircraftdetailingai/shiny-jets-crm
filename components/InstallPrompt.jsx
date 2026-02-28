@@ -8,11 +8,15 @@ export default function InstallPrompt() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     // Check if already installed as PWA
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-      setIsInstalled(true);
-      return;
-    }
+    try {
+      if (window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone) {
+        setIsInstalled(true);
+        return;
+      }
+    } catch {}
 
     // Check if dismissed within the last 7 days
     const dismissed = localStorage.getItem('pwa_install_dismissed');
@@ -23,7 +27,7 @@ export default function InstallPrompt() {
     }
 
     // Detect iOS
-    const ua = window.navigator.userAgent;
+    const ua = window.navigator?.userAgent || '';
     const isiOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
     setIsIOS(isiOS);
 

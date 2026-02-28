@@ -80,7 +80,7 @@ export default function QuoteFormWithLimits({ children, onQuoteCreated }) {
   } = useQuoteLimits();
 
   const user = typeof window !== 'undefined'
-    ? JSON.parse(localStorage.getItem('vector_user') || '{}')
+    ? (() => { try { return JSON.parse(localStorage.getItem('vector_user') || '{}'); } catch { return {}; } })()
     : {};
 
   // Show usage banner

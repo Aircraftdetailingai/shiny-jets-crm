@@ -103,7 +103,8 @@ function NewQuoteContent() {
       router.push('/login');
       return;
     }
-    const parsedUser = JSON.parse(stored);
+    let parsedUser;
+    try { parsedUser = JSON.parse(stored); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
     setUser(parsedUser);
     setLoading(false);
 

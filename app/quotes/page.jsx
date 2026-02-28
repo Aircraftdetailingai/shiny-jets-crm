@@ -679,7 +679,7 @@ export default function QuotesPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigator.clipboard.writeText(`${window.location.origin}/q/${quote.share_link}`);
+                    try { navigator.clipboard?.writeText(`${window.location.origin}/q/${quote.share_link}`); } catch {}
                   }}
                   className="text-gray-600 hover:text-gray-900 text-xs"
                 >
