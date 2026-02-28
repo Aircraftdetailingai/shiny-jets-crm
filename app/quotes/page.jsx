@@ -674,7 +674,7 @@ export default function QuotesPage() {
                   onClick={(e) => e.stopPropagation()}
                   className="text-blue-600 hover:underline text-xs"
                 >
-                  {'View'}
+                  View
                 </a>
                 <button
                   onClick={(e) => {
@@ -683,7 +683,7 @@ export default function QuotesPage() {
                   }}
                   className="text-gray-600 hover:text-gray-900 text-xs"
                 >
-                  {'Copy'}
+                  Copy
                 </button>
               </>
             )}
@@ -703,7 +703,7 @@ export default function QuotesPage() {
               }}
               className="text-green-600 hover:text-green-800 text-xs font-medium"
             >
-              {'Duplicate'}
+              Duplicate
             </button>
             {status === 'paid' && (
               <>
@@ -714,7 +714,7 @@ export default function QuotesPage() {
                   }}
                   className="text-amber-600 hover:text-amber-800 text-xs font-medium"
                 >
-                  {'+Change'}
+                  +Change
                 </button>
                 <button
                   onClick={(e) => {
@@ -723,7 +723,7 @@ export default function QuotesPage() {
                   }}
                   className="text-purple-600 hover:text-purple-800 text-xs font-medium"
                 >
-                  {'Complete'}
+                  Complete
                 </button>
               </>
             )}
@@ -743,7 +743,7 @@ export default function QuotesPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner message={'Loading...'} />;
+    return <LoadingSpinner message="Loading..." />;
   }
 
   return (
@@ -752,7 +752,7 @@ export default function QuotesPage() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 text-white">
         <div className="flex items-center space-x-4">
           <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
-          <h1 className="text-xl sm:text-2xl font-bold">{'Quotes'}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Quotes</h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <ExportGate plan={userPlan}>
@@ -775,7 +775,7 @@ export default function QuotesPage() {
                 disabled={quotes.length === 0}
                 className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 text-sm"
               >
-                {'Export CSV'}
+                Export CSV
               </button>
               <button
                 onClick={async () => {
@@ -790,7 +790,7 @@ export default function QuotesPage() {
                 }}
                 className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 text-sm"
               >
-                {'Export Customers'}
+                Export Customers
               </button>
             </div>
           </ExportGate>
@@ -798,7 +798,7 @@ export default function QuotesPage() {
             href="/dashboard"
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90"
           >
-            {'New Quote'}
+            New Quote
           </a>
         </div>
       </header>
@@ -806,30 +806,30 @@ export default function QuotesPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 mb-6">
         <div className="bg-white rounded-lg p-4 shadow">
-          <p className="text-gray-500 text-sm">{'Total'}</p>
+          <p className="text-gray-500 text-sm">Total</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
         </div>
         <div className="bg-white rounded-lg p-4 shadow">
-          <p className="text-gray-500 text-sm">{'Active'}</p>
+          <p className="text-gray-500 text-sm">Active</p>
           <p className="text-2xl font-bold text-amber-600">{stats.active}</p>
         </div>
         <div className="bg-white rounded-lg p-4 shadow">
-          <p className="text-gray-500 text-sm">{'Paid'}</p>
+          <p className="text-gray-500 text-sm">Paid</p>
           <p className="text-2xl font-bold text-green-600">{stats.paid}</p>
         </div>
         <div className="bg-white rounded-lg p-4 shadow">
-          <p className="text-gray-500 text-sm">{'Completed'}</p>
+          <p className="text-gray-500 text-sm">Completed</p>
           <p className="text-2xl font-bold text-purple-600">{stats.completed}</p>
         </div>
         <div className="bg-white rounded-lg p-4 shadow">
-          <p className="text-gray-500 text-sm">{'Revenue'}</p>
+          <p className="text-gray-500 text-sm">Revenue</p>
           <p className="text-2xl font-bold text-blue-600">{currencySymbol()}{formatPriceWhole(stats.revenue)}</p>
         </div>
         <div className="bg-white rounded-lg p-4 shadow">
-          <p className="text-gray-500 text-sm">{'Gross Profit'}</p>
+          <p className="text-gray-500 text-sm">Gross Profit</p>
           <p className="text-2xl font-bold text-green-600">{currencySymbol()}{formatPriceWhole(stats.revenue - stats.productCost)}</p>
           {stats.revenue > 0 && (
-            <p className="text-xs text-gray-400">{((1 - stats.productCost / stats.revenue) * 100).toFixed(0)}{'% margin'}</p>
+            <p className="text-xs text-gray-400">{((1 - stats.productCost / stats.revenue) * 100).toFixed(0)}% margin</p>
           )}
         </div>
       </div>
@@ -860,10 +860,10 @@ export default function QuotesPage() {
         <div className="bg-white border border-amber-300 rounded-lg px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-900">
-              {selectedIds.size} {'selected'}
+              {selectedIds.size} selected
             </span>
             <button onClick={clearSelection} className="text-xs text-gray-500 hover:text-gray-700 underline">
-              {'Clear'}
+              Clear
             </button>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -872,14 +872,14 @@ export default function QuotesPage() {
               disabled={bulkProcessing}
               className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:opacity-50"
             >
-              {'Send All'}
+              Send All
             </button>
             <button
               onClick={() => setBulkConfirm({ action: 'expire', label: `Mark ${selectedIds.size} quote(s) as expired?`, description: 'This will change their status to expired.' })}
               disabled={bulkProcessing}
               className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-50"
             >
-              {'Expire Selected'}
+              Expire Selected
             </button>
             <ExportGate plan={userPlan}>
               <button
@@ -887,7 +887,7 @@ export default function QuotesPage() {
                 disabled={bulkProcessing}
                 className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 disabled:opacity-50"
               >
-                {'Export CSV'}
+                Export CSV
               </button>
             </ExportGate>
             <button
@@ -895,7 +895,7 @@ export default function QuotesPage() {
               disabled={bulkProcessing}
               className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 disabled:opacity-50"
             >
-              {'Delete Selected'}
+              Delete Selected
             </button>
           </div>
         </div>
@@ -906,14 +906,14 @@ export default function QuotesPage() {
         tableId="detailer"
         data={filteredQuotes}
         columns={columns}
-        emptyMessage={'No results found'}
+        emptyMessage="No results found"
       />
 
       {/* Complete Job Modal */}
       {completeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">{'Complete Job'}</h3>
+            <h3 className="text-lg font-semibold mb-4">Complete Job</h3>
             <p className="text-gray-600 mb-4">
               {completeModal.aircraft_model || completeModal.aircraft_type}
               {completeModal.client_name && ` - ${completeModal.client_name}`}
@@ -936,7 +936,7 @@ export default function QuotesPage() {
                 {completeModal.emergency_contact_name && (
                   <div className="flex items-center justify-between pt-1 border-t">
                     <div>
-                      <span className="text-xs text-red-600 font-semibold uppercase">{'Emergency'}: </span>
+                      <span className="text-xs text-red-600 font-semibold uppercase">Emergency: </span>
                       <span className="font-medium">{completeModal.emergency_contact_name}</span>
                     </div>
                     {completeModal.emergency_contact_phone && (
@@ -951,7 +951,7 @@ export default function QuotesPage() {
               {/* Per-Service Hours Breakdown */}
               {serviceHours.length > 0 ? (
                 <div>
-                  <label className="block text-sm font-medium mb-2">{'Actual Hours'} {'Per Service *'}</label>
+                  <label className="block text-sm font-medium mb-2">Actual Hours Per Service</label>
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {serviceHours.map((sh, idx) => (
                       <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
@@ -974,20 +974,20 @@ export default function QuotesPage() {
                             }}
                             className="w-20 border rounded px-2 py-1.5 text-sm text-right"
                           />
-                          <span className="text-xs text-gray-500">{'h'}</span>
+                          <span className="text-xs text-gray-500">h</span>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                    <span className="text-sm font-medium text-gray-700">{'Total Hours'}</span>
+                    <span className="text-sm font-medium text-gray-700">Total Hours</span>
                     <span className="text-lg font-bold text-gray-900">{parseFloat(completionData.actual_hours || 0).toFixed(1)}h</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
                     {`Quote estimate: ${completeModal.total_hours?.toFixed(1) || "0"} hours`}
                     {completeModal.total_hours && parseFloat(completionData.actual_hours) !== completeModal.total_hours && (
                       <span className={parseFloat(completionData.actual_hours) > completeModal.total_hours ? ' text-red-500' : ' text-green-500'}>
-                        {' '}({parseFloat(completionData.actual_hours) > completeModal.total_hours ? '+' : ''}
+                         ({parseFloat(completionData.actual_hours) > completeModal.total_hours ? '+' : ''}
                         {(parseFloat(completionData.actual_hours) - completeModal.total_hours).toFixed(1)}h)
                       </span>
                     )}
@@ -995,7 +995,7 @@ export default function QuotesPage() {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium mb-1">{'Actual Hours'} {'Worked *'}</label>
+                  <label className="block text-sm font-medium mb-1">Actual Hours Worked</label>
                   <input
                     type="number"
                     step="0.25"
@@ -1013,7 +1013,7 @@ export default function QuotesPage() {
               {/* Product estimates from quote */}
               {completeModal.product_estimates && completeModal.product_estimates.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-blue-800 mb-1">{'Estimated Products'} {'(from quote)'}</p>
+                  <p className="text-sm font-medium text-blue-800 mb-1">Estimated Products (from quote)</p>
                   <div className="space-y-0.5">
                     {completeModal.product_estimates.map((e, i) => (
                       <div key={i} className="flex justify-between text-sm">
@@ -1026,7 +1026,7 @@ export default function QuotesPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium mb-1">{'Products Used'}</label>
+                <label className="block text-sm font-medium mb-1">Products Used</label>
                 {inventoryProducts.length > 0 ? (
                   <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                     {selectedProducts.map((sp, idx) => (
@@ -1040,7 +1040,7 @@ export default function QuotesPage() {
                           }}
                           className="flex-1 border rounded px-2 py-1.5 text-sm"
                         >
-                          <option value="">{'Select product...'}</option>
+                          <option value="">Select product...</option>
                           {inventoryProducts.map(p => (
                             <option key={p.id} value={p.id}>{p.name} ({p.current_quantity} {p.unit})</option>
                           ))}
@@ -1061,7 +1061,7 @@ export default function QuotesPage() {
                             });
                             setCompletionData(prev => ({ ...prev, product_cost: totalCost.toFixed(2) }));
                           }}
-                          placeholder={'Qty'}
+                          placeholder="Qty"
                           className="w-20 border rounded px-2 py-1.5 text-sm text-right"
                         />
                         <button
@@ -1075,9 +1075,9 @@ export default function QuotesPage() {
                       type="button"
                       onClick={() => setSelectedProducts([...selectedProducts, { product_id: '', amount: '' }])}
                       className="text-sm text-amber-600 hover:underline"
-                    >{'Add Product'}</button>
+                    >Add Product</button>
                     {selectedProducts.length > 0 && completionData.product_cost && (
-                      <p className="text-xs text-gray-500 mt-1">{'Estimated material cost:'} {currencySymbol()}{completionData.product_cost}</p>
+                      <p className="text-xs text-gray-500 mt-1">Estimated material cost: {currencySymbol()}{completionData.product_cost}</p>
                     )}
                   </div>
                 ) : (
@@ -1091,17 +1091,17 @@ export default function QuotesPage() {
                       placeholder="0.00"
                       className="w-32 border rounded px-3 py-2"
                     />
-                    <a href="/products" className="text-xs text-amber-600 hover:underline">{'Add products to track inventory'}</a>
+                    <a href="/products" className="text-xs text-amber-600 hover:underline">Add products to track inventory</a>
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">{'Notes'} ({'Optional'.toLowerCase()})</label>
+                <label className="block text-sm font-medium mb-1">Notes (optional)</label>
                 <textarea
                   value={completionData.notes}
                   onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })}
-                  placeholder={'Any notes about this job...'}
+                  placeholder="Any notes about this job..."
                   className="w-full border rounded px-3 py-2"
                   rows={2}
                 />
@@ -1110,13 +1110,13 @@ export default function QuotesPage() {
               {/* Smart Tracking Section */}
               <div className="border-t pt-4 mt-4">
                 <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                  <span>{'Track Hidden Costs'}</span>
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{'+Points'}</span>
+                  <span>Track Hidden Costs</span>
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">+Points</span>
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">{'Wait Time (min)'}</label>
+                    <label className="block text-sm text-gray-600 mb-1">Wait Time (min)</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -1125,7 +1125,7 @@ export default function QuotesPage() {
                         placeholder="0"
                         className="w-20 border rounded px-2 py-1.5 text-sm"
                       />
-                      <span className="text-xs text-gray-500">{'mins'}</span>
+                      <span className="text-xs text-gray-500">mins</span>
                     </div>
                   </div>
 
@@ -1137,7 +1137,7 @@ export default function QuotesPage() {
                         onChange={(e) => setCompletionData({ ...completionData, repositioning_needed: e.target.checked })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm text-gray-600">{'Repositioning needed'}</span>
+                      <span className="text-sm text-gray-600">Repositioning needed</span>
                     </label>
                   </div>
 
@@ -1149,24 +1149,24 @@ export default function QuotesPage() {
                         onChange={(e) => setCompletionData({ ...completionData, customer_late: e.target.checked })}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm text-gray-600">{'Customer was late'}</span>
+                      <span className="text-sm text-gray-600">Customer was late</span>
                     </label>
                   </div>
                 </div>
 
                 <div className="mt-3">
-                  <label className="block text-sm text-gray-600 mb-1">{'Issues'} ({'Optional'.toLowerCase()})</label>
+                  <label className="block text-sm text-gray-600 mb-1">Issues (optional)</label>
                   <textarea
                     value={completionData.issues}
                     onChange={(e) => setCompletionData({ ...completionData, issues: e.target.value })}
-                    placeholder={'Access problems, condition notes, etc...'}
+                    placeholder="Access problems, condition notes, etc..."
                     className="w-full border rounded px-3 py-2 text-sm"
                     rows={2}
                   />
                 </div>
 
                 <p className="text-xs text-gray-400 mt-2">
-                  {'Tracking this data earns points and helps identify problem customers.'}
+                  Tracking this data earns points and helps identify problem customers.
                 </p>
               </div>
             </div>
@@ -1176,7 +1176,7 @@ export default function QuotesPage() {
                 onClick={() => setCompleteModal(null)}
                 className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
               >
-                {'Cancel'}
+                Cancel
               </button>
               <button
                 onClick={completeJob}
@@ -1203,7 +1203,7 @@ export default function QuotesPage() {
                 disabled={bulkProcessing}
                 className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                {'Cancel'}
+                Cancel
               </button>
               <button
                 onClick={() => executeBulkAction(bulkConfirm.action)}
@@ -1225,9 +1225,9 @@ export default function QuotesPage() {
       {duplicateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2">{'Duplicate Quote'}</h3>
+            <h3 className="text-lg font-semibold mb-2">Duplicate Quote</h3>
             <p className="text-gray-600 mb-4">
-              {'Create a copy of this quote with new customer details.'}
+              Create a copy of this quote with new customer details.
             </p>
 
             {/* Source quote summary */}
@@ -1254,17 +1254,17 @@ export default function QuotesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{'Client Name'}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
                 <input
                   type="text"
                   value={duplicateData.client_name}
                   onChange={(e) => setDuplicateData({ ...duplicateData, client_name: e.target.value })}
-                  placeholder={'Client Name'}
+                  placeholder="Client Name"
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{'Client Email'}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Email</label>
                 <input
                   type="email"
                   value={duplicateData.client_email}
@@ -1274,7 +1274,7 @@ export default function QuotesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{'Phone'} ({'Optional'.toLowerCase()})</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
                 <input
                   type="tel"
                   value={duplicateData.client_phone}
@@ -1284,11 +1284,11 @@ export default function QuotesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{'Notes'} ({'Optional'.toLowerCase()})</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
                 <textarea
                   value={duplicateData.notes}
                   onChange={(e) => setDuplicateData({ ...duplicateData, notes: e.target.value })}
-                  placeholder={'Add notes for this quote...'}
+                  placeholder="Add notes for this quote..."
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
                   rows={2}
                 />
@@ -1300,7 +1300,7 @@ export default function QuotesPage() {
                 onClick={() => setDuplicateModal(null)}
                 className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
               >
-                {'Cancel'}
+                Cancel
               </button>
               <button
                 onClick={submitDuplicate}
@@ -1317,7 +1317,7 @@ export default function QuotesPage() {
       {changeOrderModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2">{'Change Order'}</h3>
+            <h3 className="text-lg font-semibold mb-2">Change Order</h3>
             <p className="text-gray-600 mb-4">
               {changeOrderModal.aircraft_model || changeOrderModal.aircraft_type}
               {changeOrderModal.client_name && ` - ${changeOrderModal.client_name}`}
@@ -1325,20 +1325,20 @@ export default function QuotesPage() {
 
             <div className="bg-gray-50 p-3 rounded mb-4">
               <p className="text-sm text-gray-600">
-                <strong>{'Current Quote Total:'}</strong> {currencySymbol()}{formatPrice(changeOrderModal.total_price)}
+                <strong>Current Quote Total:</strong> {currencySymbol()}{formatPrice(changeOrderModal.total_price)}
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium">{'Additional Services'}</label>
+                  <label className="block text-sm font-medium">Additional Services</label>
                   <button
                     type="button"
                     onClick={addChangeOrderService}
                     className="text-amber-600 hover:text-amber-700 text-sm font-medium"
                   >
-                    {'+ Add Service'}
+                    + Add Service
                   </button>
                 </div>
                 {changeOrderData.services.map((service, idx) => (
@@ -1347,7 +1347,7 @@ export default function QuotesPage() {
                       type="text"
                       value={service.name}
                       onChange={(e) => updateChangeOrderService(idx, 'name', e.target.value)}
-                      placeholder={'Service name'}
+                      placeholder="Service name"
                       className="flex-1 border rounded px-3 py-2"
                     />
                     <div className="flex items-center">
@@ -1375,11 +1375,11 @@ export default function QuotesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">{'Reason'} / {'Note for Customer'}</label>
+                <label className="block text-sm font-medium mb-1">Reason / Note for Customer</label>
                 <textarea
                   value={changeOrderData.reason}
                   onChange={(e) => setChangeOrderData({ ...changeOrderData, reason: e.target.value })}
-                  placeholder={'Explain why these additional services are needed...'}
+                  placeholder="Explain why these additional services are needed..."
                   className="w-full border rounded px-3 py-2"
                   rows={3}
                 />
@@ -1388,14 +1388,14 @@ export default function QuotesPage() {
               {/* Summary */}
               <div className="bg-amber-50 border border-amber-200 p-3 rounded">
                 <div className="flex justify-between text-sm mb-1">
-                  <span>{'Additional Amount:'}</span>
+                  <span>Additional Amount:</span>
                   <span className="font-semibold">
                     {currencySymbol()}{formatPrice(changeOrderData.services
                       .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0))}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-bold">
-                  <span>{'New Total'}:</span>
+                  <span>New Total:</span>
                   <span>
                     {currencySymbol()}{formatPrice((parseFloat(changeOrderModal.total_price) || 0) +
                       changeOrderData.services.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0))}
@@ -1409,7 +1409,7 @@ export default function QuotesPage() {
                 onClick={() => setChangeOrderModal(null)}
                 className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
               >
-                {'Cancel'}
+                Cancel
               </button>
               <button
                 onClick={submitChangeOrder}

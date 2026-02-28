@@ -9,21 +9,20 @@ import AddCustomerModal from '../../components/AddCustomerModal.jsx';
 import { formatPriceWhole, currencySymbol } from '../../lib/formatPrice';
 import DashboardTour from '../../components/DashboardTour.jsx';
 import DashboardLanguageSelector from '../../components/DashboardLanguageSelector.jsx';
-import { useTranslation } from '@/lib/i18n';
+
 
 // Stripe Connect Warning Banner Component
 function StripeWarningBanner({ onConnect, loading, error, onClearError, status }) {
-  const { t } = useTranslation();
   const isDisconnected = status === 'INCOMPLETE' || status === 'PENDING';
   const bgColor = isDisconnected ? 'bg-red-50 border-red-300' : 'bg-amber-100 border-amber-300';
   const iconColor = isDisconnected ? 'text-red-600' : 'text-amber-600';
   const titleColor = isDisconnected ? 'text-red-800' : 'text-amber-800';
   const msgColor = isDisconnected ? 'text-red-700' : 'text-amber-700';
-  const title = isDisconnected ? t('stripe.disconnected') : t('stripe.notConnected');
+  const title = isDisconnected ? 'Stripe disconnected - payments disabled' : 'Stripe not connected';
   const msg = isDisconnected
-    ? t('stripe.disabledMsg')
-    : t('stripe.connectMsg');
-  const btnLabel = isDisconnected ? t('stripe.reconnect') : t('stripe.connect');
+    ? 'Online payments are currently disabled. Quotes can still be sent but customers cannot pay online.'
+    : 'You cannot receive payments until you connect Stripe.';
+  const btnLabel = isDisconnected ? 'Reconnect Stripe' : 'Connect Stripe';
 
   return (
     <div className={`${bgColor} border rounded-lg p-4 mb-4`}>
@@ -46,7 +45,7 @@ function StripeWarningBanner({ onConnect, loading, error, onClearError, status }
           disabled={loading}
           className="px-4 py-2 rounded bg-amber-500 text-white font-medium hover:bg-amber-600 disabled:opacity-50"
         >
-          {loading ? t('common.connecting') : btnLabel}
+          {loading ? 'Connecting...' : btnLabel}
         </button>
       </div>
     </div>
@@ -55,7 +54,6 @@ function StripeWarningBanner({ onConnect, loading, error, onClearError, status }
 
 // Expiring Quotes Widget
 function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
-  const { t } = useTranslation();
   const [extending, setExtending] = useState(null);
 
   if (expiring.length === 0 && expired.length === 0) return null;
@@ -87,7 +85,7 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
     if (diff > 0 && diff < 24) return `${diff}h left`;
     if (diff <= 0) {
       const daysAgo = Math.abs(Math.floor(diff / 24));
-      return daysAgo === 0 ? t('common.today') : `${daysAgo}d ago`;
+      return daysAgo === 0 ? 'Today' : `${daysAgo}d ago`;
     }
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -98,14 +96,14 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
       {expiring.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <h3 className="font-semibold text-sm text-amber-900 mb-2 flex items-center gap-2">
-            <span>&#9200;</span> {t('dashboard.expiringSoon')} ({expiring.length})
+            <span>&#9200;</span> Expiring Soon ({expiring.length})
           </h3>
           <div className="space-y-2">
             {expiring.map((q) => (
               <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{q.client_name || t('common.customer')}</p>
-                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || t('common.aircraft')} &#183; {currencySymbol()}{(q.total_price || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-gray-900">{q.client_name || 'Customer'}</p>
+                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; {currencySymbol()}{(q.total_price || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-amber-600 font-medium">{formatExpiry(q.valid_until)}</span>
@@ -114,7 +112,7 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
                     disabled={extending === q.id}
                     className="px-3 py-2 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 font-medium min-h-[36px]"
                   >
-                    {extending === q.id ? '...' : t('dashboard.extendDays')}
+                    {extending === q.id ? '...' : '+7 Days'}
                   </button>
                 </div>
               </div>
@@ -127,14 +125,14 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
       {expired.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h3 className="font-semibold text-sm text-red-900 mb-2 flex items-center gap-2">
-            <span>&#128683;</span> {t('dashboard.recentlyExpired')} ({expired.length})
+            <span>&#128683;</span> Recently Expired ({expired.length})
           </h3>
           <div className="space-y-2">
             {expired.slice(0, 5).map((q) => (
               <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{q.client_name || t('common.customer')}</p>
-                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || t('common.aircraft')} &#183; {currencySymbol()}{(q.total_price || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-gray-900">{q.client_name || 'Customer'}</p>
+                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; {currencySymbol()}{(q.total_price || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-red-500">{formatExpiry(q.valid_until)}</span>
@@ -143,7 +141,7 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
                     disabled={extending === q.id}
                     className="px-3 py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 font-medium min-h-[36px]"
                   >
-                    {extending === q.id ? '...' : t('dashboard.reactivate')}
+                    {extending === q.id ? '...' : 'Reactivate'}
                   </button>
                 </div>
               </div>
@@ -157,7 +155,6 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
 
 function DashboardContent() {
   const router = useRouter();
-  const { t } = useTranslation();
   const { success: toastSuccess } = useToast();
   const [user, setUser] = useState(null);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -282,7 +279,7 @@ function DashboardContent() {
     try {
       const token = localStorage.getItem('vector_token');
       if (!token) {
-        setStripeError(t('errors.notLoggedIn'));
+        setStripeError('Not logged in - please refresh and try again');
         return;
       }
       const res = await fetch('/api/stripe/connect', {
@@ -304,7 +301,7 @@ function DashboardContent() {
       }
     } catch (err) {
       console.error('Failed to connect Stripe:', err);
-      setStripeError(t('errors.networkError', { error: err.message }));
+      setStripeError(`Network error: ${err.message}`);
     } finally {
       setStripeLoading(false);
     }
@@ -317,7 +314,7 @@ function DashboardContent() {
   };
 
   if (loading) {
-    return <LoadingSpinner message={t('dashboard.loadingDashboard')} />;
+    return <LoadingSpinner message="Loading dashboard..." />;
   }
 
   return (
@@ -327,7 +324,7 @@ function DashboardContent() {
       <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-1 bg-gradient-to-b from-[#0f172a] via-[#0f172a] to-transparent flex justify-between items-center text-white">
         <div className="flex items-center space-x-2 text-xl sm:text-2xl font-bold">
           <span>&#9992;</span>
-          <span>{t('dashboard.title')}</span>
+          <span>Vector</span>
           {user && <span className="text-sm sm:text-lg font-medium hidden sm:inline">- {user.company}</span>}
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-sm">
@@ -336,12 +333,12 @@ function DashboardContent() {
           <NotificationBell />
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center space-x-4">
-            <a href="/quotes" className="underline">{t('nav.quotes')}</a>
-            <a href="/calendar" className="underline" data-tour="nav-calendar">{t('nav.calendar')}</a>
-            <a href="/customers" className="underline">{t('nav.customers')}</a>
-            <a href="/team" className="underline">{t('nav.team')}</a>
-            <a href="/settings" className="underline" data-tour="nav-settings">{t('nav.settings')}</a>
-            <button onClick={handleLogout} className="underline">{t('common.logout')}</button>
+            <a href="/quotes" className="underline">Quotes</a>
+            <a href="/calendar" className="underline" data-tour="nav-calendar">Calendar</a>
+            <a href="/customers" className="underline">Customers</a>
+            <a href="/team" className="underline">Team</a>
+            <a href="/settings" className="underline" data-tour="nav-settings">Settings</a>
+            <button onClick={handleLogout} className="underline">Logout</button>
           </div>
           {/* Mobile hamburger menu */}
           <div className="md:hidden relative">
@@ -357,15 +354,15 @@ function DashboardContent() {
             {mobileMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-48 bg-[#1e3a5f] rounded-lg shadow-xl border border-white/10 py-2 z-50">
                 {[
-                  { href: '/quotes', label: t('nav.quotes') },
-                  { href: '/calendar', label: t('nav.calendar') },
-                  { href: '/customers', label: t('nav.customers') },
-                  { href: '/team', label: t('nav.team') },
-                  { href: '/settings', label: t('nav.settings') },
+                  { href: '/quotes', label: 'Quotes' },
+                  { href: '/calendar', label: 'Calendar' },
+                  { href: '/customers', label: 'Customers' },
+                  { href: '/team', label: 'Team' },
+                  { href: '/settings', label: 'Settings' },
                 ].map(link => (
                   <a key={link.href} href={link.href} className="block px-4 py-3 hover:bg-white/10 text-sm">{link.label}</a>
                 ))}
-                <button onClick={handleLogout} className="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm border-t border-white/10">{t('common.logout')}</button>
+                <button onClick={handleLogout} className="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm border-t border-white/10">Logout</button>
               </div>
             )}
           </div>
@@ -389,15 +386,15 @@ function DashboardContent() {
           <div className="flex items-center">
             <span className="text-blue-600 text-xl mr-3">&#9432;</span>
             <div>
-              <p className="text-blue-800 font-medium">{t('dashboard.setupServiceMenu')}</p>
-              <p className="text-blue-700 text-sm">{t('dashboard.addServicesDesc')}</p>
+              <p className="text-blue-800 font-medium">Set up your service menu</p>
+              <p className="text-blue-700 text-sm">Add services you offer to start building quotes.</p>
             </div>
           </div>
           <a
             href="/settings/services"
             className="px-4 py-3 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 min-h-[44px] whitespace-nowrap"
           >
-            {t('dashboard.addServicesToStart')}
+            Add services to get started
           </a>
         </div>
       )}
@@ -410,19 +407,19 @@ function DashboardContent() {
         {/* ── Key Business Metrics ── */}
         <div data-tour="quick-stats">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-white">{t('dashboard.businessOverview')}</h2>
-            <a href="/analytics" className="text-sm text-amber-400 hover:underline">{t('dashboard.viewAnalytics')}</a>
+            <h2 className="text-lg font-bold text-white">Business Overview</h2>
+            <a href="/analytics" className="text-sm text-amber-400 hover:underline">View Full Analytics</a>
           </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.totalRevenue')}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wide">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">{currencySymbol()}{(quickStats?.monthRevenue || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-400 mt-1">{t('dashboard.thisMonth')}</p>
+              <p className="text-xs text-gray-400 mt-1">This Month</p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.conversionRate')}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wide">Conversion Rate</p>
               <p className="text-2xl font-bold text-emerald-600">
                 {quickStats?.allTime ? (
                   (quickStats.allTime.quotes || 0) > 0
@@ -431,22 +428,22 @@ function DashboardContent() {
                 ) : '--'}
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                {quickStats?.allTime ? `${quickStats.allTime.booked || 0} ${t('dashboard.booked')} / ${quickStats.allTime.quotes || 0} ${t('dashboard.sent').toLowerCase()}` : ''}
+                {quickStats?.allTime ? `${quickStats.allTime.booked || 0} Booked / ${quickStats.allTime.quotes || 0} sent` : ''}
               </p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.outstanding')}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wide">Outstanding</p>
               <p className="text-2xl font-bold text-red-500">{quickStats?.outstandingInvoices || 0}</p>
               <p className="text-xs text-gray-400 mt-1">{currencySymbol()}{(quickStats?.outstandingTotal || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.avgJobValue')}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wide">Avg Job Value</p>
               <p className="text-2xl font-bold text-blue-600">{currencySymbol()}{formatPriceWhole(quickStats?.avgJobValue)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">{t('dashboard.jobsCompleted')}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wide">Jobs Completed</p>
               <p className="text-2xl font-bold text-emerald-600">{quickStats?.monthJobs || 0}</p>
-              <p className="text-xs text-gray-400 mt-1">{t('dashboard.thisMonth')}</p>
+              <p className="text-xs text-gray-400 mt-1">This Month</p>
             </div>
           </div>
         </div>
@@ -457,16 +454,16 @@ function DashboardContent() {
             href="/quotes/new"
             className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 shadow min-h-[44px]"
           >
-            <span>+</span> {t('quickActions.newQuote')}
+            <span>+</span> New Quote
           </a>
           <button onClick={() => setShowAddCustomerModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
-            <span>&#128100;</span> {t('dashboard.addCustomer')}
+            <span>&#128100;</span> Add Customer
           </button>
           <a href="/calendar" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
-            <span>&#128197;</span> {t('dashboard.viewCalendar')}
+            <span>&#128197;</span> View Calendar
           </a>
           <a href="/quotes" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
-            <span>&#128196;</span> {t('dashboard.allQuotes')}
+            <span>&#128196;</span> All Quotes
           </a>
         </div>
       </div>
@@ -485,8 +482,8 @@ function DashboardContent() {
           {/* Compact Recent Quotes */}
           <div className="bg-white rounded-lg p-4 shadow">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold text-sm text-gray-700">{t('dashboard.recentQuotes')}</h3>
-              <a href="/quotes" className="text-xs text-amber-600 hover:underline">{t('common.viewAll')}</a>
+              <h3 className="font-semibold text-sm text-gray-700">Recent Quotes</h3>
+              <a href="/quotes" className="text-xs text-amber-600 hover:underline">View All</a>
             </div>
             {recentQuotes.length > 0 ? (
               <div className="space-y-1.5">
@@ -495,7 +492,7 @@ function DashboardContent() {
                   return (
                     <a key={q.id} href={`/quotes/${q.id}`} className="flex items-center justify-between py-1.5 hover:bg-gray-50 rounded px-1 -mx-1 transition-colors">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">{q.aircraft_name || q.aircraft_model || t('jobs.unknownAircraft')}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{q.aircraft_name || q.aircraft_model || 'Unknown Aircraft'}</p>
                         <p className="text-xs text-gray-400 truncate">{q.customer_name || q.customer_email || ''}</p>
                       </div>
                       <div className="flex items-center gap-2 ml-2 shrink-0">
@@ -507,15 +504,15 @@ function DashboardContent() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-4">{t('dashboard.noQuotesYet')}</p>
+              <p className="text-sm text-gray-400 text-center py-4">No quotes yet. Create your first quote below.</p>
             )}
           </div>
 
           {/* Upcoming Jobs (Next 7 Days) */}
           <div className="bg-white rounded-lg p-4 shadow">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold text-sm text-gray-700">{t('dashboard.upcomingJobs')} <span className="text-xs text-gray-400 font-normal">({t('dashboard.next7Days')})</span></h3>
-              <a href="/calendar" className="text-xs text-amber-600 hover:underline">{t('dashboard.viewCalendar')}</a>
+              <h3 className="font-semibold text-sm text-gray-700">Upcoming Jobs <span className="text-xs text-gray-400 font-normal">(Next 7 Days)</span></h3>
+              <a href="/calendar" className="text-xs text-amber-600 hover:underline">View Calendar</a>
             </div>
             {upcomingJobs.length > 0 ? (
               <div className="space-y-1.5">
@@ -525,12 +522,12 @@ function DashboardContent() {
                   return (
                     <div key={job.id} className="flex items-center justify-between py-1.5 px-1 -mx-1">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">{job.aircraft_name || job.aircraft_model || t('jobs.unknownAircraft')}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{job.aircraft_name || job.aircraft_model || 'Unknown Aircraft'}</p>
                         <p className="text-xs text-gray-400 truncate">{job.customer_name || job.client_name || ''}</p>
                       </div>
                       <div className="text-right shrink-0 ml-2">
                         <p className={`text-xs font-medium ${isToday ? 'text-amber-600' : 'text-gray-600'}`}>
-                          {isToday ? t('common.today') : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          {isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                         </p>
                         <p className="text-sm font-bold text-gray-900">{currencySymbol()}{formatPriceWhole(job.total_price)}</p>
                       </div>
@@ -539,7 +536,7 @@ function DashboardContent() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-4">{t('dashboard.noUpcomingJobs')}</p>
+              <p className="text-sm text-gray-400 text-center py-4">No upcoming jobs scheduled</p>
             )}
           </div>
         </div>
