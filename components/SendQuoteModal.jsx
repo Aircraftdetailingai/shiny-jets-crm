@@ -334,37 +334,29 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
         }
       }
 
-      // Warn if email failed but quote was sent
-      if (sendResult.emailError) {
-        console.error('Email send failed:', sendResult.emailError);
-      }
-      // success - build toast based on send method
       const link = `${window.location.origin}/q/${share_link}`;
 
-      // Method-aware success toast
-      const toastMsg = {
-        sms: sendResult.smsSent ? `SMS sent to ${effectivePhone}!` : 'Quote sent!',
-        email: sendResult.emailSent ? `Email sent to ${effectiveEmail}!` : 'Quote sent!',
-        both: [
-          sendResult.smsSent && `SMS sent to ${effectivePhone}`,
-          sendResult.emailSent && `Email sent to ${effectiveEmail}`,
-        ].filter(Boolean).join(' & ') || 'Quote sent!',
-        link: 'Quote link copied!',
-      }[method] || 'Quote sent!';
-
-      // Show warnings for failures inline in the toast
+      // Show warnings for any delivery failures
       const warnings = [];
-      if (sendResult.emailSent === false && sendResult.emailError) {
+      if (requiresEmail && sendResult.emailSent === false && sendResult.emailError) {
         warnings.push(`Email failed: ${sendResult.emailError}`);
       }
-      if (effectivePhone && sendResult.smsSent === false && (method === 'sms' || method === 'both')) {
+      if (requiresSms && sendResult.smsSent === false) {
         warnings.push(`SMS failed: ${sendResult.smsError || 'check Twilio config or plan'}`);
       }
-
       if (warnings.length > 0) {
         toastError(warnings.join('. '));
       }
-      toastSuccess(toastMsg);
+
+      // Method-aware success message
+      const successMsg = method === 'sms'
+        ? 'SMS sent!'
+        : method === 'email'
+        ? 'Email sent!'
+        : method === 'both'
+        ? 'SMS & Email sent!'
+        : 'Quote link copied!';
+      toastSuccess(successMsg);
 
       // Copy link for 'link' method
       if (method === 'link') {
