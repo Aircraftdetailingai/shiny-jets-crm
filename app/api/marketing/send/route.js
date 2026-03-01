@@ -11,7 +11,11 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <quotes@downwindpro.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vectorav.ai';
 
@@ -156,7 +160,7 @@ export async function POST(request) {
 
     for (const recipient of recipients) {
       try {
-        const { error: sendErr } = await resend.emails.send({
+        const { error: sendErr } = await getResend().emails.send({
           from: FROM_EMAIL,
           to: recipient.email,
           subject: campaign.subject,

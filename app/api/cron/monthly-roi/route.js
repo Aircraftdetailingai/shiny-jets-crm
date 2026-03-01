@@ -3,7 +3,9 @@ import { Resend } from 'resend';
 
 export const dynamic = 'force-dynamic';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -165,7 +167,7 @@ export async function GET(request) {
 </html>
         `;
 
-        await resend.emails.send({
+        await getResend().emails.send({
           from: 'Vector <noreply@aircraftdetailing.ai>',
           to: detailer.email,
           subject: `Your Vector Month in Review - ${monthName}`,
