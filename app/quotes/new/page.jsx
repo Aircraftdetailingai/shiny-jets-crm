@@ -189,7 +189,8 @@ function NewQuoteContent() {
     } else {
       setSelectedPackage(pkg);
       const newSelected = {};
-      (pkg.service_ids || []).forEach(id => { newSelected[id] = true; });
+      const serviceIds = Array.isArray(pkg.service_ids) ? pkg.service_ids : [];
+      serviceIds.forEach(id => { newSelected[id] = true; });
       setSelectedServices(newSelected);
     }
   };
@@ -299,6 +300,7 @@ function NewQuoteContent() {
     setQuoteNotes('');
     setJobLocation('');
     setAirport('');
+    setTailNumber('');
     setSelectedAddons({});
     setCustomProductRatios(null);
     setModalOpen(false);
@@ -579,7 +581,7 @@ function NewQuoteContent() {
                         >
                           <div>
                             <p className="font-medium text-gray-900 text-sm">{pkg.name}</p>
-                            <p className="text-xs text-gray-400">{pkg.service_ids?.length || 0} services &middot; {pkg.discount_percent}% off</p>
+                            <p className="text-xs text-gray-400">{Array.isArray(pkg.service_ids) ? pkg.service_ids.length : 0} services{pkg.discount_percent > 0 ? ` \u00B7 ${pkg.discount_percent}% off` : ''}</p>
                           </div>
                           {isSelected && <span className="text-green-600 font-bold text-sm">Selected</span>}
                         </button>

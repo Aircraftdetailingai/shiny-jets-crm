@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+let _resend;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
+  return _resend;
+}
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -124,14 +130,13 @@ export async function POST(request) {
 
     // Send email to customer
     if (process.env.RESEND_API_KEY && quote.client_email) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.aircraftdetailing.ai';
 
       const servicesList = services.map(s =>
         `<li>${s.name || s.description}: $${(s.amount || s.price || 0).toFixed(2)}</li>`
       ).join('');
 
-      await resend.emails.send({
+      await getResend().emails.send({
         from: 'Vector <noreply@aircraftdetailing.ai>',
         to: quote.client_email,
         subject: `Additional Services Requested - ${quote.detailers?.company_name}`,
@@ -256,9 +261,7 @@ export async function PUT(request) {
 
     // Notify detailer
     if (process.env.RESEND_API_KEY && changeOrder.quotes?.detailers?.email) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-
-      await resend.emails.send({
+      await getResend().emails.send({
         from: 'Vector <noreply@aircraftdetailing.ai>',
         to: changeOrder.quotes.detailers.email,
         subject: `Change Order ${newStatus === 'approved' ? 'Approved' : 'Declined'} - ${changeOrder.quotes.client_name || 'Customer'}`,

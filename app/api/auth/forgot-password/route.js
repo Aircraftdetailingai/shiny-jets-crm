@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import { SignJWT } from 'jose';
 import { Resend } from 'resend';
+import { SignJWT } from 'jose';
 
 export const dynamic = 'force-dynamic';
+
+let _resend;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
+  return _resend;
+}
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
@@ -85,8 +91,7 @@ export async function POST(request) {
     const resetLink = `${APP_URL}/reset-password?token=${resetToken}`;
 
     // Send branded email via Resend
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error: emailError } = await resend.emails.send({
+    const { error: emailError } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: detailer.email,
       subject: 'Reset your Vector password',

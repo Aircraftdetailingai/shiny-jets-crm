@@ -192,6 +192,8 @@ export async function POST(request) {
       emergency_contact_name,
       emergency_contact_phone,
       contact_notes,
+      linked_products,
+      linked_equipment,
     } = body;
 
     // Validate: need at minimum an aircraft type or model, and some price
@@ -263,6 +265,8 @@ export async function POST(request) {
       airport: airport || null,
       tail_number: tail_number || null,
       product_estimates: product_estimates || [],
+      linked_products: linked_products || [],
+      linked_equipment: linked_equipment || [],
       metadata: quoteMetadata,
       poc_name: poc_name || null,
       poc_phone: poc_phone || null,
@@ -302,7 +306,7 @@ export async function POST(request) {
 
     if (error) {
       console.error('Quote create final error:', JSON.stringify(error));
-      return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ error: 'An unexpected error occurred while creating your quote. Please try again.' }, { status: 500 });
     }
 
     // Increment quotes_this_month on successful creation

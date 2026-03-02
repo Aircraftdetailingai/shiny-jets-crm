@@ -3,8 +3,10 @@ import { Resend } from 'resend';
 
 export const dynamic = 'force-dynamic';
 
+let _resend;
 function getResend() {
-  return new Resend(process.env.RESEND_API_KEY);
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
+  return _resend;
 }
 
 function getSupabase() {

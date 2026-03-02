@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ function getSupabase() {
 
 let _resend;
 function getResend() {
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
   return _resend;
 }
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <quotes@downwindpro.com>';

@@ -4,6 +4,12 @@ import jwt from 'jsonwebtoken';
 
 export const dynamic = 'force-dynamic';
 
+let _resend;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
+  return _resend;
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -67,8 +73,7 @@ export async function POST(request) {
 
       // Send email with code
       if (process.env.RESEND_API_KEY) {
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
+        await getResend().emails.send({
           from: 'Vector <noreply@aircraftdetailing.ai>',
           to: normalizedEmail,
           subject: 'Your Vector Login Code',
