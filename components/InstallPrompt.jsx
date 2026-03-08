@@ -1,7 +1,12 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+
+// Pages where the install prompt should NOT appear
+const CUSTOMER_PATHS = ['/portal', '/customer', '/q/', '/compare', '/feedback', '/change-order', '/landing', '/login', '/terms', '/privacy'];
 
 export default function InstallPrompt() {
+  const pathname = usePathname();
   const [show, setShow] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
@@ -9,6 +14,9 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Don't show on customer-facing pages
+    if (CUSTOMER_PATHS.some(p => pathname?.startsWith(p))) return;
 
     // Check if already installed as PWA
     try {
