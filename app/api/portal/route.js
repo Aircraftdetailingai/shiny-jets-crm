@@ -34,7 +34,7 @@ export async function GET(request) {
   // Fetch detailer info
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('id, name, email, phone, company, plan, pass_fee_to_customer, quote_display_preference, stripe_account_id, preferred_currency')
+    .select('id, name, email, phone, company, plan, pass_fee_to_customer, quote_display_preference, stripe_account_id, preferred_currency, terms_pdf_url, terms_text')
     .eq('id', quote.detailer_id)
     .single();
 

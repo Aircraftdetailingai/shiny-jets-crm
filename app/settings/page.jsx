@@ -93,6 +93,14 @@ function SettingsContent() {
   const [promoResult, setPromoResult] = useState(null); // { valid, description, min_months, ... }
   const [promoError, setPromoError] = useState('');
 
+  // Terms & Conditions state
+  const [termsText, setTermsText] = useState('');
+  const [termsPdfUrl, setTermsPdfUrl] = useState(null);
+  const [termsUpdatedAt, setTermsUpdatedAt] = useState(null);
+  const [termsSaving, setTermsSaving] = useState(false);
+  const [termsUploading, setTermsUploading] = useState(false);
+  const [termsSuccess, setTermsSuccess] = useState('');
+
   // Sticky save button state
   const [pendingChanges, setPendingChanges] = useState(new Set());
   const [saving, setSaving] = useState(false);
@@ -156,6 +164,14 @@ function SettingsContent() {
           setSmsEnabled(data.sms_enabled || false);
         }).catch(() => {});
       }
+      // Fetch terms & conditions
+      fetch('/api/settings/terms', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.json()).then(data => {
+        if (data.terms_text) setTermsText(data.terms_text);
+        if (data.terms_pdf_url) setTermsPdfUrl(data.terms_pdf_url);
+        if (data.terms_updated_at) setTermsUpdatedAt(data.terms_updated_at);
+      }).catch(() => {});
   }, [router]);
 
   const [stripeError, setStripeError] = useState(null);
@@ -541,6 +557,78 @@ function SettingsContent() {
     const newUser = { ...user, default_labor_rate: rate };
     localStorage.setItem('vector_user', JSON.stringify(newUser));
     setUser(newUser);
+  };
+
+  const handleTermsUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTermsUploading(true);
+    setTermsSuccess('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/settings/terms', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('vector_token')}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setTermsPdfUrl(data.terms_pdf_url);
+      setTermsText('');
+      setTermsUpdatedAt(data.terms_updated_at);
+      setTermsSuccess('PDF uploaded successfully');
+      setTimeout(() => setTermsSuccess(''), 3000);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTermsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const saveTermsText = async () => {
+    if (!termsText.trim()) return;
+    setTermsSaving(true);
+    setTermsSuccess('');
+    try {
+      const res = await fetch('/api/settings/terms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+        },
+        body: JSON.stringify({ terms_text: termsText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setTermsPdfUrl(null);
+      setTermsUpdatedAt(data.terms_updated_at);
+      setTermsSuccess('Terms saved successfully');
+      setTimeout(() => setTermsSuccess(''), 3000);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTermsSaving(false);
+    }
+  };
+
+  const deleteTerms = async () => {
+    if (!confirm('Remove your terms and conditions?')) return;
+    try {
+      const res = await fetch('/api/settings/terms', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('vector_token')}` },
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      setTermsText('');
+      setTermsPdfUrl(null);
+      setTermsUpdatedAt(null);
+      setTermsSuccess('Terms removed');
+      setTimeout(() => setTermsSuccess(''), 3000);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const saveHomeAirport = async (code) => {
@@ -1280,8 +1368,81 @@ function SettingsContent() {
           <p className="text-xs text-gray-400 mt-2">Applies to all jobs. Quotes below this amount will be bumped up.</p>
         </div>
 
+        {/* Terms & Conditions */}
+        <div className="bg-white p-4 rounded shadow">
+          <h3 className="font-semibold mb-2">Terms & Conditions</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Upload your business terms and conditions. Customers must agree before accepting a quote.
+          </p>
 
+          {termsSuccess && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+              {termsSuccess}
+            </div>
+          )}
 
+          {(termsPdfUrl || termsUpdatedAt) && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+              <div>
+                <span className="text-sm text-blue-700 font-medium">
+                  {termsPdfUrl ? 'PDF uploaded' : 'Text terms saved'}
+                </span>
+                {termsUpdatedAt && (
+                  <span className="text-xs text-blue-500 ml-2">
+                    Updated {new Date(termsUpdatedAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {termsPdfUrl && (
+                  <a href={termsPdfUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-sm text-blue-600 underline hover:text-blue-800">
+                    View PDF
+                  </a>
+                )}
+                <button onClick={deleteTerms} className="text-sm text-red-500 hover:text-red-700">
+                  Remove
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Upload PDF</label>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handleTermsUpload}
+                disabled={termsUploading}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 disabled:opacity-50"
+              />
+              {termsUploading && <p className="text-xs text-amber-600 mt-1">Uploading...</p>}
+              <p className="text-xs text-gray-400 mt-1">PDF only, max 5MB</p>
+            </div>
+
+            <div className="text-center text-sm text-gray-400">- or -</div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Paste Terms Text</label>
+              <textarea
+                value={termsText}
+                onChange={(e) => setTermsText(e.target.value)}
+                rows={8}
+                placeholder="Enter your terms and conditions here..."
+                className="w-full border rounded-lg p-3 text-sm"
+              />
+            </div>
+
+            <button
+              onClick={saveTermsText}
+              disabled={termsSaving || !termsText.trim()}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+            >
+              {termsSaving ? 'Saving...' : 'Save Terms Text'}
+            </button>
+          </div>
+        </div>
 
 
 

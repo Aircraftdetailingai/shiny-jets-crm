@@ -27,6 +27,7 @@ export default function QuoteViewPage() {
   const [requestSent, setRequestSent] = useState(false);
   const [tipsSent, setTipsSent] = useState(false);
   const [stripeConnected, setStripeConnected] = useState(true);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -61,7 +62,7 @@ export default function QuoteViewPage() {
       const res = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink }),
+        body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink, agreedToTermsAt: new Date().toISOString() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -462,11 +463,44 @@ export default function QuoteViewPage() {
           </a>
         </div>
 
+        {/* Detailer Terms & Conditions */}
+        {(detailer?.terms_text || detailer?.terms_pdf_url) && !isPaid && !isExpired && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Terms & Conditions</h4>
+            {detailer.terms_pdf_url ? (
+              <a href={detailer.terms_pdf_url} target="_blank" rel="noopener noreferrer"
+                className="text-sm text-amber-600 underline hover:text-amber-800">
+                View Terms & Conditions (PDF)
+              </a>
+            ) : detailer.terms_text ? (
+              <div className="text-xs text-gray-600 max-h-40 overflow-y-auto whitespace-pre-wrap border rounded p-2 bg-white">
+                {detailer.terms_text}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Terms Agreement Checkbox */}
+        {stripeConnected && !isPaid && !isExpired && (
+          <div className="flex items-start gap-2 mb-4 p-4 bg-gray-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="agreeCustomerTerms"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-1"
+            />
+            <label htmlFor="agreeCustomerTerms" className="text-sm text-gray-600">
+              I agree to the {(detailer?.terms_text || detailer?.terms_pdf_url) ? 'above' : ''} Terms & Conditions for this service
+            </label>
+          </div>
+        )}
+
         {/* Pay Button or Payment Unavailable */}
         {stripeConnected ? (
           <button
             onClick={handlePayment}
-            disabled={paymentLoading}
+            disabled={paymentLoading || !agreedToTerms}
             className="w-full py-3 rounded-lg text-white font-medium bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-90 disabled:opacity-50"
           >
             {paymentLoading ? 'Processing...' : 'Approve & Pay'}

@@ -49,6 +49,7 @@ export default function PortalPage() {
   const [tab, setTab] = useState('quote');
   const [lang, setLang] = useState('en');
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // Detect browser language on mount
   useEffect(() => {
@@ -115,7 +116,7 @@ export default function PortalPage() {
       const res = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: quote.id, shareLink: quote.share_link }),
+        body: JSON.stringify({ quoteId: quote.id, shareLink: quote.share_link, agreedToTermsAt: new Date().toISOString() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -254,9 +255,36 @@ export default function PortalPage() {
                 <p className="text-2xl font-bold mb-1">{sym}{formatPrice(quote.total_price)}</p>
                 <p className="text-white/80 text-sm mb-4">{aircraftDisplay} {T('detail')}</p>
                 {paymentError && <p className="text-white bg-red-600/30 rounded p-2 mb-3 text-sm">{paymentError}</p>}
+                {(detailer?.terms_text || detailer?.terms_pdf_url) && (
+                  <div className="mb-3 p-3 bg-white/10 rounded-lg text-left">
+                    <p className="text-sm font-semibold text-white/90 mb-1">Terms & Conditions</p>
+                    {detailer.terms_pdf_url ? (
+                      <a href={detailer.terms_pdf_url} target="_blank" rel="noopener noreferrer"
+                        className="text-sm text-white underline hover:text-white/80">
+                        View Terms & Conditions (PDF)
+                      </a>
+                    ) : (
+                      <div className="text-xs text-white/80 max-h-32 overflow-y-auto whitespace-pre-wrap bg-white/5 rounded p-2">
+                        {detailer.terms_text}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-start gap-2 mb-4 p-3 bg-white/10 rounded-lg text-left">
+                  <input
+                    type="checkbox"
+                    id="agreePortalTerms"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <label htmlFor="agreePortalTerms" className="text-sm text-white/90">
+                    I agree to the {(detailer?.terms_text || detailer?.terms_pdf_url) ? 'above' : ''} Terms & Conditions for this service
+                  </label>
+                </div>
                 <button
                   onClick={handlePayment}
-                  disabled={paymentLoading}
+                  disabled={paymentLoading || !agreedToTerms}
                   className="bg-white text-amber-600 font-semibold px-8 py-3 rounded-lg hover:bg-amber-50 disabled:opacity-50 transition-colors"
                 >
                   {paymentLoading ? T('processing') : T('approveAndPay')}
