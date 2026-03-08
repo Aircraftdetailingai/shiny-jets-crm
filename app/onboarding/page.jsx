@@ -73,6 +73,9 @@ export default function OnboardingPage() {
   // Step 4: Rates (keyed by service name)
   const [rates, setRates] = useState({});
 
+  // Terms agreement
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
   // Step 5: Preferences
   const [minimumFee, setMinimumFee] = useState('');
   const [passFee, setPassFee] = useState(false);
@@ -170,7 +173,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/onboarding', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ action: 'save_company', company, name, phone }),
+        body: JSON.stringify({ action: 'save_company', company, name, phone, agreed_to_terms_at: new Date().toISOString() }),
       });
       const data = await res.json();
       if (data.user) {
@@ -405,16 +408,35 @@ export default function OnboardingPage() {
                   </div>
                 ))}
               </div>
+              <label className="flex items-start gap-3 text-sm text-gray-600 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                />
+                <span>
+                  I agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline">
+                    Terms of Service
+                  </a>{' '}
+                  and{' '}
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline">
+                    Privacy Policy
+                  </a>
+                </span>
+              </label>
               <button
                 onClick={goNext}
-                className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold text-lg hover:opacity-90 transition-opacity"
+                disabled={!agreedToTerms}
+                className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Let's Go
               </button>
               <button
                 onClick={handleSkip}
-                disabled={saving}
-                className="mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={saving || !agreedToTerms}
+                className="mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Skipping...' : 'Skip for now'}
               </button>

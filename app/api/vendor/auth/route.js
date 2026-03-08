@@ -34,7 +34,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { action, email, password, company_name, website, contact_name } = body;
+    const { action, email, password, company_name, website, contact_name, agreed_to_terms_at } = body;
 
     if (!email || !password) {
       return Response.json({ error: 'Email and password required' }, { status: 400 });
@@ -61,19 +61,33 @@ export async function POST(request) {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Create vendor (pending approval)
-      const { data: vendor, error } = await supabase
+      const insertData = {
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        company_name,
+        contact_name: contact_name || '',
+        website: website || '',
+        commission_tier: 'basic',
+        status: 'pending', // Requires approval
+      };
+      if (agreed_to_terms_at) insertData.agreed_to_terms_at = agreed_to_terms_at;
+
+      let vendor, error;
+      ({ data: vendor, error } = await supabase
         .from('vendors')
-        .insert({
-          email: email.toLowerCase(),
-          password: hashedPassword,
-          company_name,
-          contact_name: contact_name || '',
-          website: website || '',
-          commission_tier: 'basic',
-          status: 'pending', // Requires approval
-        })
+        .insert(insertData)
         .select()
-        .single();
+        .single());
+
+      // Retry without agreed_to_terms_at if column doesn't exist
+      if (error && error.message?.includes('column')) {
+        delete insertData.agreed_to_terms_at;
+        ({ data: vendor, error } = await supabase
+          .from('vendors')
+          .insert(insertData)
+          .select()
+          .single());
+      }
 
       if (error) {
         if (error.code === '42P01') {

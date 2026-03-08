@@ -8,6 +8,7 @@ export default function VendorLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -29,6 +30,7 @@ export default function VendorLoginPage() {
         body: JSON.stringify({
           action: isRegister ? 'register' : 'login',
           ...form,
+          ...(isRegister ? { agreed_to_terms_at: new Date().toISOString() } : {}),
         }),
       });
 
@@ -42,6 +44,7 @@ export default function VendorLoginPage() {
       if (isRegister) {
         setSuccess('Registration submitted! You will be notified when your account is approved.');
         setForm({ email: '', password: '', company_name: '', contact_name: '', website: '' });
+        setAgreedToTerms(false);
       } else {
         // Login successful
         localStorage.setItem('vendor_token', data.token);
@@ -156,9 +159,30 @@ export default function VendorLoginPage() {
               />
             </div>
 
+            {isRegister && (
+              <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                />
+                <span>
+                  I agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline">
+                    Terms of Service
+                  </a>{' '}
+                  and{' '}
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline">
+                    Privacy Policy
+                  </a>
+                </span>
+              </label>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isRegister && !agreedToTerms)}
               className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
             >
               {loading ? 'Processing...' : isRegister ? 'Submit' : 'Login'}
@@ -171,6 +195,7 @@ export default function VendorLoginPage() {
                 setIsRegister(!isRegister);
                 setError('');
                 setSuccess('');
+                setAgreedToTerms(false);
               }}
               className="text-amber-600 hover:underline text-sm"
             >

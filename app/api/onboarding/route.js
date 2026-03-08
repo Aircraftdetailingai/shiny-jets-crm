@@ -51,13 +51,18 @@ export async function POST(request) {
 
     // Save company info
     if (action === 'save_company') {
-      const { company, name, phone } = body;
+      const { company, name, phone, agreed_to_terms_at } = body;
       const updates = { onboarding_step: 2 };
       if (company) updates.company = company;
       if (name) updates.name = name;
       if (phone) updates.phone = phone;
+      if (agreed_to_terms_at) updates.agreed_to_terms_at = agreed_to_terms_at;
 
-      await supabase.from('detailers').update(updates).eq('id', user.id);
+      const { error: updateErr } = await supabase.from('detailers').update(updates).eq('id', user.id);
+      if (updateErr && updateErr.message?.includes('column')) {
+        delete updates.agreed_to_terms_at;
+        await supabase.from('detailers').update(updates).eq('id', user.id);
+      }
 
       // Update localStorage user
       const { data: updated } = await supabase
