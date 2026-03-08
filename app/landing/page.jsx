@@ -29,7 +29,7 @@ const TIERS = [
       'Unlimited quotes',
       'Full aircraft database (300+ models)',
       'Custom services & packages',
-      'SMS alerts to you',
+      'Email notifications',
       'Remove Vector branding',
       'Priority support',
       '2% platform fee',
@@ -47,8 +47,7 @@ const TIERS = [
       'Unlimited quotes',
       'Full aircraft database (300+ models)',
       'Custom services & packages',
-      'SMS alerts to you',
-      'SMS to clients',
+      'Email notifications',
       'Team management',
       'Priority support',
       '1% platform fee',
@@ -71,7 +70,7 @@ const FEATURES = [
   },
   {
     title: 'One-Click Quote Sharing',
-    description: 'Send professional quotes via link, email, or SMS. Clients view a branded quote page and can accept with one click.',
+    description: 'Send professional quotes via link or email. Clients view a branded quote page and can accept with one click.',
     icon: '&#128233;',
   },
   {
@@ -163,7 +162,7 @@ export default function LandingPage() {
               {
                 step: '3',
                 title: 'Send & Get Paid',
-                desc: 'Share your professional quote via link, email, or SMS. Clients accept and pay online.',
+                desc: 'Share your professional quote via link or email. Clients accept and pay online.',
               },
             ].map((item) => (
               <div key={item.step} className="text-center">

@@ -18,7 +18,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
     phone: "",
     companyName: "",
   });
-  const [method, setMethod] = useState("link"); // 'link', 'sms', 'email', 'both'
+  const [method, setMethod] = useState("link"); // 'link', 'email' (SMS disabled pending 10DLC approval)
   const [loading, setLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,8 +43,9 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
   const ADMIN_EMAILS = ['brett@aircraftdetailing.ai', 'admin@aircraftdetailing.ai', 'brett@shinyjets.com'];
   const isBusiness = user?.plan === "business" || user?.plan === "enterprise" || user?.is_admin || ADMIN_EMAILS.includes(user?.email?.toLowerCase());
-  const requiresSms = method === "sms" || method === "both";
-  const requiresEmail = method === "email" || method === "both";
+  // SMS disabled pending 10DLC approval
+  const requiresSms = false;
+  const requiresEmail = method === "email";
 
   const totalPrice = parseFloat(quote?.totalPrice) || 0;
   const aircraftName = quote?.aircraft?.name || "";
@@ -187,9 +188,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       if (!effectiveEmail) {
         throw new Error("Customer email is required");
       }
-      if (requiresSms && isBusiness && !effectivePhone) {
-        throw new Error("Customer phone is required for SMS");
-      }
+      // SMS disabled pending 10DLC approval
 
       // Always save/upsert customer FIRST so we have a customer_id
       let resolvedCustomerId = effectiveCustomerId;
@@ -348,20 +347,14 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       if (requiresEmail && sendResult.emailSent === false && sendResult.emailError) {
         warnings.push(`Email failed: ${sendResult.emailError}`);
       }
-      if (requiresSms && sendResult.smsSent === false) {
-        warnings.push(`SMS failed: ${sendResult.smsError || 'check Twilio config or plan'}`);
-      }
+      // SMS disabled pending 10DLC approval
       if (warnings.length > 0) {
         toastError(warnings.join('. '));
       }
 
       // Method-aware success message
-      const successMsg = method === 'sms'
-        ? 'SMS sent!'
-        : method === 'email'
+      const successMsg = method === 'email'
         ? 'Email sent!'
-        : method === 'both'
-        ? 'SMS & Email sent!'
         : 'Quote link copied!';
       toastSuccess(successMsg);
 
@@ -682,42 +675,8 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             {/* Method selection */}
             <div className="mb-3">
               {renderMethodOption("link", "Copy link only", false)}
-              {renderMethodOption(
-                "sms",
-                "Send via SMS",
-                !isBusiness
-              )}
               {renderMethodOption("email", "Send via Email", false)}
-              {renderMethodOption(
-                "both",
-                "Send SMS + Email",
-                !isBusiness
-              )}
             </div>
-            {/* Inputs based on method */}
-            {requiresSms && !isBusiness && (
-              <div className="bg-yellow-100 p-3 rounded mb-3 text-sm">
-                Want us to text it for you?{' '}
-                <a
-                  href="/settings?upgrade=business"
-                  className="text-blue-600 underline"
-                >
-                  Upgrade to Business
-                </a>
-              </div>
-            )}
-            {requiresSms && isBusiness && !effectivePhone && (
-              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded mb-3 text-sm text-yellow-800">
-                Add a phone number above to send via SMS.
-              </div>
-            )}
-            {requiresSms && isBusiness && effectiveName && effectivePhone && (
-              <div className="mb-3">
-                <div className="bg-green-100 text-green-800 p-3 rounded text-sm whitespace-pre-line">
-                  {`Hi ${effectiveName.split(' ')[0]}, your ${aircraftName || 'aircraft'} quote is ready! View: [link] - ${user?.company || user?.name || ''}`}
-                </div>
-              </div>
-            )}
 
             {/* Schedule Send Option */}
             <div className="mb-3 border-t pt-3">

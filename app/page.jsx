@@ -12,7 +12,7 @@ const FEATURE_CATEGORIES = [
     features: [
       { name: '300+ Aircraft Database', desc: 'Pre-loaded service hours from Robinson R22 to Boeing 747. Use our defaults or upload your own.' },
       { name: 'One-Click Quote Creation', desc: 'Select aircraft, pick services, and generate an accurate quote in under 60 seconds.' },
-      { name: 'Professional PDF Quotes', desc: 'Send branded, professional quotes via email or SMS. Track when clients open them.' },
+      { name: 'Professional PDF Quotes', desc: 'Send branded, professional quotes via email. Track when clients open them.' },
       { name: 'Stripe Payments', desc: 'Clients accept and pay online with one click. Funds go directly to your Stripe account.' },
       { name: 'Multi-Currency Support', desc: '20+ currencies supported. Quote in USD, EUR, GBP, AUD, CAD, and more.' },
       { name: 'Recurring Services', desc: 'Automate repeat customers with recurring service schedules and reminders.' },
@@ -25,7 +25,7 @@ const FEATURE_CATEGORIES = [
       { name: 'Customer Portal', desc: 'Branded portal where clients view quote history, make payments, and track services.' },
       { name: 'Smart Follow-Ups', desc: 'Automated engagement tracking with perfectly timed reminders. Never lose a deal.' },
       { name: 'Auto-Discount Before Expiry', desc: 'Automatically send a discount offer before quotes expire to close more deals.' },
-      { name: 'Contact Preferences', desc: 'Respect how each customer prefers to be reached — email, SMS, or both.' },
+      { name: 'Contact Preferences', desc: 'Respect how each customer prefers to be reached — email, phone, or both.' },
       { name: 'Points & Rewards', desc: 'Loyalty program that keeps customers coming back with points on every service.' },
       { name: 'Tags & Segmentation', desc: 'Organize customers with tags and segments for targeted follow-ups.' },
     ],
@@ -99,14 +99,14 @@ const FAQS = [
   { q: 'What payment methods do you accept?', a: 'Clients pay via Stripe \u2014 all major credit cards, Apple Pay, and Google Pay. Funds go directly to your connected Stripe account. We support 20+ currencies.' },
   { q: 'Is there a long-term contract?', a: 'No contracts. Start free, upgrade anytime, cancel anytime. The free plan is free forever with up to 3 quotes per month.' },
   { q: 'How does the team management work?', a: 'Business plan includes 5 team members with role-based permissions. Crew members get a simplified mobile dashboard with PIN login, time tracking, job assignments, and photo uploads. Enterprise plan includes unlimited team members.' },
-  { q: 'What integrations are included?', a: 'Stripe Connect for payments, Resend for professional emails, Twilio for SMS, plus a full PWA mobile app that works offline. Enterprise plan includes API access for custom integrations.' },
+  { q: 'What integrations are included?', a: 'Stripe Connect for payments, Resend for professional emails, plus a full PWA mobile app that works offline. Enterprise plan includes API access for custom integrations.' },
   { q: 'How do smart follow-ups work?', a: 'Vector automatically tracks when customers open quotes. If they don\'t open it in 2 days, you get notified. If they view it but don\'t book in 3 days, you get a reminder. Five days before expiry, the customer gets a reminder. Two days before, you can auto-send a discount offer to close the deal.' },
 ];
 
 const INTEGRATIONS = [
   { name: 'Stripe', desc: 'Payments', icon: '\uD83D\uDCB3' },
   { name: 'Email', desc: 'Resend', icon: '\uD83D\uDCE7' },
-  { name: 'SMS', desc: 'Twilio', icon: '\uD83D\uDCF1' },
+  { name: 'Calendar', desc: 'Scheduling', icon: '\uD83D\uDCC5' },
   { name: 'PWA', desc: 'Mobile App', icon: '\uD83D\uDCF2' },
   { name: 'Weather', desc: 'Open-Meteo', icon: '\u26C5' },
   { name: 'PDF', desc: 'Documents', icon: '\uD83D\uDCC4' },
