@@ -13,9 +13,22 @@ export async function POST(request) {
   const supabase = getSupabase();
 
   try {
-    const { quoteId, shareLink } = await request.json();
+    const { quoteId, shareLink, agreedToTermsAt } = await request.json();
     if (!quoteId || !shareLink) {
       return new Response(JSON.stringify({ error: 'Quote ID and share link required' }), { status: 400 });
+    }
+
+    // Record terms agreement
+    if (agreedToTermsAt) {
+      const customerIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
+      await supabase
+        .from('quotes')
+        .update({
+          customer_agreed_terms_at: agreedToTermsAt,
+          customer_ip_address: customerIp,
+        })
+        .eq('id', quoteId)
+        .eq('share_link', shareLink);
     }
 
     // Fetch quote - require share_link match to prevent unauthorized access
