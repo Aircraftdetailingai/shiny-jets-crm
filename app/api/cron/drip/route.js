@@ -75,7 +75,7 @@ export async function POST(request) {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                from: 'Vector <noreply@vector.com>',
+                from: 'Vector <noreply@vectorav.ai>',
                 to: detailer.email,
                 subject: subject,
                 html: `<p>${subject}</p>`

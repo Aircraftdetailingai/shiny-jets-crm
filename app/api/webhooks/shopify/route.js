@@ -63,7 +63,7 @@ export async function POST(request) {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ to, from: 'no-reply@aircraftdetailing.ai', subject, html }),
+      body: JSON.stringify({ to, from: 'Vector <noreply@vectorav.ai>', subject, html }),
     });
   }
 

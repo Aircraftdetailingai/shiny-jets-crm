@@ -116,7 +116,7 @@ export async function POST(request) {
           .join('');
 
         await getResend().emails.send({
-          from: 'Vector <noreply@aircraftdetailing.ai>',
+          from: 'Vector <noreply@vectorav.ai>',
           to: detailer.email,
           subject: `New Lead: ${customer_name || 'Website Visitor'}`,
           html: `

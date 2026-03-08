@@ -20,7 +20,7 @@ function getSupabase() {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vectorav.ai';
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <quotes@downwindpro.com>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <noreply@vectorav.ai>';
 
 function resetEmailHtml(resetLink) {
   return `

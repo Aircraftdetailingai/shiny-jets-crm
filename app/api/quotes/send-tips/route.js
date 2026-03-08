@@ -57,7 +57,7 @@ export async function POST(request) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: 'no-reply@aircraftdetailing.ai',
+            from: 'Vector <noreply@vectorav.ai>',
             to: quote.client_email,
             subject: 'Preparing for Your Aircraft Detail',
             html: `

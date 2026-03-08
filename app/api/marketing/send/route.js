@@ -16,7 +16,7 @@ function getResend() {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
   return _resend;
 }
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <quotes@downwindpro.com>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <noreply@vectorav.ai>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vectorav.ai';
 
 function buildCampaignHtml(campaign, detailer, unsubscribeUrl) {
