@@ -11,14 +11,14 @@ export default function PrivacyPage() {
         <div className="mb-8">
           <a href="/" className="text-amber-400 hover:text-amber-300 text-sm">&larr; Back to Vector</a>
           <h1 className="text-3xl font-bold text-white mt-4">Privacy Policy</h1>
-          <p className="text-gray-400 mt-2">Last updated: February 24, 2026</p>
+          <p className="text-gray-400 mt-2">Last updated: March 7, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl p-8 space-y-8 text-gray-700 leading-relaxed">
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">1. Introduction</h2>
             <p>
-              Aircraft Detailing 101, LLC ("we," "our," or "us") operates Vector Aviation Software
+              Vector Aviation Artificial Intelligence ("we," "our," or "us") operates Vector Aviation Software
               ("Vector" or "the Platform"). This Privacy Policy explains how we collect, use,
               disclose, and safeguard your information when you use our Platform. By using Vector,
               you consent to the practices described in this policy.
@@ -220,7 +220,7 @@ export default function PrivacyPage() {
               For questions or concerns about this Privacy Policy or our data practices, contact us at:
             </p>
             <p className="mt-2">
-              Aircraft Detailing 101, LLC<br />
+              Vector Aviation Artificial Intelligence<br />
               Email:{' '}
               <a href="mailto:support@vectorav.ai" className="text-amber-600 hover:underline">
                 support@vectorav.ai

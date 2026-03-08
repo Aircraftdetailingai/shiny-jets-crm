@@ -11,7 +11,7 @@ export default function TermsPage() {
         <div className="mb-8">
           <a href="/" className="text-amber-400 hover:text-amber-300 text-sm">&larr; Back to Vector</a>
           <h1 className="text-3xl font-bold text-white mt-4">Terms of Service</h1>
-          <p className="text-gray-400 mt-2">Last updated: February 24, 2026</p>
+          <p className="text-gray-400 mt-2">Last updated: March 7, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl p-8 space-y-8 text-gray-700 leading-relaxed">
@@ -19,7 +19,7 @@ export default function TermsPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">1. Acceptance of Terms</h2>
             <p>
               By accessing or using Vector Aviation Software ("Vector," "we," "our," or "the Platform"),
-              operated by Aircraft Detailing 101, LLC, you agree to be bound by these Terms of Service.
+              operated by Vector Aviation Artificial Intelligence, you agree to be bound by these Terms of Service.
               If you do not agree to these terms, do not use the Platform.
             </p>
           </section>
@@ -136,7 +136,7 @@ export default function TermsPage() {
             <p>
               All content, features, and functionality of the Platform&mdash;including but not
               limited to software, text, graphics, logos, and design&mdash;are the exclusive
-              property of Aircraft Detailing 101, LLC and are protected by copyright, trademark,
+              property of Vector Aviation Artificial Intelligence and are protected by copyright, trademark,
               and other intellectual property laws. You are granted a limited, non-exclusive,
               non-transferable license to use the Platform for its intended purpose during
               your active subscription.
@@ -191,7 +191,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">14. Indemnification</h2>
             <p>
-              You agree to indemnify, defend, and hold harmless Aircraft Detailing 101, LLC and
+              You agree to indemnify, defend, and hold harmless Vector Aviation Artificial Intelligence and
               its affiliates from any claims, damages, losses, or expenses (including reasonable
               attorneys' fees) arising from your use of the Platform, violation of these Terms,
               or infringement of any third-party rights.
@@ -234,7 +234,7 @@ export default function TermsPage() {
               For questions about these Terms of Service, contact us at:
             </p>
             <p className="mt-2">
-              Aircraft Detailing 101, LLC<br />
+              Vector Aviation Artificial Intelligence<br />
               Email:{' '}
               <a href="mailto:support@vectorav.ai" className="text-amber-600 hover:underline">
                 support@vectorav.ai
