@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { POINTS_ACTIONS, calculatePoints, TIER_MULTIPLIERS } from '@/lib/points';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,18 +23,7 @@ async function getUser(request) {
   return null;
 }
 
-// Point values for different actions
-const POINT_VALUES = {
-  BOOKING_PER_DOLLAR: 2,
-  COMPLETE_PROFILE: 50,
-  FIRST_QUOTE_SENT: 25,
-  FIRST_PAYMENT: 100,
-  LOG_PRODUCT_USAGE: 10,
-  COMPLETE_TIP_TASK: 20,
-  DAILY_LOGIN: 5,
-};
-
-// GET - Get user's points and history
+// GET - Get user's points balance, recent history, and week stats
 export async function GET(request) {
   const user = await getUser(request);
   if (!user) {
@@ -42,16 +32,16 @@ export async function GET(request) {
 
   const supabase = getSupabase();
 
-  // Get detailer points
+  // Get detailer points + plan
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('total_points, lifetime_points')
+    .select('points_balance, points_lifetime, plan, login_streak, last_daily_checkin')
     .eq('id', user.id)
     .single();
 
-  // Get points history (last 50)
+  // Get recent history (last 50)
   const { data: history } = await supabase
-    .from('points_history')
+    .from('points_ledger')
     .select('*')
     .eq('detailer_id', user.id)
     .order('created_at', { ascending: false })
@@ -60,12 +50,12 @@ export async function GET(request) {
   // Get this week's stats
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: weekStats } = await supabase
-    .from('points_history')
-    .select('points')
+    .from('points_ledger')
+    .select('final_points')
     .eq('detailer_id', user.id)
     .gte('created_at', weekAgo);
 
-  const weekPoints = weekStats?.reduce((sum, h) => sum + (h.points || 0), 0) || 0;
+  const weekPoints = weekStats?.reduce((sum, h) => sum + (h.final_points || 0), 0) || 0;
 
   // Get this week's bookings
   const { data: weekQuotes } = await supabase
@@ -78,20 +68,25 @@ export async function GET(request) {
   const weekBooked = weekQuotes?.reduce((sum, q) => sum + (q.total_price || 0), 0) || 0;
   const weekJobs = weekQuotes?.length || 0;
 
+  const tier = detailer?.plan || 'free';
+
   return Response.json({
-    totalPoints: detailer?.total_points || 0,
-    lifetimePoints: detailer?.lifetime_points || 0,
+    balance: detailer?.points_balance || 0,
+    lifetime: detailer?.points_lifetime || 0,
+    tier,
+    multiplier: TIER_MULTIPLIERS[tier] || 1.0,
+    loginStreak: detailer?.login_streak || 0,
     history: history || [],
     weekStats: {
       points: weekPoints,
       booked: weekBooked,
       jobs: weekJobs,
     },
-    pointValues: POINT_VALUES,
+    actions: POINTS_ACTIONS,
   });
 }
 
-// POST - Award points
+// POST - Award points (kept for backward compat, prefer /api/points/earn)
 export async function POST(request) {
   const user = await getUser(request);
   if (!user) {
@@ -99,29 +94,32 @@ export async function POST(request) {
   }
 
   const supabase = getSupabase();
-  const { reason, points: customPoints, metadata } = await request.json();
+  const { action, metadata } = await request.json();
 
-  // Determine points based on reason
-  let points = customPoints;
-  if (!points) {
-    switch (reason) {
-      case 'complete_profile': points = POINT_VALUES.COMPLETE_PROFILE; break;
-      case 'first_quote_sent': points = POINT_VALUES.FIRST_QUOTE_SENT; break;
-      case 'first_payment': points = POINT_VALUES.FIRST_PAYMENT; break;
-      case 'log_product_usage': points = POINT_VALUES.LOG_PRODUCT_USAGE; break;
-      case 'complete_tip_task': points = POINT_VALUES.COMPLETE_TIP_TASK; break;
-      case 'daily_login': points = POINT_VALUES.DAILY_LOGIN; break;
-      default: return Response.json({ error: 'Invalid reason' }, { status: 400 });
-    }
+  if (!action || !POINTS_ACTIONS[action]) {
+    return Response.json({ error: 'Invalid action' }, { status: 400 });
   }
 
-  // Check for duplicate milestone awards
-  if (['complete_profile', 'first_quote_sent', 'first_payment'].includes(reason)) {
+  // Get detailer plan for tier multiplier
+  const { data: detailer } = await supabase
+    .from('detailers')
+    .select('points_balance, points_lifetime, plan')
+    .eq('id', user.id)
+    .single();
+
+  const tier = detailer?.plan || 'free';
+  const config = POINTS_ACTIONS[action];
+  const multiplier = TIER_MULTIPLIERS[tier] || 1.0;
+  const finalPoints = calculatePoints(action, tier);
+
+  // Check for one-time actions
+  const oneTimeActions = ['COMPLETE_PROFILE', 'UPGRADE_PLAN', 'MILESTONE_10K', 'MILESTONE_50K', 'MILESTONE_100K'];
+  if (oneTimeActions.includes(action)) {
     const { data: existing } = await supabase
-      .from('points_history')
+      .from('points_ledger')
       .select('id')
       .eq('detailer_id', user.id)
-      .eq('reason', reason)
+      .eq('action', action)
       .limit(1);
 
     if (existing?.length > 0) {
@@ -129,43 +127,43 @@ export async function POST(request) {
     }
   }
 
-  // Insert points history
-  const { error: historyError } = await supabase
-    .from('points_history')
+  // Insert into points_ledger
+  const { error: ledgerError } = await supabase
+    .from('points_ledger')
     .insert({
       detailer_id: user.id,
-      points,
-      reason,
+      action,
+      base_points: config.base,
+      multiplier,
+      final_points: finalPoints,
+      description: config.description,
       metadata: metadata || {},
     });
 
-  if (historyError) {
-    console.error('Points history error:', historyError);
+  if (ledgerError) {
+    console.error('Points ledger error:', ledgerError);
+    return Response.json({ error: ledgerError.message }, { status: 500 });
   }
 
   // Update detailer totals
-  const { data: detailer } = await supabase
-    .from('detailers')
-    .select('total_points, lifetime_points')
-    .eq('id', user.id)
-    .single();
-
-  const newTotal = (detailer?.total_points || 0) + points;
-  const newLifetime = (detailer?.lifetime_points || 0) + points;
+  const newBalance = (detailer?.points_balance || 0) + finalPoints;
+  const newLifetime = (detailer?.points_lifetime || 0) + finalPoints;
 
   await supabase
     .from('detailers')
     .update({
-      total_points: newTotal,
-      lifetime_points: newLifetime,
+      points_balance: newBalance,
+      points_lifetime: newLifetime,
     })
     .eq('id', user.id);
 
   return Response.json({
     success: true,
-    points,
-    reason,
-    newTotal,
+    action,
+    basePoints: config.base,
+    multiplier,
+    finalPoints,
+    newBalance,
     newLifetime,
   });
 }

@@ -5,6 +5,7 @@ import { sendQuoteSentEmail } from '@/lib/email';
 import { sendQuoteSms } from '@/lib/sms';
 import { hasPremiumAccess } from '@/lib/pricing-tiers';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
+import { calculatePoints, POINTS_ACTIONS, TIER_MULTIPLIERS } from '@/lib/points';
 
 export const dynamic = 'force-dynamic';
 
@@ -269,6 +270,40 @@ export async function POST(request, { params }) {
       details: { aircraft, amount: updated?.total_price },
       quote_id: id,
     });
+  }
+
+  // Award points for sending a quote
+  try {
+    const tier = detailer?.plan || 'free';
+    const config = POINTS_ACTIONS.SEND_QUOTE;
+    const multiplier = TIER_MULTIPLIERS[tier] || 1.0;
+    const finalPoints = calculatePoints('SEND_QUOTE', tier);
+    await supabase.from('points_ledger').insert({
+      detailer_id: user.id,
+      action: 'SEND_QUOTE',
+      base_points: config.base,
+      multiplier,
+      final_points: finalPoints,
+      description: config.description,
+      metadata: { quote_id: id },
+    });
+    await supabase.rpc('increment_points', { uid: user.id, pts: finalPoints }).catch(() => {
+      // Fallback if RPC doesn't exist
+      supabase.from('detailers')
+        .select('points_balance, points_lifetime')
+        .eq('id', user.id)
+        .single()
+        .then(({ data: d }) => {
+          if (d) {
+            supabase.from('detailers').update({
+              points_balance: (d.points_balance || 0) + finalPoints,
+              points_lifetime: (d.points_lifetime || 0) + finalPoints,
+            }).eq('id', user.id);
+          }
+        });
+    });
+  } catch (e) {
+    console.log('Points award skipped:', e.message);
   }
 
   return new Response(JSON.stringify({

@@ -5,6 +5,7 @@ const ADMIN_EMAILS = [
   'brett@aircraftdetailing.ai',
   'admin@aircraftdetailing.ai',
   'brett@shinyjets.com',
+  'brett@vectorav.ai',
 ];
 
 // Owner-only routes that crew cannot access

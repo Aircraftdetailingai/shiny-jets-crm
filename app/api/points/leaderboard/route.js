@@ -12,16 +12,16 @@ export async function GET(request) {
   // Get top 20 by lifetime points (only those who opted in)
   const { data: leaders } = await supabase
     .from('detailers')
-    .select('id, company, lifetime_points, leaderboard_opt_in')
+    .select('id, company, points_lifetime, leaderboard_opt_in')
     .eq('leaderboard_opt_in', true)
-    .order('lifetime_points', { ascending: false })
+    .order('points_lifetime', { ascending: false })
     .limit(20);
 
   // Anonymize if needed
   const leaderboard = (leaders || []).map((l, i) => ({
     rank: i + 1,
     name: l.company || `Detailer #${l.id.substring(0, 4)}`,
-    points: l.lifetime_points || 0,
+    points: l.points_lifetime || 0,
   }));
 
   return Response.json({ leaderboard });

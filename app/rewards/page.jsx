@@ -7,19 +7,32 @@ const CATEGORY_LABELS = {
   subscription: 'Subscription',
   products: 'Products',
   coaching: 'Coaching',
+  merch: 'Merch',
+  discount: 'Discount',
 };
 
 const STATUS_STYLES = {
   pending: 'bg-yellow-100 text-yellow-800',
   processing: 'bg-blue-100 text-blue-800',
+  fulfilled: 'bg-green-100 text-green-800',
   completed: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
+};
+
+const TIER_COLORS = {
+  free: 'bg-gray-100 text-gray-600',
+  pro: 'bg-blue-100 text-blue-700',
+  business: 'bg-purple-100 text-purple-700',
+  enterprise: 'bg-amber-100 text-amber-700',
 };
 
 export default function RewardsPage() {
   const router = useRouter();
   const [rewards, setRewards] = useState([]);
   const [points, setPoints] = useState({ available: 0, lifetime: 0 });
+  const [tier, setTier] = useState('free');
+  const [multiplier, setMultiplier] = useState(1.0);
+  const [userCanRedeem, setUserCanRedeem] = useState(false);
   const [redemptions, setRedemptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(null);
@@ -45,6 +58,9 @@ export default function RewardsPage() {
         const data = await res.json();
         setRewards(data.rewards || []);
         setPoints(data.points || { available: 0, lifetime: 0 });
+        setTier(data.tier || 'free');
+        setMultiplier(data.multiplier || 1.0);
+        setUserCanRedeem(data.canRedeem ?? false);
         setRedemptions(data.redemptions || []);
       }
     } catch (err) {
@@ -60,7 +76,7 @@ export default function RewardsPage() {
 
     const token = localStorage.getItem('vector_token');
     try {
-      const res = await fetch('/api/rewards', {
+      const res = await fetch('/api/rewards/redeem', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +105,7 @@ export default function RewardsPage() {
   if (loading) {
     return (
       <div className="page-transition min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4 flex items-center justify-center">
-        <div className="text-white text-xl">{'Loading rewards...'}</div>
+        <div className="text-white text-xl">Loading rewards...</div>
       </div>
     );
   }
@@ -101,11 +117,11 @@ export default function RewardsPage() {
         <div className="flex items-center space-x-2 text-2xl font-bold">
           <span>&#9992;</span>
           <span>Vector</span>
-          <span className="text-lg font-medium">- {'Rewards'}</span>
+          <span className="text-lg font-medium">- Rewards</span>
         </div>
         <div className="space-x-4 text-sm">
-          <a href="/dashboard" className="underline">{'Dashboard'}</a>
-          <a href="/settings" className="underline">{'Settings'}</a>
+          <a href="/dashboard" className="underline">Dashboard</a>
+          <a href="/settings" className="underline">Settings</a>
         </div>
       </header>
 
@@ -114,14 +130,27 @@ export default function RewardsPage() {
         <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg p-6 text-white shadow-lg">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-amber-100 text-sm">{'Available Points'}</p>
+              <p className="text-amber-100 text-sm">Available Points</p>
               <p className="text-4xl font-bold">{points.available.toLocaleString()}</p>
               <p className="text-amber-200 text-sm mt-1">
-                {`${points.lifetime.toLocaleString()} lifetime points earned`}
+                {points.lifetime.toLocaleString()} lifetime points earned
               </p>
             </div>
-            <div className="text-6xl opacity-50">&#9733;</div>
+            <div className="text-right">
+              <div className="text-6xl opacity-50">&#9733;</div>
+              {multiplier > 1 && (
+                <span className="inline-block mt-2 bg-white/20 text-white text-xs font-bold px-2 py-1 rounded">
+                  {multiplier}x Multiplier
+                </span>
+              )}
+            </div>
           </div>
+          {!userCanRedeem && (
+            <div className="mt-3 bg-white/10 rounded-lg p-3 text-sm">
+              Upgrade to Pro or higher to redeem rewards.{' '}
+              <a href="/settings" className="underline font-medium">Upgrade now</a>
+            </div>
+          )}
         </div>
 
         {/* Message */}
@@ -135,66 +164,86 @@ export default function RewardsPage() {
         {/* Available Rewards */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 border-b">
-            <h2 className="text-xl font-semibold">{'Available Rewards'}</h2>
-            <p className="text-gray-500 text-sm">{'Redeem your points for exclusive rewards'}</p>
+            <h2 className="text-xl font-semibold">Available Rewards</h2>
+            <p className="text-gray-500 text-sm">Redeem your points for exclusive rewards</p>
           </div>
 
-          <div className="divide-y">
-            {rewards.map((reward) => {
-              const canAfford = points.available >= reward.points;
-              return (
-                <div key={reward.id} className={`p-6 ${canAfford ? '' : 'opacity-60'}`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-lg">{reward.name}</h3>
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                          {CATEGORY_LABELS[reward.category] || reward.category}
-                        </span>
+          {rewards.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <p className="text-lg mb-2">No rewards available yet</p>
+              <p className="text-sm">Check back soon - new rewards are added regularly!</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {rewards.map((reward) => {
+                const canAfford = reward.affordable;
+                const eligible = reward.eligible;
+                const inStock = reward.in_stock;
+                const canGet = canAfford && eligible && inStock && userCanRedeem;
+                return (
+                  <div key={reward.id} className={`p-6 ${canGet ? '' : 'opacity-60'}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="font-semibold text-lg">{reward.name}</h3>
+                          {reward.featured && (
+                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">Featured</span>
+                          )}
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                            {CATEGORY_LABELS[reward.category] || reward.category}
+                          </span>
+                          {reward.min_tier && reward.min_tier !== 'free' && (
+                            <span className={`text-xs px-2 py-0.5 rounded ${TIER_COLORS[reward.min_tier] || ''}`}>
+                              {reward.min_tier.charAt(0).toUpperCase() + reward.min_tier.slice(1)}+
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-gray-600 text-sm">{reward.description}</p>
+                        {!inStock && <p className="text-red-500 text-xs mt-1">Out of stock</p>}
+                        {!eligible && <p className="text-orange-500 text-xs mt-1">Requires {reward.min_tier} tier or higher</p>}
                       </div>
-                      <p className="text-gray-600 text-sm">{reward.description}</p>
-                    </div>
-                    <div className="text-right ml-4">
-                      <p className="text-amber-600 font-bold text-lg">{reward.points.toLocaleString()} {'pts'}</p>
-                      {canAfford ? (
-                        <button
-                          onClick={() => setShowConfirm(reward)}
-                          disabled={redeeming === reward.id}
-                          className="mt-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded hover:bg-amber-600 disabled:opacity-50"
-                        >
-                          {redeeming === reward.id ? 'Processing...' : 'Redeem'}
-                        </button>
-                      ) : (
-                        <p className="mt-2 text-gray-400 text-sm">
-                          {`Need ${(reward.points - points.available).toLocaleString()} more`}
-                        </p>
-                      )}
+                      <div className="text-right ml-4">
+                        <p className="text-amber-600 font-bold text-lg">{reward.points_cost.toLocaleString()} pts</p>
+                        {canGet ? (
+                          <button
+                            onClick={() => setShowConfirm(reward)}
+                            disabled={redeeming === reward.id}
+                            className="mt-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded hover:bg-amber-600 disabled:opacity-50"
+                          >
+                            {redeeming === reward.id ? 'Processing...' : 'Redeem'}
+                          </button>
+                        ) : canAfford ? null : (
+                          <p className="mt-2 text-gray-400 text-sm">
+                            Need {(reward.points_cost - points.available).toLocaleString()} more
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Redemption History */}
         {redemptions.length > 0 && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-xl font-semibold">{'Redemption History'}</h2>
+              <h2 className="text-xl font-semibold">Redemption History</h2>
             </div>
 
             <div className="divide-y">
               {redemptions.map((r) => (
                 <div key={r.id} className="p-4 flex justify-between items-center">
                   <div>
-                    <p className="font-medium">{r.reward_name}</p>
+                    <p className="font-medium">{r.reward_name || 'Reward'}</p>
                     <p className="text-sm text-gray-500">
                       {new Date(r.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-amber-600 font-medium">-{r.points_spent.toLocaleString()} {'pts'}</p>
+                    <p className="text-amber-600 font-medium">-{r.points_spent.toLocaleString()} pts</p>
                     <span className={`text-xs px-2 py-0.5 rounded ${STATUS_STYLES[r.status] || 'bg-gray-100'}`}>
                       {r.status}
                     </span>
@@ -207,33 +256,46 @@ export default function RewardsPage() {
 
         {/* How to Earn More */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-3">{'How to Earn More Points'}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <h3 className="font-semibold text-blue-900 mb-3">How to Earn Points</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-amber-500">&#9733;</span>
-              <span className="text-blue-800">{'2 points per $1 booked'}</span>
+              <span className="text-blue-800">5 pts daily check-in</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-500">&#9733;</span>
-              <span className="text-blue-800">{'100 points for first payment'}</span>
+              <span className="text-blue-800">10 pts per quote sent</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-500">&#9733;</span>
-              <span className="text-blue-800">{'25 points for first quote'}</span>
+              <span className="text-blue-800">25 pts when quote accepted</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-500">&#9733;</span>
-              <span className="text-blue-800">{'20 points per tip completed'}</span>
+              <span className="text-blue-800">50 pts when quote paid</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-500">&#9733;</span>
-              <span className="text-blue-800">{'10 points for logging products'}</span>
+              <span className="text-blue-800">50 pts for 5-star reviews</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-500">&#9733;</span>
-              <span className="text-blue-800">{'50 points for profile completion'}</span>
+              <span className="text-blue-800">500 pts per referral signup</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-amber-500">&#9733;</span>
+              <span className="text-blue-800">50 pts for profile completion</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-amber-500">&#9733;</span>
+              <span className="text-blue-800">50+ pts for login streaks</span>
             </div>
           </div>
+          {multiplier > 1 && (
+            <p className="mt-3 text-blue-700 font-medium text-sm">
+              Your {tier.charAt(0).toUpperCase() + tier.slice(1)} plan gives you a {multiplier}x multiplier on all points!
+            </p>
+          )}
         </div>
       </div>
 
@@ -241,23 +303,23 @@ export default function RewardsPage() {
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-2">{'Confirm Redemption'}</h3>
+            <h3 className="text-lg font-semibold mb-2">Confirm Redemption</h3>
             <p className="text-gray-600 mb-4">
-              {`Redeem ${showConfirm.points.toLocaleString()} points for:`}
+              Redeem {showConfirm.points_cost.toLocaleString()} points for:
             </p>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="font-semibold">{showConfirm.name}</p>
               <p className="text-sm text-gray-500">{showConfirm.description}</p>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              {`Your new balance will be ${(points.available - showConfirm.points).toLocaleString()} points.`}
+              Your new balance will be {(points.available - showConfirm.points_cost).toLocaleString()} points.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirm(null)}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
-                {'Cancel'}
+                Cancel
               </button>
               <button
                 onClick={() => handleRedeem(showConfirm)}

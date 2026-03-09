@@ -9,6 +9,7 @@ import AddCustomerModal from '../../components/AddCustomerModal.jsx';
 import { formatPriceWhole, currencySymbol } from '../../lib/formatPrice';
 import DashboardTour from '../../components/DashboardTour.jsx';
 import DashboardLanguageSelector from '../../components/DashboardLanguageSelector.jsx';
+import PointsBadge from '../../components/PointsBadge.jsx';
 
 
 // Stripe Connect Warning Banner Component
@@ -218,6 +219,13 @@ function DashboardContent() {
     const fetchDashboardData = async () => {
       const headers = { Authorization: `Bearer ${token}` };
 
+      // Award daily login points (fire-and-forget)
+      fetch('/api/points/earn', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DAILY_LOGIN' }),
+      }).catch(() => {});
+
       // All fetches in parallel for speed
       const [stripeRes, servicesRes, statsRes, quotesRes, upcomingRes] = await Promise.allSettled([
         fetch('/api/stripe/status', { headers }),
@@ -331,6 +339,7 @@ function DashboardContent() {
         <div className="flex items-center gap-2 sm:gap-4 text-sm">
           <DashboardLanguageSelector />
           <GlobalSearch />
+          <PointsBadge />
           <NotificationBell />
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center space-x-4">
@@ -359,6 +368,7 @@ function DashboardContent() {
                   { href: '/calendar', label: 'Calendar' },
                   { href: '/customers', label: 'Customers' },
                   { href: '/team', label: 'Team' },
+                  { href: '/rewards', label: 'Rewards' },
                   { href: '/settings', label: 'Settings' },
                 ].map(link => (
                   <a key={link.href} href={link.href} className="block px-4 py-3 hover:bg-white/10 text-sm">{link.label}</a>
