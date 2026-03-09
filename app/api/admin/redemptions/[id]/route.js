@@ -51,23 +51,26 @@ export async function PUT(request, { params }) {
         // Refund points
         const { data: detailer } = await supabase
           .from('detailers')
-          .select('total_points')
+          .select('points_balance')
           .eq('id', redemption.detailer_id)
           .single();
 
         if (detailer) {
           await supabase
             .from('detailers')
-            .update({ total_points: (detailer.total_points || 0) + redemption.points_spent })
+            .update({ points_balance: (detailer.points_balance || 0) + redemption.points_spent })
             .eq('id', redemption.detailer_id);
 
-          // Log refund
+          // Log refund in points ledger
           await supabase
-            .from('points_history')
+            .from('points_ledger')
             .insert({
               detailer_id: redemption.detailer_id,
-              points: redemption.points_spent,
-              reason: 'refund_cancelled_redemption',
+              action: 'REFUND_REDEMPTION',
+              base_points: redemption.points_spent,
+              multiplier: 1.0,
+              final_points: redemption.points_spent,
+              description: `Refund: cancelled redemption`,
               metadata: { redemption_id: id },
             });
         }
