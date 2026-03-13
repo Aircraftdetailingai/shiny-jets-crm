@@ -146,7 +146,7 @@ export default function Page() {
           <a href="/crew/login" className="text-sm text-gray-500 hover:text-[#1e3a5f] transition-colors">
             Crew login →
           </a>
-          <p className="text-xs text-gray-400">By Aircraft Detailing 101</p>
+          <p className="text-xs text-gray-400">By Vector Aviation</p>
         </div>
       </div>
     </div>

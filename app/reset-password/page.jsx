@@ -125,7 +125,7 @@ function ResetPasswordContent() {
             </form>
           </>
         )}
-        <p className="mt-6 text-xs text-gray-400 text-center">By Aircraft Detailing 101</p>
+        <p className="mt-6 text-xs text-gray-400 text-center">By Vector Aviation</p>
       </div>
     </div>
   );

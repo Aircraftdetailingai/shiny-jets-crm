@@ -328,7 +328,7 @@ export default function LandingPage() {
           <div className="flex items-center space-x-2 text-white font-bold">
             <span>&#9992;</span>
             <span>Vector</span>
-            <span className="text-gray-500 font-normal text-sm ml-2">by Aircraft Detailing 101</span>
+            <span className="text-gray-500 font-normal text-sm ml-2">by Vector Aviation</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-gray-400">
             <a href="/login" className="hover:text-white">Sign In</a>
