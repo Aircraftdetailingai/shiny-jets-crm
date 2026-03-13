@@ -83,18 +83,20 @@ export async function GET(request) {
       try {
         const { data: quotes } = await supabase
           .from('quotes')
-          .select('id, status, created_at')
+          .select('id, status, total_price, created_at')
           .eq('detailer_id', user.id)
           .eq('client_email', c.email)
           .order('created_at', { ascending: false });
 
         const allQuotes = quotes || [];
-        const completedQuotes = allQuotes.filter(q => q.status === 'completed' || q.status === 'paid');
+        const paidQuotes = allQuotes.filter(q => q.status === 'completed' || q.status === 'paid');
+        const totalRevenue = paidQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
 
         return {
           ...c,
           quote_count: allQuotes.length,
-          last_service_date: completedQuotes.length > 0 ? completedQuotes[0].created_at : null,
+          total_revenue: totalRevenue,
+          last_service_date: paidQuotes.length > 0 ? paidQuotes[0].created_at : null,
         };
       } catch {
         return { ...c, quote_count: 0, last_service_date: null };
