@@ -118,14 +118,14 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-[#1e3a5f] rounded-xl shadow-2xl border border-white/10 z-50 max-h-[80vh] flex flex-col">
+        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-v-surface rounded border border-v-border shadow-2xl z-50 max-h-[80vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-            <h3 className="text-sm font-semibold text-white">{'Notifications'}</h3>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-v-border">
+            <h3 className="text-sm font-medium text-v-text-primary">{'Notifications'}</h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs text-amber-400 hover:text-amber-300"
+                className="text-xs text-v-gold hover:text-v-gold-dim"
               >
                 {'Mark all as read'}
               </button>
@@ -135,7 +135,7 @@ export default function NotificationBell() {
           {/* List */}
           <div className="overflow-y-auto flex-1">
             {notifications.length === 0 ? (
-              <div className="py-12 text-center text-gray-400 text-sm">
+              <div className="py-12 text-center text-v-text-secondary text-sm">
                 {'No notifications yet'}
               </div>
             ) : (
@@ -143,8 +143,8 @@ export default function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-white/5 transition-colors border-b border-white/5 ${
-                    !n.read ? 'bg-white/[0.03]' : ''
+                  className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-v-surface-light transition-colors border-b border-v-border/50 ${
+                    !n.read ? 'bg-v-surface-light/50' : ''
                   }`}
                 >
                   <span className={`text-lg flex-shrink-0 mt-0.5 ${TYPE_COLORS[n.type] || ''}`}>
@@ -152,15 +152,15 @@ export default function NotificationBell() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-medium truncate ${!n.read ? 'text-white' : 'text-gray-300'}`}>
+                      <p className={`text-sm font-medium truncate ${!n.read ? 'text-v-text-primary' : 'text-v-text-secondary'}`}>
                         {n.title}
                       </p>
                       {!n.read && (
-                        <span className="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0" />
+                        <span className="w-2 h-2 bg-v-gold rounded-full flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">{timeAgo(n.created_at, t)}</p>
+                    <p className="text-xs text-v-text-secondary mt-0.5 line-clamp-2">{n.message}</p>
+                    <p className="text-xs text-v-text-secondary/60 mt-1">{timeAgo(n.created_at, t)}</p>
                   </div>
                 </button>
               ))

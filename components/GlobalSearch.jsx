@@ -148,13 +148,13 @@ export default function GlobalSearch() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-gray-400 text-sm"
+        className="flex items-center gap-2 px-3 py-1.5 rounded bg-v-surface-light/50 border border-v-border hover:bg-v-surface-light transition-colors text-v-text-secondary text-sm"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <span className="hidden sm:inline">{'Search'}</span>
-        <kbd className="hidden sm:inline text-[10px] bg-white/10 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+        <kbd className="hidden sm:inline text-[10px] bg-v-surface-light px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
       </button>
     );
   }
@@ -165,8 +165,8 @@ export default function GlobalSearch() {
     <div className="modal-overlay fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm">
       <div ref={containerRef} className="modal-content w-full max-w-lg mx-4">
         {/* Search input */}
-        <div className="bg-[#1e3a5f] rounded-xl shadow-2xl border border-white/10 overflow-hidden">
-          <div className="flex items-center px-4 gap-3 border-b border-white/10">
+        <div className="bg-v-surface rounded border border-v-border shadow-2xl overflow-hidden">
+          <div className="flex items-center px-4 gap-3 border-b border-v-border">
             <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -182,7 +182,7 @@ export default function GlobalSearch() {
             {loading && (
               <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
             )}
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white text-xs font-mono bg-white/10 px-2 py-1 rounded">
+            <button onClick={() => setOpen(false)} className="text-v-text-secondary hover:text-v-text-primary text-xs font-mono bg-v-surface-light px-2 py-1 rounded">
               ESC
             </button>
           </div>
@@ -197,8 +197,8 @@ export default function GlobalSearch() {
                   <button
                     key={term}
                     onClick={() => handleRecentClick(term)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
-                      selectedIdx === i ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5'
+                    className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 transition-colors ${
+                      selectedIdx === i ? 'bg-v-surface-light text-v-text-primary' : 'text-v-text-secondary hover:bg-v-surface-light/50'
                     }`}
                   >
                     <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,8 +233,8 @@ export default function GlobalSearch() {
                           <button
                             key={`${result.type}-${result.id}`}
                             onClick={() => navigate(result)}
-                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors ${
-                              selectedIdx === globalIdx ? 'bg-white/10' : 'hover:bg-white/5'
+                            className={`w-full text-left px-3 py-2.5 rounded flex items-center gap-3 transition-colors ${
+                              selectedIdx === globalIdx ? 'bg-v-surface-light' : 'hover:bg-v-surface-light/50'
                             }`}
                           >
                             <span className="text-base flex-shrink-0">{config.icon}</span>
@@ -262,10 +262,10 @@ export default function GlobalSearch() {
 
           {/* Footer hint */}
           {(results.length > 0 || showRecent) && (
-            <div className="flex items-center gap-4 px-4 py-2 border-t border-white/10 text-[10px] text-gray-500">
-              <span><kbd className="bg-white/10 px-1 rounded">↑↓</kbd> {'navigate'}</span>
-              <span><kbd className="bg-white/10 px-1 rounded">↵</kbd> {'select'}</span>
-              <span><kbd className="bg-white/10 px-1 rounded">esc</kbd> {'close'}</span>
+            <div className="flex items-center gap-4 px-4 py-2 border-t border-v-border text-[10px] text-v-text-secondary/50">
+              <span><kbd className="bg-v-surface-light px-1 rounded">↑↓</kbd> {'navigate'}</span>
+              <span><kbd className="bg-v-surface-light px-1 rounded">↵</kbd> {'select'}</span>
+              <span><kbd className="bg-v-surface-light px-1 rounded">esc</kbd> {'close'}</span>
             </div>
           )}
         </div>

@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========== THEME VARIABLES ========== */
+
+:root {
+  --v-charcoal: #0F1117;
+  --v-navy: #0D1B2A;
+  --v-surface: #1A2236;
+  --v-surface-light: #1E2A40;
+  --v-gold: #C9A84C;
+  --v-gold-dim: #A68A3E;
+  --v-border: #2A3A50;
+  --v-text-primary: #F5F5F5;
+  --v-text-secondary: #8A9BB0;
+}
+
 /* ========== EXISTING ANIMATIONS ========== */
 
 @keyframes slide-up {
@@ -22,7 +36,6 @@
 
 /* ========== GLOBAL TRANSITIONS ========== */
 
-/* Button transitions - all interactive elements */
 button, a, [role="button"] {
   transition: all 0.2s ease-in-out;
 }
@@ -31,12 +44,10 @@ button:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-/* Link color transitions */
 a {
   transition: color 0.2s ease, opacity 0.2s ease;
 }
 
-/* Input focus transitions */
 input, textarea, select {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -75,12 +86,13 @@ input, textarea, select {
 /* ========== CARD HOVER ========== */
 
 .card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  border-color: var(--v-gold);
 }
 
 /* ========== SIDEBAR / DROPDOWN TRANSITIONS ========== */
@@ -123,14 +135,14 @@ input, textarea, select {
 
 .skeleton {
   animation: pulse 1.5s ease-in-out infinite;
-  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
-  border-radius: 0.5rem;
+  background: linear-gradient(90deg, var(--v-surface) 25%, var(--v-surface-light) 50%, var(--v-surface) 75%);
+  border-radius: 0.25rem;
 }
 
 .skeleton-light {
   animation: pulse 1.5s ease-in-out infinite;
   background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
-  border-radius: 0.5rem;
+  border-radius: 0.25rem;
 }
 
 /* ========== TABLE ROW HOVER ========== */
@@ -140,7 +152,7 @@ input, textarea, select {
 }
 
 .row-hover:hover {
-  background-color: rgba(255,255,255,0.05);
+  background-color: var(--v-surface-light);
 }
 
 /* ========== NAV ITEM HOVER ========== */
@@ -182,6 +194,19 @@ input, textarea, select {
 
 .hover-scale:hover {
   transform: scale(1.02);
+}
+
+/* ========== GOLD BORDER ACCENT ========== */
+
+.card-gold-border {
+  border-left: 2px solid var(--v-gold);
+}
+
+/* ========== DATA TYPOGRAPHY ========== */
+
+.font-data {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ========== FORCE HIDE VERCEL TOOLBAR ========== */

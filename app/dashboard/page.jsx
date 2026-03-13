@@ -17,38 +17,35 @@ import { TERMS_VERSION } from '../../lib/terms';
 // Stripe Connect Warning Banner Component
 function StripeWarningBanner({ onConnect, loading, error, onClearError, status }) {
   const isDisconnected = status === 'INCOMPLETE' || status === 'PENDING';
-  const bgColor = isDisconnected ? 'bg-red-50 border-red-300' : 'bg-amber-100 border-amber-300';
-  const iconColor = isDisconnected ? 'text-red-600' : 'text-amber-600';
-  const titleColor = isDisconnected ? 'text-red-800' : 'text-amber-800';
-  const msgColor = isDisconnected ? 'text-red-700' : 'text-amber-700';
-  const title = isDisconnected ? 'Stripe disconnected - payments disabled' : 'Stripe not connected';
-  const msg = isDisconnected
-    ? 'Online payments are currently disabled. Quotes can still be sent but customers cannot pay online.'
-    : 'You cannot receive payments until you connect Stripe.';
-  const btnLabel = isDisconnected ? 'Reconnect Stripe' : 'Connect Stripe';
 
   return (
-    <div className={`${bgColor} border rounded-lg p-4 mb-4`}>
+    <div className={`bg-v-surface border ${isDisconnected ? 'border-v-danger/40' : 'border-v-gold/40'} rounded p-4 mb-4`}>
       {error && (
-        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex justify-between items-start">
+        <div className="mb-3 p-3 bg-v-danger/10 border border-v-danger/30 rounded text-v-danger text-sm flex justify-between items-start">
           <span>{error}</span>
-          <button onClick={onClearError} className="ml-2 text-red-500 hover:text-red-700">&times;</button>
+          <button onClick={onClearError} className="ml-2 text-v-danger hover:text-red-400">&times;</button>
         </div>
       )}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <span className={`${iconColor} text-xl mr-3`}>&#9888;</span>
+          <span className={`${isDisconnected ? 'text-v-danger' : 'text-v-gold'} text-xl mr-3`}>&#9888;</span>
           <div>
-            <p className={`${titleColor} font-medium`}>{title}</p>
-            <p className={`${msgColor} text-sm`}>{msg}</p>
+            <p className="text-v-text-primary font-medium">
+              {isDisconnected ? 'Stripe disconnected - payments disabled' : 'Stripe not connected'}
+            </p>
+            <p className="text-v-text-secondary text-sm">
+              {isDisconnected
+                ? 'Online payments are currently disabled. Quotes can still be sent but customers cannot pay online.'
+                : 'You cannot receive payments until you connect Stripe.'}
+            </p>
           </div>
         </div>
         <button
           onClick={onConnect}
           disabled={loading}
-          className="px-4 py-2 rounded bg-amber-500 text-white font-medium hover:bg-amber-600 disabled:opacity-50"
+          className="px-4 py-2 rounded bg-v-gold text-v-charcoal font-medium hover:bg-v-gold-dim disabled:opacity-50"
         >
-          {loading ? 'Connecting...' : btnLabel}
+          {loading ? 'Connecting...' : isDisconnected ? 'Reconnect Stripe' : 'Connect Stripe'}
         </button>
       </div>
     </div>
@@ -71,7 +68,6 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
         body: JSON.stringify({ days }),
       });
       if (res.ok) {
-        // Remove from the list by reloading
         window.location.reload();
       }
     } catch (err) {
@@ -95,25 +91,24 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
 
   return (
     <div className="space-y-3">
-      {/* Expiring Soon */}
       {expiring.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <h3 className="font-semibold text-sm text-amber-900 mb-2 flex items-center gap-2">
+        <div className="bg-v-surface border border-v-gold/30 rounded p-4">
+          <h3 className="font-medium text-sm text-v-gold mb-2 flex items-center gap-2 tracking-wide">
             <span>&#9200;</span> Expiring Soon ({expiring.length})
           </h3>
           <div className="space-y-2">
             {expiring.map((q) => (
-              <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+              <div key={q.id} className="flex items-center justify-between bg-v-surface-light rounded px-3 py-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{q.client_name || 'Customer'}</p>
-                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; {currencySymbol()}{(q.total_price || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-v-text-primary">{q.client_name || 'Customer'}</p>
+                  <p className="text-xs text-v-text-secondary">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; <span className="font-data">{currencySymbol()}{(q.total_price || 0).toLocaleString()}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-amber-600 font-medium">{formatExpiry(q.valid_until)}</span>
+                  <span className="text-xs text-v-gold font-medium font-data">{formatExpiry(q.valid_until)}</span>
                   <button
                     onClick={() => handleExtend(q.id)}
                     disabled={extending === q.id}
-                    className="px-3 py-2 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 font-medium min-h-[36px]"
+                    className="px-3 py-2 text-xs bg-v-gold text-v-charcoal rounded hover:bg-v-gold-dim disabled:opacity-50 font-medium min-h-[36px]"
                   >
                     {extending === q.id ? '...' : '+7 Days'}
                   </button>
@@ -124,25 +119,24 @@ function ExpiringQuotesWidget({ expiring = [], expired = [] }) {
         </div>
       )}
 
-      {/* Recently Expired */}
       {expired.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="font-semibold text-sm text-red-900 mb-2 flex items-center gap-2">
+        <div className="bg-v-surface border border-v-danger/30 rounded p-4">
+          <h3 className="font-medium text-sm text-v-danger mb-2 flex items-center gap-2 tracking-wide">
             <span>&#128683;</span> Recently Expired ({expired.length})
           </h3>
           <div className="space-y-2">
             {expired.slice(0, 5).map((q) => (
-              <div key={q.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+              <div key={q.id} className="flex items-center justify-between bg-v-surface-light rounded px-3 py-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{q.client_name || 'Customer'}</p>
-                  <p className="text-xs text-gray-500">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; {currencySymbol()}{(q.total_price || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-v-text-primary">{q.client_name || 'Customer'}</p>
+                  <p className="text-xs text-v-text-secondary">{q.aircraft_model || q.aircraft_type || 'Aircraft'} &#183; <span className="font-data">{currencySymbol()}{(q.total_price || 0).toLocaleString()}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-red-500">{formatExpiry(q.valid_until)}</span>
+                  <span className="text-xs text-v-danger font-data">{formatExpiry(q.valid_until)}</span>
                   <button
                     onClick={() => handleExtend(q.id)}
                     disabled={extending === q.id}
-                    className="px-3 py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 font-medium min-h-[36px]"
+                    className="px-3 py-2 text-xs border border-v-border text-v-text-secondary rounded hover:text-v-text-primary hover:border-v-gold disabled:opacity-50 font-medium min-h-[36px]"
                   >
                     {extending === q.id ? '...' : 'Reactivate'}
                   </button>
@@ -184,7 +178,6 @@ function DashboardContent() {
     setUser(parsedUser);
     setLoading(false);
 
-    // Refresh user data from server to get latest plan/permissions
     const refreshUser = async () => {
       try {
         const res = await fetch('/api/user/me', {
@@ -204,7 +197,6 @@ function DashboardContent() {
     };
     refreshUser();
 
-    // Check onboarding status
     const checkOnboarding = async () => {
       try {
         const res = await fetch('/api/onboarding', {
@@ -221,18 +213,15 @@ function DashboardContent() {
       return false;
     };
 
-    // Fetch all dashboard data in parallel
     const fetchDashboardData = async () => {
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Award daily login points (fire-and-forget)
       fetch('/api/points/earn', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'DAILY_LOGIN' }),
       }).catch(() => {});
 
-      // All fetches in parallel for speed
       const [stripeRes, servicesRes, statsRes, quotesRes, upcomingRes] = await Promise.allSettled([
         fetch('/api/stripe/status', { headers }),
         fetch('/api/services', { headers }),
@@ -241,7 +230,6 @@ function DashboardContent() {
         fetch('/api/quotes?status=paid,scheduled,in_progress&has_date=true&limit=10&sort=scheduled_date&order=asc', { headers }),
       ]);
 
-      // Process Stripe status
       if (stripeRes.status === 'fulfilled' && stripeRes.value.ok) {
         const data = await stripeRes.value.json();
         setStripeStatus(data);
@@ -249,25 +237,21 @@ function DashboardContent() {
         setStripeStatus({ connected: false, status: 'UNKNOWN' });
       }
 
-      // Process services (for setup prompt)
       if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
         const data = await servicesRes.value.json();
         setAvailableServices(data.services || []);
       }
 
-      // Process quick stats
       if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
         const data = await statsRes.value.json();
         setQuickStats(data);
       }
 
-      // Process recent quotes
       if (quotesRes.status === 'fulfilled' && quotesRes.value.ok) {
         const data = await quotesRes.value.json();
         setRecentQuotes(data.quotes || []);
       }
 
-      // Process upcoming jobs
       if (upcomingRes.status === 'fulfilled' && upcomingRes.value.ok) {
         const data = await upcomingRes.value.json();
         const now = new Date();
@@ -309,13 +293,11 @@ function DashboardContent() {
         window.location.href = data.url;
       } else if (data.error) {
         const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error;
-        console.error('Stripe error:', errorMsg);
         setStripeError(errorMsg);
       } else {
         setStripeError('No redirect URL received - please try again');
       }
     } catch (err) {
-      console.error('Failed to connect Stripe:', err);
       setStripeError(`Network error: ${err.message}`);
     } finally {
       setStripeLoading(false);
@@ -332,43 +314,58 @@ function DashboardContent() {
     return <LoadingSpinner message="Loading dashboard..." />;
   }
 
+  const STATUS_COLORS = {
+    sent: 'text-blue-400',
+    viewed: 'text-purple-400',
+    accepted: 'text-v-success',
+    completed: 'text-v-success',
+    paid: 'text-v-success',
+    declined: 'text-v-danger',
+    expired: 'text-v-text-secondary',
+  };
+
   return (
-    <div className="page-transition min-h-screen overflow-y-auto bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] p-4 pb-40 text-gray-900">
+    <div className="page-transition min-h-screen overflow-y-auto bg-v-charcoal p-4 pb-40">
       <DashboardTour />
+
       {/* Header */}
-      <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-1 bg-gradient-to-b from-[#0f172a] via-[#0f172a] to-transparent flex justify-between items-center text-white">
-        <div className="flex items-center space-x-2 text-xl sm:text-2xl font-bold">
-          <span>&#9992;</span>
-          <span>Vector</span>
-          {user && <span className="text-sm sm:text-lg font-medium hidden sm:inline">- {user.company}</span>}
+      <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-1 bg-v-charcoal/95 backdrop-blur-sm border-b border-v-border/50 flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <span className="text-v-gold text-xl">&#9992;</span>
+          <span className="text-v-text-primary text-xl font-light tracking-wide">Vector</span>
+          {user && <span className="text-v-text-secondary text-sm font-light hidden sm:inline tracking-wide">{user.company}</span>}
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-sm">
           <DashboardLanguageSelector />
           <GlobalSearch />
           <PointsBadge />
           <NotificationBell />
-          {/* Desktop nav links */}
+          {/* Desktop nav */}
           <div className="hidden md:flex items-center space-x-4">
-            <a href="/quotes" className="underline">Quotes</a>
-            <a href="/calendar" className="underline" data-tour="nav-calendar">Calendar</a>
-            <a href="/customers" className="underline">Customers</a>
-            <a href="/team" className="underline">Team</a>
-            <a href="/settings" className="underline" data-tour="nav-settings">Settings</a>
-            <button onClick={handleLogout} className="underline">Logout</button>
+            {[
+              { href: '/quotes', label: 'Quotes' },
+              { href: '/calendar', label: 'Calendar' },
+              { href: '/customers', label: 'Customers' },
+              { href: '/team', label: 'Team' },
+              { href: '/settings', label: 'Settings' },
+            ].map(link => (
+              <a key={link.href} href={link.href} className="text-v-text-secondary hover:text-v-gold transition-colors tracking-wide text-sm">{link.label}</a>
+            ))}
+            <button onClick={handleLogout} className="text-v-text-secondary hover:text-v-gold transition-colors tracking-wide text-sm">Logout</button>
           </div>
-          {/* Mobile hamburger menu */}
+          {/* Mobile menu */}
           <div className="md:hidden relative">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              className="p-2 rounded-lg hover:bg-white/10"
+              className="p-2 rounded hover:bg-v-surface-light"
               aria-label="Menu"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/>
+              <svg className="w-6 h-6 text-v-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16"/>
               </svg>
             </button>
             {mobileMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1e3a5f] rounded-lg shadow-xl border border-white/10 py-2 z-50">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-v-surface rounded border border-v-border shadow-xl py-2 z-50">
                 {[
                   { href: '/quotes', label: 'Quotes' },
                   { href: '/calendar', label: 'Calendar' },
@@ -377,9 +374,9 @@ function DashboardContent() {
                   { href: '/rewards', label: 'Rewards' },
                   { href: '/settings', label: 'Settings' },
                 ].map(link => (
-                  <a key={link.href} href={link.href} className="block px-4 py-3 hover:bg-white/10 text-sm">{link.label}</a>
+                  <a key={link.href} href={link.href} className="block px-4 py-3 text-sm text-v-text-secondary hover:text-v-gold hover:bg-v-surface-light transition-colors">{link.label}</a>
                 ))}
-                <button onClick={handleLogout} className="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm border-t border-white/10">Logout</button>
+                <button onClick={handleLogout} className="block w-full text-left px-4 py-3 text-sm text-v-text-secondary hover:text-v-gold hover:bg-v-surface-light border-t border-v-border transition-colors">Logout</button>
               </div>
             )}
           </div>
@@ -397,70 +394,66 @@ function DashboardContent() {
         />
       )}
 
-      {/* Services Configuration Prompt */}
+      {/* Services Setup Prompt */}
       {user && availableServices.length === 0 && (
-        <div data-tour="services-prompt" className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div data-tour="services-prompt" className="bg-v-surface border border-v-border rounded p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center">
-            <span className="text-blue-600 text-xl mr-3">&#9432;</span>
+            <span className="text-v-gold text-xl mr-3">&#9432;</span>
             <div>
-              <p className="text-blue-800 font-medium">Set up your service menu</p>
-              <p className="text-blue-700 text-sm">Add services you offer to start building quotes.</p>
+              <p className="text-v-text-primary font-medium">Set up your service menu</p>
+              <p className="text-v-text-secondary text-sm">Add services you offer to start building quotes.</p>
             </div>
           </div>
           <a
             href="/settings/services"
-            className="px-4 py-3 rounded bg-blue-500 text-white font-medium hover:bg-blue-600 min-h-[44px] whitespace-nowrap"
+            className="px-4 py-3 rounded bg-v-gold text-v-charcoal font-medium hover:bg-v-gold-dim min-h-[44px] whitespace-nowrap"
           >
             Add services to get started
           </a>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════
-          BUSINESS OVERVIEW - Key Stats at Top
-          ═══════════════════════════════════════════════════════════ */}
+      {/* Business Overview */}
       <div className="mb-4 space-y-4">
-
-        {/* ── Key Business Metrics ── */}
         <div data-tour="quick-stats">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-white">Business Overview</h2>
-            <a href="/analytics" className="text-sm text-amber-400 hover:underline">View Full Analytics</a>
+            <h2 className="text-lg font-light text-v-text-primary tracking-wide">Business Overview</h2>
+            <a href="/analytics" className="text-sm text-v-gold hover:text-v-gold-dim transition-colors">View Full Analytics</a>
           </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{currencySymbol()}{(quickStats?.monthRevenue || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-400 mt-1">This Month</p>
+            <div className="bg-v-surface border border-v-border rounded border-l-2 border-l-v-gold p-4">
+              <p className="text-v-text-secondary text-xs uppercase tracking-wider">Total Revenue</p>
+              <p className="text-2xl font-light text-v-gold font-data mt-1">{currencySymbol()}{(quickStats?.monthRevenue || 0).toLocaleString()}</p>
+              <p className="text-xs text-v-text-secondary mt-1">This Month</p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">Conversion Rate</p>
-              <p className="text-2xl font-bold text-emerald-600">
+            <div className="bg-v-surface border border-v-border rounded border-l-2 border-l-v-gold p-4">
+              <p className="text-v-text-secondary text-xs uppercase tracking-wider">Conversion Rate</p>
+              <p className="text-2xl font-light text-v-gold font-data mt-1">
                 {quickStats?.allTime ? (
                   (quickStats.allTime.quotes || 0) > 0
                     ? `${Math.round(((quickStats.allTime.booked || 0) / quickStats.allTime.quotes) * 100)}%`
                     : '0%'
                 ) : '--'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {quickStats?.allTime ? `${quickStats.allTime.booked || 0} Booked / ${quickStats.allTime.quotes || 0} sent` : ''}
+              <p className="text-xs text-v-text-secondary mt-1">
+                {quickStats?.allTime ? `${quickStats.allTime.booked || 0} / ${quickStats.allTime.quotes || 0} sent` : ''}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">Outstanding</p>
-              <p className="text-2xl font-bold text-red-500">{quickStats?.outstandingInvoices || 0}</p>
-              <p className="text-xs text-gray-400 mt-1">{currencySymbol()}{(quickStats?.outstandingTotal || 0).toLocaleString()}</p>
+            <div className="bg-v-surface border border-v-border rounded border-l-2 border-l-v-danger p-4">
+              <p className="text-v-text-secondary text-xs uppercase tracking-wider">Outstanding</p>
+              <p className="text-2xl font-light text-v-danger font-data mt-1">{quickStats?.outstandingInvoices || 0}</p>
+              <p className="text-xs text-v-text-secondary mt-1 font-data">{currencySymbol()}{(quickStats?.outstandingTotal || 0).toLocaleString()}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">Avg Job Value</p>
-              <p className="text-2xl font-bold text-blue-600">{currencySymbol()}{formatPriceWhole(quickStats?.avgJobValue)}</p>
+            <div className="bg-v-surface border border-v-border rounded border-l-2 border-l-v-gold p-4">
+              <p className="text-v-text-secondary text-xs uppercase tracking-wider">Avg Job Value</p>
+              <p className="text-2xl font-light text-v-gold font-data mt-1">{currencySymbol()}{formatPriceWhole(quickStats?.avgJobValue)}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">Jobs Completed</p>
-              <p className="text-2xl font-bold text-emerald-600">{quickStats?.monthJobs || 0}</p>
-              <p className="text-xs text-gray-400 mt-1">This Month</p>
+            <div className="bg-v-surface border border-v-border rounded border-l-2 border-l-v-success p-4">
+              <p className="text-v-text-secondary text-xs uppercase tracking-wider">Jobs Completed</p>
+              <p className="text-2xl font-light text-v-success font-data mt-1">{quickStats?.monthJobs || 0}</p>
+              <p className="text-xs text-v-text-secondary mt-1">This Month</p>
             </div>
           </div>
         </div>
@@ -469,95 +462,85 @@ function DashboardContent() {
         <div className="flex gap-2 flex-wrap">
           <a
             href="/quotes/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 shadow min-h-[44px]"
+            className="flex items-center gap-1.5 px-4 py-2 bg-v-gold text-v-charcoal rounded text-sm font-medium hover:bg-v-gold-dim min-h-[44px]"
           >
             <span>+</span> New Quote
           </a>
-          <button onClick={() => setShowAddCustomerModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
-            <span>&#128100;</span> Add Customer
+          <button onClick={() => setShowAddCustomerModal(true)} className="flex items-center gap-1.5 px-4 py-2 border border-v-border text-v-text-secondary rounded text-sm hover:text-v-text-primary hover:border-v-gold/50 min-h-[44px] transition-colors">
+            Add Customer
           </button>
-          <a href="/calendar" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
-            <span>&#128197;</span> View Calendar
+          <a href="/calendar" className="flex items-center gap-1.5 px-4 py-2 border border-v-border text-v-text-secondary rounded text-sm hover:text-v-text-primary hover:border-v-gold/50 min-h-[44px] transition-colors">
+            Calendar
           </a>
-          <a href="/quotes" className="flex items-center gap-1.5 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow border border-gray-200 min-h-[44px]">
-            <span>&#128196;</span> All Quotes
+          <a href="/quotes" className="flex items-center gap-1.5 px-4 py-2 border border-v-border text-v-text-secondary rounded text-sm hover:text-v-text-primary hover:border-v-gold/50 min-h-[44px] transition-colors">
+            All Quotes
           </a>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════
-          RECENT QUOTES & UPCOMING JOBS
-          ═══════════════════════════════════════════════════════════ */}
+      {/* Recent Quotes & Upcoming Jobs */}
       <div className="space-y-4">
-
-        {/* Expiring Quotes alerts */}
         <ExpiringQuotesWidget expiring={quickStats?.expiringQuotes} expired={quickStats?.recentlyExpired} />
 
-        {/* Recent Quotes + Upcoming Jobs */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* Compact Recent Quotes */}
-          <div className="bg-white rounded-lg p-4 shadow">
+          {/* Recent Quotes */}
+          <div className="bg-v-surface border border-v-border rounded p-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold text-sm text-gray-700">Recent Quotes</h3>
-              <a href="/quotes" className="text-xs text-amber-600 hover:underline">View All</a>
+              <h3 className="font-light text-sm text-v-text-secondary tracking-wide uppercase">Recent Quotes</h3>
+              <a href="/quotes" className="text-xs text-v-gold hover:text-v-gold-dim transition-colors">View All</a>
             </div>
             {recentQuotes.length > 0 ? (
-              <div className="space-y-1.5">
-                {recentQuotes.slice(0, 5).map((q) => {
-                  const sc = { sent: 'text-blue-600', viewed: 'text-purple-600', accepted: 'text-green-600', completed: 'text-emerald-600', paid: 'text-green-600', declined: 'text-red-500', expired: 'text-gray-400' };
-                  return (
-                    <a key={q.id} href={`/quotes/${q.id}`} className="flex items-center justify-between py-1.5 hover:bg-gray-50 rounded px-1 -mx-1 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">{q.aircraft_name || q.aircraft_model || 'Unknown Aircraft'}</p>
-                        <p className="text-xs text-gray-400 truncate">{q.customer_name || q.customer_email || ''}</p>
-                      </div>
-                      <div className="flex items-center gap-2 ml-2 shrink-0">
-                        <span className={`text-xs font-medium ${sc[q.status] || 'text-gray-500'}`}>{q.status}</span>
-                        <span className="text-sm font-bold text-gray-900">{currencySymbol()}{formatPriceWhole(q.total_price)}</span>
-                      </div>
-                    </a>
-                  );
-                })}
+              <div className="space-y-1">
+                {recentQuotes.slice(0, 5).map((q) => (
+                  <a key={q.id} href={`/quotes/${q.id}`} className="flex items-center justify-between py-2 hover:bg-v-surface-light rounded px-2 -mx-2 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-v-text-primary truncate">{q.aircraft_name || q.aircraft_model || 'Unknown Aircraft'}</p>
+                      <p className="text-xs text-v-text-secondary truncate">{q.customer_name || q.customer_email || ''}</p>
+                    </div>
+                    <div className="flex items-center gap-3 ml-2 shrink-0">
+                      <span className={`text-xs font-medium ${STATUS_COLORS[q.status] || 'text-v-text-secondary'}`}>{q.status}</span>
+                      <span className="text-sm text-v-text-primary font-data">{currencySymbol()}{formatPriceWhole(q.total_price)}</span>
+                    </div>
+                  </a>
+                ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-4">No quotes yet. Create your first quote below.</p>
+              <p className="text-sm text-v-text-secondary text-center py-4">No quotes yet. Create your first quote.</p>
             )}
           </div>
 
-          {/* Upcoming Jobs (Next 7 Days) */}
-          <div className="bg-white rounded-lg p-4 shadow">
+          {/* Upcoming Jobs */}
+          <div className="bg-v-surface border border-v-border rounded p-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold text-sm text-gray-700">Upcoming Jobs <span className="text-xs text-gray-400 font-normal">(Next 7 Days)</span></h3>
-              <a href="/calendar" className="text-xs text-amber-600 hover:underline">View Calendar</a>
+              <h3 className="font-light text-sm text-v-text-secondary tracking-wide uppercase">Upcoming Jobs <span className="text-xs text-v-text-secondary font-normal normal-case">(Next 7 Days)</span></h3>
+              <a href="/calendar" className="text-xs text-v-gold hover:text-v-gold-dim transition-colors">View Calendar</a>
             </div>
             {upcomingJobs.length > 0 ? (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {upcomingJobs.map((job) => {
                   const d = new Date(job.scheduled_date);
                   const isToday = d.toDateString() === new Date().toDateString();
                   return (
-                    <div key={job.id} className="flex items-center justify-between py-1.5 px-1 -mx-1">
+                    <div key={job.id} className="flex items-center justify-between py-2 px-2 -mx-2 hover:bg-v-surface-light rounded transition-colors">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">{job.aircraft_name || job.aircraft_model || 'Unknown Aircraft'}</p>
-                        <p className="text-xs text-gray-400 truncate">{job.customer_name || job.client_name || ''}</p>
+                        <p className="text-sm text-v-text-primary truncate">{job.aircraft_name || job.aircraft_model || 'Unknown Aircraft'}</p>
+                        <p className="text-xs text-v-text-secondary truncate">{job.customer_name || job.client_name || ''}</p>
                       </div>
                       <div className="text-right shrink-0 ml-2">
-                        <p className={`text-xs font-medium ${isToday ? 'text-amber-600' : 'text-gray-600'}`}>
+                        <p className={`text-xs font-medium ${isToday ? 'text-v-gold' : 'text-v-text-secondary'}`}>
                           {isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                         </p>
-                        <p className="text-sm font-bold text-gray-900">{currencySymbol()}{formatPriceWhole(job.total_price)}</p>
+                        <p className="text-sm text-v-text-primary font-data">{currencySymbol()}{formatPriceWhole(job.total_price)}</p>
                       </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-4">No upcoming jobs scheduled</p>
+              <p className="text-sm text-v-text-secondary text-center py-4">No upcoming jobs scheduled</p>
             )}
           </div>
         </div>
-
       </div>
 
       {/* Terms Consent Modal */}
@@ -575,7 +558,6 @@ function DashboardContent() {
         onClose={() => setShowAddCustomerModal(false)}
         onSuccess={(data) => {
           toastSuccess(data?.created ? 'Customer added!' : 'Customer saved!');
-          // Refresh quick stats to update any customer counts
           const token = localStorage.getItem('vector_token');
           if (token) {
             fetch('/api/dashboard/stats', { headers: { Authorization: `Bearer ${token}` } })

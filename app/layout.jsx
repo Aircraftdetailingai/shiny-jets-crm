@@ -1,10 +1,17 @@
 import './globals.css'
+import { Inter } from 'next/font/google'
 import InstallPrompt from '@/components/InstallPrompt'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import Providers from '@/components/Providers'
 
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  display: 'swap',
+})
+
 export const viewport = {
-  themeColor: '#0f172a',
+  themeColor: '#0F1117',
 }
 
 export const metadata = {
@@ -39,7 +46,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body>
+      <body className={`${inter.className} bg-v-charcoal text-v-text-primary antialiased`}>
         <Providers>
           {children}
         </Providers>

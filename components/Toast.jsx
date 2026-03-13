@@ -31,9 +31,9 @@ const ICONS = {
 };
 
 const BG = {
-  success: 'bg-green-50 border-green-200',
-  error: 'bg-red-50 border-red-200',
-  info: 'bg-blue-50 border-blue-200',
+  success: 'bg-emerald-500/10 border-emerald-500/30',
+  error: 'bg-red-500/10 border-red-500/30',
+  info: 'bg-blue-500/10 border-blue-500/30',
 };
 
 function ToastItem({ toast: t, onDismiss }) {
@@ -54,8 +54,8 @@ function ToastItem({ toast: t, onDismiss }) {
       }`}
     >
       {ICONS[t.type] || ICONS.info}
-      <p className="text-sm text-gray-800 flex-1">{t.message}</p>
-      <button onClick={() => { setExiting(true); setTimeout(() => onDismiss(t.id), 300); }} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+      <p className="text-sm text-v-text-primary flex-1">{t.message}</p>
+      <button onClick={() => { setExiting(true); setTimeout(() => onDismiss(t.id), 300); }} className="text-v-text-secondary hover:text-v-text-primary flex-shrink-0">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>

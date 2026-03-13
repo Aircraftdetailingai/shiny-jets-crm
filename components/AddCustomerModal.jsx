@@ -52,68 +52,68 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-v-surface border border-v-border rounded-t-lg sm:rounded p-5 sm:p-6 w-full sm:max-w-md overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Add Customer</h2>
-          <button onClick={() => { resetForm(); onClose(); }} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          <h2 className="text-xl font-light tracking-wide text-v-text-primary">Add Customer</h2>
+          <button onClick={() => { resetForm(); onClose(); }} className="text-v-text-secondary hover:text-v-text-primary text-2xl">&times;</button>
         </div>
 
-        {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Company Name</label>
             <input
               type="text"
               value={form.company_name}
               onChange={(e) => setForm(p => ({ ...p, company_name: e.target.value }))}
               placeholder="e.g. Vector Aviation"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Customer Name <span className="text-red-500">*</span></label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))}
               placeholder="Full name"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Email <span className="text-red-500">*</span></label>
             <input
               type="email"
               value={form.email}
               onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
               placeholder="customer@email.com"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Phone</label>
             <input
               type="tel"
               value={form.phone}
               onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))}
               placeholder="(555) 123-4567"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Airport / Location</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Airport / Location</label>
             <input
               type="text"
               value={form.airport}
               onChange={(e) => setForm(p => ({ ...p, airport: e.target.value }))}
               placeholder="KSDL, KVNY, etc."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Notes</label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm(p => ({ ...p, notes: e.target.value }))}
@@ -123,17 +123,17 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Preference</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-1">Contact Preference</label>
             <div className="flex gap-2">
               {['email'].map((pref) => (
                 <button
                   key={pref}
                   type="button"
                   onClick={() => setForm(p => ({ ...p, contactPref: pref }))}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border ${
+                  className={`flex-1 py-2 px-3 rounded text-sm font-medium border ${
                     form.contactPref === pref
-                      ? 'bg-amber-500 text-white border-amber-500'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-v-gold text-v-charcoal border-v-gold'
+                      : 'bg-v-surface-light text-v-text-secondary border-v-border hover:text-v-text-primary'
                   }`}
                 >
                   Email
@@ -145,7 +145,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
           {/* Tags */}
           {tags.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Tags</label>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => {
                   const selected = form.tags.includes(tag);
@@ -157,10 +157,10 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
                         ...p,
                         tags: selected ? p.tags.filter(t => t !== tag) : [...p.tags, tag],
                       }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                      className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
                         selected
-                          ? 'bg-amber-500 text-white border-amber-500'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:opacity-80'
+                          ? 'bg-v-gold text-v-charcoal border-v-gold'
+                          : 'bg-v-surface-light text-v-text-secondary border-v-border hover:opacity-80'
                       }`}
                     >
                       {selected ? '\u2713 ' : ''}{tag}
@@ -176,7 +176,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
           <button
             type="button"
             onClick={() => { resetForm(); onClose(); }}
-            className="px-4 py-3 border rounded-lg text-gray-700 min-h-[44px] font-medium"
+            className="px-4 py-3 border border-v-border rounded text-v-text-secondary hover:text-v-text-primary hover:border-v-gold/50 min-h-[44px] font-medium"
           >
             Cancel
           </button>
@@ -184,7 +184,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50 min-h-[44px] font-semibold"
+            className="px-4 py-3 rounded bg-v-gold text-v-charcoal disabled:opacity-50 min-h-[44px] font-medium hover:bg-v-gold-dim"
           >
             {saving ? 'Saving...' : 'Save Customer'}
           </button>
