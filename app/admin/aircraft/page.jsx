@@ -433,7 +433,8 @@ export default function AdminAircraftPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="max-w-[1600px] mx-auto mb-4">
+      <div className="sticky top-0 z-10 bg-v-charcoal pb-4 -mx-4 px-4 border-b border-v-border shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
+        <div className="max-w-[1600px] mx-auto">
         <div className="bg-v-surface border border-v-border rounded-sm p-4">
           <div className="flex flex-col lg:flex-row gap-3">
             {/* Search */}
@@ -531,6 +532,7 @@ export default function AdminAircraftPage() {
               )}
             </div>
           </div>
+        </div>
         </div>
       </div>
 
