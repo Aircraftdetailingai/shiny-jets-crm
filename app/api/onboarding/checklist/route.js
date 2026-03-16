@@ -55,7 +55,7 @@ export async function GET(request) {
         title: 'Add aircraft types',
         description: 'Set up the aircraft types you service',
         complete: servicesCount > 0,
-        cta: '/settings',
+        cta: '/settings/services',
         ctaLabel: 'Add Aircraft',
       },
       {
@@ -63,7 +63,7 @@ export async function GET(request) {
         title: 'Set your pricing',
         description: 'Add rates for your services',
         complete: servicesWithPricing > 0,
-        cta: '/settings',
+        cta: '/settings/services',
         ctaLabel: 'Set Pricing',
       },
       {
@@ -79,7 +79,7 @@ export async function GET(request) {
         title: 'Upgrade your plan',
         description: 'Unlock all features with a paid plan',
         complete: !!(detailer.plan && detailer.plan !== 'free'),
-        cta: '/settings?tab=billing',
+        cta: '/settings',
         ctaLabel: 'View Plans',
       },
     ];

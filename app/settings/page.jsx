@@ -104,6 +104,12 @@ function SettingsContent() {
   const [termsUploading, setTermsUploading] = useState(false);
   const [termsSuccess, setTermsSuccess] = useState('');
 
+  // Profile state
+  const [profileName, setProfileName] = useState('');
+  const [profileCompany, setProfileCompany] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+
   // Sticky save button state
   const [pendingChanges, setPendingChanges] = useState(new Set());
   const [saving, setSaving] = useState(false);
@@ -124,12 +130,18 @@ function SettingsContent() {
     let u;
     try { u = JSON.parse(stored); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
     setUser(u);
+    setProfileName(u.name || '');
+    setProfileCompany(u.company || '');
+    setProfilePhone(u.phone || '');
     // Refresh user data from server to get latest plan/permissions
     fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.user) {
           setUser(data.user);
+          setProfileName(data.user.name || '');
+          setProfileCompany(data.user.company || '');
+          setProfilePhone(data.user.phone || '');
           localStorage.setItem('vector_user', JSON.stringify(data.user));
         }
       })
@@ -582,6 +594,20 @@ function SettingsContent() {
     setUser(newUser);
   };
 
+  const saveProfile = async () => {
+    await fetch('/api/user/profile', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+      },
+      body: JSON.stringify({ name: profileName, company: profileCompany, phone: profilePhone }),
+    });
+    const newUser = { ...user, name: profileName, company: profileCompany, phone: profilePhone };
+    localStorage.setItem('vector_user', JSON.stringify(newUser));
+    setUser(newUser);
+  };
+
   const saveLaborRate = async (rate) => {
     await fetch('/api/user/labor-rate', {
       method: 'POST',
@@ -851,6 +877,7 @@ function SettingsContent() {
     setSaving(true);
     try {
       const promises = [];
+      if (pendingChanges.has('profile')) promises.push(saveProfile());
       if (pendingChanges.has('laborRate')) promises.push(saveLaborRate(parseFloat(laborRate) || 0));
       if (pendingChanges.has('efficiencyFactor')) promises.push(saveEfficiencyFactor(efficiencyFactor));
       if (pendingChanges.has('minimumFee')) promises.push(saveMinimumFee(parseFloat(minimumFee) || 0, []));
@@ -930,8 +957,54 @@ function SettingsContent() {
         )}
 
 
+        {/* Profile */}
+        <div id="profile" className="bg-v-surface border border-v-border text-v-text-primary p-4 rounded-sm">
+          <h2 className="text-lg font-semibold font-heading text-v-text-primary mb-3">Profile</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Your Name</label>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => { setProfileName(e.target.value); markDirty('profile'); }}
+                placeholder="Full name"
+                className="w-full bg-v-charcoal border border-v-border text-v-text-primary placeholder:text-v-text-secondary rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Company Name</label>
+              <input
+                type="text"
+                value={profileCompany}
+                onChange={(e) => { setProfileCompany(e.target.value); markDirty('profile'); }}
+                placeholder="Your business name"
+                className="w-full bg-v-charcoal border border-v-border text-v-text-primary placeholder:text-v-text-secondary rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Phone</label>
+              <input
+                type="tel"
+                value={profilePhone}
+                onChange={(e) => { setProfilePhone(e.target.value); markDirty('profile'); }}
+                placeholder="(555) 123-4567"
+                className="w-full bg-v-charcoal border border-v-border text-v-text-primary placeholder:text-v-text-secondary rounded px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Email</label>
+              <input
+                type="email"
+                value={user?.email || ''}
+                disabled
+                className="w-full bg-v-charcoal border border-v-border text-v-text-secondary rounded px-3 py-2 text-sm cursor-not-allowed"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Plan & Billing */}
-        <div className="bg-v-surface border border-v-border text-v-text-primary p-4 rounded-sm">
+        <div id="billing" className="bg-v-surface border border-v-border text-v-text-primary p-4 rounded-sm">
           <h2 className="text-lg font-semibold font-heading text-v-text-primary mb-1">{'Billing'}</h2>
           {user?.is_admin ? (
             <div>

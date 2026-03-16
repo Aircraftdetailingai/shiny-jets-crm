@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 const DISMISS_KEY = 'vector_checklist_dismissed';
@@ -7,6 +7,7 @@ const DISMISS_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function OnboardingChecklist({ user }) {
   const router = useRouter();
+  const modalRef = useRef(null);
   const [visible, setVisible] = useState(false);
   const [steps, setSteps] = useState([]);
   const [completedCount, setCompletedCount] = useState(0);
@@ -24,8 +25,9 @@ export default function OnboardingChecklist({ user }) {
       if (accountAge > 7 * 24 * 60 * 60 * 1000) return;
     }
 
-    // Hidden if dismissed less than 24h ago
+    // Hidden if dismissed less than 24h ago (or permanently)
     const dismissedAt = localStorage.getItem(DISMISS_KEY);
+    if (dismissedAt === 'permanent') return;
     if (dismissedAt && Date.now() - parseInt(dismissedAt, 10) < DISMISS_DURATION) return;
 
     // Fetch checklist status
@@ -52,6 +54,21 @@ export default function OnboardingChecklist({ user }) {
   };
 
   const handleDontShowAgain = async () => {
+    // Set localStorage immediately so it's instant
+    localStorage.setItem(DISMISS_KEY, 'permanent');
+    setVisible(false);
+    // Persist to DB
+    const token = localStorage.getItem('vector_token');
+    if (token) {
+      await fetch('/api/onboarding/checklist', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+  };
+
+  const handleGetStarted = async () => {
+    localStorage.setItem(DISMISS_KEY, 'permanent');
     setVisible(false);
     const token = localStorage.getItem('vector_token');
     if (token) {
@@ -60,18 +77,12 @@ export default function OnboardingChecklist({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {});
     }
-    // Also set localStorage as fallback
-    localStorage.setItem(DISMISS_KEY, 'permanent');
   };
 
-  const handleGetStarted = async () => {
-    setVisible(false);
-    const token = localStorage.getItem('vector_token');
-    if (token) {
-      await fetch('/api/onboarding/checklist', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
+  const handleOverlayClick = (e) => {
+    // Click on backdrop (outside modal) = skip for now
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      handleSkip();
     }
   };
 
@@ -80,8 +91,22 @@ export default function OnboardingChecklist({ user }) {
   if (!visible || loading) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-      <div className="bg-v-surface border border-v-border rounded-sm modal-glow max-w-lg w-full max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+      onClick={handleOverlayClick}
+    >
+      <div ref={modalRef} className="bg-v-surface border border-v-border rounded-sm modal-glow max-w-lg w-full max-h-[90vh] overflow-y-auto relative">
+        {/* X close button */}
+        <button
+          onClick={handleSkip}
+          className="absolute top-4 right-4 text-v-text-secondary hover:text-v-text-primary transition-colors z-10"
+          aria-label="Close"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         {/* Header */}
         <div className="p-6 pb-4 text-center">
           <p className="text-v-gold text-2xl mb-2">&#9992;</p>
