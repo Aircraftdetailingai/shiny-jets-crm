@@ -64,6 +64,7 @@ function NewQuoteContent() {
   const [customHours, setCustomHours] = useState({});
   const [saveDefaultPrompt, setSaveDefaultPrompt] = useState({});
   const [savingDefault, setSavingDefault] = useState({});
+  const [aircraftHoursRef, setAircraftHoursRef] = useState(null);
 
   // Fetch manufacturers on mount
   useEffect(() => {
@@ -186,6 +187,17 @@ function NewQuoteContent() {
         setAirport('');
         setCustomHours({});
         setSaveDefaultPrompt({});
+        setAircraftHoursRef(null);
+
+        // Fetch reference hours from aircraft_hours table
+        const ac = data.aircraft;
+        if (ac.manufacturer && ac.model) {
+          fetch(`/api/aircraft-hours?make=${encodeURIComponent(ac.manufacturer)}&model=${encodeURIComponent(ac.model)}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.hours) setAircraftHoursRef(d.hours); })
+            .catch(() => {});
+        }
+
         setTimeout(() => {
           document.getElementById('services-section')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
@@ -213,8 +225,29 @@ function NewQuoteContent() {
     }
   };
 
-  // Get aircraft-based hours for a service (from aircraft table based on hours_field)
-  const getAircraftHours = (svc) => {
+  // Map a service name to the matching aircraft_hours column
+  const getRefHours = (svc) => {
+    if (!aircraftHoursRef) return 0;
+    const name = (svc.name || '').toLowerCase();
+    if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(aircraftHoursRef.maintenance_wash_hrs) || 0;
+    if (name.includes('decon')) return parseFloat(aircraftHoursRef.decon_paint_hrs) || 0;
+    if (name.includes('polish')) return parseFloat(aircraftHoursRef.one_step_polish_hrs) || 0;
+    if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(aircraftHoursRef.spray_ceramic_hrs) || 0;
+    if (name.includes('ceramic')) return parseFloat(aircraftHoursRef.ceramic_coating_hrs) || 0;
+    if (name.includes('wax') || name.includes('static guard')) return parseFloat(aircraftHoursRef.wax_hrs) || 0;
+    if (name.includes('leather')) return parseFloat(aircraftHoursRef.leather_hrs) || 0;
+    if (name.includes('carpet') || name.includes('extract')) return parseFloat(aircraftHoursRef.carpet_hrs) || 0;
+    // Package-level hours from the reference sheet
+    if (name.includes('bronze')) return parseFloat(aircraftHoursRef.bronze_pkg_hrs) || 0;
+    if (name.includes('silver')) return parseFloat(aircraftHoursRef.silver_pkg_hrs) || 0;
+    if (name.includes('gold')) return parseFloat(aircraftHoursRef.gold_pkg_hrs) || 0;
+    if (name.includes('platinum')) return parseFloat(aircraftHoursRef.platinum_pkg_hrs) || 0;
+    if (name.includes('shiny jet')) return parseFloat(aircraftHoursRef.shiny_jet_pkg_hrs) || 0;
+    return 0;
+  };
+
+  // Fallback: hours from the old aircraft table (based on hours_field or name matching)
+  const getOldAircraftHours = (svc) => {
     if (!selectedAircraft) return 0;
     if (svc.hours_field && selectedAircraft[svc.hours_field] !== undefined) {
       return parseFloat(selectedAircraft[svc.hours_field]) || 0;
@@ -234,13 +267,17 @@ function NewQuoteContent() {
     return parseFloat(selectedAircraft.ext_wash_hours) || 0;
   };
 
-  // Get hours for a service: manual override > detailer default > aircraft data
+  // Combined: aircraft_hours reference > old aircraft table
+  const getAircraftHours = (svc) => {
+    const refHrs = getRefHours(svc);
+    if (refHrs > 0) return refHrs;
+    return getOldAircraftHours(svc);
+  };
+
+  // Get hours for a service: manual override > detailer default > aircraft_hours ref > old aircraft
   const getHoursForService = (svc) => {
-    // 1. Manual override for this quote
     if (customHours[svc.id] !== undefined) return customHours[svc.id];
-    // 2. Detailer's saved default_hours
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
-    // 3. Aircraft-based hours
     return getAircraftHours(svc);
   };
 
