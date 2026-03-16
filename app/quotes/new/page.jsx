@@ -478,12 +478,12 @@ function NewQuoteContent() {
 
       {/* Services Configuration Prompt */}
       {user && availableServices.length === 0 && (
-        <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center">
-            <span className="text-blue-600 text-xl mr-3">&#9432;</span>
+            <span className="text-blue-400 text-xl mr-3">&#9432;</span>
             <div>
-              <p className="text-blue-800 font-medium">Set up your service menu</p>
-              <p className="text-blue-700 text-sm">Add services you offer to start building quotes.</p>
+              <p className="text-blue-300 font-medium">Set up your service menu</p>
+              <p className="text-blue-400 text-sm">Add services you offer to start building quotes.</p>
             </div>
           </div>
           <a
@@ -497,16 +497,16 @@ function NewQuoteContent() {
 
       <div className="max-w-3xl mx-auto">
           {/* 1. Select Aircraft */}
-          <div className="bg-white rounded-lg p-4 mb-4 shadow">
+          <div className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
             <h3 className="font-semibold mb-3 text-lg">Select Aircraft</h3>
 
             {/* Manufacturer Dropdown */}
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Manufacturer</label>
               <select
                 value={selectedManufacturer}
                 onChange={(e) => setSelectedManufacturer(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base [color-scheme:dark] [&>option]:bg-v-surface [&>option]:text-v-text-primary"
               >
                 <option value="">All Manufacturers</option>
                 {manufacturers.map(m => (
@@ -523,7 +523,7 @@ function NewQuoteContent() {
                   placeholder="Search models..."
                   value={modelSearch}
                   onChange={(e) => setModelSearch(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 text-base"
+                  className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
                 />
               </div>
             )}
@@ -533,7 +533,7 @@ function NewQuoteContent() {
               <div className="flex flex-wrap gap-1.5 mb-3">
                 <button
                   onClick={() => setSelectedCategory('')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${!selectedCategory ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${!selectedCategory ? 'bg-amber-500 text-white' : 'bg-v-charcoal text-v-text-secondary hover:bg-white/5'}`}
                 >
                   All Categories
                 </button>
@@ -541,7 +541,7 @@ function NewQuoteContent() {
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${selectedCategory === cat ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[32px] ${selectedCategory === cat ? 'bg-amber-500 text-white' : 'bg-v-charcoal text-v-text-secondary hover:bg-white/5'}`}
                   >
                     {categoryLabels[cat] || cat}
                   </button>
@@ -562,8 +562,8 @@ function NewQuoteContent() {
                           onClick={() => handleSelectAircraft(aircraft)}
                           className={`p-2.5 rounded-lg border text-left transition-all text-sm min-h-[44px] ${
                             selectedAircraft?.id === aircraft.id
-                              ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500'
-                              : 'border-gray-200 hover:border-amber-300 hover:bg-amber-50/50'
+                              ? 'border-amber-500 bg-amber-900/20 ring-2 ring-amber-500'
+                              : 'border-v-border hover:border-amber-300 hover:bg-amber-900/10'
                           }`}
                         >
                           <p className="font-medium text-v-text-primary truncate">{aircraft.model}</p>
@@ -586,21 +586,21 @@ function NewQuoteContent() {
 
           {/* Tail Number */}
           {selectedAircraft && (
-            <div className="bg-white rounded-lg p-4 mb-4 shadow">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tail Number (N-number)</label>
+            <div className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Tail Number (N-number)</label>
               <input
                 type="text"
                 value={tailNumber}
                 onChange={(e) => setTailNumber(e.target.value.toUpperCase())}
                 placeholder="N12345"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
               />
             </div>
           )}
 
           {/* 2. Select Services */}
           {selectedAircraft && (
-            <div id="services-section" className="bg-white rounded-lg p-4 mb-4 shadow">
+            <div id="services-section" className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
               <h3 className="font-semibold mb-3 text-lg">Select Services</h3>
 
               {/* Individual Services */}
@@ -615,13 +615,13 @@ function NewQuoteContent() {
                       <div
                         className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all min-h-[44px] ${
                           isSelected
-                            ? 'border-amber-500 bg-amber-50'
-                            : 'border-gray-200 hover:border-amber-300'
+                            ? 'border-amber-500 bg-amber-900/20'
+                            : 'border-v-border hover:border-amber-300'
                         }`}
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => toggleService(svc.id)} role="button" tabIndex={0}>
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
-                            isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-gray-300'
+                            isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-v-border'
                           }`}>
                             {isSelected && <span className="text-xs">&#10003;</span>}
                           </div>
@@ -637,7 +637,7 @@ function NewQuoteContent() {
                                 value={customHours[svc.id] !== undefined ? customHours[svc.id] : hours}
                                 onChange={(e) => handleHoursChange(svc.id, svc.name, e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-16 border border-gray-300 rounded px-2 py-1 text-center text-sm font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1 text-center text-sm font-mono text-v-text-primary focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                               />
                               <span className="text-gray-400 text-xs">hrs</span>
                               <span className="text-gray-300 mx-0.5">@</span>
@@ -680,7 +680,7 @@ function NewQuoteContent() {
               {/* Packages */}
               {availablePackages.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-sm text-gray-700 mb-2">Packages</h4>
+                  <h4 className="font-medium text-sm text-v-text-secondary mb-2">Packages</h4>
                   <div className="space-y-2">
                     {availablePackages.map(pkg => {
                       const isSelected = selectedPackage?.id === pkg.id;
@@ -690,15 +690,15 @@ function NewQuoteContent() {
                           onClick={() => selectPackage(pkg)}
                           className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all min-h-[44px] ${
                             isSelected
-                              ? 'border-green-500 bg-green-50'
-                              : 'border-gray-200 hover:border-green-300'
+                              ? 'border-green-500 bg-green-900/20'
+                              : 'border-v-border hover:border-green-500/50'
                           }`}
                         >
                           <div>
                             <p className="font-medium text-v-text-primary text-sm">{pkg.name}</p>
                             <p className="text-xs text-gray-400">{Array.isArray(pkg.service_ids) ? pkg.service_ids.length : 0} services{pkg.discount_percent > 0 ? ` \u00B7 ${pkg.discount_percent}% off` : ''}</p>
                           </div>
-                          {isSelected && <span className="text-green-600 font-bold text-sm">Selected</span>}
+                          {isSelected && <span className="text-green-400 font-bold text-sm">Selected</span>}
                         </button>
                       );
                     })}
@@ -710,7 +710,7 @@ function NewQuoteContent() {
 
           {/* 3. Access Difficulty */}
           {selectedAircraft && selectedServicesList.length > 0 && (
-            <div className="bg-white rounded-lg p-4 mb-4 shadow">
+            <div className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
               <h3 className="font-semibold mb-3 text-sm">Access Difficulty</h3>
               <div className="grid grid-cols-4 gap-2">
                 {[
@@ -724,8 +724,8 @@ function NewQuoteContent() {
                     onClick={() => setAccessDifficulty(opt.value)}
                     className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all min-h-[44px] ${
                       accessDifficulty === opt.value
-                        ? 'border-amber-500 bg-amber-50 text-amber-700'
-                        : 'border-gray-200 text-gray-600 hover:border-amber-300'
+                        ? 'border-amber-500 bg-amber-900/20 text-amber-700'
+                        : 'border-v-border text-v-text-secondary hover:border-amber-300'
                     }`}
                   >
                     {opt.label}
@@ -739,7 +739,7 @@ function NewQuoteContent() {
 
           {/* 4. Add-on Fees */}
           {selectedAircraft && selectedServicesList.length > 0 && availableAddons.length > 0 && (
-            <div className="bg-white rounded-lg p-4 mb-4 shadow">
+            <div className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
               <h3 className="font-semibold mb-3 text-sm">Add-on Fees</h3>
               <div className="space-y-2">
                 {availableAddons.map(addon => {
@@ -749,18 +749,18 @@ function NewQuoteContent() {
                       key={addon.id}
                       onClick={() => toggleAddon(addon.id)}
                       className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all min-h-[44px] ${
-                        isSelected ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'
+                        isSelected ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:border-amber-300'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-gray-300'
+                          isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-v-border'
                         }`}>
                           {isSelected && <span className="text-xs">&#10003;</span>}
                         </div>
                         <span className="text-sm font-medium text-v-text-primary">{addon.name}</span>
                       </div>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-v-text-secondary">
                         {addon.fee_type === 'percent' ? `${addon.amount}%` : `${currencySymbol()}${parseFloat(addon.amount).toFixed(2)}`}
                       </span>
                     </button>
@@ -772,37 +772,37 @@ function NewQuoteContent() {
 
           {/* 5. Airport / Job Location */}
           {selectedAircraft && selectedServicesList.length > 0 && (
-            <div className="bg-white rounded-lg p-4 mb-4 shadow">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Airport Code</label>
+            <div className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Airport Code</label>
               <input
                 type="text"
                 value={airport}
                 onChange={(e) => setAirport(e.target.value.toUpperCase())}
                 placeholder="KJFK"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
               />
             </div>
           )}
 
           {/* 6. Notes */}
           {selectedAircraft && selectedServicesList.length > 0 && (
-            <div className="bg-white rounded-lg p-4 mb-4 shadow">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <div className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Notes</label>
               <textarea
                 value={quoteNotes}
                 onChange={(e) => setQuoteNotes(e.target.value)}
                 placeholder="Add notes for this quote (visible to customer)..."
                 rows={3}
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
               />
             </div>
           )}
 
           {/* 7. Aircraft Details Accordion */}
           {selectedAircraft && (
-            <details className="bg-white rounded-lg p-4 mb-4 shadow">
-              <summary className="font-semibold text-sm cursor-pointer text-gray-700">Aircraft Details</summary>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-600">
+            <details className="bg-v-surface border border-v-border rounded-sm p-4 mb-4">
+              <summary className="font-semibold text-sm cursor-pointer text-v-text-secondary">Aircraft Details</summary>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-v-text-secondary">
                 <div><span className="text-gray-400">Type:</span> {selectedAircraft.category}</div>
                 <div><span className="text-gray-400">Model:</span> {selectedAircraft.manufacturer} {selectedAircraft.model}</div>
                 {selectedAircraft.surface_area_sqft && <div><span className="text-gray-400">Surface:</span> {selectedAircraft.surface_area_sqft} sq ft</div>}
@@ -944,7 +944,7 @@ function NewQuoteContent() {
               <button
                 type="button"
                 onClick={resetQuoteForm}
-                className="w-full mt-2 px-4 py-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-800 text-sm min-h-[44px]"
+                className="w-full mt-2 px-4 py-3 rounded-lg border border-v-border text-v-text-secondary hover:bg-white/5 text-sm min-h-[44px]"
               >
                 Start New Quote
               </button>
