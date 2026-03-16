@@ -40,6 +40,7 @@ export async function GET(request) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
+    // Fetch from primary services table
     const { data: services, error } = await supabase
       .from('services')
       .select('*')
@@ -51,7 +52,40 @@ export async function GET(request) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({ services: services || [] });
+    let mergedServices = services || [];
+
+    // Merge default_hours from detailer_services if services are missing them
+    const needsMerge = mergedServices.some(s => s.default_hours == null);
+    if (needsMerge) {
+      try {
+        const { data: detailerServices } = await supabase
+          .from('detailer_services')
+          .select('service_name, db_field, default_hours, hourly_rate')
+          .eq('detailer_id', user.id)
+          .eq('enabled', true);
+
+        if (detailerServices && detailerServices.length > 0) {
+          mergedServices = mergedServices.map(svc => {
+            if (svc.default_hours != null) return svc;
+
+            // Match by hours_field == db_field first, then by name
+            const match = detailerServices.find(ds =>
+              (svc.hours_field && ds.db_field && svc.hours_field === ds.db_field) ||
+              ds.service_name?.toLowerCase() === svc.name?.toLowerCase()
+            );
+
+            if (match && match.default_hours != null) {
+              return { ...svc, default_hours: match.default_hours };
+            }
+            return svc;
+          });
+        }
+      } catch (e) {
+        // detailer_services table may not exist — that's fine, skip merge
+      }
+    }
+
+    return Response.json({ services: mergedServices });
 
   } catch (err) {
     console.error('Services GET error:', err);

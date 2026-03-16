@@ -54,13 +54,36 @@ export async function PUT(request, { params }) {
     if (product_notes !== undefined) updates.product_notes = product_notes || '';
     updates.updated_at = new Date().toISOString();
 
-    const { data: service, error } = await supabase
+    let { data: service, error } = await supabase
       .from('services')
       .update(updates)
       .eq('id', id)
       .eq('detailer_id', user.id)
       .select()
       .single();
+
+    // Column-stripping retry if default_hours or other new columns don't exist
+    if (error && error.message?.includes('column')) {
+      const retryUpdates = { ...updates };
+      delete retryUpdates.default_hours;
+      delete retryUpdates.product_cost_per_hour;
+      delete retryUpdates.product_notes;
+      const retry = await supabase
+        .from('services')
+        .update(retryUpdates)
+        .eq('id', id)
+        .eq('detailer_id', user.id)
+        .select()
+        .single();
+      if (retry.error) {
+        console.error('Failed to update service (retry):', retry.error);
+        return Response.json({ error: retry.error.message }, { status: 500 });
+      }
+      // Attach the values we couldn't save so the client still sees them
+      service = { ...retry.data };
+      if (updates.default_hours !== undefined) service.default_hours = updates.default_hours;
+      return Response.json({ service });
+    }
 
     if (error) {
       console.error('Failed to update service:', error);

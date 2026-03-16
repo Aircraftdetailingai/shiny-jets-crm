@@ -60,7 +60,7 @@ export default function ServicesPage() {
   // Service form
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState(null);
-  const [newService, setNewService] = useState({ name: '', description: '', hourly_rate: '', hours_field: 'ext_wash_hours', product_cost_per_hour: '', product_notes: '' });
+  const [newService, setNewService] = useState({ name: '', description: '', hourly_rate: '', hours_field: 'ext_wash_hours', default_hours: '', product_cost_per_hour: '', product_notes: '' });
 
   // Package form
   const [showPackageBuilder, setShowPackageBuilder] = useState(false);
@@ -252,6 +252,7 @@ export default function ServicesPage() {
           description: newService.description,
           hourly_rate: parseFloat(newService.hourly_rate) || 0,
           hours_field: newService.hours_field || 'ext_wash_hours',
+          default_hours: newService.default_hours ? parseFloat(newService.default_hours) : null,
           product_cost_per_hour: parseFloat(newService.product_cost_per_hour) || 0,
           product_notes: newService.product_notes || '',
         }),
@@ -259,7 +260,7 @@ export default function ServicesPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to add service'); return; }
       setServices([...services, data.service]);
-      setNewService({ name: '', description: '', hourly_rate: '', hours_field: 'ext_wash_hours', product_cost_per_hour: '', product_notes: '' });
+      setNewService({ name: '', description: '', hourly_rate: '', hours_field: 'ext_wash_hours', default_hours: '', product_cost_per_hour: '', product_notes: '' });
       setShowServiceModal(false);
       setError('');
     } catch (err) {
@@ -282,6 +283,7 @@ export default function ServicesPage() {
           description: editingService.description,
           hourly_rate: parseFloat(editingService.hourly_rate) || 0,
           hours_field: editingService.hours_field || 'ext_wash_hours',
+          default_hours: editingService.default_hours ? parseFloat(editingService.default_hours) : null,
           product_cost_per_hour: parseFloat(editingService.product_cost_per_hour) || 0,
           product_notes: editingService.product_notes || '',
         }),
@@ -573,6 +575,7 @@ export default function ServicesPage() {
                         {svc.description && <p className="text-xs text-gray-500">{svc.description}</p>}
                         <p className="text-[10px] text-gray-400">
                           {HOURS_FIELD_OPTIONS[svc.hours_field] || 'Ext Wash (default)'}
+                          {svc.default_hours > 0 && <span className="ml-1">&#183; {svc.default_hours}h default</span>}
                           {getServiceLinkCount(svc.id) > 0 && (
                             <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-medium">
                               {getServiceLinkCount(svc.id)} linked
@@ -807,6 +810,12 @@ export default function ServicesPage() {
               </select>
               <p className="text-xs text-gray-400 mt-1">Which aircraft time estimate to use for this service</p>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Default Hours</label>
+              <input type="number" step="0.5" min="0" value={newService.default_hours || ''} onChange={(e) => setNewService({ ...newService, default_hours: e.target.value })}
+                placeholder="Auto from aircraft" className="w-full border rounded-lg px-3 py-2" />
+              <p className="text-xs text-gray-400 mt-1">Override aircraft hours with a fixed default. Leave blank to auto-calculate from aircraft data.</p>
+            </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Product Cost Tracking <span className="text-xs text-gray-400 font-normal">(internal only)</span></p>
               <div>
@@ -869,6 +878,12 @@ export default function ServicesPage() {
                 ))}
               </select>
               <p className="text-xs text-gray-400 mt-1">Which aircraft time estimate to use for this service</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Default Hours</label>
+              <input type="number" step="0.5" min="0" value={editingService.default_hours || ''} onChange={(e) => setEditingService({ ...editingService, default_hours: e.target.value })}
+                placeholder="Auto from aircraft" className="w-full border rounded-lg px-3 py-2" />
+              <p className="text-xs text-gray-400 mt-1">Override aircraft hours with a fixed default. Leave blank to auto-calculate from aircraft data.</p>
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Product Cost Tracking <span className="text-xs text-gray-400 font-normal">(internal only)</span></p>
