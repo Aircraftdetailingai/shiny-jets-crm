@@ -25,26 +25,52 @@ export async function GET(request) {
   // Debug: log what detailer_id we're querying with
   console.log('[analytics] user.id (detailer_id):', user.id, '| days:', days, '| since:', since);
 
-  // Fetch quotes and customers in parallel
-  const [quotesRes, customersRes] = await Promise.all([
-    supabase
+  // Fetch quotes with column-stripping retry (in case accepted_at or other columns don't exist yet)
+  let quotesSelect = 'id, status, total_price, created_at, sent_at, viewed_at, accepted_at, paid_at, completed_at, scheduled_date, client_name, client_email, aircraft_model, aircraft_type, services';
+  let quotesRes;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    quotesRes = await supabase
       .from('quotes')
-      .select('id, status, total_price, created_at, sent_at, viewed_at, accepted_at, paid_at, completed_at, scheduled_date, client_name, client_email, aircraft_model, aircraft_type, services')
+      .select(quotesSelect)
       .eq('detailer_id', user.id)
       .gte('created_at', since)
-      .order('created_at', { ascending: true }),
-    supabase
+      .order('created_at', { ascending: true });
+    if (!quotesRes.error) break;
+    const colMatch = quotesRes.error.message?.match(/column ['"]([\w]+)['"] .* does not exist/i)
+      || quotesRes.error.message?.match(/Could not find the '([\w]+)' column/i);
+    if (colMatch) {
+      console.log(`[analytics] stripping unknown column "${colMatch[1]}", retrying...`);
+      quotesSelect = quotesSelect.split(', ').filter(c => c.trim() !== colMatch[1]).join(', ');
+      continue;
+    }
+    console.error('[analytics] quotes query error:', quotesRes.error.message);
+    break;
+  }
+
+  // Fetch customers (with fallback if columns don't exist)
+  let customersSelect = 'id, name, email, total_revenue, quote_count, last_service_date';
+  let customersRes;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    customersRes = await supabase
       .from('customers')
-      .select('id, name, email, total_revenue, quote_count, last_service_date')
+      .select(customersSelect)
       .eq('detailer_id', user.id)
-      .order('total_revenue', { ascending: false }),
-  ]);
+      .order('total_revenue', { ascending: false });
+    if (!customersRes.error) break;
+    const colMatch = customersRes.error.message?.match(/column ['"]([\w]+)['"] .* does not exist/i)
+      || customersRes.error.message?.match(/Could not find the '([\w]+)' column/i);
+    if (colMatch) {
+      console.log(`[analytics] customers: stripping unknown column "${colMatch[1]}", retrying...`);
+      customersSelect = customersSelect.split(', ').filter(c => c.trim() !== colMatch[1]).join(', ');
+      continue;
+    }
+    // If customers table doesn't exist at all, just skip
+    console.error('[analytics] customers query error:', customersRes.error.message);
+    break;
+  }
 
-  if (quotesRes.error) console.error('[analytics] quotes query error:', quotesRes.error);
-  if (customersRes.error) console.error('[analytics] customers query error:', customersRes.error);
-
-  const allQuotes = quotesRes.data || [];
-  const allCustomers = customersRes.data || [];
+  const allQuotes = quotesRes?.data || [];
+  const allCustomers = customersRes?.data || [];
 
   console.log('[analytics] quotes found:', allQuotes.length, '| statuses:', allQuotes.map(q => q.status));
 

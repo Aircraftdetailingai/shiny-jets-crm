@@ -142,10 +142,22 @@ export async function GET(request) {
     const allQuotes = allQuotesRes.data || [];
     const pendingQuotes = pendingRes.data || [];
     const todayJobs = todayJobsRes.data || [];
-    const recentQuotesRaw = recentActivityRes.data || [];
     const feedbackData = feedbackRes.data || [];
     const expiringQuotes = expiringRes.data || [];
     const recentlyExpired = expiredRes.data || [];
+
+    // Recent activity - retry without accepted_at if column doesn't exist
+    let recentQuotesRaw = recentActivityRes.data || [];
+    if (recentActivityRes.error && !recentActivityRes.data) {
+      console.log('[dashboard] recent activity query failed, retrying without accepted_at:', recentActivityRes.error.message);
+      const retryRes = await supabase
+        .from('quotes')
+        .select('id, aircraft_model, aircraft_type, client_name, total_price, status, created_at, paid_at, completed_at, sent_at, viewed_at')
+        .eq('detailer_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      recentQuotesRaw = retryRes.data || [];
+    }
 
     // Calculate stats — include all revenue-generating statuses
     const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
