@@ -26,6 +26,12 @@ export async function GET(request) {
       .eq('id', user.id)
       .single();
 
+    // Get service count for resume support
+    const { count: serviceCount } = await supabase
+      .from('services')
+      .select('id', { count: 'exact', head: true })
+      .eq('detailer_id', user.id);
+
     return Response.json({
       onboarding_complete: data?.onboarding_complete || false,
       onboarding_step: data?.onboarding_step || 0,
@@ -38,6 +44,7 @@ export async function GET(request) {
       theme_primary: data?.theme_primary || '#C9A84C',
       theme_colors: data?.theme_colors || [],
       portal_theme: data?.portal_theme || 'dark',
+      service_count: serviceCount || 0,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
@@ -113,19 +120,8 @@ export async function POST(request) {
       return Response.json({ success: true, user: updated });
     }
 
-    // Save services (Step 2)
+    // Save services (Step 2) — actual insert handled by /api/services/import
     if (action === 'save_services') {
-      const { services } = body;
-      if (services && services.length > 0) {
-        const toInsert = services.map(svc => ({
-          detailer_id: user.id,
-          name: svc.name,
-          description: svc.description || '',
-          hourly_rate: parseFloat(svc.hourly_rate) || 0,
-          hours_field: svc.hours_field || 'ext_wash_hours',
-        }));
-        await supabase.from('services').insert(toInsert);
-      }
       await supabase.from('detailers').update({ onboarding_step: 2 }).eq('id', user.id);
       return Response.json({ success: true });
     }

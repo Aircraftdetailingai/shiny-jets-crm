@@ -70,7 +70,7 @@ export default function Page() {
             }
           }
         }
-        const redirectTo = data.must_change_password ? '/onboarding' : '/dashboard';
+        const redirectTo = (data.must_change_password || data.onboarding_complete === false) ? '/onboarding' : '/dashboard';
         if (data.user.terms_accepted_version !== TERMS_VERSION) {
           setPendingRedirect(redirectTo);
           setShowTermsModal(true);

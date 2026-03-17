@@ -103,7 +103,7 @@ export async function POST(request) {
       terms_accepted_version: data.terms_accepted_version || null,
     };
     return new Response(
-      JSON.stringify({ token, user, must_change_password: data.must_change_password }),
+      JSON.stringify({ token, user, must_change_password: data.must_change_password, onboarding_complete: data.onboarding_complete !== false }),
       { status: 200 }
     );
   } catch (err) {

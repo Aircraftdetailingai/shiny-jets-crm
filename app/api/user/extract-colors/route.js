@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { rgbToHex, generatePalettes } from '@/lib/color-utils';
+import { rgbToHex, generatePalettes, filterAndSortColors } from '@/lib/color-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,36 +31,33 @@ export async function POST(request) {
     const buffer = Buffer.from(await imgRes.arrayBuffer());
 
     const { getPalette } = await import('colorthief');
-    const palette = await getPalette(buffer, 5);
-    console.log('[extract-colors] palette count:', palette.length);
+    const palette = await getPalette(buffer, 8);
 
     const rgbPalette = palette.map(swatchToRgb);
+
+    // Filter noise and sort by saturation (most vibrant first)
+    const brandColors = filterAndSortColors(rgbPalette);
+
+    // Fallback: if filtering removed everything, use raw colors
     const rawColors = rgbPalette.map(([r, g, b]) => rgbToHex(r, g, b));
-    console.log('[extract-colors] rawColors:', rawColors);
+    const finalColors = brandColors.length > 0 ? brandColors.slice(0, 5) : rawColors.slice(0, 5);
 
-    // Pick best primary: filter out very dark/light, take most prominent
-    const filtered = rgbPalette.filter(([r, g, b]) => {
-      const l = (r + g + b) / 3;
-      return l > 30 && l < 230;
-    });
-    const bestRgb = (filtered.length > 0 ? filtered : rgbPalette)[0];
-    const primaryHex = rgbToHex(bestRgb[0], bestRgb[1], bestRgb[2]);
+    // Generate 3 palette combos from the most vibrant extracted colors
+    const primaryHex = finalColors[0] || '#C9A84C';
+    const palettes = generatePalettes(primaryHex, finalColors);
 
-    // Generate 3 palette options from the primary color
-    const palettes = generatePalettes(primaryHex);
-
-    // Save raw colors to DB
+    // Save to DB
     try {
       const supabase = getSupabase();
       await supabase
         .from('detailers')
-        .update({ theme_colors: rawColors })
+        .update({ theme_colors: finalColors })
         .eq('id', user.id);
     } catch (e) {
       console.log('Failed to save theme_colors:', e.message);
     }
 
-    return Response.json({ palettes, rawColors });
+    return Response.json({ palettes, rawColors: finalColors });
   } catch (err) {
     console.error('[extract-colors] error:', err);
     return Response.json({ error: err.message }, { status: 500 });

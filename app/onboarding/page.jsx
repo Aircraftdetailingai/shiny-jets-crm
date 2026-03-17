@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { STRIPE_COUNTRIES } from '@/lib/currency';
 import { TERMS_VERSION } from '@/lib/terms';
 import { generateThemeFromPrimary, applyThemeToCss } from '@/lib/theme';
+import { generatePalettes } from '@/lib/color-utils';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 const ONBOARDING_SERVICES = [
@@ -89,6 +90,7 @@ export default function OnboardingPage() {
 
   // Screen 3: Branding
   const [extractedColors, setExtractedColors] = useState([]);
+  const [extractedPalettes, setExtractedPalettes] = useState([]);
   const [selectedColor, setSelectedColor] = useState('#C9A84C');
   const [portalTheme, setPortalTheme] = useState('dark');
 
@@ -96,6 +98,9 @@ export default function OnboardingPage() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [inviteSent, setInviteSent] = useState(false);
+
+  // Resume support
+  const [savedServiceCount, setSavedServiceCount] = useState(0);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -120,8 +125,12 @@ export default function OnboardingPage() {
         if (data.home_airport) setHomeAirport(data.home_airport);
         if (data.logo_url) setLogoUrl(data.logo_url);
         if (data.theme_primary && data.theme_primary !== '#C9A84C') setSelectedColor(data.theme_primary);
-        if (data.theme_colors?.length > 0) setExtractedColors(data.theme_colors);
+        if (data.theme_colors?.length > 0) {
+          setExtractedColors(data.theme_colors);
+          setExtractedPalettes(generatePalettes(data.theme_colors[0], data.theme_colors));
+        }
         if (data.portal_theme) setPortalTheme(data.portal_theme);
+        if (data.service_count) setSavedServiceCount(data.service_count);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -153,6 +162,7 @@ export default function OnboardingPage() {
         }),
       });
       const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to save profile'); return; }
       if (data.user) localStorage.setItem('vector_user', JSON.stringify(data.user));
       goNext();
     } catch (err) { setError(err.message); }
@@ -188,6 +198,8 @@ export default function OnboardingPage() {
           if (colRes.ok) {
             const colData = await colRes.json();
             if (colData.rawColors?.length > 0) setExtractedColors(colData.rawColors);
+            if (colData.palettes?.length > 0) setExtractedPalettes(colData.palettes);
+            if (colData.rawColors?.[0]) setSelectedColor(colData.rawColors[0]);
           }
         } catch {}
       } else {
@@ -218,8 +230,9 @@ export default function OnboardingPage() {
     setSaving(true);
     setError('');
     try {
-      await fetch('/api/services/import', { method: 'POST', headers, body: JSON.stringify({ services: allServices }) });
-      await fetch('/api/onboarding', { method: 'POST', headers, body: JSON.stringify({ action: 'save_services', services: allServices }) });
+      const importRes = await fetch('/api/services/import', { method: 'POST', headers, body: JSON.stringify({ services: allServices }) });
+      if (!importRes.ok) { const d = await importRes.json(); setError(d.error || 'Failed to save services'); return; }
+      await fetch('/api/onboarding', { method: 'POST', headers, body: JSON.stringify({ action: 'save_services' }) });
       goNext();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
@@ -231,7 +244,7 @@ export default function OnboardingPage() {
     setError('');
     try {
       const theme = generateThemeFromPrimary(selectedColor);
-      await fetch('/api/user/branding', {
+      const brandRes = await fetch('/api/user/branding', {
         method: 'POST', headers,
         body: JSON.stringify({
           theme_primary: theme.primary,
@@ -242,6 +255,7 @@ export default function OnboardingPage() {
           theme_logo_url: logoUrl || null,
         }),
       });
+      if (!brandRes.ok) { const d = await brandRes.json(); setError(d.error || 'Failed to save branding'); return; }
       // Update localStorage so sidebar picks up the color
       try {
         const stored = JSON.parse(localStorage.getItem('vector_user') || '{}');
@@ -262,10 +276,11 @@ export default function OnboardingPage() {
     setSaving(true);
     setError('');
     try {
-      await fetch('/api/onboarding', {
+      const invRes = await fetch('/api/onboarding', {
         method: 'POST', headers,
         body: JSON.stringify({ action: 'send_customer_invite', email: customerEmail, name: customerName }),
       });
+      if (!invRes.ok) { const d = await invRes.json(); setError(d.error || 'Failed to send invite'); return; }
       setInviteSent(true);
       setTimeout(() => goNext(), 1500);
     } catch (err) { setError(err.message); }
@@ -283,7 +298,7 @@ export default function OnboardingPage() {
 
   if (loading) return <LoadingSpinner message="Loading..." />;
 
-  const chosenCount = Object.values(selectedServices).filter(Boolean).length + customServices.length;
+  const chosenCount = Object.values(selectedServices).filter(Boolean).length + customServices.length || savedServiceCount;
   const previewTheme = generateThemeFromPrimary(selectedColor);
 
   // ─── Screen 0: Welcome ─────────────────────────────────────────
@@ -585,41 +600,80 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* Accent Color */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-v-text-secondary mb-2">Accent Color</label>
-                <p className="text-xs text-v-text-secondary/60 mb-3">Click a color to set it as your brand accent</p>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* Default gold */}
-                  <button
-                    onClick={() => setSelectedColor('#C9A84C')}
-                    className="group flex flex-col items-center gap-1"
-                    title="Vector Default">
-                    <div className={`w-10 h-10 rounded-full border-2 transition-all ${
-                      selectedColor === '#C9A84C' ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]' : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
-                    }`} style={{ background: '#C9A84C' }} />
-                    <span className="text-[9px] text-v-text-secondary/60">Default</span>
-                  </button>
-
-                  {/* Extracted colors */}
-                  {extractedColors.map((hex, i) => {
-                    if (hex.toLowerCase() === '#c9a84c') return null;
-                    return (
-                      <button key={hex + i} onClick={() => setSelectedColor(hex)}
-                        className="group flex flex-col items-center gap-1" title={hex}>
-                        <div className={`w-10 h-10 rounded-full border-2 transition-all ${
-                          selectedColor?.toLowerCase() === hex.toLowerCase() ? 'border-white scale-110 shadow-[0_0_8px_rgba(255,255,255,0.3)]' : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+              {/* Extracted colors from logo */}
+              {extractedColors.length > 0 && (
+                <div className="mb-5">
+                  <label className="block text-xs font-medium text-v-text-secondary/60 uppercase tracking-wider mb-2">Colors from your logo</label>
+                  <div className="flex items-center gap-2">
+                    {extractedColors.map((hex, i) => (
+                      <button key={hex + i} onClick={() => setSelectedColor(hex)} title={hex}
+                        className="group relative">
+                        <div className={`w-7 h-7 rounded-full border-2 transition-all ${
+                          selectedColor?.toLowerCase() === hex.toLowerCase()
+                            ? 'border-white scale-110 shadow-[0_0_6px_rgba(255,255,255,0.3)]'
+                            : 'border-v-border/50 hover:border-v-text-secondary/50 hover:scale-105'
                         }`} style={{ background: hex }} />
-                        <span className="text-[9px] text-v-text-secondary/60 font-mono">{hex}</span>
                       </button>
-                    );
-                  })}
-
-                  {extractedColors.length === 0 && (
-                    <p className="text-xs text-v-text-secondary/40 italic">Upload a logo to extract brand colors</p>
-                  )}
+                    ))}
+                    <button onClick={() => setSelectedColor('#C9A84C')} title="Default gold"
+                      className="group relative ml-1">
+                      <div className={`w-7 h-7 rounded-full border-2 transition-all ${
+                        selectedColor === '#C9A84C'
+                          ? 'border-white scale-110 shadow-[0_0_6px_rgba(201,168,76,0.4)]'
+                          : 'border-v-border/50 hover:border-v-text-secondary/50 hover:scale-105'
+                      }`} style={{ background: '#C9A84C' }} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Palette combos */}
+              {extractedPalettes.length > 0 ? (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-v-text-secondary mb-2">Choose a palette</label>
+                  <div className="space-y-2">
+                    {extractedPalettes.map((pal, i) => {
+                      const isSelected = selectedColor?.toLowerCase() === pal.primary.toLowerCase();
+                      return (
+                        <button key={i} onClick={() => setSelectedColor(pal.primary)}
+                          className={`w-full text-left p-3 border rounded transition-colors ${
+                            isSelected ? 'border-v-gold bg-v-gold/5' : 'border-v-border hover:border-v-border/80'
+                          }`}>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1 shrink-0">
+                              <div className="w-8 h-8 rounded" style={{ background: pal.primary }} />
+                              <div className="w-5 h-8 rounded" style={{ background: pal.secondary }} />
+                              <div className="w-4 h-8 rounded" style={{ background: pal.neutral }} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-sm font-medium ${isSelected ? 'text-v-gold' : 'text-v-text-primary'}`}>{pal.name}</p>
+                              <p className="text-[11px] text-v-text-secondary/60 truncate">{pal.description}</p>
+                            </div>
+                            {isSelected && (
+                              <svg className="w-4 h-4 text-v-gold ml-auto shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                <path d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-v-text-secondary mb-2">Accent Color</label>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button onClick={() => setSelectedColor('#C9A84C')} className="group flex flex-col items-center gap-1" title="Default">
+                      <div className={`w-10 h-10 rounded-full border-2 transition-all ${
+                        selectedColor === '#C9A84C' ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]' : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+                      }`} style={{ background: '#C9A84C' }} />
+                      <span className="text-[9px] text-v-text-secondary/60">Default</span>
+                    </button>
+                    <p className="text-xs text-v-text-secondary/40 italic">Upload a logo to generate brand palettes</p>
+                  </div>
+                </div>
+              )}
 
               {/* Portal Theme Toggle */}
               <div className="mb-6">
