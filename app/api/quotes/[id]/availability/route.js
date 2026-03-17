@@ -49,7 +49,7 @@ export async function GET(request, { params }) {
   const { weeklySchedule, blockedDates, leadTimeDays, maxAdvanceDays } = availability;
   const blockedSet = new Set(blockedDates || []);
   const lead = leadTimeDays ?? 2;
-  const maxDays = maxAdvanceDays ?? 90;
+  const maxDays = 365;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

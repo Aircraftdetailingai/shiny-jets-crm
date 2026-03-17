@@ -6,6 +6,8 @@ const TYPE_ICONS = {
   payment_received: '💰',
   quote_expired: '⏰',
   job_reminder: '📅',
+  job_scheduled: '📅',
+  staffing_alert: '🟡',
 };
 
 const TYPE_COLORS = {
@@ -13,6 +15,8 @@ const TYPE_COLORS = {
   payment_received: 'text-green-400',
   quote_expired: 'text-amber-400',
   job_reminder: 'text-purple-400',
+  job_scheduled: 'text-blue-400',
+  staffing_alert: 'text-yellow-400',
 };
 
 function timeAgo(dateStr, t) {

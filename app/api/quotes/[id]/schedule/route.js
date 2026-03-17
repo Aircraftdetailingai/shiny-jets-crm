@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendJobScheduledEmail, sendBookingReceivedEmail } from '@/lib/email';
+import { sendJobScheduledEmail, sendBookingReceivedEmail, sendStaffingAlertEmail } from '@/lib/email';
 import { sendPushNotification } from '@/lib/push';
 
 export const dynamic = 'force-dynamic';
@@ -141,6 +141,40 @@ export async function POST(request, { params }) {
         });
       }
     } catch {}
+
+    // Staffing alert for bookings 14+ days out
+    try {
+      const daysOut = Math.floor((new Date(scheduledDate) - new Date()) / 86400000);
+      if (daysOut >= 14) {
+        await supabase.from('staffing_alerts').insert({
+          detailer_id: quote.detailer_id,
+          quote_id: id,
+          scheduled_date: scheduledDate,
+          alert_type: 'needs_coverage',
+        });
+
+        // Staffing alert notification
+        const alertDateStr = new Date(scheduledDateTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        await supabase.from('notifications').insert({
+          detailer_id: quote.detailer_id,
+          type: 'staffing_alert',
+          title: 'Staff Coverage Needed',
+          message: `${quote.client_name || 'Customer'} booked ${quote.aircraft_model || quote.aircraft_type || 'detail'} for ${alertDateStr} — assign staff coverage`,
+          metadata: { quote_id: id, scheduled_date: scheduledDate },
+          link: '/jobs',
+        });
+
+        // Staffing alert email
+        sendStaffingAlertEmail({
+          quote,
+          detailer,
+          scheduledDate: scheduledDateTime,
+          daysOut,
+        }).catch(e => console.error('[schedule] staffing alert email failed:', e));
+      }
+    } catch (e) {
+      console.error('[schedule] staffing alert creation failed:', e);
+    }
 
     return Response.json({ success: true, scheduled_date: scheduledDateTime });
   } catch (err) {

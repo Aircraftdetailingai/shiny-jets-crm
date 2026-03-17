@@ -276,6 +276,15 @@ export async function GET(request) {
     .sort((a, b) => b.daysSinceService - a.daysSinceService)
     .slice(0, 20);
 
+  // --- Staffing alerts (unresolved) ---
+  const { data: staffingAlerts } = await supabase
+    .from('staffing_alerts')
+    .select('id, quote_id, scheduled_date, alert_type, created_at, quotes(client_name, aircraft_model, aircraft_type, total_price, assigned_team_member_ids)')
+    .eq('detailer_id', user.id)
+    .eq('resolved', false)
+    .order('scheduled_date', { ascending: true })
+    .catch(() => ({ data: [] }));
+
   return Response.json({
     funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted, totalRevenue },
     conversionTrend,
@@ -293,5 +302,6 @@ export async function GET(request) {
     dailyJobHeatmap,
     customerLTV,
     churnRisk,
+    staffingAlerts: staffingAlerts || [],
   });
 }

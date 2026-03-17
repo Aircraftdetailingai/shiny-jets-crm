@@ -13,14 +13,17 @@ export async function POST(request) {
 
   const settings = await request.json();
 
-  // Extract notify_quote_viewed as a separate column
-  const { notifyQuoteViewed, ...notifSettings } = settings;
+  // Extract separate column fields
+  const { notifyQuoteViewed, notifyWeeklyDigest, ...notifSettings } = settings;
 
   const supabase = getSupabase();
 
   const updateData = { notification_settings: notifSettings };
   if (notifyQuoteViewed !== undefined) {
     updateData.notify_quote_viewed = !!notifyQuoteViewed;
+  }
+  if (notifyWeeklyDigest !== undefined) {
+    updateData.notify_weekly_digest = !!notifyWeeklyDigest;
   }
 
   const { error } = await supabase

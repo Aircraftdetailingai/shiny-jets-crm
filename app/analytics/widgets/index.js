@@ -10,11 +10,12 @@ import TopServicesMargin from './TopServicesMargin';
 import CustomerLTV from './CustomerLTV';
 import ChurnRisk from './ChurnRisk';
 import MRRTrend from './MRRTrend';
+import StaffingAlerts from './StaffingAlerts';
 
 export {
   RevenueVelocity, QuoteFunnel, CashCollectedToday, LeadsToClose,
   AverageTicket, RevenueByAircraft, BusiestDaysHeatmap, TopServicesMargin,
-  CustomerLTV, ChurnRisk, MRRTrend,
+  CustomerLTV, ChurnRisk, MRRTrend, StaffingAlerts,
 };
 
 export const WIDGET_COMPONENTS = {
@@ -29,4 +30,5 @@ export const WIDGET_COMPONENTS = {
   'customer-ltv': CustomerLTV,
   'churn-risk': ChurnRisk,
   'mrr-trend': MRRTrend,
+  'staffing-alerts': StaffingAlerts,
 };

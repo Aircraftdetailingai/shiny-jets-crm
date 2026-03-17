@@ -68,6 +68,9 @@ function SettingsContent() {
   // Monthly report auto-send
   const [monthlyReportEnabled, setMonthlyReportEnabled] = useState(false);
 
+  // Weekly digest
+  const [notifyWeeklyDigest, setNotifyWeeklyDigest] = useState(true);
+
   // Smart follow-up settings
   const [autoDiscountEnabled, setAutoDiscountEnabled] = useState(false);
   const [followupDiscountPercent, setFollowupDiscountPercent] = useState(10);
@@ -181,6 +184,7 @@ function SettingsContent() {
     setCountry(u.country || '');
     setListedInDirectory(u.listed_in_directory || false);
       setNotifyQuoteViewed(u.notify_quote_viewed || false);
+      setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
       setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
       setMonthlyReportEnabled(u.notification_settings?.monthlyReportEnabled || false);
       setFollowupDiscountPercent(u.followup_discount_percent || 10);
@@ -1184,7 +1188,7 @@ function SettingsContent() {
       if (pendingChanges.has('ccFee')) promises.push(saveCcFee(ccFeeMode));
       if (pendingChanges.has('quoteDisplay')) promises.push(saveQuoteDisplayPref(quoteDisplayPref));
       if (pendingChanges.has('notifications')) {
-        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed };
+        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed, notifyWeeklyDigest };
         promises.push(saveNotifications(allNotifs));
       }
       if (pendingChanges.has('followupDiscount')) {
@@ -2146,6 +2150,18 @@ function SettingsContent() {
               Report will be sent to <span className="text-v-gold">{user?.email || 'your email'}</span> on the 1st of each month.
             </p>
           )}
+          <label className="flex items-center justify-between cursor-pointer py-2 mt-3">
+            <div>
+              <p className="text-sm font-medium text-v-text-primary">Weekly digest</p>
+              <p className="text-xs text-v-text-secondary">Monday summary of upcoming jobs, staffing needs, and unscheduled quotes</p>
+            </div>
+            <div
+              onClick={() => { setNotifyWeeklyDigest(!notifyWeeklyDigest); markDirty('notifications'); }}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${notifyWeeklyDigest ? 'bg-amber-500' : 'bg-gray-600'}`}
+            >
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyWeeklyDigest ? 'translate-x-5' : ''}`} />
+            </div>
+          </label>
           <a href="/reports" className="inline-block mt-3 text-sm text-v-gold hover:text-v-gold-dim">
             View all reports &rarr;
           </a>
