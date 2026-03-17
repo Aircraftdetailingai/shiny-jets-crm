@@ -1,255 +1,221 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import ExportGate from '@/components/ExportGate';
+import { formatPrice, currencySymbol } from '@/lib/formatPrice';
+
+const statusColors = {
+  paid: 'border border-green-500/40 text-green-400',
+  approved: 'border border-green-500/40 text-green-400',
+  accepted: 'border border-green-500/40 text-green-400',
+  scheduled: 'border border-indigo-400/40 text-indigo-300',
+  in_progress: 'border border-cyan-400/40 text-cyan-300',
+  completed: 'border border-purple-400/40 text-purple-300',
+};
+
+const statusLabels = {
+  paid: 'Paid',
+  approved: 'Approved',
+  accepted: 'Accepted',
+  scheduled: 'Scheduled',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+};
+
+const FILTER_TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'scheduled', label: 'Scheduled' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'completed', label: 'Completed' },
+];
 
 export default function JobsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
-  const [period, setPeriod] = useState(30);
+  const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
-  const [userPlan, setUserPlan] = useState('free');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    const stored = localStorage.getItem('vector_user');
-    if (stored) {
-      try { setUserPlan(JSON.parse(stored).plan || 'free'); } catch (e) {}
-    }
+    if (!token) { router.push('/login'); return; }
     fetchJobs(token);
-  }, [router, period]);
+  }, [router]);
 
   const fetchJobs = async (token) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/jobs?period=${period}`, {
-        headers: { Authorization: `Bearer ${token || localStorage.getItem('vector_token')}` },
+      const res = await fetch('/api/jobs', {
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setJobs(data.jobs || []);
-        setStats(data.stats);
+        setStats(data.stats || null);
       } else {
-        setError('Failed to fetch');
+        setError('Failed to load jobs');
       }
     } catch (err) {
-      setError('Failed to fetch');
+      setError('Failed to load jobs');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
-  };
+  const filteredJobs = useMemo(() => {
+    if (filter === 'all') return jobs;
+    return jobs.filter(j => j.status === filter);
+  }, [jobs, filter]);
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const exportCSV = () => {
-    if (jobs.length === 0) return;
+  const getServicesLabel = (job) => {
+    if (job.line_items && Array.isArray(job.line_items) && job.line_items.length > 0) {
+      return job.line_items.map(i => i.description || i.service).filter(Boolean).join(', ');
+    }
+    if (job.services && Array.isArray(job.services)) {
+      return job.services.map(s => typeof s === 'string' ? s : s.name || s.service).filter(Boolean).join(', ');
+    }
+    return '—';
+  };
 
-    const headers = ['date', 'customer_name', 'aircraft', 'services', 'amount', 'status'];
-    const rows = jobs.map(job => {
-      // Parse services from line_items if available
-      const services = job.quotes?.line_items
-        ? job.quotes.line_items.map(item => item.description || item.service).join('; ')
-        : '';
-
-      return [
-        job.completed_at ? new Date(job.completed_at).toISOString().split('T')[0] : '',
-        job.quotes?.client_name || '',
-        job.quotes?.aircraft_model || '',
-        services,
-        job.revenue?.toFixed(2) || '0.00',
-        'completed'
-      ];
-    });
-
-    // Escape CSV values
-    const escapeCSV = (val) => {
-      const str = String(val);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(escapeCSV).join(','))
-    ].join('\n');
-
-    const today = new Date().toISOString().split('T')[0];
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `jobs-export-${today}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const getAircraftLabel = (job) => {
+    return job.aircraft_model || job.aircraft_type || '—';
   };
 
   return (
-    <div className="page-transition min-h-screen bg-v-charcoal p-4 text-v-text-primary">
-      <header className="text-white flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <a href="/dashboard" className="text-2xl">&#8592;</a>
-          <h1 className="text-2xl font-bold">{'Job History'}</h1>
-        </div>
-        <div className="flex items-center space-x-3">
-          <ExportGate plan={userPlan}>
-            <button
-              onClick={exportCSV}
-              disabled={jobs.length === 0}
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {'Export CSV'}
-            </button>
-          </ExportGate>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(parseInt(e.target.value))}
-            className="bg-white/10 text-white border border-white/20 rounded px-3 py-1"
-          >
-            <option value={30} className="text-v-text-primary">{'Last 30 days'}</option>
-            <option value={90} className="text-v-text-primary">{'Last 90 days'}</option>
-            <option value={180} className="text-v-text-primary">{'Last 6 months'}</option>
-            <option value={365} className="text-v-text-primary">{'Last year'}</option>
-          </select>
-        </div>
-      </header>
-
-      {/* Quick Stats */}
-      {stats && (
-        <div className="bg-v-surface rounded-lg p-4 shadow mb-4">
-          <div className="grid grid-cols-5 gap-2 text-center">
+    <div className="page-transition min-h-screen bg-v-charcoal">
+      <div className="px-6 md:px-10 py-8 pb-40 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <a href="/dashboard" className="text-2xl text-v-text-secondary hover:text-v-gold">&#8592;</a>
             <div>
-              <p className="text-xl font-bold text-amber-600">{stats.totalJobs}</p>
-              <p className="text-xs text-v-text-secondary">{'Jobs'}</p>
-            </div>
-            <div>
-              <p className="text-xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
-              <p className="text-xs text-v-text-secondary">{'Revenue'}</p>
-            </div>
-            <div>
-              <p className="text-xl font-bold text-blue-600">{formatCurrency(stats.totalProfit)}</p>
-              <p className="text-xs text-v-text-secondary">{'Profit'}</p>
-            </div>
-            <div>
-              <p className="text-xl font-bold">{(stats.totalHours || 0).toFixed(1)}h</p>
-              <p className="text-xs text-v-text-secondary">{'Hours'}</p>
-            </div>
-            <div>
-              <p className="text-xl font-bold text-purple-600">{(stats.avgMargin || 0).toFixed(1)}%</p>
-              <p className="text-xs text-v-text-secondary">{'Margin'}</p>
+              <h1 className="font-heading text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>
+                JOBS
+              </h1>
+              <p className="text-v-text-secondary text-xs mt-1">Scheduled and completed work</p>
             </div>
           </div>
         </div>
-      )}
 
-      {loading ? (
-        <div className="text-white text-center py-12">{'Loading jobs...'}</div>
-      ) : error ? (
-        <div className="text-red-400 text-center py-12">{error}</div>
-      ) : jobs.length === 0 ? (
-        <div className="bg-v-surface rounded-lg p-8 text-center">
-          <p className="text-xl font-semibold mb-2">{'No completed jobs'}</p>
-          <p className="text-v-text-secondary mb-4">{'Jobs will appear here after you complete quotes and log hours.'}</p>
-          <a href="/dashboard" className="text-amber-600 underline">{'Go to Dashboard'}</a>
+        {/* Stats Bar */}
+        {stats && (
+          <div className="grid grid-cols-5 gap-4 mb-6">
+            {[
+              { label: 'Total Jobs', value: stats.total || 0, color: 'text-v-gold' },
+              { label: 'Scheduled', value: stats.scheduled || 0, color: 'text-indigo-300' },
+              { label: 'In Progress', value: stats.inProgress || 0, color: 'text-cyan-300' },
+              { label: 'Completed', value: stats.completed || 0, color: 'text-purple-300' },
+              { label: 'Revenue', value: `${currencySymbol()}${formatPrice(stats.totalRevenue || 0)}`, color: 'text-v-gold', isText: true },
+            ].map(s => (
+              <div key={s.label} className="bg-v-surface border border-v-border-subtle rounded-sm p-4 text-center">
+                <p className={`text-xl font-bold font-data ${s.color}`}>{s.isText ? s.value : s.value}</p>
+                <p className="text-[10px] text-v-text-secondary uppercase tracking-wider mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Filter Tabs */}
+        <div className="flex gap-1.5 mb-6">
+          {FILTER_TABS.map(f => {
+            const count = f.key === 'all' ? jobs.length
+              : jobs.filter(j => j.status === f.key).length;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  filter === f.key
+                    ? 'bg-v-gold text-v-charcoal'
+                    : 'bg-v-surface text-v-text-secondary border border-v-border hover:text-v-text-primary hover:border-v-gold/50'
+                }`}
+              >
+                {f.label}{count > 0 ? ` (${count})` : ''}
+              </button>
+            );
+          })}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {jobs.map((job) => (
-            <div key={job.id} className="bg-v-surface rounded-lg p-4 shadow">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <p className="font-semibold">
-                    {job.quotes?.client_name || 'Unknown Client'}
-                  </p>
-                  <p className="text-sm text-v-text-secondary">
-                    {job.quotes?.aircraft_model || 'Unknown Aircraft'}
-                  </p>
-                </div>
-                <span className="text-sm text-v-text-secondary">{job.completed_at ? formatDate(job.completed_at) : ''}</span>
-              </div>
 
-              <div className="grid grid-cols-4 gap-2 text-center mt-3 pt-3 border-t">
-                <div>
-                  <p className="font-semibold">{formatCurrency(job.revenue)}</p>
-                  <p className="text-xs text-v-text-secondary">{'Revenue'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold">{job.actual_hours}h</p>
-                  <p className="text-xs text-v-text-secondary">{'Hours'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-green-600">{formatCurrency(job.profit)}</p>
-                  <p className="text-xs text-v-text-secondary">{'Profit'}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-purple-600">{job.margin_percent?.toFixed(1)}%</p>
-                  <p className="text-xs text-v-text-secondary">{'Margin'}</p>
-                </div>
-              </div>
-
-              {/* Linked Products */}
-              {job.quotes?.linked_products && job.quotes.linked_products.length > 0 && (
-                <div className="mt-3 pt-3 border-t">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">Products for this job</p>
-                  <div className="flex flex-wrap gap-1">
-                    {job.quotes.linked_products.map((p, i) => (
-                      <span key={i} className="text-xs bg-blue-900/20 text-blue-700 px-2 py-0.5 rounded">
-                        {p.product_name}{p.quantity > 0 ? ` (${p.quantity.toFixed(1)} ${p.unit || ''})` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Linked Equipment */}
-              {job.quotes?.linked_equipment && job.quotes.linked_equipment.length > 0 && (
-                <div className={`mt-${job.quotes?.linked_products?.length > 0 ? '2' : '3'} ${!job.quotes?.linked_products?.length ? 'pt-3 border-t' : ''}`}>
-                  <p className="text-xs font-semibold text-purple-700 mb-1">Equipment for this job</p>
-                  <div className="flex flex-wrap gap-1">
-                    {job.quotes.linked_equipment.map((e, i) => (
-                      <span key={i} className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">
-                        {e.equipment_name}{e.brand ? ` (${e.brand})` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Line items / services */}
-              {job.quotes?.line_items && job.quotes.line_items.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-xs text-v-text-secondary">
-                    {job.quotes.line_items.map(li => li.description || li.service).join(', ')}
-                  </p>
-                </div>
-              )}
-
-              {job.notes && (
-                <p className="text-sm text-v-text-secondary mt-2 italic">"{job.notes}"</p>
-              )}
+        {/* Loading / Error / Empty */}
+        {loading ? (
+          <div className="flex items-center justify-center py-32">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-v-text-secondary text-xs tracking-widest uppercase">Loading jobs</p>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ) : error ? (
+          <div className="text-red-400 text-center py-12 text-sm">{error}</div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="bg-v-surface border border-v-border rounded-sm p-12 text-center">
+            <p className="text-v-text-secondary text-sm mb-2">
+              {filter === 'all'
+                ? 'No jobs yet. Jobs appear when quotes are accepted and scheduled.'
+                : `No ${FILTER_TABS.find(f => f.key === filter)?.label?.toLowerCase()} jobs.`}
+            </p>
+            <a href="/quotes" className="text-v-gold hover:text-v-gold-dim text-sm">Go to Quotes</a>
+          </div>
+        ) : (
+          /* Jobs Table */
+          <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+            {/* Table Header */}
+            <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
+              <div className="grid grid-cols-[1fr_1fr_1.2fr_120px_100px_120px] min-w-[800px] px-6 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+                <div>Customer</div>
+                <div>Aircraft</div>
+                <div>Services</div>
+                <div>Scheduled</div>
+                <div className="text-center">Status</div>
+                <div className="text-right">Value</div>
+              </div>
+            </div>
+
+            {/* Table Rows */}
+            {filteredJobs.map((job) => (
+              <div
+                key={job.id}
+                onClick={() => { if (job.share_link) window.open(`/q/${job.share_link}`, '_blank'); }}
+                className="group grid grid-cols-[1fr_1fr_1.2fr_120px_100px_120px] min-w-[800px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer hover:bg-white/[0.02]"
+                style={{ height: '56px' }}
+              >
+                <div className="truncate pr-4">
+                  <span className="text-white text-sm">{job.customer_company || job.client_name || '—'}</span>
+                  {job.customer_company && job.client_name && job.customer_company !== job.client_name && (
+                    <span className="text-[#8A9BB0] text-xs ml-2">{job.client_name}</span>
+                  )}
+                </div>
+                <div className="truncate pr-4">
+                  <span className="text-[#8A9BB0] text-sm">{getAircraftLabel(job)}</span>
+                  {job.tail_number && <span className="text-[#8A9BB0]/60 text-xs ml-2">{job.tail_number}</span>}
+                </div>
+                <div className="truncate pr-4">
+                  <span className="text-[#8A9BB0] text-sm" title={getServicesLabel(job)}>{getServicesLabel(job)}</span>
+                </div>
+                <div>
+                  <span className="text-[#8A9BB0] text-xs">{formatDate(job.scheduled_date)}</span>
+                </div>
+                <div className="flex justify-center">
+                  <span className={`px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${statusColors[job.status] || 'border border-gray-500/30 text-gray-400'}`}>
+                    {statusLabels[job.status] || job.status}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[#C9A84C] text-sm font-data">{currencySymbol()}{formatPrice(job.total_price)}</span>
+                </div>
+              </div>
+            ))}
+
+            <div className="px-6 py-3 border-t border-[#1A2236] text-[#8A9BB0] text-xs">
+              {filteredJobs.length} of {jobs.length} jobs{filter !== 'all' && ' (filtered)'}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

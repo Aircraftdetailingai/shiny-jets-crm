@@ -7,9 +7,9 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
 
-const JOB_STATUSES = ['completed', 'paid', 'scheduled', 'in_progress'];
+const JOB_STATUSES = ['paid', 'approved', 'accepted', 'scheduled', 'in_progress', 'completed'];
 
-// GET - Fetch job completions for profitability analysis
+// GET - Fetch all jobs (quotes at job stage)
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) {
@@ -17,83 +17,41 @@ export async function GET(request) {
   }
 
   const supabase = getSupabase();
-  const { searchParams } = new URL(request.url);
-  const period = searchParams.get('period') || '30';
 
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - parseInt(period));
+  // Query quotes directly with column-stripping retry
+  let selectCols = 'id, client_name, client_email, customer_company, aircraft_model, aircraft_type, tail_number, total_price, status, scheduled_date, created_at, completed_at, services, line_items, share_link';
+  let jobs = null;
 
-  let jobs = [];
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase
+      .from('quotes')
+      .select(selectCols)
+      .eq('detailer_id', user.id)
+      .in('status', JOB_STATUSES)
+      .order('scheduled_date', { ascending: true, nullsFirst: false });
 
-  // Try job_completions table first
-  const { data: jcData, error: jcError } = await supabase
-    .from('job_completions')
-    .select('*, quotes (aircraft_model, aircraft_type, client_name, services, line_items)')
-    .eq('detailer_id', user.id)
-    .gte('completed_at', startDate.toISOString())
-    .order('completed_at', { ascending: false });
+    if (!error) { jobs = data; break; }
 
-  if (!jcError && jcData) {
-    jobs = jcData;
-  } else {
-    // Fallback: derive jobs from quotes with column-stripping retry
-    console.log('[jobs] job_completions table unavailable, falling back to quotes. Error:', jcError?.message);
-    let selectCols = 'id, aircraft_model, aircraft_type, client_name, total_price, status, completed_at, created_at, services, line_items';
-    let completedQuotes = null;
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const { data, error } = await supabase
-        .from('quotes')
-        .select(selectCols)
-        .eq('detailer_id', user.id)
-        .in('status', JOB_STATUSES)
-        .order('created_at', { ascending: false });
-
-      if (!error) { completedQuotes = data; break; }
-
-      const colMatch = error.message?.match(/column [\w.]+"?(\w+)"? does not exist/)
-        || error.message?.match(/Could not find the '([^']+)' column/)
-        || error.message?.match(/column "([^"]+)".*does not exist/);
-      if (colMatch) {
-        selectCols = selectCols.split(',').map(c => c.trim()).filter(c => c !== colMatch[1]).join(', ');
-        console.log(`[jobs] Stripped missing column '${colMatch[1]}', retrying...`);
-        continue;
-      }
-      console.log('[jobs] Quote query error:', error.message);
-      break;
+    const colMatch = error.message?.match(/column [\w.]+"?(\w+)"? does not exist/)
+      || error.message?.match(/Could not find the '([^']+)' column/)
+      || error.message?.match(/column "([^"]+)".*does not exist/);
+    if (colMatch) {
+      selectCols = selectCols.split(',').map(c => c.trim()).filter(c => c !== colMatch[1]).join(', ');
+      console.log(`[jobs] Stripped missing column '${colMatch[1]}', retrying...`);
+      continue;
     }
-
-    jobs = (completedQuotes || []).map(q => ({
-      id: q.id,
-      quote_id: q.id,
-      revenue: parseFloat(q.total_price) || 0,
-      actual_hours: 0,
-      labor_rate: 0,
-      product_cost: 0,
-      profit: parseFloat(q.total_price) || 0,
-      margin_percent: 100,
-      completed_at: q.completed_at || q.created_at,
-      notes: null,
-      quotes: {
-        aircraft_model: q.aircraft_model,
-        aircraft_type: q.aircraft_type,
-        client_name: q.client_name,
-        services: q.services,
-        line_items: q.line_items,
-      },
-    }));
+    console.log('[jobs] Quote query error:', error.message);
+    break;
   }
 
-  console.log('[jobs] Returning', jobs.length, 'jobs for detailer', user.id);
+  jobs = jobs || [];
 
   const stats = {
-    totalJobs: jobs.length,
-    totalRevenue: jobs.reduce((sum, j) => sum + parseFloat(j.revenue || 0), 0),
-    totalProfit: jobs.reduce((sum, j) => sum + parseFloat(j.profit || 0), 0),
-    totalHours: jobs.reduce((sum, j) => sum + parseFloat(j.actual_hours || 0), 0),
-    avgMargin: jobs.length > 0
-      ? jobs.reduce((sum, j) => sum + parseFloat(j.margin_percent || 0), 0) / jobs.length
-      : 0,
+    total: jobs.length,
+    scheduled: jobs.filter(j => j.status === 'scheduled').length,
+    inProgress: jobs.filter(j => j.status === 'in_progress').length,
+    completed: jobs.filter(j => j.status === 'completed').length,
+    totalRevenue: jobs.reduce((sum, j) => sum + (parseFloat(j.total_price) || 0), 0),
   };
 
   return Response.json({ jobs, stats });

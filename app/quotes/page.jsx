@@ -54,6 +54,9 @@ export default function QuotesPage() {
     notes: '',
   });
   const [duplicating, setDuplicating] = useState(false);
+  const [scheduleModal, setScheduleModal] = useState(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduling, setScheduling] = useState(false);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -271,6 +274,32 @@ export default function QuotesPage() {
     finally { setCompleting(false); }
   };
 
+  const openScheduleModal = (quote) => {
+    setScheduleModal(quote);
+    setScheduleDate('');
+  };
+
+  const submitSchedule = async () => {
+    if (!scheduleDate || !scheduleModal) return;
+    setScheduling(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/jobs/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quote_id: scheduleModal.id, scheduled_date: scheduleDate }),
+      });
+      if (res.ok) {
+        setQuotes(quotes.map(q => q.id === scheduleModal.id ? { ...q, status: 'scheduled', scheduled_date: scheduleDate } : q));
+        setScheduleModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to schedule job');
+      }
+    } catch (err) { alert('Failed to schedule job'); }
+    finally { setScheduling(false); }
+  };
+
   // Filter + search
   const filteredQuotes = useMemo(() => {
     let result = quotes.filter((q) => {
@@ -437,7 +466,7 @@ export default function QuotesPage() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px] min-w-[800px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
             <div className="flex items-center justify-center">
               <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-[#2A3A50] bg-transparent accent-[#C9A84C] cursor-pointer" onClick={(e) => e.stopPropagation()} />
             </div>
@@ -447,6 +476,7 @@ export default function QuotesPage() {
             <div className="text-right">Total</div>
             <div className="text-center">Status</div>
             <div className="text-right">Date</div>
+            <div></div>
           </div>
 
           {filteredQuotes.length === 0 ? (
@@ -457,7 +487,7 @@ export default function QuotesPage() {
               const isSelected = selectedIds.has(q.id);
               return (
                 <div key={q.id} onClick={() => { if (q.share_link) window.open(`/q/${q.share_link}`, '_blank'); }}
-                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px] min-w-[800px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-[#C9A84C]/[0.04]' : 'hover:bg-white/[0.02]'}`}
+                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-[#C9A84C]/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-[#2A3A50] bg-transparent accent-[#C9A84C] cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
@@ -481,6 +511,18 @@ export default function QuotesPage() {
                   </div>
                   <div className="text-right">
                     <span className="text-[#8A9BB0] text-xs">{formatDate(q.created_at)}</span>
+                  </div>
+                  <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                    {(status === 'paid' || status === 'approved') && (
+                      <button onClick={() => openScheduleModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded hover:bg-indigo-400/10">
+                        Schedule
+                      </button>
+                    )}
+                    {(status === 'scheduled' || status === 'in_progress') && (
+                      <button onClick={() => openCompleteModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-purple-300 border border-purple-400/30 rounded hover:bg-purple-400/10">
+                        Complete
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -589,6 +631,36 @@ export default function QuotesPage() {
               <div className="flex justify-end space-x-3 mt-6">
                 <button onClick={() => setCompleteModal(null)} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white hover:border-white/20 transition-colors">Cancel</button>
                 <button onClick={completeJob} disabled={!completionData.actual_hours || completing} className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">{completing ? 'Saving...' : 'Complete Job'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Job Modal */}
+        {scheduleModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
+            <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-md">
+              <h3 className="text-lg font-semibold mb-4 text-white">Schedule Job</h3>
+              <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium text-white">{scheduleModal.aircraft_model || scheduleModal.aircraft_type || 'Aircraft'}</span>
+                  <span className="font-bold text-[#C9A84C] font-data">{currencySymbol()}{formatPrice(scheduleModal.total_price)}</span>
+                </div>
+                <p className="text-xs text-[#8A9BB0]">{getDisplayName(scheduleModal)}</p>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-[#8A9BB0] mb-1">Service Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 focus:border-[#C9A84C]/40 focus:outline-none"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 mt-5">
+                <button onClick={() => { setScheduleModal(null); setScheduleDate(''); }} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white hover:border-white/20 transition-colors">Cancel</button>
+                <button onClick={submitSchedule} disabled={!scheduleDate || scheduling} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{scheduling ? 'Scheduling...' : 'Schedule & Notify'}</button>
               </div>
             </div>
           </div>
