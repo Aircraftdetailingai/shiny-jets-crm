@@ -25,6 +25,7 @@
     "react-grid-layout": "^2.2.2",
     "recharts": "^3.8.0",
     "resend": "^6.8.0",
+    "sharp": "^0.34.5",
     "stripe": "^20.2.0",
     "twilio": "^5.12.2"
   },

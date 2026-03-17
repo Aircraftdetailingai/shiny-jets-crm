@@ -39,6 +39,14 @@ function rgbToHex(r, g, b) {
   return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
 }
 
+function swatchToRgb(swatch) {
+  // colorthief v3 returns Swatch objects with _r, _g, _b
+  if (swatch._r !== undefined) return [swatch._r, swatch._g, swatch._b];
+  // Older versions return [r, g, b] arrays
+  if (Array.isArray(swatch)) return swatch;
+  return [swatch.r, swatch.g, swatch.b];
+}
+
 function generatePreset(rgb, index) {
   const hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
   const [h, s] = hexToHsl(hex);
@@ -66,22 +74,24 @@ export async function POST(request) {
 
     const buffer = Buffer.from(await imgRes.arrayBuffer());
 
-    // Use colorthief
-    const ColorThief = (await import('colorthief')).default;
-    const ct = new ColorThief();
-    const palette = await ct.getPalette(buffer, 5);
-    console.log('[extract-colors] palette:', JSON.stringify(palette));
+    // Use colorthief (named export, not a class)
+    const { getPalette } = await import('colorthief');
+    const palette = await getPalette(buffer, 5);
+    console.log('[extract-colors] palette count:', palette.length);
 
-    // All 5 colors as hex for swatches
-    const rawColors = palette.map(([r, g, b]) => rgbToHex(r, g, b));
+    // Convert swatches to [r,g,b] arrays
+    const rgbPalette = palette.map(swatchToRgb);
+
+    // All colors as hex for swatches
+    const rawColors = rgbPalette.map(([r, g, b]) => rgbToHex(r, g, b));
     console.log('[extract-colors] rawColors:', rawColors);
 
     // Filter out very dark or very light colors for presets
-    const filtered = palette.filter(([r, g, b]) => {
+    const filtered = rgbPalette.filter(([r, g, b]) => {
       const l = (r + g + b) / 3;
       return l > 30 && l < 230;
     });
-    const selected = (filtered.length >= 3 ? filtered : palette).slice(0, 3);
+    const selected = (filtered.length >= 3 ? filtered : rgbPalette).slice(0, 3);
     const presets = selected.map((rgb, i) => generatePreset(rgb, i));
 
     // Save raw colors to DB
@@ -97,6 +107,7 @@ export async function POST(request) {
 
     return Response.json({ presets, rawColors });
   } catch (err) {
+    console.error('[extract-colors] error:', err);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
