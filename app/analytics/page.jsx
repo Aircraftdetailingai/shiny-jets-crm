@@ -107,12 +107,12 @@ export default function AnalyticsPage() {
   };
 
   const conversionRate = data?.funnel
-    ? (data.funnel.totalCreated > 0
-        ? Math.round((data.funnel.totalPaid / data.funnel.totalCreated) * 100)
+    ? (data.funnel.totalSent > 0
+        ? Math.round((data.funnel.totalPaid / data.funnel.totalSent) * 100)
         : 0)
     : 0;
 
-  const totalRevenue = data?.revenueTrend?.reduce((s, m) => s + m.revenue, 0) || 0;
+  const totalRevenue = data?.funnel?.totalRevenue || 0;
   const totalJobs = data?.funnel?.totalPaid || 0;
   const avgJobValue = totalJobs > 0 ? Math.round(totalRevenue / totalJobs) : 0;
 
@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
           {/* Top stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard icon="💰" label={'Total Revenue'} value={`${currencySymbol()}${totalRevenue.toLocaleString()}`} sub={`Last ${days} days`} />
-            <StatCard icon="📊" label={'Conversion Rate'} value={`${conversionRate}%`} sub={`${data.funnel.totalPaid} of ${data.funnel.totalCreated} quotes`} />
+            <StatCard icon="📊" label={'Conversion Rate'} value={`${conversionRate}%`} sub={`${data.funnel.totalPaid} paid of ${data.funnel.totalSent} sent`} />
             <StatCard icon="📋" label={'Avg Job Value'} value={`${currencySymbol()}${avgJobValue.toLocaleString()}`} sub={`${totalJobs} jobs`} />
             <StatCard icon="🔄" label="Retention" value={`${data.retention.retentionRate}%`} sub={`${data.retention.repeatCustomers} repeat of ${data.retention.totalCustomers}`} />
           </div>

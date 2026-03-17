@@ -33,11 +33,21 @@ export async function GET(request) {
   const allQuotes = quotes || [];
 
   // --- Conversion funnel ---
+  const SENT_STATUSES = ['sent', 'viewed', 'accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
+  const VIEWED_STATUSES = ['viewed', 'accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
+  const PAID_STATUSES = ['paid', 'accepted', 'approved', 'scheduled', 'in_progress', 'completed'];
+  const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
+
   const totalCreated = allQuotes.length;
-  const totalSent = allQuotes.filter(q => q.sent_at || ['sent', 'viewed', 'paid', 'completed'].includes(q.status)).length;
-  const totalViewed = allQuotes.filter(q => q.viewed_at || ['viewed', 'paid', 'completed'].includes(q.status)).length;
-  const totalPaid = allQuotes.filter(q => q.paid_at || ['paid', 'completed'].includes(q.status)).length;
+  const totalSent = allQuotes.filter(q => q.sent_at || SENT_STATUSES.includes(q.status)).length;
+  const totalViewed = allQuotes.filter(q => q.viewed_at || VIEWED_STATUSES.includes(q.status)).length;
+  const totalPaid = allQuotes.filter(q => q.paid_at || PAID_STATUSES.includes(q.status)).length;
   const totalCompleted = allQuotes.filter(q => q.status === 'completed').length;
+
+  // Total revenue from all accepted/paid/completed quotes
+  const totalRevenue = allQuotes
+    .filter(q => REVENUE_STATUSES.includes(q.status))
+    .reduce((sum, q) => sum + (q.total_price || 0), 0);
 
   // --- Conversion rate over time (weekly buckets) ---
   const weeklyData = {};
@@ -48,9 +58,10 @@ export async function GET(request) {
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     const weekStart = new Date(d.setDate(diff));
     const key = weekStart.toISOString().split('T')[0];
-    if (!weeklyData[key]) weeklyData[key] = { week: key, created: 0, converted: 0, revenue: 0 };
+    if (!weeklyData[key]) weeklyData[key] = { week: key, created: 0, sent: 0, converted: 0, revenue: 0 };
     weeklyData[key].created++;
-    if (['paid', 'completed'].includes(q.status)) {
+    if (q.sent_at || SENT_STATUSES.includes(q.status)) weeklyData[key].sent++;
+    if (PAID_STATUSES.includes(q.status)) {
       weeklyData[key].converted++;
       weeklyData[key].revenue += q.total_price || 0;
     }
@@ -59,7 +70,7 @@ export async function GET(request) {
     .sort((a, b) => a.week.localeCompare(b.week))
     .map(w => ({
       ...w,
-      rate: w.created > 0 ? Math.round((w.converted / w.created) * 100) : 0,
+      rate: w.sent > 0 ? Math.round((w.converted / w.sent) * 100) : 0,
     }));
 
   // --- Average job value trend (weekly) ---
@@ -72,7 +83,7 @@ export async function GET(request) {
   // --- Busiest days ---
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayCount = [0, 0, 0, 0, 0, 0, 0];
-  const paidQuotes = allQuotes.filter(q => ['paid', 'completed'].includes(q.status));
+  const paidQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
   for (const q of paidQuotes) {
     const date = q.scheduled_date || q.paid_at || q.created_at;
     if (date) {
@@ -134,7 +145,7 @@ export async function GET(request) {
   const revenueTrend = Object.values(monthlyRevenue).sort((a, b) => a.month.localeCompare(b.month));
 
   return Response.json({
-    funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted },
+    funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted, totalRevenue },
     conversionTrend,
     valueTrend,
     busiestDays,

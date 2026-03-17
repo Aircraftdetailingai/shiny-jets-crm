@@ -147,11 +147,12 @@ export async function GET(request) {
     const expiringQuotes = expiringRes.data || [];
     const recentlyExpired = expiredRes.data || [];
 
-    // Calculate stats
-    const weekPaidQuotes = weekQuotes.filter(q => q.status === 'paid' || q.status === 'completed');
-    const monthPaidQuotes = monthQuotes.filter(q => q.status === 'paid' || q.status === 'completed');
+    // Calculate stats — include all revenue-generating statuses
+    const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
+    const weekPaidQuotes = weekQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
+    const monthPaidQuotes = monthQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
     const monthCompletedQuotes = monthQuotes.filter(q => q.status === 'completed');
-    const allPaidQuotes = allQuotes.filter(q => q.status === 'paid' || q.status === 'completed');
+    const allPaidQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
 
     const weekBooked = weekPaidQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
     const monthBooked = monthPaidQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
