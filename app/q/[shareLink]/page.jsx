@@ -62,6 +62,19 @@ export default function QuoteViewPage() {
     };
   }, [detailer]);
 
+  // Inject detailer custom fonts
+  useEffect(() => {
+    if (!detailer?.font_embed_url) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = detailer.font_embed_url;
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, [detailer?.font_embed_url]);
+
+  const brandFontHeading = detailer?.font_heading ? `"${detailer.font_heading}", "Playfair Display", serif` : undefined;
+  const brandFontBody = detailer?.font_body ? `"${detailer.font_body}", Inter, sans-serif` : undefined;
+
   const sym = getCurrencySymbol(detailer?.preferred_currency || 'USD');
   const isExpired = quote && new Date() > new Date(quote.valid_until);
   const isPaid = quote && (quote.status === 'paid' || quote.status === 'approved' || quote.status === 'accepted');
@@ -193,7 +206,7 @@ export default function QuoteViewPage() {
         <div className="bg-[var(--brand-surface,#111827)] w-full max-w-[640px] rounded-[4px] p-10 text-center">
           <div className="w-12 h-[1px] bg-[var(--brand-primary,#C9A84C)] mx-auto mb-8" />
           <p className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase mb-3">Error</p>
-          <h1 className="font-heading text-2xl font-light text-[#F5F5F5] mb-3">Quote Not Found</h1>
+          <h1 className="font-heading text-2xl font-light text-[#F5F5F5] mb-3" style={brandFontHeading ? { fontFamily: brandFontHeading } : undefined}>Quote Not Found</h1>
           <p className="text-[#8A9BB0] text-sm">This quote link may be invalid or has been removed.</p>
         </div>
       </div>
@@ -267,7 +280,7 @@ export default function QuoteViewPage() {
           {/* Company */}
           {detailer && (
             <div className="text-center mb-8">
-              <h1 className="font-heading text-2xl font-light text-[#F5F5F5]">{detailer.company}</h1>
+              <h1 className="font-heading text-2xl font-light text-[#F5F5F5]" style={brandFontHeading ? { fontFamily: brandFontHeading } : undefined}>{detailer.company}</h1>
             </div>
           )}
 
@@ -360,7 +373,7 @@ export default function QuoteViewPage() {
   const displayTotal = subtotalWithService + (showCcFee ? ccFee : 0);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--brand-bg,#0A0E17)] p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--brand-bg,#0A0E17)] p-4" style={brandFontBody ? { fontFamily: brandFontBody } : undefined}>
       <div className="bg-[var(--brand-surface,#111827)] w-full max-w-[640px] rounded-[4px] px-8 py-10 sm:px-10">
         {/* Header */}
         <div className="text-center mb-10">
@@ -375,7 +388,7 @@ export default function QuoteViewPage() {
             {detailer.theme_logo_url ? (
               <img src={detailer.theme_logo_url} alt={detailer.company} className="h-10 mx-auto mb-3 object-contain" />
             ) : null}
-            <h1 className="font-heading text-3xl font-light text-[#F5F5F5] mb-1">{detailer.company}</h1>
+            <h1 className="font-heading text-3xl font-light text-[#F5F5F5] mb-1" style={brandFontHeading ? { fontFamily: brandFontHeading } : undefined}>{detailer.company}</h1>
             {(detailer.phone || detailer.email) && (
               <p className="text-[#8A9BB0]/60 text-xs">
                 {[detailer.phone, detailer.email].filter(Boolean).join(' \u00B7 ')}
