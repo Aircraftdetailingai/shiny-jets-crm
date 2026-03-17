@@ -132,6 +132,7 @@ function SettingsContent() {
   const [fontExtracting, setFontExtracting] = useState(false);
   const [extractedFonts, setExtractedFonts] = useState(null);
   const [brandColors, setBrandColors] = useState([]);
+  const [pendingFonts, setPendingFonts] = useState(null); // staged font changes
 
   // Profile state
   const [profileName, setProfileName] = useState('');
@@ -431,6 +432,7 @@ function SettingsContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setLogoUrl(data.logo_url);
+      markDirty('branding');
       // Auto-extract colors
       const colRes = await fetch('/api/user/extract-colors', {
         method: 'POST',
@@ -1197,9 +1199,32 @@ function SettingsContent() {
       if (pendingChanges.has('smsEnabled')) promises.push(saveSmsSettings({ sms_enabled: smsEnabled }));
       if (pendingChanges.has('productRatios')) promises.push(saveProductRatios(productRatios || {}));
       if (pendingChanges.has('availability')) promises.push(saveAvailability(availability));
+      if (pendingChanges.has('branding')) {
+        const brandingPromise = (async () => {
+          // Save theme colors
+          await saveTheme({ ...selectedTheme, logo_url: logoUrl });
+          // Save fonts if changed
+          if (pendingFonts) {
+            const token = localStorage.getItem('vector_token');
+            await fetch('/api/user/branding', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                font_heading: pendingFonts.heading,
+                font_subheading: pendingFonts.subheading,
+                font_body: pendingFonts.body,
+                font_embed_url: pendingFonts.embed_url,
+              }),
+            });
+            setPendingFonts(null);
+          }
+        })();
+        promises.push(brandingPromise);
+      }
+      const hadBrandingOnly = pendingChanges.has('branding') && pendingChanges.size === 1;
       await Promise.all(promises);
       setPendingChanges(new Set());
-      setSaveSuccess(true);
+      setSaveSuccess(hadBrandingOnly ? 'branding' : true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error('Failed to save:', err);
@@ -1225,14 +1250,14 @@ function SettingsContent() {
                 {saveSuccess ? (
                   <div className="flex items-center gap-2 w-full justify-center">
                     <span className="text-lg">&#10003;</span>
-                    <span className="font-medium">{'Settings saved'}</span>
+                    <span className="font-medium">{saveSuccess === 'branding' ? 'Branding saved' : 'Settings saved'}</span>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
                       <span className="text-amber-500 text-lg">&#9888;</span>
                       <span className="text-sm font-medium">
-                        {pendingChanges.size} unsaved change{pendingChanges.size !== 1 ? 's' : ''}
+                        You have unsaved changes
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1480,12 +1505,8 @@ function SettingsContent() {
                     onClick={() => {
                       setExtractedFonts(null);
                       setWebsiteUrl('');
-                      const token = localStorage.getItem('vector_token');
-                      fetch('/api/user/branding', {
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ website_url: '' }),
-                      });
+                      setPendingFonts({ heading: null, subheading: null, body: null, embed_url: null });
+                      markDirty('branding');
                     }}
                     className="text-xs text-v-text-secondary hover:text-red-400 transition-colors"
                   >
@@ -1542,7 +1563,7 @@ function SettingsContent() {
                     <label className="block text-[10px] uppercase tracking-widest text-v-text-secondary/50 mb-1">Heading Font</label>
                     <select
                       value={extractedFonts?.heading || ''}
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const fontName = e.target.value;
                         if (!fontName) return;
                         const newFonts = {
@@ -1554,12 +1575,8 @@ function SettingsContent() {
                         const allNames = [fontName, newFonts.body].filter(Boolean);
                         newFonts.embed_url = `https://fonts.googleapis.com/css2?${[...new Set(allNames)].map(n => `family=${encodeURIComponent(n).replace(/%20/g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`;
                         setExtractedFonts(newFonts);
-                        const token = localStorage.getItem('vector_token');
-                        await fetch('/api/user/branding', {
-                          method: 'POST',
-                          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ font_heading: fontName, font_subheading: fontName, font_body: newFonts.body, font_embed_url: newFonts.embed_url }),
-                        }).catch(() => {});
+                        setPendingFonts(newFonts);
+                        markDirty('branding');
                       }}
                       className="w-full bg-v-charcoal border border-v-border text-v-text-primary px-2 py-2 text-sm focus:border-v-gold focus:outline-none"
                     >
@@ -1573,7 +1590,7 @@ function SettingsContent() {
                     <label className="block text-[10px] uppercase tracking-widest text-v-text-secondary/50 mb-1">Body Font</label>
                     <select
                       value={extractedFonts?.body || ''}
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const fontName = e.target.value;
                         if (!fontName) return;
                         const newFonts = {
@@ -1585,12 +1602,8 @@ function SettingsContent() {
                         const allNames = [newFonts.heading, fontName].filter(Boolean);
                         newFonts.embed_url = `https://fonts.googleapis.com/css2?${[...new Set(allNames)].map(n => `family=${encodeURIComponent(n).replace(/%20/g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`;
                         setExtractedFonts(newFonts);
-                        const token = localStorage.getItem('vector_token');
-                        await fetch('/api/user/branding', {
-                          method: 'POST',
-                          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ font_heading: newFonts.heading, font_subheading: newFonts.subheading, font_body: fontName, font_embed_url: newFonts.embed_url }),
-                        }).catch(() => {});
+                        setPendingFonts(newFonts);
+                        markDirty('branding');
                       }}
                       className="w-full bg-v-charcoal border border-v-border text-v-text-primary px-2 py-2 text-sm focus:border-v-gold focus:outline-none"
                     >
@@ -1615,19 +1628,29 @@ function SettingsContent() {
             <div className="flex items-center gap-3 flex-wrap">
               {/* Vector Default swatch */}
               <button
-                onClick={() => saveTheme({ primary: '#C9A84C', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null })}
+                onClick={() => {
+                  setSelectedTheme({ primary: '#C9A84C', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null });
+                  markDirty('branding');
+                }}
                 disabled={themeSaving}
                 className="group flex flex-col items-center gap-1"
                 title="Vector Default (#C9A84C)"
               >
-                <div
-                  className={`w-10 h-10 rounded-full border-2 transition-all ${
-                    selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url
-                      ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]'
-                      : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
-                  }`}
-                  style={{ background: '#C9A84C' }}
-                />
+                <div className="relative">
+                  <div
+                    className={`w-10 h-10 rounded-full border-2 transition-all ${
+                      selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url
+                        ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]'
+                        : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+                    }`}
+                    style={{ background: '#C9A84C' }}
+                  />
+                  {selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url && pendingChanges.has('branding') && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-white text-sm font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">&#10003;</span>
+                    </div>
+                  )}
+                </div>
                 <span className="text-[9px] text-v-text-secondary/60">Default</span>
               </button>
 
@@ -1639,20 +1662,28 @@ function SettingsContent() {
                     key={hex + i}
                     onClick={() => {
                       const theme = generateThemeFromPrimary(hex);
-                      saveTheme({ ...theme, logo_url: logoUrl });
+                      setSelectedTheme({ ...theme, logo_url: logoUrl });
+                      markDirty('branding');
                     }}
                     disabled={themeSaving}
                     className="group flex flex-col items-center gap-1"
                     title={hex}
                   >
-                    <div
-                      className={`w-10 h-10 rounded-full border-2 transition-all ${
-                        isSelected
-                          ? 'border-white scale-110 shadow-[0_0_8px_rgba(255,255,255,0.3)]'
-                          : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
-                      }`}
-                      style={{ background: hex }}
-                    />
+                    <div className="relative">
+                      <div
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${
+                          isSelected
+                            ? 'border-white scale-110 shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+                            : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+                        }`}
+                        style={{ background: hex }}
+                      />
+                      {isSelected && pendingChanges.has('branding') && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-white text-sm font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">&#10003;</span>
+                        </div>
+                      )}
+                    </div>
                     <span className="text-[9px] text-v-text-secondary/60 font-mono">{hex}</span>
                   </button>
                 );
@@ -1688,7 +1719,7 @@ function SettingsContent() {
               </div>
             </div>
 
-            {themeSuccess && (
+            {themeSuccess && !pendingChanges.has('branding') && (
               <p className="text-v-gold text-xs mt-2">{themeSuccess}</p>
             )}
           </div>
