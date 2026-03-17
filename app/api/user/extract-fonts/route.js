@@ -10,10 +10,10 @@ function getSupabase() {
   );
 }
 
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 /**
  * Extract font names from a Google Fonts URL
- * e.g. "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Open+Sans:wght@300;400&display=swap"
- * → ["Montserrat", "Open Sans"]
  */
 function parseFontNamesFromGoogleUrl(url) {
   const fonts = [];
@@ -35,6 +35,31 @@ function buildGoogleFontsUrl(fontNames) {
   return `https://fonts.googleapis.com/css2?${families.join('&')}&display=swap`;
 }
 
+// Common system/generic fonts to skip
+const SKIP_FONTS = new Set([
+  'inherit', 'initial', 'unset', 'revert', 'sans-serif', 'serif', 'monospace',
+  'cursive', 'fantasy', 'system-ui', '-apple-system', 'blinkmacsystemfont',
+  'segoe ui', 'roboto', 'helvetica neue', 'arial', 'helvetica', 'noto sans',
+  'liberation sans', 'apple color emoji', 'segoe ui emoji', 'segoe ui symbol',
+  'noto color emoji', 'times new roman', 'times', 'courier new', 'courier',
+  'verdana', 'georgia', 'tahoma', 'trebuchet ms', 'lucida console', 'lucida sans',
+]);
+
+function isCustomFont(name) {
+  if (!name) return false;
+  return !SKIP_FONTS.has(name.toLowerCase().trim());
+}
+
+/**
+ * Clean a font name: strip quotes, take first in comma list
+ */
+function cleanFontName(raw) {
+  if (!raw) return null;
+  const firstName = raw.split(',')[0].trim().replace(/^['"]|['"]$/g, '').trim();
+  if (!firstName || !isCustomFont(firstName)) return null;
+  return firstName;
+}
+
 /**
  * Extract font-family values from CSS text, grouped by selector type
  */
@@ -49,16 +74,12 @@ function extractFontsFromCss(cssText) {
     const selectors = match[1].toLowerCase().trim();
     const body = match[2];
 
-    // Extract font-family value
     const ffMatch = body.match(/font-family:\s*([^;]+)/i);
     if (!ffMatch) continue;
 
-    // Clean the font name: take first in comma list, strip quotes
-    const rawValue = ffMatch[1].trim();
-    const firstName = rawValue.split(',')[0].trim().replace(/^['"]|['"]$/g, '');
-    if (!firstName || firstName === 'inherit' || firstName === 'initial') continue;
+    const firstName = cleanFontName(ffMatch[1]);
+    if (!firstName) continue;
 
-    // Classify by selector
     if (/\bh1\b|\bh2\b|\bh3\b/.test(selectors)) {
       if (!result.heading) result.heading = firstName;
     }
@@ -68,6 +89,139 @@ function extractFontsFromCss(cssText) {
     if (/\bbody\b|\bp\b|\bmain\b|\.content|\.text/.test(selectors)) {
       if (!result.body) result.body = firstName;
     }
+  }
+
+  return result;
+}
+
+/**
+ * Extract @font-face font names from CSS
+ */
+function extractFontFaceNames(cssText) {
+  const names = [];
+  const regex = /@font-face\s*\{[^}]*font-family:\s*['"]?([^;'"}\n]+)['"]?\s*;/gi;
+  let m;
+  while ((m = regex.exec(cssText)) !== null) {
+    const name = m[1].trim().replace(/^['"]|['"]$/g, '').trim();
+    if (name && isCustomFont(name)) names.push(name);
+  }
+  return [...new Set(names)];
+}
+
+/**
+ * Extract CSS variable font declarations (Shopify, Squarespace, etc.)
+ * Shopify themes use many patterns:
+ *   --font-heading-family, --heading-font-family, --font-family-heading
+ *   --font-body-family, --body-font-family, --text-font-family
+ *   --heading-font-weight, --text-font-weight
+ */
+function extractCssVarFonts(cssText) {
+  const result = { heading: null, body: null, headingWeight: null, bodyWeight: null };
+
+  // Heading font patterns (Shopify uses --heading-font-family most commonly)
+  const headingVarRegex = /--(?:font-heading-family|heading-font-family|heading-font(?!-weight|-style|-size)(?:-family)?|font-family-heading|typeface-heading|title-font-family)\s*:\s*([^;]+)/gi;
+  let m;
+  while ((m = headingVarRegex.exec(cssText)) !== null) {
+    const name = cleanFontName(m[1]);
+    if (name) { result.heading = name; break; }
+  }
+
+  // Body/text font patterns (Shopify uses --text-font-family)
+  const bodyVarRegex = /--(?:font-body-family|body-font-family|body-font(?!-weight|-style|-size)(?:-family)?|text-font-family|font-family-body|font-family-text|typeface-body|content-font-family)\s*:\s*([^;]+)/gi;
+  while ((m = bodyVarRegex.exec(cssText)) !== null) {
+    const name = cleanFontName(m[1]);
+    if (name) { result.body = name; break; }
+  }
+
+  // Font weights (useful metadata)
+  const headingWeightRegex = /--(?:heading-font-weight|font-heading-weight)\s*:\s*(\d+)/gi;
+  while ((m = headingWeightRegex.exec(cssText)) !== null) {
+    result.headingWeight = m[1];
+    break;
+  }
+
+  const bodyWeightRegex = /--(?:text-font-weight|body-font-weight|font-body-weight)\s*:\s*(\d+)/gi;
+  while ((m = bodyWeightRegex.exec(cssText)) !== null) {
+    result.bodyWeight = m[1];
+    break;
+  }
+
+  return result;
+}
+
+/**
+ * Extract Shopify-specific font data from HTML
+ */
+function extractShopifyFonts(html) {
+  const result = { heading: null, body: null, fontUrls: [], isShopify: false };
+
+  // Detect if site is Shopify
+  if (/Shopify\.|shopify\.com|cdn\.shopify/i.test(html) || /\/cdn\/fonts\//i.test(html)) {
+    result.isShopify = true;
+  }
+
+  // 1. Shopify CDN font links: fonts.shopifycdn.com
+  const shopifyCdnRegex = /href=["'](https?:\/\/fonts\.shopifycdn\.com\/[^"']+)["']/gi;
+  let m;
+  while ((m = shopifyCdnRegex.exec(html)) !== null) {
+    result.fontUrls.push(m[1]);
+  }
+
+  // 2. Shopify self-hosted CDN fonts: /cdn/fonts/fontname/fontname_n4.xxx.woff2
+  // Extract font names from @font-face src URLs like //domain.com/cdn/fonts/poppins/poppins_n5.xxx.woff2
+  const cdnFontRegex = /\/cdn\/fonts\/([a-z_-]+)\/\1[_a-z]*[ni]\d/gi;
+  const cdnFontNames = new Set();
+  while ((m = cdnFontRegex.exec(html)) !== null) {
+    const raw = m[1].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+    if (raw && isCustomFont(raw)) cdnFontNames.add(raw);
+  }
+  // If we found CDN font names, use them as fallback
+  const cdnFonts = [...cdnFontNames];
+  if (cdnFonts.length > 0 && !result.heading) result.heading = cdnFonts[0];
+  if (cdnFonts.length > 1 && !result.body) result.body = cdnFonts[1];
+
+  // 3. Shopify theme settings JSON in <script> tags
+  // Look for patterns like: "type_header_font":"itc_caslon_no_224_n4"
+  // or "heading_font":"Assistant" or "body_font":"Assistant"
+  const settingsRegex = /["'](?:type_header_font|heading_font|type_heading_font)["']\s*:\s*["']([^"']+)["']/gi;
+  while ((m = settingsRegex.exec(html)) !== null) {
+    const raw = m[1].trim();
+    // Shopify encodes font as "font_name_n4" or just "Font Name"
+    const name = raw.replace(/_[ni]\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+    if (name && isCustomFont(name)) result.heading = name;
+  }
+
+  const bodySettingsRegex = /["'](?:type_body_font|body_font|type_base_font)["']\s*:\s*["']([^"']+)["']/gi;
+  while ((m = bodySettingsRegex.exec(html)) !== null) {
+    const raw = m[1].trim();
+    const name = raw.replace(/_[ni]\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+    if (name && isCustomFont(name)) result.body = name;
+  }
+
+  // 4. Shopify Liquid settings in <script type="application/json"> tags
+  const jsonScriptRegex = /<script[^>]+type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  while ((m = jsonScriptRegex.exec(html)) !== null) {
+    const jsonStr = m[1];
+    // Look for font references in the JSON
+    const fontKeys = jsonStr.matchAll(/["'](?:type_header_font|heading_font|header_font|type_heading_font|heading_font_family)["']\s*:\s*["']([^"']+)["']/gi);
+    for (const fk of fontKeys) {
+      const raw = fk[1].trim();
+      const name = raw.replace(/_[ni]\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+      if (name && isCustomFont(name) && !result.heading) result.heading = name;
+    }
+    const bodyFontKeys = jsonStr.matchAll(/["'](?:type_body_font|body_font|type_base_font|body_font_family|text_font)["']\s*:\s*["']([^"']+)["']/gi);
+    for (const fk of bodyFontKeys) {
+      const raw = fk[1].trim();
+      const name = raw.replace(/_[ni]\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+      if (name && isCustomFont(name) && !result.body) result.body = name;
+    }
+  }
+
+  // 5. Shopify global font family settings in meta or script
+  const shopifyFontRegex = /font_family["']?\s*:\s*["']([^"']+)["']/gi;
+  while ((m = shopifyFontRegex.exec(html)) !== null) {
+    const name = cleanFontName(m[1]);
+    if (name && !result.heading) result.heading = name;
   }
 
   return result;
@@ -90,7 +244,7 @@ function extractColorsFromCss(cssText) {
     }
   }
 
-  // 1. Extract CSS custom properties (--primary, --accent, --brand-*, etc.)
+  // CSS custom properties (--primary, --accent, --brand-*, etc.)
   const varRegex = /--[\w-]*(primary|accent|brand|main|theme|highlight)[\w-]*\s*:\s*([^;]+)/gi;
   let vm;
   while ((vm = varRegex.exec(cssText)) !== null) {
@@ -99,18 +253,16 @@ function extractColorsFromCss(cssText) {
     if (hm) {
       let hex = hm[0];
       if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
-      if (hex.length === 7) addColor(hex, 5); // High weight for named brand vars
+      if (hex.length === 7) addColor(hex, 5);
     }
   }
 
-  // 2. Extract colors from all CSS rules
+  // CSS rules
   const ruleRegex = /([^{}]+)\{([^}]+)\}/gi;
   let match;
   while ((match = ruleRegex.exec(cssText)) !== null) {
     const selectors = match[1].toLowerCase().trim();
     const body = match[2];
-
-    // Weight brand-relevant selectors higher
     const isBrand = /\b(header|nav|button|btn|h[1-3]|a(?:\b|\.)|footer|hero|cta|accent|primary|brand|logo|banner)\b/i.test(selectors);
     const weight = isBrand ? 3 : 1;
 
@@ -126,13 +278,13 @@ function extractColorsFromCss(cssText) {
       const rgbMatch = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
       if (rgbMatch) {
         const r = parseInt(rgbMatch[1]), g = parseInt(rgbMatch[2]), b = parseInt(rgbMatch[3]);
-        const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+        const hex = '#' + [r, g, b].map(c_ => c_.toString(16).padStart(2, '0')).join('');
         addColor(hex, weight);
       }
     }
   }
 
-  // 3. Also scan for hex colors in inline style attributes from HTML
+  // Inline style hex colors
   const inlineHex = cssText.matchAll(/style="[^"]*(?:color|background)[^"]*?(#[0-9a-fA-F]{3,6})/gi);
   for (const im of inlineHex) {
     let hex = im[1].toLowerCase();
@@ -168,19 +320,30 @@ function parseHtml(html) {
     adobeFontUrls.push(m[1]);
   }
 
-  // Other stylesheet <link> tags
-  const linkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["']/gi;
+  // All stylesheet <link> tags (both href-before-rel and rel-before-href)
+  // Also capture Shopify's preloaded stylesheets: <link ... as="style" ...>
+  const linkRegex = /<link[^>]+(?:rel=["']stylesheet["'][^>]+href=["']([^"']+)["']|href=["']([^"']+)["'][^>]+rel=["']stylesheet["'])/gi;
   while ((m = linkRegex.exec(html)) !== null) {
-    const href = m[1].replace(/&amp;/g, '&');
-    if (!href.includes('fonts.googleapis.com') && !href.includes('use.typekit.net')) {
+    const href = (m[1] || m[2]).replace(/&amp;/g, '&');
+    if (!href.includes('fonts.googleapis.com') && !href.includes('use.typekit.net') && !stylesheetUrls.includes(href)) {
       stylesheetUrls.push(href);
     }
   }
-  // Also match href before rel
-  const linkRegex2 = /<link[^>]+href=["']([^"']+)["'][^>]+rel=["']stylesheet["']/gi;
-  while ((m = linkRegex2.exec(html)) !== null) {
+
+  // Shopify also uses <link ... as="style"> for preloaded CSS
+  const preloadStyleRegex = /<link[^>]+href=["']([^"']+\.css[^"']*)["'][^>]+as=["']style["']/gi;
+  while ((m = preloadStyleRegex.exec(html)) !== null) {
     const href = m[1].replace(/&amp;/g, '&');
-    if (!href.includes('fonts.googleapis.com') && !href.includes('use.typekit.net') && !stylesheetUrls.includes(href)) {
+    if (!stylesheetUrls.includes(href)) stylesheetUrls.push(href);
+  }
+
+  // Also find preload/preconnect font links (Shopify preloads fonts)
+  const preloadRegex = /href=["']((?:https?:)?\/\/[^"']*(?:fonts\.|font|\/cdn\/fonts)[^"']+\.(?:css|woff2?|ttf|otf)[^"']*)["']/gi;
+  while ((m = preloadRegex.exec(html)) !== null) {
+    const href = m[1];
+    if (href.includes('fonts.shopifycdn.com') || href.includes('fonts.googleapis.com')) {
+      // Already handled above
+    } else if (href.endsWith('.css') && !stylesheetUrls.includes(href)) {
       stylesheetUrls.push(href);
     }
   }
@@ -210,37 +373,55 @@ export async function POST(request) {
       return Response.json({ error: 'Invalid URL. Must start with http:// or https://' }, { status: 400 });
     }
 
-    // Fetch the website
+    console.log(`[extract-fonts] Fetching: ${website_url}`);
+
+    // Fetch the website with a realistic browser User-Agent
     let html;
+    let fetchStatus;
     try {
       const res = await fetch(website_url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VectorBot/1.0)' },
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
         redirect: 'follow',
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(15000),
       });
+      fetchStatus = res.status;
+      console.log(`[extract-fonts] Response status: ${res.status}, content-type: ${res.headers.get('content-type')}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       html = await res.text();
+      console.log(`[extract-fonts] HTML length: ${html.length}, first 500 chars: ${html.slice(0, 500).replace(/\n/g, ' ')}`);
     } catch (e) {
+      console.log(`[extract-fonts] Fetch error: ${e.message}`);
       return Response.json({ error: `Could not fetch website: ${e.message}` }, { status: 400 });
     }
 
     const { googleFontUrls, adobeFontUrls, stylesheetUrls, inlineStyles } = parseHtml(html);
+    console.log(`[extract-fonts] Found: ${googleFontUrls.length} Google Font URLs, ${adobeFontUrls.length} Adobe Font URLs, ${stylesheetUrls.length} stylesheets, ${inlineStyles.length} chars inline CSS`);
+    if (stylesheetUrls.length > 0) console.log(`[extract-fonts] Stylesheet URLs: ${stylesheetUrls.slice(0, 5).join(', ')}`);
+
+    // Shopify-specific detection (also searches inline styles + @font-face src paths)
+    const shopifyFonts = extractShopifyFonts(html + '\n' + inlineStyles);
+    console.log(`[extract-fonts] Shopify: isShopify=${shopifyFonts.isShopify}, heading=${shopifyFonts.heading}, body=${shopifyFonts.body}, cdn_urls=${shopifyFonts.fontUrls.length}`);
 
     // Collect all Google Font names
     const allGoogleFonts = [];
     for (const url of googleFontUrls) {
       allGoogleFonts.push(...parseFontNamesFromGoogleUrl(url));
     }
+    console.log(`[extract-fonts] Google Fonts detected: ${allGoogleFonts.join(', ') || 'none'}`);
 
-    // Fetch external stylesheets (limit to 5)
+    // Fetch external stylesheets (limit to 8)
     let allCss = inlineStyles;
-    const sheetsToFetch = stylesheetUrls.slice(0, 5);
+    const sheetsToFetch = stylesheetUrls.slice(0, 8);
     for (const url of sheetsToFetch) {
       try {
         const fullUrl = url.startsWith('http') ? url : new URL(url, website_url).href;
         const res = await fetch(fullUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VectorBot/1.0)' },
-          signal: AbortSignal.timeout(5000),
+          headers: { 'User-Agent': USER_AGENT },
+          signal: AbortSignal.timeout(8000),
         });
         if (res.ok) {
           const css = await res.text();
@@ -256,29 +437,69 @@ export async function POST(request) {
       }
     }
 
-    // Also fetch Google Fonts CSS to get @font-face declarations (which may reveal font names in selectors)
-    for (const url of googleFontUrls.slice(0, 3)) {
+    // Also fetch Shopify CDN font CSS files
+    for (const url of shopifyFonts.fontUrls.slice(0, 3)) {
       try {
         const res = await fetch(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VectorBot/1.0)' },
+          headers: { 'User-Agent': USER_AGENT },
           signal: AbortSignal.timeout(5000),
         });
         if (res.ok) allCss += (await res.text()) + '\n';
       } catch (e) {}
     }
 
+    // Also fetch Google Fonts CSS to get @font-face declarations
+    for (const url of googleFontUrls.slice(0, 3)) {
+      try {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': USER_AGENT },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) allCss += (await res.text()) + '\n';
+      } catch (e) {}
+    }
+
+    console.log(`[extract-fonts] Total CSS collected: ${allCss.length} chars`);
+
     // Extract fonts from CSS by selector
     const cssFonts = extractFontsFromCss(allCss);
+
+    // Extract CSS variable fonts (Shopify, Squarespace, etc.)
+    const cssVarFonts = extractCssVarFonts(allCss + '\n' + html);
+    console.log(`[extract-fonts] CSS selector fonts: heading=${cssFonts.heading}, body=${cssFonts.body}`);
+    console.log(`[extract-fonts] CSS variable fonts: heading=${cssVarFonts.heading}, body=${cssVarFonts.body}`);
+
+    // Extract @font-face declarations
+    const fontFaceNames = extractFontFaceNames(allCss);
+    console.log(`[extract-fonts] @font-face fonts: ${fontFaceNames.join(', ') || 'none'}`);
 
     // Extract brand colors from CSS + inline styles in HTML
     const cssColors = extractColorsFromCss(allCss + '\n' + html);
 
-    // Determine final font assignments
-    let fontHeading = cssFonts.heading;
-    let fontSubheading = cssFonts.subheading;
-    let fontBody = cssFonts.body;
+    // Determine final font assignments (priority order)
+    // For Shopify sites, CSS variables are most reliable since themes use --heading-font-family / --text-font-family
+    // 1. CSS variables (highest for Shopify)
+    // 2. CSS selectors
+    // 3. Shopify theme settings / CDN font paths
+    // 4. @font-face declarations
+    // 5. Google Fonts names
+    let fontHeading, fontSubheading, fontBody;
+    if (shopifyFonts.isShopify) {
+      fontHeading = cssVarFonts.heading || cssFonts.heading || shopifyFonts.heading;
+      fontSubheading = cssFonts.subheading;
+      fontBody = cssVarFonts.body || cssFonts.body || shopifyFonts.body;
+      console.log(`[extract-fonts] Shopify priority: heading=${fontHeading}, body=${fontBody}`);
+    } else {
+      fontHeading = cssFonts.heading || cssVarFonts.heading || shopifyFonts.heading;
+      fontSubheading = cssFonts.subheading;
+      fontBody = cssFonts.body || cssVarFonts.body || shopifyFonts.body;
+    }
 
-    // Fallback: use Google Fonts names if CSS parsing didn't find specific selectors
+    // Fallback to @font-face names
+    if (!fontHeading && fontFaceNames.length > 0) fontHeading = fontFaceNames[0];
+    if (!fontBody && fontFaceNames.length > 1) fontBody = fontFaceNames[1];
+
+    // Fallback to Google Fonts names
     if (allGoogleFonts.length > 0) {
       const uniqueGoogleFonts = [...new Set(allGoogleFonts)];
       if (!fontHeading && uniqueGoogleFonts[0]) fontHeading = uniqueGoogleFonts[0];
@@ -291,11 +512,17 @@ export async function POST(request) {
 
     // Build embed URL
     const fontsForEmbed = [fontHeading, fontSubheading, fontBody].filter(Boolean);
-    // Also include any Google Fonts that were detected
     for (const gf of allGoogleFonts) {
       if (!fontsForEmbed.includes(gf)) fontsForEmbed.push(gf);
     }
+    // Add @font-face names that look like Google Fonts
+    for (const ff of fontFaceNames) {
+      if (!fontsForEmbed.includes(ff)) fontsForEmbed.push(ff);
+    }
     const fontEmbedUrl = buildGoogleFontsUrl(fontsForEmbed);
+
+    console.log(`[extract-fonts] Final: heading=${fontHeading}, subheading=${fontSubheading}, body=${fontBody}`);
+    console.log(`[extract-fonts] Embed URL: ${fontEmbedUrl}`);
 
     // Merge CSS colors with existing logo-extracted colors
     const supabase = getSupabase();
@@ -331,11 +558,11 @@ export async function POST(request) {
       const colMatch = error.message?.match(/column "([^"]+)" of relation "detailers" does not exist/)
         || error.message?.match(/Could not find the '([^']+)' column of 'detailers'/);
       if (colMatch) {
-        console.log(`extract-fonts: stripping unknown column "${colMatch[1]}", retrying...`);
+        console.log(`[extract-fonts] Stripping unknown column "${colMatch[1]}", retrying...`);
         delete updateFields[colMatch[1]];
         continue;
       }
-      console.error('extract-fonts save error:', error.message);
+      console.error('[extract-fonts] Save error:', error.message);
       break;
     }
 
@@ -351,12 +578,15 @@ export async function POST(request) {
       detected: {
         google_fonts: allGoogleFonts.length,
         adobe_fonts: adobeFontUrls.length,
+        shopify_fonts: (shopifyFonts.heading || shopifyFonts.body) ? true : false,
+        font_face_names: fontFaceNames,
+        css_var_fonts: cssVarFonts,
         stylesheets_parsed: sheetsToFetch.length,
         css_colors: cssColors.length,
       },
     });
   } catch (err) {
-    console.error('extract-fonts error:', err);
+    console.error('[extract-fonts] Error:', err);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }

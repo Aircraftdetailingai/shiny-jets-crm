@@ -78,23 +78,40 @@ export async function POST(request) {
       }
     }
     if (body.website_url !== undefined) {
-      if (body.website_url && !/^https?:\/\/.+/.test(body.website_url)) {
+      if (body.website_url && body.website_url !== 'manual' && !/^https?:\/\/.+/.test(body.website_url)) {
         return Response.json({ error: 'Invalid website URL' }, { status: 400 });
       }
       updates.website_url = body.website_url || null;
     }
+    // Font fields (set by manual picker or extract-fonts)
+    if (body.font_heading !== undefined) updates.font_heading = body.font_heading || null;
+    if (body.font_subheading !== undefined) updates.font_subheading = body.font_subheading || null;
+    if (body.font_body !== undefined) updates.font_body = body.font_body || null;
+    if (body.font_embed_url !== undefined) updates.font_embed_url = body.font_embed_url || null;
 
     if (Object.keys(updates).length === 0) {
       return Response.json({ error: 'No fields to update' }, { status: 400 });
     }
 
     const supabase = getSupabase();
-    const { error } = await supabase
-      .from('detailers')
-      .update(updates)
-      .eq('id', user.id);
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    // Column-stripping retry for font fields that may not exist yet
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { error } = await supabase
+        .from('detailers')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (!error) break;
+
+      const colMatch = error.message?.match(/column "([^"]+)".*does not exist/)
+        || error.message?.match(/Could not find the '([^']+)' column/);
+      if (colMatch) {
+        delete updates[colMatch[1]];
+        continue;
+      }
+      return Response.json({ error: error.message }, { status: 500 });
+    }
 
     return Response.json({ success: true });
   } catch (err) {
