@@ -14,7 +14,7 @@ export async function POST(request) {
   const settings = await request.json();
 
   // Extract separate column fields
-  const { notifyQuoteViewed, notifyWeeklyDigest, ...notifSettings } = settings;
+  const { notifyQuoteViewed, notifyWeeklyDigest, reviewRequestEnabled, reviewRequestDelay, ...notifSettings } = settings;
 
   const supabase = getSupabase();
 
@@ -24,6 +24,12 @@ export async function POST(request) {
   }
   if (notifyWeeklyDigest !== undefined) {
     updateData.notify_weekly_digest = !!notifyWeeklyDigest;
+  }
+  if (reviewRequestEnabled !== undefined) {
+    updateData.review_request_enabled = !!reviewRequestEnabled;
+  }
+  if (reviewRequestDelay !== undefined) {
+    updateData.review_request_delay_days = parseInt(reviewRequestDelay) || 1;
   }
 
   const { error } = await supabase

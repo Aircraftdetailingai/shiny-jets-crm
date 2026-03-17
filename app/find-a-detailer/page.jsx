@@ -138,9 +138,22 @@ export default function FindADetailerPage() {
                         {d.plan}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-3">
+                    <a href={`/detailer/${d.id}`} className="text-lg font-semibold text-white mb-1 block hover:text-amber-400 transition-colors">
                       {d.company || d.name}
-                    </h3>
+                    </a>
+                    {d.avg_rating && (
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(s => (
+                            <svg key={s} className={`w-3.5 h-3.5 ${s <= Math.round(d.avg_rating) ? 'text-amber-400' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                            </svg>
+                          ))}
+                        </div>
+                        <span className="text-sm text-amber-400 font-medium">{d.avg_rating}</span>
+                        <span className="text-xs text-gray-500">({d.review_count})</span>
+                      </div>
+                    )}
                     <div className="space-y-1.5 mb-5">
                       {countryData && (
                         <p className="text-sm text-gray-400">

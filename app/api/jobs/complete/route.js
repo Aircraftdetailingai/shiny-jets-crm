@@ -363,6 +363,35 @@ export async function POST(request) {
         .eq('id', user.id);
     }
 
+    // Send immediate review request if configured
+    try {
+      const { data: detailerSettings } = await supabase
+        .from('detailers')
+        .select('review_request_enabled, review_request_delay_days, name, email, company')
+        .eq('id', user.id)
+        .single();
+
+      const clientEmail = quote.customer_email || quote.client_email;
+      if (detailerSettings?.review_request_enabled !== false &&
+          detailerSettings?.review_request_delay_days === 0 &&
+          clientEmail) {
+        const crypto = await import('crypto');
+        const feedbackToken = crypto.randomBytes(16).toString('hex');
+        await supabase.from('quotes').update({
+          feedback_token: feedbackToken,
+          feedback_requested_at: new Date().toISOString(),
+        }).eq('id', quote_id);
+
+        const { sendFeedbackRequestEmail } = await import('@/lib/email');
+        await sendFeedbackRequestEmail({
+          quote: { ...quote, feedback_token: feedbackToken },
+          detailer: detailerSettings,
+        });
+      }
+    } catch (reviewErr) {
+      console.error('Failed to send immediate review request:', reviewErr);
+    }
+
     return Response.json({
       success: true,
       log,

@@ -73,6 +73,10 @@ function SettingsContent() {
   // Weekly digest
   const [notifyWeeklyDigest, setNotifyWeeklyDigest] = useState(true);
 
+  // Review request settings
+  const [reviewRequestEnabled, setReviewRequestEnabled] = useState(true);
+  const [reviewRequestDelay, setReviewRequestDelay] = useState(1);
+
   // Smart follow-up settings
   const [autoDiscountEnabled, setAutoDiscountEnabled] = useState(false);
   const [followupDiscountPercent, setFollowupDiscountPercent] = useState(10);
@@ -199,6 +203,8 @@ function SettingsContent() {
     setListedInDirectory(u.listed_in_directory || false);
       setNotifyQuoteViewed(u.notify_quote_viewed || false);
       setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
+      setReviewRequestEnabled(u.review_request_enabled !== false);
+      setReviewRequestDelay(u.review_request_delay_days || 1);
       setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
       setMonthlyReportEnabled(u.notification_settings?.monthlyReportEnabled || false);
       if (u.notification_settings?.followups) {
@@ -1188,7 +1194,7 @@ function SettingsContent() {
       if (pendingChanges.has('ccFee')) promises.push(saveCcFee(ccFeeMode));
       if (pendingChanges.has('quoteDisplay')) promises.push(saveQuoteDisplayPref(quoteDisplayPref));
       if (pendingChanges.has('notifications') || pendingChanges.has('automation')) {
-        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed, notifyWeeklyDigest, followups: followupSettings };
+        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed, notifyWeeklyDigest, reviewRequestEnabled, reviewRequestDelay, followups: followupSettings };
         promises.push(saveNotifications(allNotifs));
       }
       if (pendingChanges.has('followupDiscount')) {
@@ -2363,6 +2369,50 @@ function SettingsContent() {
           </label>
           <a href="/reports" className="inline-block mt-3 text-sm text-v-gold hover:text-v-gold-dim">
             View all reports &rarr;
+          </a>
+        </div>
+
+        {/* Review Requests */}
+        <div className="pb-6 mb-2">
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Review Requests</h3>
+          <label className="flex items-center justify-between cursor-pointer py-2">
+            <div>
+              <p className="text-sm font-medium text-v-text-primary">Auto-send review requests</p>
+              <p className="text-xs text-v-text-secondary">Send customers a review email after job completion</p>
+            </div>
+            <div
+              onClick={() => { setReviewRequestEnabled(!reviewRequestEnabled); markDirty('notifications'); }}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${reviewRequestEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+            >
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${reviewRequestEnabled ? 'translate-x-5' : ''}`} />
+            </div>
+          </label>
+          {reviewRequestEnabled && (
+            <div className="mt-3 ml-1">
+              <p className="text-xs text-v-text-secondary mb-2">Send review request:</p>
+              <div className="flex gap-2">
+                {[
+                  { value: 0, label: 'Immediately' },
+                  { value: 1, label: 'After 1 day' },
+                  { value: 3, label: 'After 3 days' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setReviewRequestDelay(opt.value); markDirty('notifications'); }}
+                    className={`px-3 py-1.5 text-xs rounded border transition-colors ${
+                      reviewRequestDelay === opt.value
+                        ? 'border-v-gold text-v-gold bg-v-gold/10'
+                        : 'border-v-border text-v-text-secondary hover:border-v-gold/50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <a href="/reviews" className="inline-block mt-3 text-sm text-v-gold hover:text-v-gold-dim">
+            View all reviews &rarr;
           </a>
         </div>
 

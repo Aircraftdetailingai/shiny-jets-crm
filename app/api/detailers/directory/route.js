@@ -48,5 +48,30 @@ export async function GET(request) {
     return Response.json({ error: 'Failed to fetch directory' }, { status: 500 });
   }
 
-  return Response.json({ detailers: data || [] });
+  // Attach public review stats
+  const detailerIds = (data || []).map(d => d.id);
+  let enriched = data || [];
+
+  if (detailerIds.length > 0) {
+    const { data: allReviews } = await supabase
+      .from('feedback')
+      .select('detailer_id, rating')
+      .in('detailer_id', detailerIds)
+      .eq('is_public', true);
+
+    const statsMap = {};
+    for (const r of (allReviews || [])) {
+      if (!statsMap[r.detailer_id]) statsMap[r.detailer_id] = { total: 0, sum: 0 };
+      statsMap[r.detailer_id].total++;
+      statsMap[r.detailer_id].sum += r.rating;
+    }
+
+    enriched = (data || []).map(d => ({
+      ...d,
+      review_count: statsMap[d.id]?.total || 0,
+      avg_rating: statsMap[d.id] ? parseFloat((statsMap[d.id].sum / statsMap[d.id].total).toFixed(1)) : null,
+    }));
+  }
+
+  return Response.json({ detailers: enriched });
 }
