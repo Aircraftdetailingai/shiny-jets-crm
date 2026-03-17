@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import DataTable from '@/components/DataTable';
+// DataTable removed — using custom Gmail-style list
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { formatPrice, formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import ExportGate from '@/components/ExportGate';
@@ -398,6 +398,7 @@ export default function QuotesPage() {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
+  const hasSelection = selectedIds.size > 0;
 
   const executeBulkAction = async (action) => {
     setBulkProcessing(true);
@@ -473,265 +474,7 @@ export default function QuotesPage() {
     }
   };
 
-  // Table columns
-  const columns = useMemo(() => [
-    {
-      id: 'select',
-      header: () => (
-        <input
-          type="checkbox"
-          checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length}
-          onChange={toggleSelectAll}
-          className="w-4 h-4 rounded border-gray-300 text-amber-500 cursor-pointer"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      cell: ({ row }) => (
-        <input
-          type="checkbox"
-          checked={selectedIds.has(row.original.id)}
-          onChange={() => toggleSelect(row.original.id)}
-          className="w-4 h-4 rounded border-gray-300 text-amber-500 cursor-pointer"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      enableSorting: false,
-    },
-    {
-      id: 'customer',
-      header: 'Customer',
-      accessorKey: 'client_name',
-      cell: ({ getValue, row }) => (
-        <div>
-          <span className="font-medium">{getValue() || 'No name'}</span>
-          {row.original.client_email && (
-            <span className="text-xs text-gray-500 block">{row.original.client_email}</span>
-          )}
-          {Array.isArray(row.original.customer_tags) && row.original.customer_tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-0.5">
-              {row.original.customer_tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-medium leading-tight">
-                  {tag}
-                </span>
-              ))}
-              {row.original.customer_tags.length > 2 && (
-                <span className="text-[10px] text-gray-400">+{row.original.customer_tags.length - 2}</span>
-              )}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: 'aircraft',
-      header: 'Aircraft',
-      accessorFn: (row) => row.aircraft_model || row.aircraft_type || '-',
-    },
-    {
-      id: 'registration',
-      header: 'Registration',
-      accessorKey: 'tail_number',
-      cell: ({ getValue }) => getValue() || '-',
-    },
-    {
-      id: 'services',
-      header: 'Services',
-      accessorFn: (row) => {
-        if (row.line_items && Array.isArray(row.line_items)) {
-          return row.line_items.map(item => item.description || item.service).join(', ');
-        }
-        return '-';
-      },
-      cell: ({ getValue }) => (
-        <span className="truncate max-w-[200px] block" title={getValue()}>
-          {getValue()}
-        </span>
-      ),
-    },
-    {
-      id: 'total',
-      header: 'Quote Total',
-      accessorKey: 'total_price',
-      cell: ({ getValue }) => (
-        <span className="font-semibold">{currencySymbol()}{formatPrice(getValue())}</span>
-      ),
-    },
-    {
-      id: 'product_cost',
-      header: 'Product Cost',
-      accessorFn: (row) => getProductCost(row),
-      cell: ({ getValue }) => {
-        const cost = getValue();
-        return cost > 0 ? <span className="text-red-600">{currencySymbol()}{formatPrice(cost)}</span> : <span className="text-gray-400">-</span>;
-      },
-    },
-    {
-      id: 'profit',
-      header: 'Gross Profit',
-      accessorFn: (row) => {
-        const revenue = parseFloat(row.total_price) || 0;
-        const cost = getProductCost(row);
-        return revenue - cost;
-      },
-      cell: ({ getValue, row }) => {
-        const revenue = parseFloat(row.original.total_price) || 0;
-        const profit = getValue();
-        if (revenue === 0) return <span className="text-gray-400">-</span>;
-        const margin = revenue > 0 ? ((profit / revenue) * 100).toFixed(0) : 0;
-        return (
-          <div>
-            <span className={`font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{currencySymbol()}{formatPrice(profit)}</span>
-            <span className="text-xs text-gray-400 ml-1">({margin}%)</span>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      accessorFn: (row) => getStatus(row),
-      cell: ({ getValue }) => {
-        const status = getValue();
-        return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status] || 'bg-gray-700/30'}`}>
-            {statusLabels[status] || status}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'date',
-      header: 'Date',
-      accessorKey: 'created_at',
-      cell: ({ getValue }) => formatDate(getValue()),
-    },
-    {
-      id: 'location',
-      header: 'Hangar Location',
-      accessorKey: 'location',
-      cell: ({ getValue }) => getValue() || '-',
-    },
-    {
-      id: 'email',
-      header: 'Client Email',
-      accessorKey: 'client_email',
-      cell: ({ getValue }) => getValue() || '-',
-    },
-    {
-      id: 'phone',
-      header: 'Client Phone',
-      accessorKey: 'client_phone',
-      cell: ({ getValue }) => getValue() || '-',
-    },
-    {
-      id: 'sent_date',
-      header: 'Quote sent',
-      accessorKey: 'sent_at',
-      cell: ({ getValue }) => formatDate(getValue()),
-    },
-    {
-      id: 'viewed_date',
-      header: 'Quote viewed',
-      accessorKey: 'viewed_at',
-      cell: ({ getValue }) => formatDate(getValue()),
-    },
-    {
-      id: 'payment_date',
-      header: 'Paid At',
-      accessorKey: 'paid_at',
-      cell: ({ getValue }) => formatDate(getValue()),
-    },
-    {
-      id: 'hours',
-      header: 'Hours',
-      accessorKey: 'total_hours',
-      cell: ({ getValue }) => { const v = parseFloat(getValue()); return isNaN(v) ? '-' : v.toFixed(1); },
-    },
-    {
-      id: 'notes',
-      header: 'Notes',
-      accessorKey: 'notes',
-      cell: ({ getValue }) => (
-        <span className="truncate max-w-[150px] block" title={getValue()}>
-          {getValue() || '-'}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => {
-        const quote = row.original;
-        const status = getStatus(quote);
-        return (
-          <div className="flex gap-3">
-            {quote.share_link && (
-              <>
-                <a
-                  href={`/q/${quote.share_link}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-gray-400 hover:text-white hover:underline text-xs transition-colors"
-                >
-                  View
-                </a>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    try { navigator.clipboard?.writeText(`${window.location.origin}/q/${quote.share_link}`); } catch {}
-                  }}
-                  className="text-gray-400 hover:text-white hover:underline text-xs transition-colors"
-                >
-                  Copy
-                </button>
-              </>
-            )}
-            <a
-              href={`/api/quotes/${quote.id}/pdf`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-gray-400 hover:text-[#C9A84C] hover:underline text-xs transition-colors"
-            >
-              PDF
-            </a>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openDuplicateModal(quote);
-              }}
-              className="text-gray-400 hover:text-white hover:underline text-xs transition-colors"
-            >
-              Duplicate
-            </button>
-            {status === 'paid' && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openChangeOrderModal(quote);
-                  }}
-                  className="text-gray-400 hover:text-[#C9A84C] hover:underline text-xs transition-colors"
-                >
-                  +Change
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openCompleteModal(quote);
-                  }}
-                  className="text-gray-400 hover:text-white hover:underline text-xs transition-colors"
-                >
-                  Complete
-                </button>
-              </>
-            )}
-          </div>
-        );
-      },
-    },
-  ], [servicesMap, selectedIds, filteredQuotes]);
+  // Column definitions removed — using custom row renderer below
 
   const stats = {
     total: quotes.length,
@@ -822,7 +565,8 @@ export default function QuotesPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex space-x-6 mb-6 border-b border-v-border/30 overflow-x-auto">
+      <div className="sticky top-0 z-30 bg-v-charcoal pt-2 pb-0 -mx-4 px-4">
+      <div className="flex space-x-6 border-b border-v-border/30 overflow-x-auto">
         {['all', 'active', 'paid', 'completed', 'expired'].map((f) => (
           <button
             key={f}
@@ -841,60 +585,161 @@ export default function QuotesPage() {
           </button>
         ))}
       </div>
+      </div>
 
-      {/* Bulk Actions Bar */}
-      {selectedIds.size > 0 && (
-        <div className="bg-amber-900/20 border border-amber-600/30 rounded-sm px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-gray-900">
-              {selectedIds.size} selected
-            </span>
-            <button onClick={clearSelection} className="text-xs text-gray-500 hover:text-gray-700 underline">
-              Clear
+      {/* Gmail-style Toolbar */}
+      {hasSelection && (
+        <div className="bg-v-surface border border-v-border/30 px-4 py-2.5 hidden sm:flex items-center gap-1 relative z-10">
+          <input
+            type="checkbox"
+            checked={selectedIds.size === filteredQuotes.length}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded border-v-border accent-amber-500 cursor-pointer mr-3"
+          />
+          <span className="text-sm font-medium text-v-text-primary">{selectedIds.size} selected</span>
+          <button type="button" onClick={clearSelection} className="ml-1 mr-2 text-v-text-secondary hover:text-v-text-primary cursor-pointer" title="Clear selection">
+            <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+          <div className="flex items-center gap-0.5 border-l border-v-border/30 pl-2">
+            <button type="button" onClick={() => setBulkConfirm({ action: 'send', label: `Send ${selectedIds.size} quote(s)?`, description: 'Quotes with a customer email in draft/sent status will be emailed.' })} disabled={bulkProcessing} className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-v-text-secondary hover:text-v-text-primary hover:bg-v-surface-light rounded transition-colors disabled:opacity-50 cursor-pointer" title="Send">
+              <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              <span className="hidden lg:inline">Send</span>
             </button>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setBulkConfirm({ action: 'send', label: `Send ${selectedIds.size} quote(s)?`, description: 'Quotes with a customer email in draft/sent status will be emailed.' })}
-              disabled={bulkProcessing}
-              className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:opacity-50"
-            >
-              Send All
+            <button type="button" onClick={() => setBulkConfirm({ action: 'expire', label: `Mark ${selectedIds.size} quote(s) as expired?`, description: 'This will change their status to expired.' })} disabled={bulkProcessing} className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-v-text-secondary hover:text-v-text-primary hover:bg-v-surface-light rounded transition-colors disabled:opacity-50 cursor-pointer" title="Archive/Expire">
+              <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-2-3H6L4 7m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0H4m8 4v6m0 0l-3-3m3 3l3-3" /></svg>
+              <span className="hidden lg:inline">Archive</span>
             </button>
-            <button
-              onClick={() => setBulkConfirm({ action: 'expire', label: `Mark ${selectedIds.size} quote(s) as expired?`, description: 'This will change their status to expired.' })}
-              disabled={bulkProcessing}
-              className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-50"
-            >
-              Expire Selected
+            <button type="button" onClick={() => setBulkConfirm({ action: 'delete', label: `Delete ${selectedIds.size} quote(s) permanently?`, description: 'This cannot be undone.' })} disabled={bulkProcessing} className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 cursor-pointer" title="Delete">
+              <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              <span className="hidden lg:inline">Delete</span>
             </button>
             <ExportGate plan={userPlan}>
-              <button
-                onClick={() => executeBulkAction('export')}
-                disabled={bulkProcessing}
-                className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 disabled:opacity-50"
-              >
-                Export CSV
+              <button type="button" onClick={() => executeBulkAction('export')} disabled={bulkProcessing} className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-v-text-secondary hover:text-v-text-primary hover:bg-v-surface-light rounded transition-colors disabled:opacity-50 cursor-pointer" title="Export CSV">
+                <svg className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                <span className="hidden lg:inline">Export</span>
               </button>
             </ExportGate>
-            <button
-              onClick={() => setBulkConfirm({ action: 'delete', label: `Delete ${selectedIds.size} quote(s) permanently?`, description: 'This cannot be undone.' })}
-              disabled={bulkProcessing}
-              className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 disabled:opacity-50"
-            >
-              Delete Selected
-            </button>
           </div>
         </div>
       )}
 
-      {/* Data Table */}
-      <DataTable
-        tableId="detailer"
-        data={filteredQuotes}
-        columns={columns}
-        emptyMessage="No results found"
-      />
+      {/* Mobile bulk bar */}
+      {hasSelection && (
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-v-surface border-t border-v-border px-4 py-3 z-40 flex items-center justify-between">
+          <span className="text-sm text-v-text-primary font-medium">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setBulkConfirm({ action: 'send', label: `Send ${selectedIds.size} quote(s)?`, description: 'Quotes with a customer email will be emailed.' })} className="text-v-text-secondary hover:text-v-text-primary"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
+            <button type="button" onClick={() => setBulkConfirm({ action: 'expire', label: `Archive ${selectedIds.size} quote(s)?`, description: 'Status will be set to expired.' })} className="text-v-text-secondary hover:text-v-text-primary"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-2-3H6L4 7m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0H4m8 4v6m0 0l-3-3m3 3l3-3" /></svg></button>
+            <button type="button" onClick={() => setBulkConfirm({ action: 'delete', label: `Delete ${selectedIds.size} quote(s)?`, description: 'This cannot be undone.' })} className="text-red-400/70 hover:text-red-400"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+            <button type="button" onClick={clearSelection} className="text-v-text-secondary hover:text-v-text-primary"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+          </div>
+        </div>
+      )}
+
+      {/* Quote List */}
+      <div className={`bg-v-surface ${hasSelection ? '' : ''} overflow-hidden`}>
+        {/* Column headers */}
+        {!hasSelection && (
+          <div className="border-b border-v-border/30 px-4 py-2.5 hidden sm:grid sm:grid-cols-12 gap-4 items-center">
+            <div className="col-span-1" />
+            <div className="col-span-3 text-[10px] uppercase tracking-widest text-gray-500">Customer</div>
+            <div className="col-span-2 text-[10px] uppercase tracking-widest text-gray-500">Services</div>
+            <div className="col-span-2 text-[10px] uppercase tracking-widest text-gray-500 text-right">Total</div>
+            <div className="col-span-2 text-[10px] uppercase tracking-widest text-gray-500">Status</div>
+            <div className="col-span-2 text-[10px] uppercase tracking-widest text-gray-500 text-right">Date</div>
+          </div>
+        )}
+
+        {filteredQuotes.length === 0 ? (
+          <div className="py-16 text-center text-gray-500 text-sm">No quotes found</div>
+        ) : (
+          filteredQuotes.map((quote) => {
+            const status = getStatus(quote);
+            const isSelected = selectedIds.has(quote.id);
+            const services = quote.line_items && Array.isArray(quote.line_items) ? quote.line_items.map(i => i.description || i.service) : [];
+            const displayName = quote.customer_company || quote.client_name || 'Unnamed';
+            const aircraftLine = [quote.aircraft_type, quote.aircraft_model].filter(Boolean).join(' ');
+            return (
+              <div key={quote.id} className="group">
+                {/* Desktop row */}
+                <div
+                  className="hidden sm:grid sm:grid-cols-12 gap-4 items-center px-4 border-b border-v-border/10 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                  style={{ minHeight: '56px' }}
+                  onClick={() => quote.share_link ? window.open(`/q/${quote.share_link}`, '_blank') : null}
+                >
+                  {/* Checkbox */}
+                  <div className="col-span-1 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(quote.id)}
+                      className={`w-4 h-4 rounded border-v-border accent-amber-500 cursor-pointer transition-opacity duration-150 ${
+                        hasSelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    />
+                  </div>
+                  {/* Customer + Aircraft */}
+                  <div className="col-span-3 min-w-0">
+                    <p className="font-medium text-v-text-primary text-sm truncate">{displayName}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {aircraftLine || 'No aircraft'}
+                      {quote.tail_number ? ` · ${quote.tail_number}` : ''}
+                    </p>
+                  </div>
+                  {/* Services */}
+                  <div className="col-span-2 min-w-0">
+                    <p className="text-xs text-gray-400 truncate" title={services.join(', ')}>
+                      {services.length > 0 ? (services.length <= 2 ? services.join(', ') : `${services.length} services`) : '-'}
+                    </p>
+                  </div>
+                  {/* Total */}
+                  <div className="col-span-2 text-right">
+                    <span className="text-[#C9A84C] font-mono text-sm">{currencySymbol()}{formatPrice(quote.total_price)}</span>
+                  </div>
+                  {/* Status */}
+                  <div className="col-span-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] tracking-wider uppercase ${statusColors[status] || 'border border-gray-500/40 text-gray-400'}`}>
+                      {statusLabels[status] || status}
+                    </span>
+                  </div>
+                  {/* Date */}
+                  <div className="col-span-2 text-right">
+                    <span className="text-xs text-gray-500">{formatDate(quote.created_at)}</span>
+                  </div>
+                </div>
+                {/* Mobile row */}
+                <div className="sm:hidden flex items-start gap-3 px-4 py-3 border-b border-v-border/10">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelect(quote.id)}
+                    className="w-4 h-4 mt-1 accent-amber-500 flex-shrink-0"
+                  />
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => quote.share_link ? window.open(`/q/${quote.share_link}`, '_blank') : null}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-v-text-primary text-sm truncate">{displayName}</p>
+                      <span className="text-[#C9A84C] font-mono text-sm flex-shrink-0">{currencySymbol()}{formatPrice(quote.total_price)}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {aircraftLine || 'No aircraft'}
+                      {quote.tail_number ? ` · ${quote.tail_number}` : ''}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] tracking-wider uppercase ${statusColors[status] || 'border border-gray-500/40 text-gray-400'}`}>
+                        {statusLabels[status] || status}
+                      </span>
+                      <span className="text-[10px] text-gray-500">{formatDate(quote.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       {/* Complete Job Modal */}
       {completeModal && (
