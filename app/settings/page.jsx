@@ -114,6 +114,9 @@ function SettingsContent() {
   const [selectedTheme, setSelectedTheme] = useState({ primary: '#C9A84C', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null });
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeSuccess, setThemeSuccess] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [fontExtracting, setFontExtracting] = useState(false);
+  const [extractedFonts, setExtractedFonts] = useState(null);
 
   // Profile state
   const [profileName, setProfileName] = useState('');
@@ -321,6 +324,15 @@ function SettingsContent() {
           surface: data.theme_surface || '#111827',
           logo_url: data.theme_logo_url || null,
         });
+        setWebsiteUrl(data.website_url || '');
+        if (data.font_heading || data.font_body) {
+          setExtractedFonts({
+            heading: data.font_heading || null,
+            subheading: data.font_subheading || null,
+            body: data.font_body || null,
+            embed_url: data.font_embed_url || null,
+          });
+        }
       }
     } catch {}
   };
@@ -1131,6 +1143,104 @@ function SettingsContent() {
               </label>
             </div>
             <p className="text-v-text-secondary/50 text-xs mt-2">PNG, JPG, or WebP. Max 2MB.</p>
+          </div>
+
+          {/* Website Fonts */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-v-text-secondary mb-2">Website Fonts</label>
+            <p className="text-v-text-secondary/60 text-xs mb-3">Enter your website URL to auto-extract heading and body fonts.</p>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://yourwebsite.com"
+                className="flex-1 bg-v-surface border border-v-border text-v-text-primary px-3 py-2 text-sm focus:border-v-gold focus:outline-none"
+              />
+              <button
+                onClick={async () => {
+                  if (!websiteUrl) return;
+                  setFontExtracting(true);
+                  try {
+                    const token = localStorage.getItem('vector_token');
+                    const res = await fetch('/api/user/extract-fonts', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ website_url: websiteUrl }),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.fonts) {
+                      setExtractedFonts(data.fonts);
+                    }
+                  } catch (err) {
+                    console.error('Font extraction failed:', err);
+                  } finally {
+                    setFontExtracting(false);
+                  }
+                }}
+                disabled={fontExtracting || !websiteUrl}
+                className="px-4 py-2 bg-v-gold text-white text-sm font-medium hover:bg-v-gold/90 transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {fontExtracting ? 'Extracting...' : 'Extract Fonts'}
+              </button>
+            </div>
+
+            {/* Font Preview Card */}
+            {extractedFonts && (
+              <div className="mt-4 bg-v-surface border border-v-border p-4">
+                {extractedFonts.embed_url && (
+                  // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
+                  <link rel="stylesheet" href={extractedFonts.embed_url} />
+                )}
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium uppercase tracking-widest text-v-gold">Extracted Fonts</span>
+                  <button
+                    onClick={() => {
+                      setExtractedFonts(null);
+                      setWebsiteUrl('');
+                      const token = localStorage.getItem('vector_token');
+                      fetch('/api/user/branding', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ website_url: '' }),
+                      });
+                    }}
+                    className="text-xs text-v-text-secondary hover:text-red-400 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {extractedFonts.heading && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-widest text-v-text-secondary/50">Heading</span>
+                      <p className="text-lg text-v-text-primary" style={{ fontFamily: `"${extractedFonts.heading}", serif` }}>
+                        {extractedFonts.heading}
+                      </p>
+                    </div>
+                  )}
+                  {extractedFonts.subheading && extractedFonts.subheading !== extractedFonts.heading && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-widest text-v-text-secondary/50">Subheading</span>
+                      <p className="text-base text-v-text-primary" style={{ fontFamily: `"${extractedFonts.subheading}", sans-serif` }}>
+                        {extractedFonts.subheading}
+                      </p>
+                    </div>
+                  )}
+                  {extractedFonts.body && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-widest text-v-text-secondary/50">Body</span>
+                      <p className="text-sm text-v-text-secondary" style={{ fontFamily: `"${extractedFonts.body}", sans-serif` }}>
+                        The quick brown fox jumps over the lazy dog. Your customers will see this font on quotes, invoices, and your portal.
+                      </p>
+                    </div>
+                  )}
+                  {!extractedFonts.heading && !extractedFonts.body && (
+                    <p className="text-xs text-v-text-secondary/50">No fonts detected. Try a different URL.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Theme Picker */}

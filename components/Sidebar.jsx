@@ -78,7 +78,13 @@ export default function Sidebar() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem('vector_user');
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) {
+        const u = JSON.parse(stored);
+        setUser(u);
+        if (u.theme_primary) {
+          document.documentElement.style.setProperty('--v-gold', u.theme_primary);
+        }
+      }
     } catch {}
   }, []);
 
@@ -99,7 +105,11 @@ export default function Sidebar() {
     <>
       {/* Logo */}
       <div className="h-[72px] flex items-center px-7">
-        <span className="text-v-gold text-base font-light" style={{ letterSpacing: '0.3em' }}>VECTOR</span>
+        {user?.theme_logo_url ? (
+          <img src={user.theme_logo_url} alt={user.company || 'Logo'} className="h-8 max-w-[160px] object-contain" />
+        ) : (
+          <span className="text-v-gold text-base font-light" style={{ letterSpacing: '0.3em' }}>VECTOR</span>
+        )}
       </div>
 
       {/* Nav Groups */}
@@ -165,7 +175,11 @@ export default function Sidebar() {
 
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-v-sidebar z-40 flex items-center justify-between px-4 border-b border-v-border-subtle">
-        <span className="text-v-gold text-sm font-light" style={{ letterSpacing: '0.3em' }}>VECTOR</span>
+        {user?.theme_logo_url ? (
+          <img src={user.theme_logo_url} alt={user.company || 'Logo'} className="h-6 max-w-[120px] object-contain" />
+        ) : (
+          <span className="text-v-gold text-sm font-light" style={{ letterSpacing: '0.3em' }}>VECTOR</span>
+        )}
         <div className="flex items-center gap-2">
           <PointsBadge />
           <NotificationBell />

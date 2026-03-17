@@ -1,11 +1,90 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { PLATFORM_FEES } from '@/lib/pricing-tiers';
 import { formatPrice } from '@/lib/formatPrice';
 import { getCurrencySymbol } from '@/lib/currency';
 import { calculateCcFee } from '@/lib/cc-fee';
 import { t, detectBrowserLanguage, SUPPORTED_LANGUAGES } from '@/lib/translations';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+const FLEET_SERVICES = [
+  'Exterior Wash',
+  'Interior Detail',
+  'Leather Conditioning',
+  'Carpet Cleaning',
+  'Wax',
+  'Ceramic Coating',
+];
+
+function SetupForm({ token, stripeCustomerId, onSuccess, onCancel }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    setError('');
+
+    const { error: submitErr, setupIntent } = await stripe.confirmSetup({
+      elements,
+      redirect: 'if_required',
+    });
+
+    if (submitErr) {
+      setError(submitErr.message);
+      setProcessing(false);
+      return;
+    }
+
+    if (setupIntent?.payment_method) {
+      const res = await fetch('/api/portal/payment-methods/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          payment_method_id: setupIntent.payment_method,
+          stripe_customer_id: stripeCustomerId,
+        }),
+      });
+      if (res.ok) {
+        onSuccess();
+      } else {
+        setError('Failed to save payment method');
+      }
+    }
+    setProcessing(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <PaymentElement />
+      {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+      <div className="flex gap-3 mt-6">
+        <button
+          type="submit"
+          disabled={!stripe || processing}
+          className="flex-1 py-3 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+        >
+          {processing ? 'Saving...' : 'Save Card'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-6 py-3 border border-[#2A3A50] text-[#8A9BB0] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
 
 const STATUS_LABELS = {
   draft: 'Draft',
@@ -22,10 +101,10 @@ const STATUS_LABELS = {
 
 const STATUS_COLORS = {
   draft: 'bg-[#1A2236] text-[#8A9BB0]',
-  sent: 'bg-[#1A2236] text-[#C9A84C]',
-  viewed: 'bg-[#1A2236] text-[#C9A84C]',
-  paid: 'bg-[#C9A84C]/10 text-[#C9A84C]',
-  approved: 'bg-[#C9A84C]/10 text-[#C9A84C]',
+  sent: 'bg-[#1A2236] text-[var(--brand-primary,#C9A84C)]',
+  viewed: 'bg-[#1A2236] text-[var(--brand-primary,#C9A84C)]',
+  paid: 'bg-[#C9A84C]/10 text-[var(--brand-primary,#C9A84C)]',
+  approved: 'bg-[#C9A84C]/10 text-[var(--brand-primary,#C9A84C)]',
   scheduled: 'bg-[#1A2236] text-[#8A9BB0]',
   in_progress: 'bg-[#1A2236] text-[#8A9BB0]',
   completed: 'bg-emerald-500/10 text-emerald-400',
@@ -185,9 +264,9 @@ export default function PortalPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0E17] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--brand-bg,#0A0E17)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-8 h-8 border-2 border-[var(--brand-primary,#C9A84C)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-[#8A9BB0] text-sm tracking-widest uppercase">{T('loadingQuote')}</p>
         </div>
       </div>
@@ -196,9 +275,9 @@ export default function PortalPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0A0E17] flex items-center justify-center p-4">
-        <div className="bg-[#111827] rounded-[4px] p-10 max-w-[640px] w-full text-center">
-          <div className="w-12 h-[1px] bg-[#C9A84C] mx-auto mb-6" />
+      <div className="min-h-screen bg-[var(--brand-bg,#0A0E17)] flex items-center justify-center p-4">
+        <div className="bg-[var(--brand-surface,#111827)] rounded-[4px] p-10 max-w-[640px] w-full text-center">
+          <div className="w-12 h-[1px] bg-[var(--brand-primary,#C9A84C)] mx-auto mb-6" />
           <p className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase mb-3">Error</p>
           <h2 className="font-heading text-xl font-light text-[#F5F5F5] mb-2">{T('quoteNotFound')}</h2>
           <p className="text-[#8A9BB0] text-sm">{T('linkExpiredOrInvalid')}</p>
@@ -225,14 +304,18 @@ export default function PortalPage() {
   const totalSpent = history.filter(h => ['paid', 'approved', 'completed'].includes(h.status)).reduce((sum, h) => sum + (h.total_price || 0), 0) + (isPaid ? (quote.total_price || 0) : 0);
 
   return (
-    <div className="min-h-screen bg-[#0A0E17]">
+    <div className="min-h-screen bg-[var(--brand-bg,#0A0E17)]">
       {/* Header */}
-      <div className="bg-[#111827] border-b border-[#1A2236]">
+      <div className="bg-[var(--brand-surface,#111827)] border-b border-[#1A2236]">
         <div className="max-w-[640px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[#8A9BB0] text-[10px] tracking-[0.3em] uppercase mb-1">{T('quoteFrom')}</p>
-              <h1 className="font-heading text-xl font-light text-[#F5F5F5]">{companyName}</h1>
+              {detailer?.theme_logo_url ? (
+                <img src={detailer.theme_logo_url} alt={companyName} className="h-8 object-contain" />
+              ) : (
+                <h1 className="font-heading text-xl font-light text-[#F5F5F5]">{companyName}</h1>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className={`px-3 py-1 text-[10px] tracking-[0.15em] uppercase font-medium ${STATUS_COLORS[quote.status] || 'bg-[#1A2236] text-[#8A9BB0]'}`}>
@@ -242,20 +325,20 @@ export default function PortalPage() {
               <div className="relative">
                 <button
                   onClick={() => setLangMenuOpen(prev => !prev)}
-                  className="flex items-center gap-1 px-2 py-1 border border-[#2A3A50] text-[#8A9BB0] text-xs hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 border border-[#2A3A50] text-[#8A9BB0] text-xs hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
                   title={T('language')}
                 >
                   <span className="text-xs">&#127760;</span>
                   <span className="hidden sm:inline">{currentLangLabel}</span>
                 </button>
                 {langMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 bg-[#111827] border border-[#2A3A50] py-1 z-50 min-w-[140px]">
+                  <div className="absolute right-0 top-full mt-1 bg-[var(--brand-surface,#111827)] border border-[#2A3A50] py-1 z-50 min-w-[140px]">
                     {SUPPORTED_LANGUAGES.map(l => (
                       <button
                         key={l.code}
                         onClick={() => changeLanguage(l.code)}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          lang === l.code ? 'bg-[#C9A84C]/10 text-[#C9A84C]' : 'text-[#8A9BB0] hover:bg-[#1A2236] hover:text-[#F5F5F5]'
+                          lang === l.code ? 'bg-[#C9A84C]/10 text-[var(--brand-primary,#C9A84C)]' : 'text-[#8A9BB0] hover:bg-[#1A2236] hover:text-[#F5F5F5]'
                         }`}
                       >
                         {l.label}
@@ -270,7 +353,7 @@ export default function PortalPage() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-[#111827] border-b border-[#1A2236] sticky top-0 z-10">
+      <div className="bg-[var(--brand-surface,#111827)] border-b border-[#1A2236] sticky top-0 z-10">
         <div className="max-w-[640px] mx-auto px-6 flex">
           {[
             { key: 'quote', label: T('currentQuote') },
@@ -281,7 +364,7 @@ export default function PortalPage() {
               key={tabItem.key}
               onClick={() => setTab(tabItem.key)}
               className={`px-4 py-3 text-xs tracking-[0.15em] uppercase font-medium border-b-2 transition-colors ${
-                tab === tabItem.key ? 'border-[#C9A84C] text-[#C9A84C]' : 'border-transparent text-[#8A9BB0] hover:text-[#F5F5F5]'
+                tab === tabItem.key ? 'border-[var(--brand-primary,#C9A84C)] text-[var(--brand-primary,#C9A84C)]' : 'border-transparent text-[#8A9BB0] hover:text-[#F5F5F5]'
               }`}
             >
               {tabItem.label}
@@ -296,7 +379,7 @@ export default function PortalPage() {
           <div className="space-y-6">
             {/* Payment CTA */}
             {canPay && (
-              <div className="bg-[#111827] border border-[#2A3A50] p-8 text-center">
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#2A3A50] p-8 text-center">
                 {(() => {
                   const ccMode = detailer?.cc_fee_mode || 'absorb';
                   const basePrice = parseFloat(quote.total_price) || 0;
@@ -304,7 +387,7 @@ export default function PortalPage() {
                   return (
                     <>
                       <p className="text-[#8A9BB0] text-[10px] tracking-[0.3em] uppercase mb-2">Total</p>
-                      <p className="text-[#C9A84C] text-[2.5rem] font-light mb-1">{sym}{formatPrice(basePrice + ccFee)}</p>
+                      <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light mb-1">{sym}{formatPrice(basePrice + ccFee)}</p>
                       {ccFee > 0 && <p className="text-[#8A9BB0]/60 text-xs mb-1">Includes {sym}{formatPrice(ccFee)} processing fee</p>}
                     </>
                   );
@@ -323,7 +406,7 @@ export default function PortalPage() {
                     <p className="text-[#8A9BB0] text-[10px] tracking-[0.3em] uppercase mb-2">Terms & Conditions</p>
                     {detailer.terms_pdf_url ? (
                       <a href={detailer.terms_pdf_url} target="_blank" rel="noopener noreferrer"
-                        className="text-[#C9A84C] text-sm hover:text-[#D4B85A] transition-colors">
+                        className="text-[var(--brand-primary,#C9A84C)] text-sm hover:text-[#D4B85A] transition-colors">
                         View Terms & Conditions (PDF)
                       </a>
                     ) : (
@@ -344,7 +427,7 @@ export default function PortalPage() {
                       onChange={(e) => setAgreedToTerms(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-5 h-5 border border-[#2A3A50] peer-checked:border-[#C9A84C] peer-checked:bg-[#C9A84C] transition-colors flex items-center justify-center">
+                    <div className="w-5 h-5 border border-[#2A3A50] peer-checked:border-[var(--brand-primary,#C9A84C)] peer-checked:bg-[var(--brand-primary,#C9A84C)] transition-colors flex items-center justify-center">
                       {agreedToTerms && <span className="text-[#0A0E17] text-xs font-bold">&#10003;</span>}
                     </div>
                   </div>
@@ -356,7 +439,7 @@ export default function PortalPage() {
                 {/* Buttons */}
                 {invoiceAccepted ? (
                   <div className="border border-[#2A3A50] p-4">
-                    <p className="text-[#C9A84C] text-sm tracking-[0.15em] uppercase mb-1">Invoice Requested</p>
+                    <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase mb-1">Invoice Requested</p>
                     <p className="text-[#8A9BB0] text-sm">{detailer?.company || 'The detailer'} will send you an invoice.</p>
                   </div>
                 ) : detailer?.cc_fee_mode === 'customer_choice' ? (
@@ -364,14 +447,14 @@ export default function PortalPage() {
                     <button
                       onClick={handlePayment}
                       disabled={paymentLoading || !agreedToTerms}
-                      className="w-full py-4 bg-[#C9A84C] text-[#0A0E17] text-sm tracking-[0.2em] uppercase font-medium hover:bg-[#D4B85A] disabled:opacity-40 transition-colors"
+                      className="w-full py-4 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                     >
                       {paymentLoading ? T('processing') : 'Accept & Pay by Card'}
                     </button>
                     <button
                       onClick={handleRequestInvoice}
                       disabled={invoiceRequesting || !agreedToTerms}
-                      className="w-full py-4 border border-[#2A3A50] text-[#8A9BB0] text-sm tracking-[0.2em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] disabled:opacity-40 transition-colors"
+                      className="w-full py-4 border border-[#2A3A50] text-[#8A9BB0] text-sm tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] disabled:opacity-40 transition-colors"
                     >
                       {invoiceRequesting ? 'Submitting...' : 'Request Invoice'}
                     </button>
@@ -383,7 +466,7 @@ export default function PortalPage() {
                   <button
                     onClick={handlePayment}
                     disabled={paymentLoading || !agreedToTerms}
-                    className="w-full py-4 bg-[#C9A84C] text-[#0A0E17] text-sm tracking-[0.2em] uppercase font-medium hover:bg-[#D4B85A] disabled:opacity-40 transition-colors"
+                    className="w-full py-4 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                   >
                     {paymentLoading ? T('processing') : T('approveAndPay')}
                   </button>
@@ -395,14 +478,14 @@ export default function PortalPage() {
             {hasComparableQuotes && (
               <a
                 href={`/compare/${token}`}
-                className="block border border-[#2A3A50] p-5 hover:border-[#C9A84C] transition-colors group"
+                className="block border border-[#2A3A50] p-5 hover:border-[var(--brand-primary,#C9A84C)] transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[#F5F5F5] text-sm font-medium group-hover:text-[#C9A84C] transition-colors">{T('compareQuotes')}</p>
+                    <p className="text-[#F5F5F5] text-sm font-medium group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{T('compareQuotes')}</p>
                     <p className="text-[#8A9BB0]/60 text-xs">{comparableQuotes.length + 1} {T('optionsAvailable')} &middot; {T('seeSideBySide')}</p>
                   </div>
-                  <span className="text-[#8A9BB0] text-xl group-hover:text-[#C9A84C] transition-colors">&#8250;</span>
+                  <span className="text-[#8A9BB0] text-xl group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">&#8250;</span>
                 </div>
               </a>
             )}
@@ -410,8 +493,8 @@ export default function PortalPage() {
             {/* Paid confirmation */}
             {isPaid && (
               <div className="border border-[#2A3A50] p-8 text-center">
-                <p className="text-[#C9A84C] text-[10px] tracking-[0.3em] uppercase mb-4">Confirmed</p>
-                <p className="text-[#C9A84C] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
+                <p className="text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.3em] uppercase mb-4">Confirmed</p>
+                <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
                 {quote.paid_at && (
                   <p className="text-[#8A9BB0] text-xs mt-2">
                     {new Date(quote.paid_at).toLocaleDateString(lang === 'en' ? 'en-US' : lang, { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -429,7 +512,7 @@ export default function PortalPage() {
             )}
 
             {/* Quote Details */}
-            <div className="bg-[#111827] border border-[#1A2236] p-6">
+            <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-6">
               <p className="text-[#8A9BB0] text-[10px] tracking-[0.3em] uppercase mb-6">{T('serviceDetails')}</p>
 
               <div className="space-y-4 mb-6">
@@ -474,12 +557,12 @@ export default function PortalPage() {
               {/* Total */}
               <div className="border-t border-[#2A3A50] pt-6 mt-4 text-center">
                 <p className="text-[#8A9BB0] text-[10px] tracking-[0.3em] uppercase mb-2">{T('total')}</p>
-                <p className="text-[#C9A84C] text-[2rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
+                <p className="text-[var(--brand-primary,#C9A84C)] text-[2rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
               </div>
 
               {/* Notes */}
               {quote.notes && (
-                <div className="mt-6 border-l-2 border-[#C9A84C]/40 pl-4">
+                <div className="mt-6 border-l-2 border-[var(--brand-primary,#C9A84C)]/40 pl-4">
                   <p className="text-[#8A9BB0] text-sm leading-relaxed">{quote.notes}</p>
                 </div>
               )}
@@ -491,9 +574,9 @@ export default function PortalPage() {
                 href={`/api/quotes/${quote.id}/pdf?token=${token}`}
                 target="_blank"
                 rel="noreferrer"
-                className="block border border-[#2A3A50] p-4 text-center hover:border-[#C9A84C] transition-colors group"
+                className="block border border-[#2A3A50] p-4 text-center hover:border-[var(--brand-primary,#C9A84C)] transition-colors group"
               >
-                <p className="text-[#8A9BB0] text-xs tracking-[0.15em] uppercase group-hover:text-[#C9A84C] transition-colors">{T('downloadQuotePdf')}</p>
+                <p className="text-[#8A9BB0] text-xs tracking-[0.15em] uppercase group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{T('downloadQuotePdf')}</p>
                 <p className="text-[#8A9BB0]/40 text-[10px] mt-1">{T('printSavePdf')}</p>
               </a>
             )}
@@ -504,15 +587,15 @@ export default function PortalPage() {
                 <button
                   onClick={handleRebook}
                   disabled={rebookLoading}
-                  className="border border-[#2A3A50] p-5 text-center hover:border-[#C9A84C] disabled:opacity-50 transition-colors group"
+                  className="border border-[#2A3A50] p-5 text-center hover:border-[var(--brand-primary,#C9A84C)] disabled:opacity-50 transition-colors group"
                 >
-                  <p className="text-[#F5F5F5] text-sm font-medium group-hover:text-[#C9A84C] transition-colors">{rebookLoading ? T('requesting') : T('bookAgain')}</p>
+                  <p className="text-[#F5F5F5] text-sm font-medium group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{rebookLoading ? T('requesting') : T('bookAgain')}</p>
                   <p className="text-[#8A9BB0]/50 text-[10px] tracking-[0.1em] uppercase mt-1">{T('sameService')}</p>
                 </button>
               )}
               {rebookSuccess && (
                 <div className="border border-[#2A3A50] p-5 text-center">
-                  <p className="text-[#C9A84C] text-sm tracking-[0.15em] uppercase">{T('requestSent')}</p>
+                  <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase">{T('requestSent')}</p>
                   <p className="text-[#8A9BB0] text-xs mt-1">{T('willSendNewQuote', { company: companyName })}</p>
                 </div>
               )}
@@ -521,25 +604,25 @@ export default function PortalPage() {
                   href={`/api/portal/invoice?id=${quote.id}&token=${token}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="border border-[#2A3A50] p-5 text-center hover:border-[#C9A84C] transition-colors group block"
+                  className="border border-[#2A3A50] p-5 text-center hover:border-[var(--brand-primary,#C9A84C)] transition-colors group block"
                 >
-                  <p className="text-[#F5F5F5] text-sm font-medium group-hover:text-[#C9A84C] transition-colors">{T('downloadReceipt')}</p>
+                  <p className="text-[#F5F5F5] text-sm font-medium group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{T('downloadReceipt')}</p>
                   <p className="text-[#8A9BB0]/50 text-[10px] tracking-[0.1em] uppercase mt-1">{T('printPdf')}</p>
                 </a>
               )}
             </div>
 
             {/* Detailer Contact */}
-            <div className="bg-[#111827] border border-[#1A2236] p-6">
+            <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-6">
               <p className="text-[#8A9BB0] text-[10px] tracking-[0.3em] uppercase mb-4">{T('contact')} {companyName}</p>
               <div className="flex flex-wrap gap-4">
                 {detailer?.email && (
-                  <a href={`mailto:${detailer.email}`} className="text-[#C9A84C] text-sm hover:text-[#D4B85A] transition-colors">
+                  <a href={`mailto:${detailer.email}`} className="text-[var(--brand-primary,#C9A84C)] text-sm hover:text-[#D4B85A] transition-colors">
                     {detailer.email}
                   </a>
                 )}
                 {detailer?.phone && (
-                  <a href={`tel:${detailer.phone}`} className="text-[#C9A84C] text-sm hover:text-[#D4B85A] transition-colors">
+                  <a href={`tel:${detailer.phone}`} className="text-[var(--brand-primary,#C9A84C)] text-sm hover:text-[#D4B85A] transition-colors">
                     {detailer.phone}
                   </a>
                 )}
@@ -553,22 +636,22 @@ export default function PortalPage() {
           <div className="space-y-6">
             {/* Customer stats */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-[#111827] border border-[#1A2236] p-5 text-center">
-                <p className="text-[#C9A84C] text-2xl font-light">{history.length + 1}</p>
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-5 text-center">
+                <p className="text-[var(--brand-primary,#C9A84C)] text-2xl font-light">{history.length + 1}</p>
                 <p className="text-[#8A9BB0] text-[10px] tracking-[0.15em] uppercase mt-1">{T('totalQuotes')}</p>
               </div>
-              <div className="bg-[#111827] border border-[#1A2236] p-5 text-center">
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-5 text-center">
                 <p className="text-emerald-400 text-2xl font-light">{completedJobs}</p>
                 <p className="text-[#8A9BB0] text-[10px] tracking-[0.15em] uppercase mt-1">{T('completed')}</p>
               </div>
-              <div className="bg-[#111827] border border-[#1A2236] p-5 text-center">
-                <p className="text-[#C9A84C] text-2xl font-light">{sym}{formatPrice(totalSpent)}</p>
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-5 text-center">
+                <p className="text-[var(--brand-primary,#C9A84C)] text-2xl font-light">{sym}{formatPrice(totalSpent)}</p>
                 <p className="text-[#8A9BB0] text-[10px] tracking-[0.15em] uppercase mt-1">{T('totalSpent')}</p>
               </div>
             </div>
 
             {history.length === 0 ? (
-              <div className="bg-[#111827] border border-[#1A2236] p-10 text-center">
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-10 text-center">
                 <p className="text-[#8A9BB0] text-sm">{T('firstQuote', { company: companyName })}</p>
               </div>
             ) : (
@@ -577,7 +660,7 @@ export default function PortalPage() {
                   <a
                     key={h.id}
                     href={`/portal/${h.share_link}`}
-                    className="block bg-[#111827] border border-[#1A2236] p-5 hover:border-[#C9A84C] transition-colors"
+                    className="block bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-5 hover:border-[var(--brand-primary,#C9A84C)] transition-colors"
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -604,7 +687,7 @@ export default function PortalPage() {
         {tab === 'receipts' && (
           <div className="space-y-4">
             {isPaid && (
-              <div className="bg-[#111827] border border-[#1A2236] p-5">
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-5">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-[#F5F5F5] text-sm font-medium">{aircraftDisplay}</p>
@@ -615,13 +698,13 @@ export default function PortalPage() {
                   <div className="text-right flex items-center gap-4">
                     <div>
                       <p className="text-[#F5F5F5] font-medium">{sym}{formatPrice(quote.total_price)}</p>
-                      <span className="text-[#C9A84C] text-[10px] tracking-[0.1em] uppercase">{T('paid')}</span>
+                      <span className="text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.1em] uppercase">{T('paid')}</span>
                     </div>
                     <a
                       href={`/api/portal/invoice?id=${quote.id}&token=${token}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] text-xs tracking-[0.15em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors"
+                      className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] text-xs tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
                     >
                       PDF
                     </a>
@@ -631,7 +714,7 @@ export default function PortalPage() {
             )}
 
             {history.filter(h => ['paid', 'approved', 'completed'].includes(h.status)).map(h => (
-              <div key={h.id} className="bg-[#111827] border border-[#1A2236] p-5">
+              <div key={h.id} className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-5">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-[#F5F5F5] text-sm font-medium">{h.aircraft_model || h.aircraft_type || 'Aircraft'}</p>
@@ -642,13 +725,13 @@ export default function PortalPage() {
                   <div className="text-right flex items-center gap-4">
                     <div>
                       <p className="text-[#F5F5F5] font-medium">{sym}{formatPrice(h.total_price)}</p>
-                      <span className="text-[#C9A84C] text-[10px] tracking-[0.1em] uppercase">{STATUS_LABELS[h.status]}</span>
+                      <span className="text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.1em] uppercase">{STATUS_LABELS[h.status]}</span>
                     </div>
                     <a
                       href={`/api/portal/invoice?id=${h.id}&token=${token}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] text-xs tracking-[0.15em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors"
+                      className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] text-xs tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
                     >
                       PDF
                     </a>
@@ -658,7 +741,7 @@ export default function PortalPage() {
             ))}
 
             {!isPaid && history.filter(h => ['paid', 'approved', 'completed'].includes(h.status)).length === 0 && (
-              <div className="bg-[#111827] border border-[#1A2236] p-10 text-center">
+              <div className="bg-[var(--brand-surface,#111827)] border border-[#1A2236] p-10 text-center">
                 <p className="text-[#8A9BB0] text-sm">{T('noReceipts')}</p>
               </div>
             )}
@@ -667,7 +750,7 @@ export default function PortalPage() {
 
         {/* Footer */}
         <div className="text-center mt-10 pb-8">
-          <p className="text-[#8A9BB0]/40 text-[10px] tracking-[0.3em] uppercase">Powered by <a href="https://vectorav.ai" className="hover:text-[#C9A84C] transition-colors">Vector Aviation</a></p>
+          <p className="text-[#8A9BB0]/40 text-[10px] tracking-[0.3em] uppercase">Powered by <a href="https://vectorav.ai" className="hover:text-[var(--brand-primary,#C9A84C)] transition-colors">Vector Aviation</a></p>
         </div>
       </div>
     </div>

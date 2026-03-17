@@ -67,18 +67,35 @@ export async function GET(request) {
     history = allQuotes || [];
   }
 
-  // Fetch customer's saved language preference
+  // Resolve or create customer record
   let customerLanguage = null;
+  let customerId = null;
   const customerEmail = quote.customer_email || quote.client_email;
   if (customerEmail) {
     try {
       const { data: customer } = await supabase
         .from('customers')
-        .select('customer_language')
+        .select('id, customer_language')
         .eq('detailer_id', quote.detailer_id)
         .eq('email', customerEmail.toLowerCase().trim())
         .maybeSingle();
-      if (customer?.customer_language) customerLanguage = customer.customer_language;
+      if (customer) {
+        customerId = customer.id;
+        if (customer.customer_language) customerLanguage = customer.customer_language;
+      } else {
+        const { data: newCustomer } = await supabase
+          .from('customers')
+          .insert({
+            detailer_id: quote.detailer_id,
+            email: customerEmail.toLowerCase().trim(),
+            name: quote.client_name || quote.customer_name || '',
+            phone: quote.client_phone || '',
+            company_name: quote.customer_company || '',
+          })
+          .select('id')
+          .single();
+        if (newCustomer) customerId = newCustomer.id;
+      }
     } catch (e) {
       // Column may not exist yet
     }
@@ -93,5 +110,6 @@ export async function GET(request) {
     stripe_connected: stripeConnected,
     history,
     customer_language: customerLanguage,
+    customer_id: customerId,
   });
 }
