@@ -22,15 +22,31 @@ export async function GET(request) {
 
   const supabase = getSupabase();
 
-  // Fetch all quotes in the date range
-  const { data: quotes } = await supabase
-    .from('quotes')
-    .select('id, status, total_price, created_at, sent_at, viewed_at, paid_at, completed_at, scheduled_date, client_name, client_email, aircraft_model, aircraft_type, services')
-    .eq('detailer_id', user.id)
-    .gte('created_at', since)
-    .order('created_at', { ascending: true });
+  // Debug: log what detailer_id we're querying with
+  console.log('[analytics] user.id (detailer_id):', user.id, '| days:', days, '| since:', since);
 
-  const allQuotes = quotes || [];
+  // Fetch quotes and customers in parallel
+  const [quotesRes, customersRes] = await Promise.all([
+    supabase
+      .from('quotes')
+      .select('id, status, total_price, created_at, sent_at, viewed_at, accepted_at, paid_at, completed_at, scheduled_date, client_name, client_email, aircraft_model, aircraft_type, services')
+      .eq('detailer_id', user.id)
+      .gte('created_at', since)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('customers')
+      .select('id, name, email, total_revenue, quote_count, last_service_date')
+      .eq('detailer_id', user.id)
+      .order('total_revenue', { ascending: false }),
+  ]);
+
+  if (quotesRes.error) console.error('[analytics] quotes query error:', quotesRes.error);
+  if (customersRes.error) console.error('[analytics] customers query error:', customersRes.error);
+
+  const allQuotes = quotesRes.data || [];
+  const allCustomers = customersRes.data || [];
+
+  console.log('[analytics] quotes found:', allQuotes.length, '| statuses:', allQuotes.map(q => q.status));
 
   // --- Conversion funnel ---
   const SENT_STATUSES = ['sent', 'viewed', 'accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
@@ -41,13 +57,13 @@ export async function GET(request) {
   const totalCreated = allQuotes.length;
   const totalSent = allQuotes.filter(q => q.sent_at || SENT_STATUSES.includes(q.status)).length;
   const totalViewed = allQuotes.filter(q => q.viewed_at || VIEWED_STATUSES.includes(q.status)).length;
-  const totalPaid = allQuotes.filter(q => q.paid_at || PAID_STATUSES.includes(q.status)).length;
+  const totalPaid = allQuotes.filter(q => q.accepted_at || PAID_STATUSES.includes(q.status)).length;
   const totalCompleted = allQuotes.filter(q => q.status === 'completed').length;
 
   // Total revenue from all accepted/paid/completed quotes
   const totalRevenue = allQuotes
     .filter(q => REVENUE_STATUSES.includes(q.status))
-    .reduce((sum, q) => sum + (q.total_price || 0), 0);
+    .reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
 
   // --- Conversion rate over time (weekly buckets) ---
   const weeklyData = {};
@@ -63,7 +79,7 @@ export async function GET(request) {
     if (q.sent_at || SENT_STATUSES.includes(q.status)) weeklyData[key].sent++;
     if (PAID_STATUSES.includes(q.status)) {
       weeklyData[key].converted++;
-      weeklyData[key].revenue += q.total_price || 0;
+      weeklyData[key].revenue += parseFloat(q.total_price) || 0;
     }
   }
   const conversionTrend = Object.values(weeklyData)
@@ -85,7 +101,7 @@ export async function GET(request) {
   const dayCount = [0, 0, 0, 0, 0, 0, 0];
   const paidQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
   for (const q of paidQuotes) {
-    const date = q.scheduled_date || q.paid_at || q.created_at;
+    const date = q.scheduled_date || q.accepted_at || q.created_at;
     if (date) {
       const d = new Date(date);
       dayCount[d.getDay()]++;
@@ -96,7 +112,7 @@ export async function GET(request) {
   // --- Busiest hours (from scheduled_time or created_at) ---
   const hourCount = new Array(24).fill(0);
   for (const q of paidQuotes) {
-    const d = new Date(q.paid_at || q.created_at);
+    const d = new Date(q.accepted_at || q.created_at);
     hourCount[d.getHours()]++;
   }
   const busiestHours = hourCount.map((count, h) => ({
@@ -136,13 +152,101 @@ export async function GET(request) {
   // --- Monthly revenue trend ---
   const monthlyRevenue = {};
   for (const q of paidQuotes) {
-    const d = new Date(q.paid_at || q.created_at);
+    const d = new Date(q.accepted_at || q.created_at);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!monthlyRevenue[key]) monthlyRevenue[key] = { month: key, revenue: 0, jobs: 0 };
-    monthlyRevenue[key].revenue += q.total_price || 0;
+    monthlyRevenue[key].revenue += parseFloat(q.total_price) || 0;
     monthlyRevenue[key].jobs++;
   }
   const revenueTrend = Object.values(monthlyRevenue).sort((a, b) => a.month.localeCompare(b.month));
+
+  // --- Daily revenue (last 30 days for Revenue Velocity widget) ---
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
+  const dailyRevenueMap = {};
+  let previousPeriodTotal = 0;
+  for (const q of paidQuotes) {
+    const paidDate = q.paid_at || q.accepted_at || q.created_at;
+    const d = new Date(paidDate);
+    const dateKey = d.toISOString().split('T')[0];
+    const price = parseFloat(q.total_price) || 0;
+    if (d >= thirtyDaysAgo) {
+      if (!dailyRevenueMap[dateKey]) dailyRevenueMap[dateKey] = { date: dateKey, revenue: 0, count: 0 };
+      dailyRevenueMap[dateKey].revenue += price;
+      dailyRevenueMap[dateKey].count++;
+    } else if (d >= sixtyDaysAgo) {
+      previousPeriodTotal += price;
+    }
+  }
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const key = d.toISOString().split('T')[0];
+    if (!dailyRevenueMap[key]) dailyRevenueMap[key] = { date: key, revenue: 0, count: 0 };
+  }
+  const dailyRevenue = {
+    current: Object.values(dailyRevenueMap).sort((a, b) => a.date.localeCompare(b.date)),
+    previousPeriodTotal,
+  };
+
+  // --- Cash collected today ---
+  const todayStr = now.toISOString().split('T')[0];
+  const yesterdayStr = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
+  let todayCash = 0, yesterdayCash = 0, last7Cash = 0;
+  for (const q of paidQuotes) {
+    const paidDate = q.paid_at || q.accepted_at || q.created_at;
+    const dateKey = new Date(paidDate).toISOString().split('T')[0];
+    const price = parseFloat(q.total_price) || 0;
+    if (dateKey === todayStr) todayCash += price;
+    if (dateKey === yesterdayStr) yesterdayCash += price;
+    if ((now.getTime() - new Date(paidDate).getTime()) / 86400000 <= 7) last7Cash += price;
+  }
+  const cashCollectedToday = { today: todayCash, yesterday: yesterdayCash, sevenDayAvg: Math.round(last7Cash / 7) };
+
+  // --- Leads to close rate ---
+  const leadsToCloseRate = { sent: totalSent, closed: totalPaid, rate: totalSent > 0 ? Math.round((totalPaid / totalSent) * 100) : 0 };
+
+  // --- Revenue by aircraft type ---
+  const aircraftRevMap = {};
+  for (const q of paidQuotes) {
+    const type = q.aircraft_type || q.aircraft_model || 'Other';
+    if (!aircraftRevMap[type]) aircraftRevMap[type] = { type, revenue: 0, count: 0 };
+    aircraftRevMap[type].revenue += parseFloat(q.total_price) || 0;
+    aircraftRevMap[type].count++;
+  }
+  const revenueByAircraftType = Object.values(aircraftRevMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+
+  // --- Daily job heatmap (day of week × week of year) ---
+  const heatmapData = {};
+  for (const q of paidQuotes) {
+    const date = q.scheduled_date || q.paid_at || q.accepted_at || q.created_at;
+    const d = new Date(date);
+    const day = d.getDay();
+    const startOfYear = new Date(d.getFullYear(), 0, 1);
+    const week = Math.floor((d.getTime() - startOfYear.getTime()) / (7 * 86400000));
+    const key = `${day}-${week}`;
+    if (!heatmapData[key]) heatmapData[key] = { day, week, count: 0 };
+    heatmapData[key].count++;
+  }
+  const dailyJobHeatmap = Object.values(heatmapData);
+
+  // --- Customer LTV (top 10) ---
+  const customerLTV = allCustomers
+    .filter(c => (c.total_revenue || 0) > 0)
+    .slice(0, 10)
+    .map(c => ({ name: c.name || c.email || 'Unknown', email: c.email, total_revenue: c.total_revenue || 0, quote_count: c.quote_count || 0, last_service_date: c.last_service_date }));
+
+  // --- Churn risk ---
+  const churnRisk = allCustomers
+    .filter(c => c.last_service_date)
+    .map(c => {
+      const daysSince = Math.floor((now.getTime() - new Date(c.last_service_date).getTime()) / 86400000);
+      const riskLevel = daysSince >= 120 ? 'critical' : daysSince >= 90 ? 'danger' : daysSince >= 60 ? 'warning' : null;
+      return riskLevel ? { name: c.name || c.email || 'Unknown', email: c.email, lastServiceDate: c.last_service_date, daysSinceService: daysSince, riskLevel } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.daysSinceService - a.daysSinceService)
+    .slice(0, 20);
 
   return Response.json({
     funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted, totalRevenue },
@@ -154,5 +258,12 @@ export async function GET(request) {
     retention: { totalCustomers, repeatCustomers, retentionRate },
     revenueTrend,
     period: days,
+    dailyRevenue,
+    cashCollectedToday,
+    leadsToCloseRate,
+    revenueByAircraftType,
+    dailyJobHeatmap,
+    customerLTV,
+    churnRisk,
   });
 }

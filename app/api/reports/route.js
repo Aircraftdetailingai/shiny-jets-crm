@@ -29,7 +29,7 @@ export async function GET(request) {
     // Fetch all quotes for the detailer within date range
     let query = supabase
       .from('quotes')
-      .select('id, aircraft_type, aircraft_model, total_price, status, created_at, paid_at, completed_at, client_name, customer_name, client_email, customer_email, line_items, selected_services')
+      .select('id, aircraft_type, aircraft_model, total_price, status, created_at, paid_at, completed_at, client_name, client_email, line_items, selected_services')
       .eq('detailer_id', user.id);
 
     if (startDate) query = query.gte('created_at', startDate);
@@ -103,7 +103,7 @@ export async function GET(request) {
     // 5. Customer acquisition over time
     const customerFirstSeen = {};
     for (const q of allQuotes) {
-      const email = q.client_email || q.customer_email;
+      const email = q.client_email || '';
       if (!email) continue;
       const date = new Date(q.created_at);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -122,8 +122,8 @@ export async function GET(request) {
     // 6. All quotes for CSV export
     const exportData = allQuotes.map(q => ({
       date: q.created_at,
-      customer: q.client_name || q.customer_name || '',
-      email: q.client_email || q.customer_email || '',
+      customer: q.client_name || '' || '',
+      email: q.client_email || '' || '',
       aircraft: q.aircraft_model || q.aircraft_type || '',
       status: q.status,
       amount: parseFloat(q.total_price) || 0,

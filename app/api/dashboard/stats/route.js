@@ -62,7 +62,7 @@ export async function GET(request) {
       // This week's quotes
       supabase
         .from('quotes')
-        .select('id, total_price, status, paid_at')
+        .select('id, total_price, status')
         .eq('detailer_id', user.id)
         .gte('created_at', weekAgo),
 
@@ -105,7 +105,7 @@ export async function GET(request) {
       // Recent activity (last 5 quotes updated)
       supabase
         .from('quotes')
-        .select('id, aircraft_model, aircraft_type, client_name, customer_name, total_price, status, created_at, paid_at, completed_at, sent_at, viewed_at')
+        .select('id, aircraft_model, aircraft_type, client_name, total_price, status, created_at, accepted_at, paid_at, completed_at, sent_at, viewed_at')
         .eq('detailer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10),
@@ -177,7 +177,7 @@ export async function GET(request) {
     // Build recent activity feed from quote events
     const recentActivity = [];
     for (const q of recentQuotesRaw) {
-      const name = q.client_name || q.customer_name || 'Customer';
+      const name = q.client_name || 'Customer';
       const aircraft = q.aircraft_model || q.aircraft_type || 'Aircraft';
       const price = parseFloat(q.total_price) || 0;
 
@@ -185,6 +185,8 @@ export async function GET(request) {
         recentActivity.push({ type: 'completed', name, aircraft, price, date: q.completed_at });
       } else if (q.paid_at) {
         recentActivity.push({ type: 'paid', name, aircraft, price, date: q.paid_at });
+      } else if (q.accepted_at) {
+        recentActivity.push({ type: 'accepted', name, aircraft, price, date: q.accepted_at });
       } else if (q.viewed_at) {
         recentActivity.push({ type: 'viewed', name, aircraft, price, date: q.viewed_at });
       } else if (q.sent_at) {
