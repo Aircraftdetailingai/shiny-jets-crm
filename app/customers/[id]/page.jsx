@@ -4,20 +4,20 @@ import { useParams, useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 const ACTIVITY_CONFIG = {
-  quote_created: { icon: '+', color: 'bg-blue-500', label: 'Quote Created', group: 'quotes' },
-  quote_sent: { icon: '\u2192', color: 'bg-indigo-500', label: 'Quote Sent', group: 'quotes' },
-  quote_viewed: { icon: '\u25C9', color: 'bg-purple-500', label: 'Quote Viewed', group: 'quotes' },
-  quote_expired: { icon: '\u2717', color: 'bg-gray-500', label: 'Quote Expired', group: 'quotes' },
+  quote_created: { icon: '+', color: 'bg-v-gold', label: 'Quote', group: 'quotes' },
+  quote_sent: { icon: '\u2192', color: 'bg-v-gold', label: 'Sent', group: 'quotes' },
+  quote_viewed: { icon: '\u25C9', color: 'bg-v-gold', label: 'Viewed', group: 'quotes' },
+  quote_accepted: { icon: '\u2713', color: 'bg-green-500', label: 'Accepted', group: 'quotes' },
+  quote_expired: { icon: '\u2717', color: 'bg-gray-500', label: 'Expired', group: 'quotes' },
   payment_received: { icon: '$', color: 'bg-green-500', label: 'Payment', group: 'payments' },
-  payment_failed: { icon: '!', color: 'bg-red-500', label: 'Payment Failed', group: 'payments' },
+  payment_failed: { icon: '!', color: 'bg-red-500', label: 'Failed', group: 'payments' },
   refund_issued: { icon: '\u21A9', color: 'bg-red-400', label: 'Refund', group: 'payments' },
-  job_completed: { icon: '\u2713', color: 'bg-emerald-500', label: 'Job Done', group: 'jobs' },
+  job_completed: { icon: '\u2713', color: 'bg-emerald-500', label: 'Completed', group: 'jobs' },
   job_scheduled: { icon: '\uD83D\uDCC5', color: 'bg-amber-500', label: 'Scheduled', group: 'jobs' },
-  invoice_created: { icon: '#', color: 'bg-blue-400', label: 'Invoice', group: 'payments' },
-  invoice_emailed: { icon: '\u2709', color: 'bg-blue-300', label: 'Invoice Sent', group: 'payments' },
+  followup_sent: { icon: '\u2709', color: 'bg-v-gold', label: 'Follow-up', group: 'quotes' },
   note_added: { icon: '\uD83D\uDCDD', color: 'bg-gray-400', label: 'Note', group: 'notes' },
   feedback_received: { icon: '\u2605', color: 'bg-amber-400', label: 'Feedback', group: 'feedback' },
-  customer_created: { icon: '\u263A', color: 'bg-teal-500', label: 'Created', group: 'other' },
+  customer_created: { icon: '\u263A', color: 'bg-v-gold', label: 'Created', group: 'other' },
 };
 
 function formatPhone(phone) {
@@ -57,6 +57,7 @@ export default function CustomerDetailPage() {
   const [editingNote, setEditingNote] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [quoteStats, setQuoteStats] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('vector_token') : null;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -68,28 +69,35 @@ export default function CustomerDetailPage() {
 
   const loadAll = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [custRes, notesRes, actRes] = await Promise.all([
         fetch(`/api/customers/${customerId}`, { headers }),
-        fetch(`/api/customers/${customerId}/notes`, { headers }),
-        fetch(`/api/customers/${customerId}/activity`, { headers }),
+        fetch(`/api/customers/${customerId}/notes`, { headers }).catch(() => null),
+        fetch(`/api/customers/${customerId}/activity`, { headers }).catch(() => null),
       ]);
 
       if (custRes.ok) {
         const data = await custRes.json();
         setCustomer(data.customer);
         setQuoteStats(data.stats || null);
+      } else {
+        const err = await custRes.json().catch(() => ({}));
+        setLoadError(err.error || `Failed to load customer (${custRes.status})`);
       }
-      if (notesRes.ok) {
+      if (notesRes?.ok) {
         const data = await notesRes.json();
         setNotes(data.notes || []);
       }
-      if (actRes.ok) {
+      if (actRes?.ok) {
         const data = await actRes.json();
         setActivity(data.activity || []);
+      } else if (actRes) {
+        console.error('Activity API error:', actRes.status);
       }
     } catch (err) {
       console.error('Load error:', err);
+      setLoadError(err.message);
     } finally {
       setLoading(false);
     }
@@ -234,7 +242,7 @@ export default function CustomerDetailPage() {
     return (
       <div className="min-h-screen bg-v-charcoal flex items-center justify-center p-4">
         <div className="bg-v-surface border border-v-border rounded-sm p-8 text-center max-w-sm">
-          <p className="text-v-text-secondary mb-4">Customer not found</p>
+          <p className="text-v-text-secondary mb-4">{loadError || 'Customer not found'}</p>
           <a href="/customers" className="text-v-gold hover:text-v-gold-dim">Back to Customers</a>
         </div>
       </div>

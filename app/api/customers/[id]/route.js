@@ -30,18 +30,39 @@ export async function GET(request, { params }) {
     return Response.json({ error: 'Customer not found' }, { status: 404 });
   }
 
-  // Get quote stats for this customer
-  const { data: quotes } = await supabase
-    .from('quotes')
-    .select('id, total_price, status, created_at, paid_at, completed_at')
-    .eq('detailer_id', user.id)
-    .eq('client_email', customer.email)
-    .order('created_at', { ascending: false });
+  // Get quote stats — column-stripping retry + case-insensitive email
+  const email = customer.email?.toLowerCase().trim();
+  console.log('[customer-detail] id:', id, '| email:', email, '| detailer_id:', user.id);
 
-  const allQuotes = quotes || [];
-  const paidQuotes = allQuotes.filter(q => q.status === 'paid' || q.status === 'completed');
+  let selectCols = 'id, total_price, status, created_at, paid_at, completed_at';
+  let allQuotes = [];
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error: qErr } = await supabase
+      .from('quotes')
+      .select(selectCols)
+      .eq('detailer_id', user.id)
+      .ilike('client_email', email)
+      .order('created_at', { ascending: false });
+
+    if (!qErr) { allQuotes = data || []; break; }
+    const colMatch = qErr.message?.match(/column [\w.]+"?(\w+)"? does not exist/)
+      || qErr.message?.match(/Could not find the '([^']+)' column/)
+      || qErr.message?.match(/column "([^"]+)".*does not exist/);
+    if (colMatch) {
+      selectCols = selectCols.split(',').map(c => c.trim()).filter(c => c !== colMatch[1]).join(', ');
+      console.log(`[customer-detail] Stripped missing column '${colMatch[1]}', retrying...`);
+      continue;
+    }
+    console.log('[customer-detail] Quote query error:', qErr.message);
+    break;
+  }
+
+  console.log('[customer-detail] quotes found:', allQuotes.length);
+
+  const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
+  const revenueQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
   const completedQuotes = allQuotes.filter(q => q.status === 'completed');
-  const totalRevenue = paidQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
+  const totalRevenue = revenueQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
   const lastCompleted = completedQuotes.length > 0 ? completedQuotes[0].completed_at : null;
 
   return Response.json({
@@ -50,7 +71,7 @@ export async function GET(request, { params }) {
       totalQuotes: allQuotes.length,
       totalRevenue,
       completedJobs: completedQuotes.length,
-      lastService: lastCompleted,
+      lastService: lastCompleted || (allQuotes.length > 0 ? allQuotes[0].created_at : null),
     },
   });
 }

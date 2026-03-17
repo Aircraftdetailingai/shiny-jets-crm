@@ -10,6 +10,37 @@ function getSupabase() {
   );
 }
 
+// Helper: query with column-stripping retry
+async function queryWithRetry(supabase, table, selectCols, filters, options = {}) {
+  let cols = selectCols;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let q = supabase.from(table).select(cols);
+    for (const [key, val] of Object.entries(filters)) {
+      if (key === '_ilike') {
+        for (const [col, v] of Object.entries(val)) q = q.ilike(col, v);
+      } else {
+        q = q.eq(key, val);
+      }
+    }
+    if (options.order) q = q.order(options.order, { ascending: options.ascending ?? false });
+    if (options.limit) q = q.limit(options.limit);
+    const { data, error } = await q;
+    if (!error) return data || [];
+    const colMatch = error.message?.match(/column [\w.]+"?(\w+)"? does not exist/)
+      || error.message?.match(/Could not find the '([^']+)' column/)
+      || error.message?.match(/column "([^"]+)".*does not exist/);
+    if (colMatch) {
+      const badCol = colMatch[1];
+      cols = cols.split(',').map(c => c.trim()).filter(c => c !== badCol).join(', ');
+      console.log(`[activity] Stripped missing column '${badCol}' from ${table}, retrying...`);
+      continue;
+    }
+    console.log(`[activity] Query error on ${table}:`, error.message);
+    return [];
+  }
+  return [];
+}
+
 // GET - Activity timeline for a customer
 export async function GET(request, { params }) {
   const user = await getAuthUser(request);
@@ -27,60 +58,46 @@ export async function GET(request, { params }) {
     .single();
 
   if (!customer) {
+    console.log('[activity] Customer not found:', id, 'detailer:', user.id);
     return Response.json({ error: 'Customer not found' }, { status: 404 });
   }
 
   const email = customer.email.toLowerCase().trim();
+  console.log('[activity] customer_id:', id, '| email:', email, '| detailer_id:', user.id);
 
   // Fetch all data sources in parallel
-  const [activityRes, quotesRes, feedbackRes, notesRes] = await Promise.all([
+  const [activityData, quotes, feedbackData, notesData] = await Promise.all([
     // Explicit activity log entries
-    supabase
-      .from('customer_activity_log')
-      .select('*')
-      .eq('detailer_id', user.id)
-      .eq('customer_email', email)
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(res => res)
-      .catch(() => ({ data: [] })),
+    queryWithRetry(supabase, 'customer_activity_log', '*',
+      { detailer_id: user.id, customer_email: email },
+      { order: 'created_at', limit: 200 }
+    ).catch(() => []),
 
-    // All quotes for this customer
-    supabase
-      .from('quotes')
-      .select('id, aircraft_model, aircraft_type, total_price, status, created_at, sent_at, viewed_at, paid_at, completed_at, scheduled_date, valid_until, refunded_at, refund_amount, share_link')
-      .eq('detailer_id', user.id)
-      .eq('client_email', email)
-      .order('created_at', { ascending: false })
-      .limit(100),
+    // All quotes for this customer (case-insensitive email match)
+    queryWithRetry(supabase, 'quotes',
+      'id, aircraft_model, aircraft_type, total_price, status, created_at, sent_at, viewed_at, accepted_at, paid_at, completed_at, scheduled_date, valid_until, client_email, followup_5day_sent',
+      { detailer_id: user.id, _ilike: { client_email: email } },
+      { order: 'created_at', limit: 100 }
+    ),
 
     // Feedback from this customer
-    supabase
-      .from('feedback')
-      .select('id, quote_id, rating, comment, created_at')
-      .eq('detailer_id', user.id)
-      .eq('customer_email', email)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(res => res)
-      .catch(() => ({ data: [] })),
+    queryWithRetry(supabase, 'feedback', 'id, quote_id, rating, comment, created_at',
+      { detailer_id: user.id, customer_email: email },
+      { order: 'created_at', limit: 50 }
+    ).catch(() => []),
 
-    // Notes (for note_added events)
-    supabase
-      .from('customer_notes')
-      .select('id, content, created_at')
-      .eq('customer_id', id)
-      .eq('detailer_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(res => res)
-      .catch(() => ({ data: [] })),
+    // Notes
+    queryWithRetry(supabase, 'customer_notes', 'id, content, created_at',
+      { customer_id: id, detailer_id: user.id },
+      { order: 'created_at', limit: 50 }
+    ).catch(() => []),
   ]);
+
+  console.log('[activity] quotes found:', quotes.length, '| activity_log:', activityData.length, '| feedback:', feedbackData.length, '| notes:', notesData.length);
 
   const timeline = [];
 
   // Explicit activity log entries
-  const activityData = activityRes.data || [];
   for (const a of activityData) {
     timeline.push({
       id: `activity-${a.id}`,
@@ -100,16 +117,16 @@ export async function GET(request, { params }) {
   );
 
   // Derive events from quotes
-  const quotes = quotesRes.data || [];
   for (const q of quotes) {
     const aircraft = q.aircraft_model || q.aircraft_type || 'Aircraft';
     const amount = q.total_price ? `$${Number(q.total_price).toLocaleString()}` : '';
+    const shortId = q.id.slice(0, 8).toUpperCase();
 
     if (q.created_at && !loggedQuoteEvents.has(`${q.id}-quote_created`)) {
       timeline.push({
         id: `q-created-${q.id}`,
         type: 'quote_created',
-        summary: `Quote created for ${aircraft} ${amount}`,
+        summary: `Quote #${shortId} created for ${aircraft}`,
         details: { aircraft, amount: q.total_price, quoteId: q.id },
         date: q.created_at,
         source: 'derived',
@@ -121,7 +138,7 @@ export async function GET(request, { params }) {
       timeline.push({
         id: `q-sent-${q.id}`,
         type: 'quote_sent',
-        summary: `Quote sent for ${aircraft} ${amount}`,
+        summary: `Quote #${shortId} sent to ${q.client_email || email}`,
         details: { aircraft, amount: q.total_price, quoteId: q.id },
         date: q.sent_at,
         source: 'derived',
@@ -133,9 +150,21 @@ export async function GET(request, { params }) {
       timeline.push({
         id: `q-viewed-${q.id}`,
         type: 'quote_viewed',
-        summary: `Viewed quote for ${aircraft}`,
+        summary: `Quote #${shortId} viewed by customer`,
         details: { aircraft, quoteId: q.id },
         date: q.viewed_at,
+        source: 'derived',
+        quote_id: q.id,
+      });
+    }
+
+    if (q.accepted_at && !loggedQuoteEvents.has(`${q.id}-quote_accepted`)) {
+      timeline.push({
+        id: `q-accepted-${q.id}`,
+        type: 'quote_accepted',
+        summary: `Quote #${shortId} accepted`,
+        details: { aircraft, amount: q.total_price, quoteId: q.id },
+        date: q.accepted_at,
         source: 'derived',
         quote_id: q.id,
       });
@@ -145,7 +174,7 @@ export async function GET(request, { params }) {
       timeline.push({
         id: `q-paid-${q.id}`,
         type: 'payment_received',
-        summary: `Payment received ${amount} for ${aircraft}`,
+        summary: `Payment of ${amount} received for Quote #${shortId}`,
         details: { aircraft, amount: q.total_price, quoteId: q.id },
         date: q.paid_at,
         source: 'derived',
@@ -157,7 +186,7 @@ export async function GET(request, { params }) {
       timeline.push({
         id: `q-completed-${q.id}`,
         type: 'job_completed',
-        summary: `Job completed for ${aircraft} ${amount}`,
+        summary: `Job completed \u2014 ${aircraft}`,
         details: { aircraft, amount: q.total_price, quoteId: q.id },
         date: q.completed_at,
         source: 'derived',
@@ -165,12 +194,12 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Scheduled job
     if (q.scheduled_date && (q.status === 'paid' || q.status === 'scheduled' || q.status === 'in_progress')) {
+      const schedDate = new Date(q.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       timeline.push({
         id: `q-scheduled-${q.id}`,
         type: 'job_scheduled',
-        summary: `Job scheduled for ${aircraft}`,
+        summary: `Job scheduled for ${schedDate}`,
         details: { aircraft, amount: q.total_price, quoteId: q.id, scheduledDate: q.scheduled_date },
         date: q.scheduled_date,
         source: 'derived',
@@ -178,12 +207,11 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Quote expired
     if (q.status === 'expired' && q.valid_until) {
       timeline.push({
         id: `q-expired-${q.id}`,
         type: 'quote_expired',
-        summary: `Quote expired for ${aircraft} ${amount}`,
+        summary: `Quote #${shortId} expired \u2014 ${aircraft} ${amount}`,
         details: { aircraft, amount: q.total_price, quoteId: q.id },
         date: q.valid_until,
         source: 'derived',
@@ -191,15 +219,13 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Refund issued
-    if (q.refunded_at) {
-      const refundAmt = q.refund_amount ? `$${Number(q.refund_amount).toLocaleString()}` : amount;
+    if (q.followup_5day_sent) {
       timeline.push({
-        id: `q-refund-${q.id}`,
-        type: 'refund_issued',
-        summary: `Refund issued ${refundAmt} for ${aircraft}`,
-        details: { aircraft, amount: q.refund_amount || q.total_price, quoteId: q.id },
-        date: q.refunded_at,
+        id: `q-followup-${q.id}`,
+        type: 'followup_sent',
+        summary: 'Follow-up email sent',
+        details: { aircraft, quoteId: q.id },
+        date: q.followup_5day_sent,
         source: 'derived',
         quote_id: q.id,
       });
@@ -207,7 +233,6 @@ export async function GET(request, { params }) {
   }
 
   // Feedback events
-  const feedbackData = feedbackRes.data || [];
   for (const f of feedbackData) {
     const stars = '\u2605'.repeat(f.rating || 0);
     timeline.push({
@@ -221,7 +246,6 @@ export async function GET(request, { params }) {
   }
 
   // Note events
-  const notesData = notesRes.data || [];
   const loggedNoteIds = new Set(
     activityData.filter(a => a.activity_type === 'note_added').map(a => a.details?.note_id)
   );
