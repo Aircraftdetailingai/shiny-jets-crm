@@ -64,17 +64,16 @@ export async function POST(request) {
     }
   }
 
-  // Create the referral record
+  // Create the referral record as pending — rewards given when first paid quote completes
   const { error: insertError } = await supabase
     .from('referrals')
     .insert({
       referrer_id: referrer.id,
       referred_id: user.id,
       referral_code: referral_code.toUpperCase(),
-      status: 'completed',
-      referrer_reward: '1_month_free',
-      referred_reward: '30_day_trial',
-      completed_at: new Date().toISOString(),
+      status: 'pending',
+      referrer_reward: '1_month_pro',
+      referred_reward: '500_points',
     });
 
   if (insertError) {
@@ -82,49 +81,15 @@ export async function POST(request) {
     return Response.json({ error: 'Failed to process referral' }, { status: 500 });
   }
 
-  // Award referrer: extend trial_ends_at by 1 month (or set if null)
-  const { data: referrerData } = await supabase
-    .from('detailers')
-    .select('trial_ends_at')
-    .eq('id', referrer.id)
-    .single();
-
-  const referrerTrialEnd = referrerData?.trial_ends_at
-    ? new Date(referrerData.trial_ends_at)
-    : new Date();
-  if (referrerTrialEnd < new Date()) {
-    referrerTrialEnd.setTime(Date.now());
-  }
-  referrerTrialEnd.setMonth(referrerTrialEnd.getMonth() + 1);
-
+  // Store referrer_id on the referred user
   await supabase
     .from('detailers')
-    .update({ trial_ends_at: referrerTrialEnd.toISOString() })
-    .eq('id', referrer.id);
-
-  // Award referred user: extend trial to 30 days from now
-  const referredTrialEnd = new Date();
-  referredTrialEnd.setDate(referredTrialEnd.getDate() + 30);
-
-  await supabase
-    .from('detailers')
-    .update({ trial_ends_at: referredTrialEnd.toISOString() })
+    .update({ referrer_id: referrer.id })
     .eq('id', user.id);
-
-  // Award bonus points to referrer
-  await supabase.rpc('increment_points', { user_id: referrer.id, points: 100 }).catch(() => {
-    // Points RPC may not exist, non-critical
-    supabase
-      .from('detailers')
-      .update({ total_points: (referrerData?.total_points || 0) + 100 })
-      .eq('id', referrer.id)
-      .then(() => {});
-  });
 
   return Response.json({
     success: true,
-    message: 'Referral claimed successfully!',
+    message: 'Referral linked! You\'ll both earn rewards when you complete your first paid quote.',
     referrer_name: referrer.company || referrer.name,
-    your_trial_ends: referredTrialEnd.toISOString(),
   });
 }

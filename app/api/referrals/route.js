@@ -86,17 +86,19 @@ export async function GET(request) {
   }));
 
   const totalReferrals = referralList.length;
-  const completedReferrals = referralList.filter(r => r.status === 'completed').length;
+  const rewardedReferrals = referralList.filter(r => r.status === 'rewarded' || r.status === 'completed').length;
   const pendingReferrals = referralList.filter(r => r.status === 'pending').length;
-  const monthsEarned = completedReferrals; // 1 month free per completed referral
+  const monthsEarned = rewardedReferrals; // 1 month free per rewarded referral
+  const pointsEarned = rewardedReferrals * 500; // 500 pts per rewarded referral
 
   return Response.json({
     referral_code: referralCode,
     stats: {
       total: totalReferrals,
-      completed: completedReferrals,
+      rewarded: rewardedReferrals,
       pending: pendingReferrals,
       months_earned: monthsEarned,
+      points_earned: pointsEarned,
     },
     referrals: enrichedReferrals,
   });

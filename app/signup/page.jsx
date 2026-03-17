@@ -7,6 +7,7 @@ import { STRIPE_COUNTRIES } from '@/lib/currency';
 function SignupForm() {
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite');
+  const refCode = searchParams.get('ref');
 
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState(null);
@@ -56,6 +57,7 @@ function SignupForm() {
           company: form.company.trim() || null,
           country: form.country || null,
           invite_token: inviteToken,
+          referral_code: refCode || localStorage.getItem('vector_referral_code') || null,
         }),
       });
       const data = await res.json();

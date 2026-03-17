@@ -17,7 +17,7 @@ export async function POST(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Server error' }, { status: 500 });
 
-    const { email, password, name, company, country, invite_token } = await request.json();
+    const { email, password, name, company, country, invite_token, referral_code } = await request.json();
 
     if (!email || !password || !name || !invite_token) {
       return Response.json({ error: 'Name, email, password, and invite token are required' }, { status: 400 });
@@ -96,6 +96,39 @@ export async function POST(request) {
       .from('prospects')
       .update({ status: 'signed_up' })
       .eq('email', normalizedEmail);
+
+    // Process referral code if provided
+    if (referral_code) {
+      try {
+        const { data: referrer } = await supabase
+          .from('detailers')
+          .select('id')
+          .eq('referral_code', referral_code.toUpperCase())
+          .single();
+
+        if (referrer && referrer.id !== detailer.id) {
+          // Store referrer_id on the new detailer
+          await supabase
+            .from('detailers')
+            .update({ referrer_id: referrer.id })
+            .eq('id', detailer.id);
+
+          // Create pending referral record
+          await supabase
+            .from('referrals')
+            .insert({
+              referrer_id: referrer.id,
+              referred_id: detailer.id,
+              referral_code: referral_code.toUpperCase(),
+              status: 'pending',
+              referrer_reward: '1_month_pro',
+              referred_reward: '500_points',
+            });
+        }
+      } catch (refErr) {
+        console.log('Referral processing failed (non-critical):', refErr.message);
+      }
+    }
 
     // Create JWT
     const token = await createToken({ id: detailer.id, email: detailer.email });

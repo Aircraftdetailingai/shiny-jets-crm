@@ -6,6 +6,7 @@ import { sendPaymentConfirmationSms } from '@/lib/sms';
 import { hasPremiumAccess, PLATFORM_FEES } from '@/lib/pricing-tiers';
 import { notifyPaymentReceived } from '@/lib/notifications';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
+import { processReferralReward } from '@/app/api/referrals/reward/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +134,13 @@ export async function POST(request) {
               console.error('Payment confirmation SMS error:', e);
             }
           }
+          // Process referral reward if this is a referred user's first paid quote
+          if (detailer?.id) {
+            processReferralReward(detailer.id).catch(e =>
+              console.log('Referral reward check:', e.message || e)
+            );
+          }
+
           // Log activity
           const clientEmail = quote.client_email || quote.customer_email;
           if (clientEmail) {
