@@ -14,7 +14,7 @@ module.exports = {
           surface: '#1A2236',
           'surface-light': '#1E2A40',
           gold: 'var(--v-gold, #C9A84C)',
-          'gold-dim': '#A68A3E',
+          'gold-dim': 'var(--v-gold-dim, #A68A3E)',
           'gold-muted': '#8B7433',
           border: '#2A3A50',
           'border-subtle': '#1A2236',

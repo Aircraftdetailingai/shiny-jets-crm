@@ -18,7 +18,7 @@ export async function GET(request) {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('detailers')
-      .select('logo_url, theme_primary, theme_accent, theme_bg, theme_surface, theme_logo_url, website_url, font_heading, font_subheading, font_body, font_embed_url')
+      .select('logo_url, theme_primary, theme_accent, theme_bg, theme_surface, theme_logo_url, website_url, font_heading, font_subheading, font_body, font_embed_url, theme_colors')
       .eq('id', user.id)
       .single();
 
@@ -36,6 +36,7 @@ export async function GET(request) {
       font_subheading: data?.font_subheading || null,
       font_body: data?.font_body || null,
       font_embed_url: data?.font_embed_url || null,
+      theme_colors: data?.theme_colors || [],
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
@@ -70,6 +71,11 @@ export async function POST(request) {
     }
     if (body.theme_logo_url !== undefined) {
       updates.theme_logo_url = body.theme_logo_url;
+    }
+    if (body.theme_colors !== undefined) {
+      if (Array.isArray(body.theme_colors)) {
+        updates.theme_colors = body.theme_colors;
+      }
     }
     if (body.website_url !== undefined) {
       if (body.website_url && !/^https?:\/\/.+/.test(body.website_url)) {

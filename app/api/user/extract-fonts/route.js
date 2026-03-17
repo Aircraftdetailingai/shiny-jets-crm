@@ -74,6 +74,60 @@ function extractFontsFromCss(cssText) {
 }
 
 /**
+ * Extract brand colors from CSS text
+ */
+function extractColorsFromCss(cssText) {
+  const colorCounts = {};
+  const ruleRegex = /([^{}]+)\{([^}]+)\}/gi;
+  let match;
+
+  while ((match = ruleRegex.exec(cssText)) !== null) {
+    const selectors = match[1].toLowerCase().trim();
+    const body = match[2];
+
+    // Only look at selectors likely to contain brand colors
+    if (!/\b(header|nav|button|btn|h1|h2|h3|a|footer|hero|cta|accent|primary|brand)\b/i.test(selectors)) continue;
+
+    const colorProps = body.matchAll(/(background-color|(?<![a-z-])color|border-color|background)\s*:\s*([^;]+)/gi);
+    for (const cm of colorProps) {
+      const value = cm[2].trim().toLowerCase();
+      // Match hex colors
+      const hexMatch = value.match(/#([0-9a-f]{3,8})\b/);
+      if (hexMatch) {
+        let hex = hexMatch[0];
+        if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        if (hex.length === 7) {
+          const r = parseInt(hex.slice(1, 3), 16);
+          const g = parseInt(hex.slice(3, 5), 16);
+          const b = parseInt(hex.slice(5, 7), 16);
+          const l = (r + g + b) / 3;
+          const isGray = Math.abs(r - g) < 15 && Math.abs(g - b) < 15;
+          if (l > 30 && l < 230 && !isGray) {
+            colorCounts[hex] = (colorCounts[hex] || 0) + 1;
+          }
+        }
+      }
+      // Match rgb/rgba
+      const rgbMatch = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (rgbMatch) {
+        const r = parseInt(rgbMatch[1]), g = parseInt(rgbMatch[2]), b = parseInt(rgbMatch[3]);
+        const l = (r + g + b) / 3;
+        const isGray = Math.abs(r - g) < 15 && Math.abs(g - b) < 15;
+        if (l > 30 && l < 230 && !isGray) {
+          const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+          colorCounts[hex] = (colorCounts[hex] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  return Object.entries(colorCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([hex]) => hex);
+}
+
+/**
  * Extract all stylesheet URLs and inline styles from HTML
  */
 function parseHtml(html) {
@@ -197,6 +251,9 @@ export async function POST(request) {
     // Extract fonts from CSS by selector
     const cssFonts = extractFontsFromCss(allCss);
 
+    // Extract brand colors from CSS
+    const cssColors = extractColorsFromCss(allCss);
+
     // Determine final font assignments
     let fontHeading = cssFonts.heading;
     let fontSubheading = cssFonts.subheading;
@@ -221,14 +278,27 @@ export async function POST(request) {
     }
     const fontEmbedUrl = buildGoogleFontsUrl(fontsForEmbed);
 
-    // Save to database with column-stripping retry
+    // Merge CSS colors with existing logo-extracted colors
     const supabase = getSupabase();
+    let mergedColors = cssColors;
+    try {
+      const { data: existing } = await supabase
+        .from('detailers')
+        .select('theme_colors')
+        .eq('id', user.id)
+        .single();
+      const existingColors = existing?.theme_colors || [];
+      mergedColors = [...new Set([...existingColors, ...cssColors])].slice(0, 10);
+    } catch (e) {}
+
+    // Save to database with column-stripping retry
     let updateFields = {
       website_url,
       font_heading: fontHeading || null,
       font_subheading: fontSubheading || null,
       font_body: fontBody || null,
       font_embed_url: fontEmbedUrl || null,
+      theme_colors: mergedColors,
     };
 
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -258,10 +328,12 @@ export async function POST(request) {
         body: fontBody || null,
         embed_url: fontEmbedUrl || null,
       },
+      colors: cssColors,
       detected: {
         google_fonts: allGoogleFonts.length,
         adobe_fonts: adobeFontUrls.length,
         stylesheets_parsed: sheetsToFetch.length,
+        css_colors: cssColors.length,
       },
     });
   } catch (err) {

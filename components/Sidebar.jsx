@@ -83,6 +83,11 @@ export default function Sidebar() {
         setUser(u);
         if (u.theme_primary) {
           document.documentElement.style.setProperty('--v-gold', u.theme_primary);
+          const r = parseInt(u.theme_primary.slice(1, 3), 16);
+          const g = parseInt(u.theme_primary.slice(3, 5), 16);
+          const b = parseInt(u.theme_primary.slice(5, 7), 16);
+          const dim = '#' + [r, g, b].map(c => Math.max(0, Math.round(c * 0.82)).toString(16).padStart(2, '0')).join('');
+          document.documentElement.style.setProperty('--v-gold-dim', dim);
         }
       }
     } catch {}

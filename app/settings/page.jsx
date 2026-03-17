@@ -121,6 +121,7 @@ function SettingsContent() {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [fontExtracting, setFontExtracting] = useState(false);
   const [extractedFonts, setExtractedFonts] = useState(null);
+  const [brandColors, setBrandColors] = useState([]);
 
   // Profile state
   const [profileName, setProfileName] = useState('');
@@ -315,6 +316,37 @@ function SettingsContent() {
     }
   };
 
+  const generateThemeFromPrimary = (hex) => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (max === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+    h = Math.round(h * 360);
+    s = Math.round(s * 100);
+    const hslToHex = (hv, sv, lv) => {
+      sv /= 100; lv /= 100;
+      const k = n => (n + hv / 30) % 12;
+      const a = sv * Math.min(lv, 1 - lv);
+      const f = n => lv - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      const toH = n => Math.round(n * 255).toString(16).padStart(2, '0');
+      return `#${toH(f(0))}${toH(f(8))}${toH(f(4))}`;
+    };
+    return {
+      primary: hex,
+      accent: hslToHex(h, Math.min(s, 40), 10),
+      bg: hslToHex(h, Math.min(s, 15), 4),
+      surface: hslToHex(h, Math.min(s, 20), 8),
+    };
+  };
+
   const fetchBranding = async () => {
     try {
       const token = localStorage.getItem('vector_token');
@@ -332,6 +364,9 @@ function SettingsContent() {
           logo_url: data.theme_logo_url || null,
         });
         setWebsiteUrl(data.website_url || '');
+        if (data.theme_colors && data.theme_colors.length > 0) {
+          setBrandColors(data.theme_colors);
+        }
         if (data.font_heading || data.font_body) {
           setExtractedFonts({
             heading: data.font_heading || null,
@@ -369,6 +404,9 @@ function SettingsContent() {
       if (colRes.ok) {
         const colData = await colRes.json();
         setThemePresets(colData.presets || []);
+        if (colData.rawColors) {
+          setBrandColors(prev => [...new Set([...colData.rawColors, ...prev])].slice(0, 10));
+        }
       }
     } catch (err) {
       console.error('Logo upload failed:', err);
@@ -405,6 +443,11 @@ function SettingsContent() {
             u.theme_logo_url = theme.logo_url;
             localStorage.setItem('vector_user', JSON.stringify(u));
             document.documentElement.style.setProperty('--v-gold', theme.primary);
+            const r = parseInt(theme.primary.slice(1, 3), 16);
+            const g = parseInt(theme.primary.slice(3, 5), 16);
+            const b = parseInt(theme.primary.slice(5, 7), 16);
+            const dim = '#' + [r, g, b].map(c => Math.max(0, Math.round(c * 0.82)).toString(16).padStart(2, '0')).join('');
+            document.documentElement.style.setProperty('--v-gold-dim', dim);
           } catch {}
         }
       }
@@ -1319,6 +1362,9 @@ function SettingsContent() {
                     if (res.ok && data.fonts) {
                       setExtractedFonts(data.fonts);
                     }
+                    if (res.ok && data.colors && data.colors.length > 0) {
+                      setBrandColors(prev => [...new Set([...prev, ...data.colors])].slice(0, 10));
+                    }
                   } catch (err) {
                     console.error('Font extraction failed:', err);
                   } finally {
@@ -1390,62 +1436,87 @@ function SettingsContent() {
             )}
           </div>
 
-          {/* Theme Picker */}
+          {/* Brand Colors */}
           <div>
-            <label className="block text-sm font-medium text-v-text-secondary mb-3">Theme</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {/* Vector Default */}
+            <label className="block text-sm font-medium text-v-text-secondary mb-2">Brand Colors</label>
+            <p className="text-v-text-secondary/60 text-xs mb-3">
+              Click a color to set it as your primary brand accent. Colors are extracted from your logo and website.
+            </p>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Vector Default swatch */}
               <button
                 onClick={() => saveTheme({ primary: '#C9A84C', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null })}
                 disabled={themeSaving}
-                className={`border p-3 text-left transition-colors ${
-                  selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url
-                    ? 'border-v-gold'
-                    : 'border-v-border hover:border-v-gold/50'
-                }`}
+                className="group flex flex-col items-center gap-1"
+                title="Vector Default (#C9A84C)"
               >
-                <div className="flex gap-0.5 mb-2">
-                  <div className="w-full h-6 rounded-sm" style={{ background: '#0A0E17' }} />
-                  <div className="w-full h-6 rounded-sm" style={{ background: '#111827' }} />
-                  <div className="w-3 h-6 rounded-sm flex-shrink-0" style={{ background: '#C9A84C' }} />
-                </div>
-                <p className="text-xs text-v-text-primary">Vector Default</p>
-                <p className="text-[10px] text-v-text-secondary">Gold & Charcoal</p>
+                <div
+                  className={`w-10 h-10 rounded-full border-2 transition-all ${
+                    selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url
+                      ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]'
+                      : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+                  }`}
+                  style={{ background: '#C9A84C' }}
+                />
+                <span className="text-[9px] text-v-text-secondary/60">Default</span>
               </button>
 
-              {/* Generated presets */}
-              {themePresets.map((preset, i) => {
-                const isSelected = selectedTheme.primary === preset.primary && selectedTheme.logo_url === logoUrl;
+              {/* Extracted color swatches */}
+              {brandColors.map((hex, i) => {
+                const isSelected = selectedTheme.primary?.toLowerCase() === hex.toLowerCase();
                 return (
                   <button
-                    key={i}
-                    onClick={() => saveTheme({ ...preset, logo_url: logoUrl })}
+                    key={hex + i}
+                    onClick={() => {
+                      const theme = generateThemeFromPrimary(hex);
+                      saveTheme({ ...theme, logo_url: logoUrl });
+                    }}
                     disabled={themeSaving}
-                    className={`border p-3 text-left transition-colors ${
-                      isSelected ? 'border-v-gold' : 'border-v-border hover:border-v-gold/50'
-                    }`}
+                    className="group flex flex-col items-center gap-1"
+                    title={hex}
                   >
-                    <div className="flex gap-0.5 mb-2">
-                      <div className="w-full h-6 rounded-sm" style={{ background: preset.bg }} />
-                      <div className="w-full h-6 rounded-sm" style={{ background: preset.surface }} />
-                      <div className="w-3 h-6 rounded-sm flex-shrink-0" style={{ background: preset.primary }} />
-                    </div>
-                    <p className="text-xs text-v-text-primary">{preset.name}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <div className="w-3 h-3 rounded-full border border-v-border" style={{ background: preset.primary }} />
-                      <p className="text-[10px] text-v-text-secondary">{preset.primary}</p>
-                    </div>
+                    <div
+                      className={`w-10 h-10 rounded-full border-2 transition-all ${
+                        isSelected
+                          ? 'border-white scale-110 shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+                          : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+                      }`}
+                      style={{ background: hex }}
+                    />
+                    <span className="text-[9px] text-v-text-secondary/60 font-mono">{hex}</span>
                   </button>
                 );
               })}
 
-              {/* Placeholder cards if no presets */}
-              {themePresets.length === 0 && [1, 2, 3].map(i => (
-                <div key={i} className="border border-v-border/30 border-dashed p-3">
-                  <div className="h-6 mb-2 bg-v-surface/50 rounded-sm" />
-                  <p className="text-xs text-v-text-secondary/40">Upload logo to generate</p>
+              {brandColors.length === 0 && (
+                <p className="text-xs text-v-text-secondary/40 italic">Upload a logo or enter your website URL to extract brand colors.</p>
+              )}
+            </div>
+
+            {/* Mini Preview Card */}
+            <div className="mt-4 p-4 rounded border border-v-border overflow-hidden" style={{ background: selectedTheme.bg || '#0A0E17' }}>
+              <p className="text-[9px] uppercase tracking-widest text-v-text-secondary/40 mb-3">Quote preview</p>
+              <div className="flex items-center gap-3 mb-3">
+                {logoUrl && <img src={logoUrl} alt="Logo" className="h-6 object-contain" />}
+                <div className="h-3 rounded w-24" style={{ background: selectedTheme.primary || '#C9A84C' }} />
+              </div>
+              <div className="space-y-1.5 mb-3">
+                <div className="h-2 rounded w-full" style={{ background: selectedTheme.surface || '#111827' }} />
+                <div className="h-2 rounded w-3/4" style={{ background: selectedTheme.surface || '#111827' }} />
+                <div className="h-2 rounded w-1/2" style={{ background: selectedTheme.surface || '#111827' }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium" style={{ color: selectedTheme.primary || '#C9A84C' }}>$4,250.00</span>
+                <div className="flex gap-2">
+                  <span className="px-3 py-1 rounded text-[10px] font-medium" style={{ background: selectedTheme.primary || '#C9A84C', color: selectedTheme.bg || '#0A0E17' }}>
+                    Accept Quote
+                  </span>
+                  <span className="px-3 py-1 rounded text-[10px] border" style={{ borderColor: selectedTheme.primary || '#C9A84C', color: selectedTheme.primary || '#C9A84C' }}>
+                    Download PDF
+                  </span>
                 </div>
-              ))}
+              </div>
             </div>
 
             {themeSuccess && (

@@ -1,6 +1,14 @@
+import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+function getSupabase() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+  );
+}
 
 function hexToHsl(hex) {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -63,16 +71,29 @@ export async function POST(request) {
     const ct = new ColorThief();
     const palette = await ct.getPalette(buffer, 5);
 
-    // Filter out very dark or very light colors, pick top 3 distinct
+    // All 5 colors as hex for swatches
+    const rawColors = palette.map(([r, g, b]) => rgbToHex(r, g, b));
+
+    // Filter out very dark or very light colors for presets
     const filtered = palette.filter(([r, g, b]) => {
       const l = (r + g + b) / 3;
       return l > 30 && l < 230;
     });
     const selected = (filtered.length >= 3 ? filtered : palette).slice(0, 3);
-
     const presets = selected.map((rgb, i) => generatePreset(rgb, i));
 
-    return Response.json({ presets });
+    // Save raw colors to DB
+    try {
+      const supabase = getSupabase();
+      await supabase
+        .from('detailers')
+        .update({ theme_colors: rawColors })
+        .eq('id', user.id);
+    } catch (e) {
+      console.log('Failed to save theme_colors:', e.message);
+    }
+
+    return Response.json({ presets, rawColors });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
