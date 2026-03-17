@@ -42,13 +42,13 @@ self.addEventListener('notificationclick', (event) => {
 
   const urlToOpen = event.notification.data?.click_action ||
                     event.notification.data?.url ||
-                    'https://aviationdetailinghub.com/dashboard';
+                    'https://app.vectorav.ai/dashboard';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // Check if there's already a window open
       for (const client of clientList) {
-        if (client.url.includes('aviationdetailinghub.com') && 'focus' in client) {
+        if (client.url.includes('app.vectorav.ai') && 'focus' in client) {
           client.focus();
           if (client.navigate) {
             return client.navigate(urlToOpen);
