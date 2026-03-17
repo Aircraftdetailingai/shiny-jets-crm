@@ -14,6 +14,8 @@ export default function CustomerSelector({
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const debounceRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -70,6 +72,45 @@ export default function CustomerSelector({
     onSelect(customer);
     setDropdownOpen(false);
     setSearchQuery("");
+  };
+
+  const handleSaveNewCustomer = async () => {
+    setSaveError("");
+    if (!newCustomerFields.name || !newCustomerFields.email) {
+      setSaveError("Name and email are required");
+      return;
+    }
+    setSavingCustomer(true);
+    try {
+      const token = localStorage.getItem("vector_token");
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newCustomerFields.name,
+          email: newCustomerFields.email,
+          phone: newCustomerFields.phone || null,
+          company_name: newCustomerFields.companyName || null,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "Failed to save customer");
+      }
+      const data = await res.json();
+      const saved = data.customer;
+      if (saved) {
+        onSelect(saved);
+        onModeChange("existing");
+      }
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSavingCustomer(false);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -303,6 +344,15 @@ export default function CustomerSelector({
               className="w-full border rounded px-3 py-2 text-gray-900 bg-white"
             />
           </div>
+          {saveError && <p className="text-red-600 text-sm">{saveError}</p>}
+          <button
+            type="button"
+            onClick={handleSaveNewCustomer}
+            disabled={savingCustomer || !newCustomerFields.name || !newCustomerFields.email}
+            className="w-full py-2 px-4 bg-amber-500 text-white rounded text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors"
+          >
+            {savingCustomer ? "Saving..." : "Save & Select Customer"}
+          </button>
         </div>
       )}
     </div>

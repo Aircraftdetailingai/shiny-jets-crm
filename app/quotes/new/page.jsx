@@ -1097,7 +1097,7 @@ function NewQuoteContent() {
         <SendQuoteModal
           isOpen={isModalOpen}
           onClose={closeSendModal}
-          onSuccess={resetQuoteForm}
+          onSuccess={() => router.push('/dashboard')}
           preselectedCustomer={preselectedCustomer}
           quote={{
             aircraft: quoteData.aircraft,
