@@ -1473,7 +1473,9 @@ function SettingsContent() {
                   <link rel="stylesheet" href={extractedFonts.embed_url} />
                 )}
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium uppercase tracking-widest text-v-gold">Extracted Fonts</span>
+                  <span className="text-xs font-medium uppercase tracking-widest text-v-gold">
+                    {extractedFonts.heading || extractedFonts.body ? 'Extracted Fonts' : 'No Fonts Detected'}
+                  </span>
                   <button
                     onClick={() => {
                       setExtractedFonts(null);
@@ -1516,14 +1518,94 @@ function SettingsContent() {
                     </div>
                   )}
                   {!extractedFonts.heading && !extractedFonts.body && (
-                    <p className="text-xs text-v-text-secondary/50">No fonts detected. Try a different URL.</p>
+                    <p className="text-xs text-v-text-secondary/50 mb-2">Auto-extraction couldn&apos;t detect fonts. Use the manual picker below.</p>
                   )}
                 </div>
               </div>
             )}
+
+            {/* Manual Font Picker — always available as fallback/override */}
+            <div className={`mt-4 bg-v-surface border border-v-border p-4 ${extractedFonts?.heading || extractedFonts?.body ? '' : ''}`}>
+              {extractedFonts?.embed_url && !extractedFonts?.heading && !extractedFonts?.body && (
+                <link rel="stylesheet" href={extractedFonts.embed_url} />
+              )}
+              <span className="text-xs font-medium uppercase tracking-widest text-v-gold block mb-3">
+                {extractedFonts?.heading || extractedFonts?.body ? 'Change Fonts' : 'Manual Font Selection'}
+              </span>
+              <p className="text-v-text-secondary/60 text-xs mb-3">
+                {extractedFonts?.heading || extractedFonts?.body
+                  ? 'Override the detected fonts with a manual selection.'
+                  : 'Choose fonts manually if auto-extraction doesn\u2019t work for your site.'}
+              </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-v-text-secondary/50 mb-1">Heading Font</label>
+                    <select
+                      value={extractedFonts?.heading || ''}
+                      onChange={async (e) => {
+                        const fontName = e.target.value;
+                        if (!fontName) return;
+                        const newFonts = {
+                          heading: fontName,
+                          subheading: fontName,
+                          body: extractedFonts?.body || null,
+                          embed_url: null,
+                        };
+                        const allNames = [fontName, newFonts.body].filter(Boolean);
+                        newFonts.embed_url = `https://fonts.googleapis.com/css2?${[...new Set(allNames)].map(n => `family=${encodeURIComponent(n).replace(/%20/g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`;
+                        setExtractedFonts(newFonts);
+                        const token = localStorage.getItem('vector_token');
+                        await fetch('/api/user/branding', {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ font_heading: fontName, font_subheading: fontName, font_body: newFonts.body, font_embed_url: newFonts.embed_url }),
+                        }).catch(() => {});
+                      }}
+                      className="w-full bg-v-charcoal border border-v-border text-v-text-primary px-2 py-2 text-sm focus:border-v-gold focus:outline-none"
+                    >
+                      <option value="">Select font...</option>
+                      {['Playfair Display', 'Cormorant Garamond', 'EB Garamond', 'Libre Baskerville', 'DM Serif Display', 'Merriweather', 'Lora', 'Crimson Text', 'Montserrat', 'Raleway', 'Inter', 'Poppins', 'Lato', 'Open Sans', 'Oswald', 'Roboto Slab', 'Source Serif 4', 'Bitter', 'Nunito', 'Work Sans'].map(f => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-v-text-secondary/50 mb-1">Body Font</label>
+                    <select
+                      value={extractedFonts?.body || ''}
+                      onChange={async (e) => {
+                        const fontName = e.target.value;
+                        if (!fontName) return;
+                        const newFonts = {
+                          heading: extractedFonts?.heading || null,
+                          subheading: extractedFonts?.subheading || null,
+                          body: fontName,
+                          embed_url: null,
+                        };
+                        const allNames = [newFonts.heading, fontName].filter(Boolean);
+                        newFonts.embed_url = `https://fonts.googleapis.com/css2?${[...new Set(allNames)].map(n => `family=${encodeURIComponent(n).replace(/%20/g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`;
+                        setExtractedFonts(newFonts);
+                        const token = localStorage.getItem('vector_token');
+                        await fetch('/api/user/branding', {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ font_heading: newFonts.heading, font_subheading: newFonts.subheading, font_body: fontName, font_embed_url: newFonts.embed_url }),
+                        }).catch(() => {});
+                      }}
+                      className="w-full bg-v-charcoal border border-v-border text-v-text-primary px-2 py-2 text-sm focus:border-v-gold focus:outline-none"
+                    >
+                      <option value="">Select font...</option>
+                      {['Inter', 'Open Sans', 'Lato', 'Roboto', 'Poppins', 'Nunito', 'Work Sans', 'Source Sans 3', 'Raleway', 'Montserrat', 'DM Sans', 'Mulish', 'Quicksand', 'Karla', 'Barlow', 'Rubik', 'Outfit', 'Plus Jakarta Sans', 'Manrope', 'Figtree'].map(f => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+            </div>
           </div>
 
           {/* Brand Colors */}
+
           <div>
             <label className="block text-sm font-medium text-v-text-secondary mb-2">Brand Colors</label>
             <p className="text-v-text-secondary/60 text-xs mb-3">
