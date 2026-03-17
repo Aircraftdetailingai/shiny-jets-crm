@@ -107,7 +107,7 @@ export default function JobsPage() {
     <div className="page-transition min-h-screen bg-v-charcoal p-4 text-v-text-primary">
       <header className="text-white flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <a href="/profitability" className="text-2xl">&#8592;</a>
+          <a href="/dashboard" className="text-2xl">&#8592;</a>
           <h1 className="text-2xl font-bold">{'Job History'}</h1>
         </div>
         <div className="flex items-center space-x-3">
@@ -150,11 +150,11 @@ export default function JobsPage() {
               <p className="text-xs text-v-text-secondary">{'Profit'}</p>
             </div>
             <div>
-              <p className="text-xl font-bold">{stats.totalHours.toFixed(1)}h</p>
+              <p className="text-xl font-bold">{(stats.totalHours || 0).toFixed(1)}h</p>
               <p className="text-xs text-v-text-secondary">{'Hours'}</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-purple-600">{stats.avgMargin.toFixed(1)}%</p>
+              <p className="text-xl font-bold text-purple-600">{(stats.avgMargin || 0).toFixed(1)}%</p>
               <p className="text-xs text-v-text-secondary">{'Margin'}</p>
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function JobsPage() {
                     {job.quotes?.aircraft_model || 'Unknown Aircraft'}
                   </p>
                 </div>
-                <span className="text-sm text-v-text-secondary">{formatDate(job.completed_at)}</span>
+                <span className="text-sm text-v-text-secondary">{job.completed_at ? formatDate(job.completed_at) : ''}</span>
               </div>
 
               <div className="grid grid-cols-4 gap-2 text-center mt-3 pt-3 border-t">
