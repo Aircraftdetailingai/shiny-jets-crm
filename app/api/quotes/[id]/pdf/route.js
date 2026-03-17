@@ -39,35 +39,44 @@ const s = StyleSheet.create({
   // Header
   header: { backgroundColor: colors.blue, padding: 28, marginHorizontal: -40, marginTop: -40, marginBottom: 24 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  logoText: { color: colors.white, fontSize: 18, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
-  logoSub: { color: colors.white, opacity: 0.6, fontSize: 8, marginTop: 2, letterSpacing: 1.5 },
-  companyName: { color: colors.white, fontSize: 14, fontFamily: 'Helvetica-Bold', marginTop: 10 },
+  logoText: { color: colors.white, fontSize: 20, fontFamily: 'Helvetica-Bold', letterSpacing: 1 },
+  logoSub: { color: colors.white, opacity: 0.5, fontSize: 8, marginTop: 2, letterSpacing: 2 },
+  companyName: { color: colors.white, fontSize: 13, fontFamily: 'Helvetica-Bold', marginTop: 12 },
   companyDetail: { color: colors.white, opacity: 0.7, fontSize: 9, marginTop: 2 },
-  quoteNum: { color: colors.white, opacity: 0.7, fontSize: 9, textAlign: 'right' },
-  quoteDate: { color: colors.white, opacity: 0.6, fontSize: 9, textAlign: 'right', marginTop: 2 },
+  quoteNumLarge: { color: colors.white, fontSize: 11, fontFamily: 'Helvetica-Bold', textAlign: 'right' },
+  quoteDate: { color: colors.white, opacity: 0.6, fontSize: 9, textAlign: 'right', marginTop: 3 },
   statusBadge: { paddingHorizontal: 12, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-end', marginBottom: 6 },
   statusText: { fontSize: 9, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
   // Info columns
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   infoCol: { flex: 1 },
   infoLabel: { fontSize: 8, color: colors.gray400, textTransform: 'uppercase', letterSpacing: 1.2, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
   infoValue: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.gray900, marginBottom: 1 },
   infoSub: { fontSize: 9, color: colors.gray500, marginTop: 1 },
+  // Date row
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: colors.gray50, borderRadius: 4 },
+  dateLabel: { fontSize: 8, color: colors.gray400, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Helvetica-Bold' },
+  dateValue: { fontSize: 10, color: colors.gray900, fontFamily: 'Helvetica-Bold', marginTop: 2 },
   // Table
   tableHeader: { flexDirection: 'row', backgroundColor: colors.gray50, borderBottomWidth: 2, borderBottomColor: colors.blue, paddingVertical: 8, paddingHorizontal: 12 },
   tableHeaderText: { fontSize: 8, color: colors.blue, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'Helvetica-Bold' },
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.gray200, paddingVertical: 9, paddingHorizontal: 12 },
   tableCell: { fontSize: 10, color: colors.gray700 },
-  tableCellRight: { fontSize: 10, color: colors.gray900, fontFamily: 'Helvetica-Bold', textAlign: 'right' },
+  tableCellRight: { fontSize: 10, color: colors.gray700, textAlign: 'right' },
+  tableCellBold: { fontSize: 10, color: colors.gray900, fontFamily: 'Helvetica-Bold', textAlign: 'right' },
+  // Subtotal
+  subtotalRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingVertical: 8, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: colors.gray200 },
+  subtotalLabel: { fontSize: 10, color: colors.gray500, marginRight: 20 },
+  subtotalValue: { fontSize: 10, color: colors.gray900, fontFamily: 'Helvetica-Bold', width: 80, textAlign: 'right' },
   // Fees
-  feeRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 4 },
-  feeLabel: { fontSize: 9, color: colors.gray500 },
-  feeValue: { fontSize: 9, color: colors.gray500 },
+  feeRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingVertical: 3 },
+  feeLabel: { fontSize: 9, color: colors.gray500, marginRight: 20 },
+  feeValue: { fontSize: 9, color: colors.gray500, width: 80, textAlign: 'right' },
   discountLabel: { fontSize: 9, color: colors.green },
   // Total
-  totalBox: { backgroundColor: colors.blue, borderRadius: 8, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
+  totalBox: { backgroundColor: colors.blue, borderRadius: 6, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   totalLabel: { color: colors.white, fontSize: 14, fontFamily: 'Helvetica-Bold' },
-  totalValue: { color: colors.white, fontSize: 22, fontFamily: 'Helvetica-Bold' },
+  totalValue: { color: colors.white, fontSize: 24, fontFamily: 'Helvetica-Bold' },
   // Notes
   notesBox: { marginTop: 20, padding: 14, backgroundColor: '#fffbeb', borderLeftWidth: 3, borderLeftColor: colors.amber, borderRadius: 4 },
   notesLabel: { fontSize: 8, color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
@@ -77,8 +86,8 @@ const s = StyleSheet.create({
   termsLabel: { fontSize: 8, color: colors.gray400, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
   termsText: { fontSize: 8, color: colors.gray500, lineHeight: 1.5 },
   // Footer
-  footer: { marginTop: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.gray200, alignItems: 'center' },
-  footerText: { fontSize: 8, color: colors.gray400 },
+  footer: { position: 'absolute', bottom: 20, left: 40, right: 40, alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.gray200 },
+  footerText: { fontSize: 7, color: colors.gray400, letterSpacing: 0.5 },
   // Paid stamp
   paidText: { fontSize: 9, color: colors.green, fontFamily: 'Helvetica-Bold', textAlign: 'center', marginTop: 10 },
 });
@@ -112,6 +121,16 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees }) {
   const displayTotal = subtotalWithService + ccFee;
 
   const discountPercent = quote.discount_percent || 0;
+  const displayPref = detailer?.quote_display_preference || 'package';
+  const showFullBreakdown = displayPref === 'full_breakdown' && !quote.minimum_fee_applied;
+  const showLaborProducts = displayPref === 'labor_products' && !quote.minimum_fee_applied;
+
+  // Check if line items have hours/rate data
+  const hasHoursData = lineItems.some(li => li.hours > 0 && li.rate > 0);
+
+  // Subtotal from line items
+  const lineItemsSubtotal = lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0);
+  const addonTotal = addonFees.reduce((sum, f) => sum + (parseFloat(f.calculated || f.amount) || 0), 0);
 
   // Terms snippet
   const termsSnippet = detailer?.terms_text
@@ -133,22 +152,22 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees }) {
           <View style={s.headerRow}>
             <View>
               <Text style={s.logoText}>Vector Aviation</Text>
-              <Text style={s.logoSub}>AIRCRAFT DETAILING SOFTWARE</Text>
+              <Text style={s.logoSub}>AIRCRAFT DETAILING</Text>
               <Text style={s.companyName}>{companyName}</Text>
               {detailer?.email && <Text style={s.companyDetail}>{detailer.email}</Text>}
               {detailer?.phone && <Text style={s.companyDetail}>{detailer.phone}</Text>}
             </View>
-            <View>
+            <View style={{ alignItems: 'flex-end' }}>
               <View style={[s.statusBadge, { backgroundColor: statusBg }]}>
                 <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
               </View>
-              <Text style={s.quoteNum}>Quote #{quote.id.slice(0, 8).toUpperCase()}</Text>
+              <Text style={s.quoteNumLarge}>Quote #{quote.id.slice(0, 8).toUpperCase()}</Text>
               <Text style={s.quoteDate}>{createdDate}</Text>
             </View>
           </View>
         </View>
 
-        {/* Customer + Aircraft */}
+        {/* Customer + Aircraft info */}
         <View style={s.infoRow}>
           <View style={s.infoCol}>
             <Text style={s.infoLabel}>Prepared For</Text>
@@ -160,9 +179,29 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees }) {
           <View style={[s.infoCol, { alignItems: 'flex-end' }]}>
             <Text style={s.infoLabel}>Aircraft</Text>
             <Text style={s.infoValue}>{aircraftDisplay}</Text>
-            {quote.tail_number && <Text style={s.infoSub}>Reg: {quote.tail_number}</Text>}
+            {quote.tail_number && <Text style={s.infoSub}>Tail: {quote.tail_number}</Text>}
             {quote.airport && <Text style={s.infoSub}>Location: {quote.airport}</Text>}
           </View>
+        </View>
+
+        {/* Quote date + expiry row */}
+        <View style={s.dateRow}>
+          <View>
+            <Text style={s.dateLabel}>Quote Date</Text>
+            <Text style={s.dateValue}>{createdDate}</Text>
+          </View>
+          {validDate && !isPaid && (
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={s.dateLabel}>Valid Until</Text>
+              <Text style={[s.dateValue, isExpired ? { color: colors.red } : {}]}>{validDate}</Text>
+            </View>
+          )}
+          {isPaid && paidDate && (
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={s.dateLabel}>Paid On</Text>
+              <Text style={[s.dateValue, { color: colors.green }]}>{paidDate}</Text>
+            </View>
+          )}
         </View>
 
         {/* Services chips (when no line items) */}
@@ -176,8 +215,33 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees }) {
           </View>
         )}
 
-        {/* Line Items Table */}
-        {lineItems.length > 0 && (
+        {/* Line Items Table - Full breakdown with hours/rate */}
+        {lineItems.length > 0 && showFullBreakdown && hasHoursData && (
+          <View style={{ marginBottom: 4 }}>
+            <View style={s.tableHeader}>
+              <Text style={[s.tableHeaderText, { flex: 3 }]}>Service</Text>
+              <Text style={[s.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Hours</Text>
+              <Text style={[s.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Rate</Text>
+              <Text style={[s.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Total</Text>
+            </View>
+            {lineItems.map((li, i) => (
+              <View key={i} style={s.tableRow}>
+                <Text style={[s.tableCell, { flex: 3 }]}>{li.description || li.service || li.name || 'Service'}</Text>
+                <Text style={[s.tableCellRight, { flex: 1 }]}>{(parseFloat(li.hours) || 0).toFixed(1)}</Text>
+                <Text style={[s.tableCellRight, { flex: 1 }]}>{fmt(li.rate)}/hr</Text>
+                <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(li.amount)}</Text>
+              </View>
+            ))}
+            {/* Subtotal */}
+            <View style={s.subtotalRow}>
+              <Text style={s.subtotalLabel}>Subtotal</Text>
+              <Text style={s.subtotalValue}>{fmt(lineItemsSubtotal)}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Line Items Table - Simple (no hours/rate or package display) */}
+        {lineItems.length > 0 && (!showFullBreakdown || !hasHoursData) && !showLaborProducts && (
           <View style={{ marginBottom: 4 }}>
             <View style={s.tableHeader}>
               <Text style={[s.tableHeaderText, { flex: 3 }]}>Service</Text>
@@ -186,29 +250,55 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees }) {
             {lineItems.map((li, i) => (
               <View key={i} style={s.tableRow}>
                 <Text style={[s.tableCell, { flex: 3 }]}>{li.description || li.service || li.name || 'Service'}</Text>
-                <Text style={[s.tableCellRight, { flex: 1 }]}>{fmt(li.amount)}</Text>
+                <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(li.amount)}</Text>
               </View>
             ))}
+            <View style={s.subtotalRow}>
+              <Text style={s.subtotalLabel}>Subtotal</Text>
+              <Text style={s.subtotalValue}>{fmt(lineItemsSubtotal)}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Labor/Products split */}
+        {showLaborProducts && (
+          <View style={{ marginBottom: 4 }}>
+            <View style={s.tableHeader}>
+              <Text style={[s.tableHeaderText, { flex: 3 }]}>Description</Text>
+              <Text style={[s.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Amount</Text>
+            </View>
+            <View style={s.tableRow}>
+              <Text style={[s.tableCell, { flex: 3 }]}>Labor</Text>
+              <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(parseFloat(quote.labor_total) || basePrice * 0.7)}</Text>
+            </View>
+            <View style={s.tableRow}>
+              <Text style={[s.tableCell, { flex: 3 }]}>Products & Materials</Text>
+              <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(parseFloat(quote.products_total) || basePrice * 0.3)}</Text>
+            </View>
+            <View style={s.subtotalRow}>
+              <Text style={s.subtotalLabel}>Subtotal</Text>
+              <Text style={s.subtotalValue}>{fmt(basePrice)}</Text>
+            </View>
           </View>
         )}
 
         {/* Addon Fees */}
-        {addonFees.length > 0 && (
-          <View style={{ marginTop: 4 }}>
+        {addonFees.length > 0 && !quote.minimum_fee_applied && (
+          <View style={{ marginTop: 2 }}>
             {addonFees.map((f, i) => (
               <View key={i} style={s.feeRow}>
                 <Text style={s.feeLabel}>{f.name}{f.fee_type === 'percent' ? ` (${f.amount}%)` : ''}</Text>
-                <Text style={s.feeValue}>+{fmt(f.calculated || f.amount)}</Text>
+                <Text style={[s.feeValue]}>+{fmt(f.calculated || f.amount)}</Text>
               </View>
             ))}
           </View>
         )}
 
         {/* Discount */}
-        {discountPercent > 0 && (
+        {discountPercent > 0 && !quote.minimum_fee_applied && (
           <View style={s.feeRow}>
             <Text style={s.discountLabel}>Package Discount ({discountPercent}%)</Text>
-            <Text style={s.discountLabel}>Included</Text>
+            <Text style={[s.discountLabel, { width: 80, textAlign: 'right' }]}>Included</Text>
           </View>
         )}
 
@@ -245,17 +335,16 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees }) {
         )}
 
         {/* Terms */}
-        {(!isPaid && (validDate || termsSnippet)) && (
+        {(!isPaid && termsSnippet) && (
           <View style={s.termsBox}>
-            <Text style={s.termsLabel}>Terms</Text>
-            {validDate && <Text style={s.termsText}>This quote is valid until {validDate}.</Text>}
+            <Text style={s.termsLabel}>Terms & Conditions</Text>
             <Text style={s.termsText}>Scheduling is subject to availability and confirmed upon payment.</Text>
             {termsSnippet ? <Text style={[s.termsText, { marginTop: 6 }]}>{termsSnippet}</Text> : null}
           </View>
         )}
 
         {/* Footer */}
-        <View style={s.footer}>
+        <View style={s.footer} fixed>
           <Text style={s.footerText}>Powered by Vector Aviation</Text>
         </View>
       </Page>
@@ -287,7 +376,7 @@ export async function GET(request, { params }) {
   // Fetch detailer info
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('name, company, email, phone, preferred_currency, plan, pass_fee_to_customer, cc_fee_mode, terms_text')
+    .select('name, company, email, phone, preferred_currency, plan, pass_fee_to_customer, cc_fee_mode, terms_text, quote_display_preference')
     .eq('id', quote.detailer_id)
     .single();
 

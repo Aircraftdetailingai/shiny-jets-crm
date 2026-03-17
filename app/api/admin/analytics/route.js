@@ -176,6 +176,58 @@ export async function GET(request) {
     const acceptanceRate = sentCount > 0 ? Math.round((convertedCount / sentCount) * 100) : 0;
     const totalRevenue = revenueByWeek.reduce((sum, w) => sum + w.revenue, 0);
 
+    // 9. Community hours intelligence
+    let community = { totalContributions: 0, thisMonth: 0, pendingSuggestions: 0, defaultsUpdated: 0, topAircraft: [] };
+    try {
+      const { data: contribs } = await supabase
+        .from('hours_contributions')
+        .select('make, model, created_at');
+      if (contribs) {
+        community.totalContributions = contribs.length;
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        community.thisMonth = contribs.filter(c => new Date(c.created_at) >= monthStart).length;
+
+        // Top contributed aircraft
+        const acCounts = {};
+        for (const c of contribs) {
+          const key = `${c.make} ${c.model}`;
+          acCounts[key] = (acCounts[key] || 0) + 1;
+        }
+        community.topAircraft = Object.entries(acCounts)
+          .map(([aircraft, count]) => ({ aircraft, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+      }
+
+      const { count: pendingCount } = await supabase
+        .from('suggested_services')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      community.pendingSuggestions = pendingCount || 0;
+
+      const { count: updatesCount } = await supabase
+        .from('hours_update_log')
+        .select('id', { count: 'exact', head: true });
+      community.defaultsUpdated = updatesCount || 0;
+    } catch (e) {
+      console.error('Community stats error:', e);
+    }
+
+    // Count unique aircraft in contributions
+    let uniqueAircraft = 0;
+    try {
+      const { data: uniqueData } = await supabase
+        .from('hours_contributions')
+        .select('make, model');
+      if (uniqueData) {
+        const uniq = new Set(uniqueData.map(d => `${d.make}::${d.model}`));
+        uniqueAircraft = uniq.size;
+      }
+    } catch (e) {}
+    community.uniqueAircraft = uniqueAircraft;
+
     return Response.json({
       summary: { totalQuotes, avgValue, acceptanceRate, totalRevenue: Math.round(totalRevenue * 100) / 100 },
       quoteVolume,
@@ -186,6 +238,7 @@ export async function GET(request) {
       revenueByWeek,
       aircraftFrequency,
       acceptanceRate: statusCounts,
+      community,
       days,
     });
   } catch (err) {

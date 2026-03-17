@@ -65,6 +65,7 @@ function NewQuoteContent() {
   const [saveDefaultPrompt, setSaveDefaultPrompt] = useState({});
   const [savingDefault, setSavingDefault] = useState({});
   const [aircraftHoursRef, setAircraftHoursRef] = useState(null);
+  const [communityHours, setCommunityHours] = useState({});
 
   // Fetch manufacturers on mount
   useEffect(() => {
@@ -188,13 +189,25 @@ function NewQuoteContent() {
         setCustomHours({});
         setSaveDefaultPrompt({});
         setAircraftHoursRef(null);
+        setCommunityHours({});
 
         // Fetch reference hours from aircraft_hours table
         const ac = data.aircraft;
         if (ac.manufacturer && ac.model) {
-          fetch(`/api/aircraft-hours?make=${encodeURIComponent(ac.manufacturer)}&model=${encodeURIComponent(ac.model)}`)
+          const encodedMake = encodeURIComponent(ac.manufacturer);
+          const encodedModel = encodeURIComponent(ac.model);
+          fetch(`/api/aircraft-hours?make=${encodedMake}&model=${encodedModel}`)
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d?.hours) setAircraftHoursRef(d.hours); })
+            .catch(() => {});
+
+          // Fetch community hours data
+          const token = localStorage.getItem('vector_token');
+          fetch(`/api/community-hours?make=${encodedMake}&model=${encodedModel}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.hours) setCommunityHours(d.hours); })
             .catch(() => {});
         }
 
@@ -274,16 +287,40 @@ function NewQuoteContent() {
     return getOldAircraftHours(svc);
   };
 
-  // Get hours for a service: manual override > detailer default > aircraft_hours ref > old aircraft
+  // Get community average hours for a service
+  const getCommunityHours = (svc) => {
+    const field = svc.hours_field;
+    if (field && communityHours[field] && communityHours[field].sample_count >= 3) {
+      return communityHours[field].avg_hours;
+    }
+    return 0;
+  };
+
+  // Get hours for a service: manual override > detailer default > community avg > aircraft_hours ref > old aircraft
   const getHoursForService = (svc) => {
     if (customHours[svc.id] !== undefined) return customHours[svc.id];
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
+    const community = getCommunityHours(svc);
+    if (community > 0) return community;
     return getAircraftHours(svc);
+  };
+
+  // Get the source of hours for display
+  const getHoursSource = (svc) => {
+    if (customHours[svc.id] !== undefined) return { type: 'manual', label: 'Your override' };
+    if (svc.default_hours && parseFloat(svc.default_hours) > 0) return { type: 'personal', label: 'Your default' };
+    const field = svc.hours_field;
+    if (field && communityHours[field] && communityHours[field].sample_count >= 3) {
+      return { type: 'community', label: `Based on ${communityHours[field].sample_count} completions` };
+    }
+    return { type: 'platform', label: 'Platform default' };
   };
 
   // Get the "starting" hours (before manual override) for comparison
   const getDefaultHours = (svc) => {
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
+    const community = getCommunityHours(svc);
+    if (community > 0) return community;
     return getAircraftHours(svc);
   };
 
@@ -543,11 +580,12 @@ function NewQuoteContent() {
               <select
                 value={selectedManufacturer}
                 onChange={(e) => setSelectedManufacturer(e.target.value)}
-                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base [color-scheme:dark] [&>option]:bg-v-surface [&>option]:text-v-text-primary"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="">All Manufacturers</option>
+                <option value="" style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>All Manufacturers</option>
                 {manufacturers.map(m => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m} style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>{m}</option>
                 ))}
               </select>
             </div>
@@ -560,7 +598,7 @@ function NewQuoteContent() {
                   placeholder="Search models..."
                   value={modelSearch}
                   onChange={(e) => setModelSearch(e.target.value)}
-                  className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
+                  className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
                 />
               </div>
             )}
@@ -630,7 +668,7 @@ function NewQuoteContent() {
                 value={tailNumber}
                 onChange={(e) => setTailNumber(e.target.value.toUpperCase())}
                 placeholder="N12345"
-                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
               />
             </div>
           )}
@@ -674,9 +712,23 @@ function NewQuoteContent() {
                                 value={customHours[svc.id] !== undefined ? customHours[svc.id] : hours}
                                 onChange={(e) => handleHoursChange(svc.id, svc.name, e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1 text-center text-sm font-mono text-v-text-primary focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                className="w-16 bg-v-surface border border-v-border rounded px-2 py-1 text-center text-sm font-mono text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold"
                               />
-                              <span className="text-gray-400 text-xs">hrs</span>
+                              <span className="text-gray-400 text-xs relative group/tip">
+                                hrs
+                                {(() => {
+                                  const source = getHoursSource(svc);
+                                  const dotColor = source.type === 'community' ? 'bg-green-400' : source.type === 'personal' ? 'bg-blue-400' : 'bg-gray-400';
+                                  return (
+                                    <>
+                                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotColor} ml-0.5 align-middle`} />
+                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-v-charcoal border border-v-border rounded text-xs text-v-text-primary whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity z-50">
+                                        {source.label}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
+                              </span>
                               <span className="text-gray-300 mx-0.5">@</span>
                               <span className="text-gray-500 text-xs">{currencySymbol()}{parseFloat(svc.hourly_rate || 0).toFixed(0)}/hr</span>
                               <span className="text-gray-300 mx-0.5">=</span>
@@ -684,7 +736,22 @@ function NewQuoteContent() {
                             </>
                           ) : (
                             <>
-                              <span className="text-xs text-gray-400">{hours.toFixed(1)} hrs @ {currencySymbol()}{parseFloat(svc.hourly_rate || 0).toFixed(0)}/hr</span>
+                              <span className="text-xs text-gray-400 relative group/tip2">
+                                {hours.toFixed(1)} hrs
+                                {(() => {
+                                  const source = getHoursSource(svc);
+                                  const dotColor = source.type === 'community' ? 'bg-green-400' : source.type === 'personal' ? 'bg-blue-400' : 'bg-gray-400';
+                                  return (
+                                    <>
+                                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotColor} ml-0.5 align-middle`} />
+                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-v-charcoal border border-v-border rounded text-xs text-v-text-primary whitespace-nowrap opacity-0 group-hover/tip2:opacity-100 pointer-events-none transition-opacity z-50">
+                                        {source.label}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
+                                {' '}@ {currencySymbol()}{parseFloat(svc.hourly_rate || 0).toFixed(0)}/hr
+                              </span>
                               <span className="font-bold text-v-text-primary ml-2">{currencySymbol()}{formatPrice(price)}</span>
                             </>
                           )}
@@ -816,7 +883,7 @@ function NewQuoteContent() {
                 value={airport}
                 onChange={(e) => setAirport(e.target.value.toUpperCase())}
                 placeholder="KJFK"
-                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
               />
             </div>
           )}
@@ -830,7 +897,7 @@ function NewQuoteContent() {
                 onChange={(e) => setQuoteNotes(e.target.value)}
                 placeholder="Add notes for this quote (visible to customer)..."
                 rows={3}
-                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:ring-2 focus:ring-amber-500 text-base"
+                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
               />
             </div>
           )}

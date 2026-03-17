@@ -47,6 +47,12 @@ export default function AdminAircraftPage() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [seeding, setSeeding] = useState(false);
+  const [activeTab, setActiveTab] = useState('database');
+  const [contributions, setContributions] = useState([]);
+  const [contributionStats, setContributionStats] = useState({});
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingContributions, setLoadingContributions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   // New state for improvements
   const [search, setSearch] = useState('');
@@ -159,6 +165,77 @@ export default function AdminAircraftPage() {
       console.error('Failed to fetch services:', err);
     }
   };
+
+  const fetchContributions = async () => {
+    setLoadingContributions(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/admin/contributions', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContributions(data.contributions || []);
+        setContributionStats(data.stats || {});
+      }
+    } catch (err) {
+      console.error('Failed to fetch contributions:', err);
+    } finally {
+      setLoadingContributions(false);
+    }
+  };
+
+  const fetchSuggestions = async () => {
+    setLoadingSuggestions(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/admin/suggested-services', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(data.suggestions || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch suggestions:', err);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleContributionAction = async (id, accepted) => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/admin/contributions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, accepted }),
+      });
+      if (res.ok) fetchContributions();
+    } catch (err) {
+      console.error('Failed to update contribution:', err);
+    }
+  };
+
+  const handleSuggestionAction = async (id, status) => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/admin/suggested-services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) fetchSuggestions();
+    } catch (err) {
+      console.error('Failed to update suggestion:', err);
+    }
+  };
+
+  // Load tab data when switching tabs
+  useEffect(() => {
+    if (activeTab === 'contributions' && contributions.length === 0) fetchContributions();
+    if (activeTab === 'suggestions' && suggestions.length === 0) fetchSuggestions();
+  }, [activeTab]);
 
   useEffect(() => {
     fetchAircraft();
@@ -432,6 +509,30 @@ export default function AdminAircraftPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="max-w-[1600px] mx-auto mb-4">
+        <div className="flex gap-1 bg-v-surface border border-v-border rounded-sm p-1">
+          {[
+            { key: 'database', label: 'Aircraft Database' },
+            { key: 'contributions', label: 'Community Data' },
+            { key: 'suggestions', label: 'Suggested Services' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-sm transition-colors ${
+                activeTab === tab.key
+                  ? 'bg-amber-500 text-white'
+                  : 'text-v-text-secondary hover:text-v-text-primary hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'database' && (<>
       {/* Filters & Search */}
       <div className="sticky top-0 z-10 bg-v-charcoal pb-4 -mx-4 px-4 border-b border-v-border shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
         <div className="max-w-[1600px] mx-auto">
@@ -615,6 +716,162 @@ export default function AdminAircraftPage() {
           </div>
         </div>
       </div>
+
+      </>)}
+
+      {/* Community Data Tab */}
+      {activeTab === 'contributions' && (
+        <div className="max-w-[1600px] mx-auto">
+          {loadingContributions ? (
+            <div className="text-center py-20 text-v-text-secondary">Loading contributions...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="bg-v-surface border border-v-border rounded-sm p-4">
+                  <p className="text-sm text-v-text-secondary">Total Contributions</p>
+                  <p className="text-2xl font-bold text-v-text-primary">{contributionStats.total || 0}</p>
+                </div>
+                <div className="bg-v-surface border border-v-border rounded-sm p-4">
+                  <p className="text-sm text-v-text-secondary">Accepted</p>
+                  <p className="text-2xl font-bold text-green-400">{contributionStats.acceptedCount || 0}</p>
+                </div>
+                <div className="bg-v-surface border border-v-border rounded-sm p-4">
+                  <p className="text-sm text-v-text-secondary">Pending Review</p>
+                  <p className="text-2xl font-bold text-amber-400">{contributionStats.pendingCount || 0}</p>
+                </div>
+              </div>
+              <div className="bg-v-surface border border-v-border rounded-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-v-charcoal border-b border-v-border">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-v-text-secondary uppercase">Aircraft</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-v-text-secondary uppercase">Service</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Contributed</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Default</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Variance</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Status</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Date</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-v-text-secondary uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-v-border">
+                      {contributions.length === 0 ? (
+                        <tr><td colSpan={8} className="px-4 py-12 text-center text-v-text-secondary">No contributions yet</td></tr>
+                      ) : contributions.map(c => {
+                        const variance = c.aircraft_hours_default && c.aircraft_hours_default > 0
+                          ? Math.round(((c.contributed_hrs - c.aircraft_hours_default) / c.aircraft_hours_default) * 100)
+                          : null;
+                        return (
+                          <tr key={c.id} className="hover:bg-white/5">
+                            <td className="px-4 py-2.5">
+                              <div className="text-sm text-v-text-primary font-medium">{c.make}</div>
+                              <div className="text-xs text-v-text-secondary">{c.model}</div>
+                            </td>
+                            <td className="px-4 py-2.5 text-sm text-v-text-primary">{c.service_type}</td>
+                            <td className="px-3 py-2.5 text-center text-sm tabular-nums text-v-text-primary">{parseFloat(c.contributed_hrs).toFixed(1)}</td>
+                            <td className="px-3 py-2.5 text-center text-sm tabular-nums text-v-text-secondary">{c.aircraft_hours_default ? parseFloat(c.aircraft_hours_default).toFixed(1) : '-'}</td>
+                            <td className="px-3 py-2.5 text-center text-sm tabular-nums">
+                              {variance !== null ? (
+                                <span className={variance > 20 ? 'text-red-400' : variance < -20 ? 'text-blue-400' : 'text-green-400'}>
+                                  {variance > 0 ? '+' : ''}{variance}%
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                c.accepted === true ? 'bg-green-900/30 text-green-400 border border-green-600/30'
+                                : c.accepted === false ? 'bg-red-900/30 text-red-400 border border-red-600/30'
+                                : 'bg-amber-900/30 text-amber-400 border border-amber-600/30'
+                              }`}>
+                                {c.accepted === true ? 'Accepted' : c.accepted === false ? 'Rejected' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center text-xs text-v-text-secondary">
+                              {new Date(c.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              {c.accepted === null && (
+                                <>
+                                  <button onClick={() => handleContributionAction(c.id, true)} className="text-green-400 hover:underline text-xs mr-2">Accept</button>
+                                  <button onClick={() => handleContributionAction(c.id, false)} className="text-red-400 hover:underline text-xs">Reject</button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Suggested Services Tab */}
+      {activeTab === 'suggestions' && (
+        <div className="max-w-[1600px] mx-auto">
+          {loadingSuggestions ? (
+            <div className="text-center py-20 text-v-text-secondary">Loading suggestions...</div>
+          ) : (
+            <div className="bg-v-surface border border-v-border rounded-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-v-charcoal border-b border-v-border">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-v-text-secondary uppercase">Service Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-v-text-secondary uppercase">Aircraft</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Hours</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Status</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-v-text-secondary uppercase">Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-v-text-secondary uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-v-border">
+                    {suggestions.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-v-text-secondary">No suggested services yet</td></tr>
+                    ) : suggestions.map(s => (
+                      <tr key={s.id} className="hover:bg-white/5">
+                        <td className="px-4 py-2.5">
+                          <div className="text-sm text-v-text-primary font-medium">{s.service_name}</div>
+                          <div className="text-xs text-v-text-secondary font-mono">{s.service_key}</div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="text-sm text-v-text-primary">{s.make}</div>
+                          <div className="text-xs text-v-text-secondary">{s.model}</div>
+                        </td>
+                        <td className="px-3 py-2.5 text-center text-sm tabular-nums text-v-text-primary">{s.contributed_hrs ? parseFloat(s.contributed_hrs).toFixed(1) : '-'}</td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            s.status === 'approved' ? 'bg-green-900/30 text-green-400 border border-green-600/30'
+                            : s.status === 'rejected' ? 'bg-red-900/30 text-red-400 border border-red-600/30'
+                            : 'bg-amber-900/30 text-amber-400 border border-amber-600/30'
+                          }`}>
+                            {s.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-center text-xs text-v-text-secondary">
+                          {new Date(s.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {s.status === 'pending' && (
+                            <>
+                              <button onClick={() => handleSuggestionAction(s.id, 'approved')} className="text-green-400 hover:underline text-xs mr-2">Approve</button>
+                              <button onClick={() => handleSuggestionAction(s.id, 'rejected')} className="text-red-400 hover:underline text-xs">Reject</button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {showModal && (

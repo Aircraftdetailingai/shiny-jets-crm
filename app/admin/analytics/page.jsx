@@ -302,6 +302,36 @@ export default function AdminAnalytics() {
                 ) : <p className="text-v-text-secondary text-sm py-10 text-center">No data</p>}
               </ChartCard>
             </div>
+
+            {/* Community Hours Intelligence */}
+            {data.community && (
+              <>
+                <div className="border-t border-v-border pt-6 mt-2">
+                  <h2 className="text-xl font-bold text-v-text-primary font-heading mb-4">Community Hours Intelligence</h2>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <MetricCard label="Total Contributions" value={(data.community.totalContributions || 0).toLocaleString()} sub={`${data.community.thisMonth || 0} this month`} />
+                  <MetricCard label="Unique Aircraft" value={(data.community.uniqueAircraft || 0).toLocaleString()} />
+                  <MetricCard label="Pending Suggestions" value={(data.community.pendingSuggestions || 0).toLocaleString()} />
+                  <MetricCard label="Defaults Updated" value={(data.community.defaultsUpdated || 0).toLocaleString()} sub="Via community data" />
+                </div>
+
+                {data.community.topAircraft && data.community.topAircraft.length > 0 && (
+                  <ChartCard title="Most Contributed Aircraft">
+                    <ResponsiveContainer width="100%" height={Math.max(280, data.community.topAircraft.length * 32)}>
+                      <BarChart data={data.community.topAircraft} layout="vertical" margin={{ left: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
+                        <XAxis type="number" tick={{ fontSize: 11, fill: '#8A9BB0' }} />
+                        <YAxis type="category" dataKey="aircraft" tick={{ fontSize: 11, fill: '#8A9BB0' }} width={160} />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} name="Contributions" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+                )}
+              </>
+            )}
           </>
         ) : null}
       </div>

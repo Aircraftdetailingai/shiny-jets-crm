@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
+import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,16 +103,18 @@ export async function POST(request) {
     if (service_hours && Array.isArray(service_hours) && service_hours.length > 0) {
       try {
         let aircraftModel = '';
+        let aircraftMake = '';
 
         if (quote.aircraft_id) {
           const { data: aircraft } = await supabase
             .from('aircraft')
-            .select('model')
+            .select('model, manufacturer')
             .eq('id', quote.aircraft_id)
             .single();
 
           if (aircraft) {
             aircraftModel = aircraft.model;
+            aircraftMake = aircraft.manufacturer || '';
           }
         }
 
@@ -127,6 +130,80 @@ export async function POST(request) {
         await supabase.from('hours_log').insert(hoursEntries);
       } catch (e) {
         console.error('Failed to log service hours:', e);
+      }
+
+      // Track hours contributions (crowdsourced data)
+      try {
+        const detailerHash = createHash('sha256').update(user.id).digest('hex');
+        const contributionMake = aircraftMake || quote.aircraft_make || '';
+        const contributionModel = aircraftModel || quote.aircraft_model || '';
+
+        // Known service_type -> aircraft_hours column mapping
+        const SERVICE_TO_COLUMN = {
+          ext_wash_hours: 'maintenance_wash_hrs',
+          int_detail_hours: null, // no direct match in aircraft_hours
+          leather_hours: 'leather_hrs',
+          carpet_hours: 'carpet_hrs',
+          wax_hours: 'wax_hrs',
+          polish_hours: 'one_step_polish_hrs',
+          ceramic_hours: 'ceramic_coating_hrs',
+          brightwork_hours: null,
+        };
+
+        // Fetch aircraft_hours defaults for this make/model
+        let aircraftHoursDefaults = null;
+        if (contributionMake && contributionModel) {
+          const { data: ahData } = await supabase
+            .from('aircraft_hours')
+            .select('*')
+            .ilike('make', contributionMake)
+            .ilike('model', contributionModel)
+            .limit(1)
+            .single();
+          aircraftHoursDefaults = ahData;
+        }
+
+        for (const sh of service_hours) {
+          const serviceType = sh.hours_field || 'ext_wash_hours';
+          const actualHrs = parseFloat(sh.actual_hours) || 0;
+          if (actualHrs <= 0) continue;
+
+          const column = SERVICE_TO_COLUMN[serviceType];
+
+          if (column !== undefined) {
+            // Known service type -> insert into hours_contributions
+            const defaultHrs = aircraftHoursDefaults ? (parseFloat(aircraftHoursDefaults[column]) || null) : null;
+
+            // Auto-accept if within 3x of default, pending for outliers
+            let accepted = null;
+            if (defaultHrs && defaultHrs > 0) {
+              accepted = (actualHrs <= defaultHrs * 3 && actualHrs >= defaultHrs / 3) ? true : null;
+            }
+
+            await supabase.from('hours_contributions').insert({
+              make: contributionMake,
+              model: contributionModel,
+              service_type: serviceType,
+              contributed_hrs: actualHrs,
+              aircraft_hours_default: defaultHrs,
+              detailer_hash: detailerHash,
+              quote_id: quote_id,
+              accepted,
+            });
+          } else if (column === undefined) {
+            // Unknown service type -> insert into suggested_services
+            await supabase.from('suggested_services').insert({
+              service_name: sh.service_name || serviceType,
+              service_key: serviceType,
+              detailer_hash: detailerHash,
+              make: contributionMake,
+              model: contributionModel,
+              contributed_hrs: actualHrs,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to track hours contributions:', e);
       }
     }
 
@@ -240,6 +317,12 @@ export async function POST(request) {
     if (notes && products_used.length > 0) {
       totalPoints += 20;
       pointReasons.push({ reason: 'complete_job_survey', points: 20 });
+    }
+
+    // Bonus points for contributing hours data
+    if (service_hours && service_hours.length > 0) {
+      totalPoints += 15;
+      pointReasons.push({ reason: 'hours_contribution', points: 15 });
     }
 
     // Award points

@@ -692,7 +692,7 @@ export default function QuotesPage() {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-gray-600 hover:text-gray-900 text-xs font-medium"
+              className="text-amber-600 hover:text-amber-800 text-xs font-semibold"
             >
               PDF
             </a>
