@@ -6,6 +6,8 @@ import { setUserCurrency, STRIPE_COUNTRIES } from '@/lib/currency';
 import { currencySymbol } from '@/lib/formatPrice';
 import { restartTour } from '@/components/DashboardTour';
 import { useTranslation, LANGUAGES } from '@/lib/i18n';
+import { generateThemeFromPrimary } from '@/lib/theme';
+import { paletteToTheme, checkContrast, suggestAccessibleColor, generatePalettes } from '@/lib/color-utils';
 
 const DEFAULT_ADDON_FEES = [
   { name: 'Hazmat Fee', description: 'Hazardous material handling surcharge', fee_type: 'flat', amount: 250 },
@@ -75,6 +77,13 @@ function SettingsContent() {
   const [autoDiscountEnabled, setAutoDiscountEnabled] = useState(false);
   const [followupDiscountPercent, setFollowupDiscountPercent] = useState(10);
 
+  // Automation follow-up settings
+  const [followupSettings, setFollowupSettings] = useState({
+    notViewed: { enabled: true, days: 3 },
+    viewedNotAccepted: { enabled: true, days: 5 },
+    expiryWarning: { enabled: true, days: 2 },
+  });
+
   // Platform fee pass-through
   const [passFeeToCustomer, setPassFeeToCustomer] = useState(false);
 
@@ -133,6 +142,10 @@ function SettingsContent() {
   const [extractedFonts, setExtractedFonts] = useState(null);
   const [brandColors, setBrandColors] = useState([]);
   const [pendingFonts, setPendingFonts] = useState(null); // staged font changes
+  const [palettes, setPalettes] = useState([]); // 3 generated palettes
+  const [selectedPalette, setSelectedPalette] = useState(null); // {primary, secondary, neutral}
+  const [portalTheme, setPortalTheme] = useState('dark');
+  const [disclaimerText, setDisclaimerText] = useState('');
 
   // Profile state
   const [profileName, setProfileName] = useState('');
@@ -188,6 +201,9 @@ function SettingsContent() {
       setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
       setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
       setMonthlyReportEnabled(u.notification_settings?.monthlyReportEnabled || false);
+      if (u.notification_settings?.followups) {
+        setFollowupSettings(prev => ({ ...prev, ...u.notification_settings.followups }));
+      }
       setFollowupDiscountPercent(u.followup_discount_percent || 10);
       setEmailNotifs({
         quoteCreated: u.notification_settings?.quoteCreated || false,
@@ -335,36 +351,7 @@ function SettingsContent() {
     }
   };
 
-  const generateThemeFromPrimary = (hex) => {
-    const r = parseInt(hex.slice(1, 3), 16) / 255;
-    const g = parseInt(hex.slice(3, 5), 16) / 255;
-    const b = parseInt(hex.slice(5, 7), 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0, l = (max + min) / 2;
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-      else if (max === g) h = ((b - r) / d + 2) / 6;
-      else h = ((r - g) / d + 4) / 6;
-    }
-    h = Math.round(h * 360);
-    s = Math.round(s * 100);
-    const hslToHex = (hv, sv, lv) => {
-      sv /= 100; lv /= 100;
-      const k = n => (n + hv / 30) % 12;
-      const a = sv * Math.min(lv, 1 - lv);
-      const f = n => lv - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-      const toH = n => Math.round(n * 255).toString(16).padStart(2, '0');
-      return `#${toH(f(0))}${toH(f(8))}${toH(f(4))}`;
-    };
-    return {
-      primary: hex,
-      accent: hslToHex(h, Math.min(s, 40), 10),
-      bg: hslToHex(h, Math.min(s, 15), 4),
-      surface: hslToHex(h, Math.min(s, 20), 8),
-    };
-  };
+  // generateThemeFromPrimary imported from @/lib/theme
 
   const fetchBranding = async () => {
     try {
@@ -383,8 +370,19 @@ function SettingsContent() {
           logo_url: data.theme_logo_url || null,
         });
         setWebsiteUrl(data.website_url || '');
+        setPortalTheme(data.portal_theme || 'dark');
+        setDisclaimerText(data.disclaimer_text || '');
+        // Reconstruct palette from saved theme
+        setSelectedPalette({
+          primary: data.theme_primary || '#C9A84C',
+          secondary: data.theme_accent || '#0D1B2A',
+          neutral: data.theme_bg || '#0A0E17',
+        });
         if (data.theme_colors && data.theme_colors.length > 0) {
           setBrandColors(data.theme_colors);
+          // Generate palettes from first extracted color
+          const primaryColor = data.theme_colors[0];
+          if (primaryColor) setPalettes(generatePalettes(primaryColor));
         } else if (data.logo_url) {
           // Logo exists but no colors extracted yet — trigger extraction
           try {
@@ -398,7 +396,7 @@ function SettingsContent() {
               if (colData.rawColors && colData.rawColors.length > 0) {
                 setBrandColors(colData.rawColors);
               }
-              if (colData.presets) setThemePresets(colData.presets);
+              if (colData.palettes) setPalettes(colData.palettes);
             }
           } catch (e) {
             console.log('Auto color extraction failed:', e);
@@ -441,7 +439,7 @@ function SettingsContent() {
       });
       if (colRes.ok) {
         const colData = await colRes.json();
-        setThemePresets(colData.presets || []);
+        if (colData.palettes) setPalettes(colData.palettes);
         if (colData.rawColors) {
           setBrandColors(prev => [...new Set([...colData.rawColors, ...prev])].slice(0, 10));
         }
@@ -1189,8 +1187,8 @@ function SettingsContent() {
       if (pendingChanges.has('passFee')) promises.push(savePassFee(passFeeToCustomer));
       if (pendingChanges.has('ccFee')) promises.push(saveCcFee(ccFeeMode));
       if (pendingChanges.has('quoteDisplay')) promises.push(saveQuoteDisplayPref(quoteDisplayPref));
-      if (pendingChanges.has('notifications')) {
-        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed, notifyWeeklyDigest };
+      if (pendingChanges.has('notifications') || pendingChanges.has('automation')) {
+        const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed, notifyWeeklyDigest, followups: followupSettings };
         promises.push(saveNotifications(allNotifs));
       }
       if (pendingChanges.has('followupDiscount')) {
@@ -1203,21 +1201,21 @@ function SettingsContent() {
         const brandingPromise = (async () => {
           // Save theme colors
           await saveTheme({ ...selectedTheme, logo_url: logoUrl });
-          // Save fonts if changed
+          // Save portal_theme, disclaimer, and fonts in one call
+          const token = localStorage.getItem('vector_token');
+          const extraFields = { portal_theme: portalTheme, disclaimer_text: disclaimerText };
           if (pendingFonts) {
-            const token = localStorage.getItem('vector_token');
-            await fetch('/api/user/branding', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                font_heading: pendingFonts.heading,
-                font_subheading: pendingFonts.subheading,
-                font_body: pendingFonts.body,
-                font_embed_url: pendingFonts.embed_url,
-              }),
-            });
+            extraFields.font_heading = pendingFonts.heading;
+            extraFields.font_subheading = pendingFonts.subheading;
+            extraFields.font_body = pendingFonts.body;
+            extraFields.font_embed_url = pendingFonts.embed_url;
             setPendingFonts(null);
           }
+          await fetch('/api/user/branding', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(extraFields),
+          });
         })();
         promises.push(brandingPromise);
       }
@@ -1617,99 +1615,172 @@ function SettingsContent() {
             </div>
           </div>
 
-          {/* Brand Colors */}
-
+          {/* Brand Palette */}
           <div>
-            <label className="block text-sm font-medium text-v-text-secondary mb-2">Brand Colors</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-2">Brand Palette</label>
             <p className="text-v-text-secondary/60 text-xs mb-3">
-              Click a color to set it as your primary brand accent. Colors are extracted from your logo and website.
+              Select a palette or click individual swatches to customize. Colors are extracted from your logo and website.
             </p>
 
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Vector Default swatch */}
-              <button
-                onClick={() => {
-                  setSelectedTheme({ primary: '#C9A84C', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null });
-                  markDirty('branding');
-                }}
-                disabled={themeSaving}
-                className="group flex flex-col items-center gap-1"
-                title="Vector Default (#C9A84C)"
-              >
-                <div className="relative">
-                  <div
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${
-                      selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url
-                        ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]'
-                        : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
-                    }`}
-                    style={{ background: '#C9A84C' }}
-                  />
-                  {selectedTheme.primary === '#C9A84C' && !selectedTheme.logo_url && pendingChanges.has('branding') && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-white text-sm font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">&#10003;</span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-[9px] text-v-text-secondary/60">Default</span>
-              </button>
-
-              {/* Extracted color swatches */}
-              {brandColors.map((hex, i) => {
-                const isSelected = selectedTheme.primary?.toLowerCase() === hex.toLowerCase();
+            {/* Palette Strips */}
+            <div className="space-y-2">
+              {/* Vector Default palette */}
+              {[{ name: 'Vector Default', primary: '#C9A84C', secondary: '#0D1B2A', neutral: '#0A0E17' }, ...palettes].map((pal, i) => {
+                const isActive = selectedPalette?.primary === pal.primary && selectedPalette?.secondary === pal.secondary && selectedPalette?.neutral === pal.neutral;
                 return (
                   <button
-                    key={hex + i}
+                    key={i}
                     onClick={() => {
-                      const theme = generateThemeFromPrimary(hex);
+                      setSelectedPalette(pal);
+                      const theme = paletteToTheme(pal, portalTheme);
                       setSelectedTheme({ ...theme, logo_url: logoUrl });
                       markDirty('branding');
                     }}
                     disabled={themeSaving}
-                    className="group flex flex-col items-center gap-1"
-                    title={hex}
+                    className={`w-full flex items-center gap-3 p-3 border rounded transition-all ${
+                      isActive ? 'border-[var(--v-gold)] bg-v-surface' : 'border-v-border hover:border-v-text-secondary/50'
+                    }`}
                   >
-                    <div className="relative">
-                      <div
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${
-                          isSelected
-                            ? 'border-white scale-110 shadow-[0_0_8px_rgba(255,255,255,0.3)]'
-                            : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
-                        }`}
-                        style={{ background: hex }}
-                      />
-                      {isSelected && pendingChanges.has('branding') && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-white text-sm font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">&#10003;</span>
-                        </div>
-                      )}
+                    <div className="flex h-8 rounded overflow-hidden flex-shrink-0" style={{ width: 120 }}>
+                      <div className="flex-1" style={{ background: pal.primary }} />
+                      <div className="flex-1" style={{ background: pal.secondary }} />
+                      <div className="flex-1" style={{ background: pal.neutral }} />
                     </div>
-                    <span className="text-[9px] text-v-text-secondary/60 font-mono">{hex}</span>
+                    <span className="text-xs text-v-text-secondary">{pal.name}</span>
+                    {isActive && <span className="ml-auto text-[var(--v-gold)] text-xs">&#10003;</span>}
                   </button>
                 );
               })}
-
-              {brandColors.length === 0 && (
-                <p className="text-xs text-v-text-secondary/40 italic">Upload a logo or enter your website URL to extract brand colors.</p>
+              {palettes.length === 0 && brandColors.length === 0 && (
+                <p className="text-xs text-v-text-secondary/40 italic">Upload a logo or enter your website URL to generate palettes.</p>
               )}
             </div>
 
+            {/* Editable Swatches for selected palette */}
+            {selectedPalette && (
+              <div className="flex gap-4 mt-4">
+                {[
+                  { role: 'primary', label: 'Primary' },
+                  { role: 'secondary', label: 'Secondary' },
+                  { role: 'neutral', label: 'Neutral' },
+                ].map(({ role, label }) => (
+                  <div key={role} className="flex flex-col items-center gap-1">
+                    <label className="relative cursor-pointer group">
+                      <div
+                        className="w-12 h-12 rounded border-2 border-v-border group-hover:border-v-text-secondary/60 transition-colors"
+                        style={{ background: selectedPalette[role] }}
+                      />
+                      <input
+                        type="color"
+                        value={selectedPalette[role]}
+                        onChange={(e) => {
+                          const updated = { ...selectedPalette, [role]: e.target.value };
+                          setSelectedPalette(updated);
+                          const theme = paletteToTheme(updated, portalTheme);
+                          setSelectedTheme({ ...theme, logo_url: logoUrl });
+                          markDirty('branding');
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </label>
+                    <span className="text-[9px] text-v-text-secondary/60">{label}</span>
+                    <span className="text-[9px] text-v-text-secondary/40 font-mono">{selectedPalette[role]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Dark / Light Mode Toggle */}
+            <div className="mt-6 mb-4">
+              <label className="block text-sm font-medium text-v-text-secondary mb-2">
+                How should your customer portal look?
+              </label>
+              <div className="flex gap-3">
+                {['dark', 'light'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setPortalTheme(mode);
+                      if (selectedPalette) {
+                        const theme = paletteToTheme(selectedPalette, mode);
+                        setSelectedTheme({ ...theme, logo_url: logoUrl });
+                      }
+                      markDirty('branding');
+                    }}
+                    className={`flex-1 py-3 px-4 border text-sm capitalize rounded transition-all ${
+                      portalTheme === mode
+                        ? 'border-[var(--v-gold)] text-[var(--v-gold)] bg-[var(--v-gold)]/10'
+                        : 'border-v-border text-v-text-secondary hover:border-v-text-secondary/50'
+                    }`}
+                  >
+                    {mode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ADA Contrast Badges */}
+            {selectedPalette && (() => {
+              const bgColor = portalTheme === 'light' ? '#FFFFFF' : (selectedTheme.bg || '#0A0E17');
+              const textColor = portalTheme === 'light' ? '#1F2937' : '#F5F5F5';
+              const btnTextColor = portalTheme === 'light' ? '#FFFFFF' : bgColor;
+              const pairs = [
+                { label: 'Primary on Background', fg: selectedPalette.primary, bg: bgColor },
+                { label: 'Text on Background', fg: textColor, bg: bgColor },
+                { label: 'Button Text on Primary', fg: btnTextColor, bg: selectedPalette.primary },
+              ];
+              return (
+                <div className="mb-4 space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest text-v-text-secondary/50">Accessibility (WCAG AA)</p>
+                  {pairs.map(({ label, fg, bg }) => {
+                    const result = checkContrast(fg, bg);
+                    return (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                          result.normalText ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {result.ratio}:1 {result.normalText ? 'AA' : 'FAIL'}
+                        </span>
+                        <span className="text-xs text-v-text-secondary">{label}</span>
+                        {!result.normalText && (
+                          <button
+                            onClick={() => {
+                              const better = suggestAccessibleColor(fg, bg);
+                              if (label === 'Primary on Background') {
+                                const updated = { ...selectedPalette, primary: better };
+                                setSelectedPalette(updated);
+                                setSelectedTheme({ ...paletteToTheme(updated, portalTheme), logo_url: logoUrl });
+                              }
+                              markDirty('branding');
+                            }}
+                            className="text-[10px] text-[var(--v-gold)] hover:underline"
+                          >
+                            Fix
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Mini Preview Card */}
-            <div className="mt-4 p-4 rounded border border-v-border overflow-hidden" style={{ background: selectedTheme.bg || '#0A0E17' }}>
-              <p className="text-[9px] uppercase tracking-widest text-v-text-secondary/40 mb-3">Quote preview</p>
+            <div className="mt-4 p-4 rounded border border-v-border overflow-hidden" style={{ background: portalTheme === 'light' ? '#FFFFFF' : (selectedTheme.bg || '#0A0E17') }}>
+              <p className="text-[9px] uppercase tracking-widest mb-3" style={{ color: portalTheme === 'light' ? '#6B7280' : '#8A9BB0' }}>Quote preview</p>
               <div className="flex items-center gap-3 mb-3">
                 {logoUrl && <img src={logoUrl} alt="Logo" className="h-6 object-contain" />}
                 <div className="h-3 rounded w-24" style={{ background: selectedTheme.primary || '#C9A84C' }} />
               </div>
               <div className="space-y-1.5 mb-3">
-                <div className="h-2 rounded w-full" style={{ background: selectedTheme.surface || '#111827' }} />
-                <div className="h-2 rounded w-3/4" style={{ background: selectedTheme.surface || '#111827' }} />
-                <div className="h-2 rounded w-1/2" style={{ background: selectedTheme.surface || '#111827' }} />
+                <div className="h-2 rounded w-full" style={{ background: portalTheme === 'light' ? '#E5E7EB' : (selectedTheme.surface || '#111827') }} />
+                <div className="h-2 rounded w-3/4" style={{ background: portalTheme === 'light' ? '#E5E7EB' : (selectedTheme.surface || '#111827') }} />
+                <div className="h-2 rounded w-1/2" style={{ background: portalTheme === 'light' ? '#E5E7EB' : (selectedTheme.surface || '#111827') }} />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium" style={{ color: selectedTheme.primary || '#C9A84C' }}>$4,250.00</span>
                 <div className="flex gap-2">
-                  <span className="px-3 py-1 rounded text-[10px] font-medium" style={{ background: selectedTheme.primary || '#C9A84C', color: selectedTheme.bg || '#0A0E17' }}>
+                  <span className="px-3 py-1 rounded text-[10px] font-medium" style={{ background: selectedTheme.primary || '#C9A84C', color: portalTheme === 'light' ? '#FFFFFF' : (selectedTheme.bg || '#0A0E17') }}>
                     Accept Quote
                   </span>
                   <span className="px-3 py-1 rounded text-[10px] border" style={{ borderColor: selectedTheme.primary || '#C9A84C', color: selectedTheme.primary || '#C9A84C' }}>
@@ -1722,6 +1793,21 @@ function SettingsContent() {
             {themeSuccess && !pendingChanges.has('branding') && (
               <p className="text-v-gold text-xs mt-2">{themeSuccess}</p>
             )}
+          </div>
+
+          {/* Customer Disclaimer / Waiver */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-v-text-secondary mb-2">Customer Disclaimer / Waiver</label>
+            <p className="text-v-text-secondary/60 text-xs mb-3">
+              Optional text displayed on your quote and portal pages. Use for liability waivers, service disclaimers, etc.
+            </p>
+            <textarea
+              value={disclaimerText}
+              onChange={(e) => { setDisclaimerText(e.target.value); markDirty('branding'); }}
+              rows={4}
+              placeholder="e.g. Services are performed at customer's risk. We are not liable for pre-existing damage..."
+              className="w-full bg-v-surface border border-v-border text-v-text-primary px-3 py-2 text-sm focus:border-v-gold focus:outline-none resize-none rounded"
+            />
           </div>
         </div>
 
@@ -2278,6 +2364,122 @@ function SettingsContent() {
           <a href="/reports" className="inline-block mt-3 text-sm text-v-gold hover:text-v-gold-dim">
             View all reports &rarr;
           </a>
+        </div>
+
+        {/* Automation */}
+        <div className="pb-6 mb-2">
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Automation</h3>
+          <p className="text-sm text-v-text-secondary mb-4">
+            Automatically follow up with customers who haven't responded to quotes.
+          </p>
+
+          {/* Not Viewed */}
+          <div className="py-3 border-b border-v-border/50">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-v-text-primary">Quote not viewed</p>
+                <p className="text-xs text-v-text-secondary">Remind customers who haven't opened their quote</p>
+              </div>
+              <div
+                onClick={() => {
+                  setFollowupSettings(prev => ({ ...prev, notViewed: { ...prev.notViewed, enabled: !prev.notViewed.enabled } }));
+                  markDirty('automation');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.notViewed.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.notViewed.enabled ? 'translate-x-5' : ''}`} />
+              </div>
+            </label>
+            {followupSettings.notViewed.enabled && (
+              <div className="flex items-center gap-2 mt-2 ml-1">
+                <span className="text-xs text-v-text-secondary">Send after</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={followupSettings.notViewed.days}
+                  onChange={(e) => {
+                    setFollowupSettings(prev => ({ ...prev, notViewed: { ...prev.notViewed, days: parseInt(e.target.value) || 1 } }));
+                    markDirty('automation');
+                  }}
+                  className="w-16 bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-1 text-sm text-center"
+                />
+                <span className="text-xs text-v-text-secondary">days</span>
+              </div>
+            )}
+          </div>
+
+          {/* Viewed Not Accepted */}
+          <div className="py-3 border-b border-v-border/50">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-v-text-primary">Viewed but not booked</p>
+                <p className="text-xs text-v-text-secondary">Follow up with customers who viewed but didn't accept</p>
+              </div>
+              <div
+                onClick={() => {
+                  setFollowupSettings(prev => ({ ...prev, viewedNotAccepted: { ...prev.viewedNotAccepted, enabled: !prev.viewedNotAccepted.enabled } }));
+                  markDirty('automation');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.viewedNotAccepted.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.viewedNotAccepted.enabled ? 'translate-x-5' : ''}`} />
+              </div>
+            </label>
+            {followupSettings.viewedNotAccepted.enabled && (
+              <div className="flex items-center gap-2 mt-2 ml-1">
+                <span className="text-xs text-v-text-secondary">Send after</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={followupSettings.viewedNotAccepted.days}
+                  onChange={(e) => {
+                    setFollowupSettings(prev => ({ ...prev, viewedNotAccepted: { ...prev.viewedNotAccepted, days: parseInt(e.target.value) || 1 } }));
+                    markDirty('automation');
+                  }}
+                  className="w-16 bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-1 text-sm text-center"
+                />
+                <span className="text-xs text-v-text-secondary">days after viewing</span>
+              </div>
+            )}
+          </div>
+
+          {/* Expiry Warning */}
+          <div className="py-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-v-text-primary">Expiry warning</p>
+                <p className="text-xs text-v-text-secondary">Warn customers before their quote expires</p>
+              </div>
+              <div
+                onClick={() => {
+                  setFollowupSettings(prev => ({ ...prev, expiryWarning: { ...prev.expiryWarning, enabled: !prev.expiryWarning.enabled } }));
+                  markDirty('automation');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.expiryWarning.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.expiryWarning.enabled ? 'translate-x-5' : ''}`} />
+              </div>
+            </label>
+            {followupSettings.expiryWarning.enabled && (
+              <div className="flex items-center gap-2 mt-2 ml-1">
+                <span className="text-xs text-v-text-secondary">Send</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={followupSettings.expiryWarning.days}
+                  onChange={(e) => {
+                    setFollowupSettings(prev => ({ ...prev, expiryWarning: { ...prev.expiryWarning, days: parseInt(e.target.value) || 1 } }));
+                    markDirty('automation');
+                  }}
+                  className="w-16 bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-1 text-sm text-center"
+                />
+                <span className="text-xs text-v-text-secondary">days before expiry</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Services & Tools */}
