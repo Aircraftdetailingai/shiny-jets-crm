@@ -1,389 +1,625 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
-const COLORS = [
-  '#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
+const REPORT_TYPES = [
+  {
+    key: 'revenue',
+    label: 'Revenue Report',
+    description: 'All paid/completed jobs with fees breakdown',
+    icon: '\u2191',
+    color: 'text-green-400',
+    borderColor: 'border-green-500/30',
+    hasPdf: true,
+  },
+  {
+    key: 'customers',
+    label: 'Customer Report',
+    description: 'Lifetime value, retention status, last service',
+    icon: '\u2630',
+    color: 'text-blue-400',
+    borderColor: 'border-blue-500/30',
+    hasPdf: false,
+  },
+  {
+    key: 'services',
+    label: 'Services Report',
+    description: 'Top services by revenue, bookings, avg ticket',
+    icon: '\u2605',
+    color: 'text-purple-400',
+    borderColor: 'border-purple-500/30',
+    hasPdf: false,
+  },
+  {
+    key: 'tax',
+    label: 'Tax Summary',
+    description: 'Monthly revenue, platform fees, net for accounting',
+    icon: '\u2261',
+    color: 'text-amber-400',
+    borderColor: 'border-amber-500/30',
+    hasPdf: true,
+  },
 ];
 
-function formatCurrency(val) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val || 0);
+const DATE_RANGES = [
+  { key: 'this_month', label: 'This Month' },
+  { key: 'last_month', label: 'Last Month' },
+  { key: 'this_quarter', label: 'This Quarter' },
+  { key: 'this_year', label: 'This Year' },
+  { key: 'custom', label: 'Custom' },
+];
+
+function getDateRange(rangeKey, customStart, customEnd) {
+  const now = new Date();
+  let start, end;
+
+  switch (rangeKey) {
+    case 'this_month':
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = now;
+      break;
+    case 'last_month':
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      break;
+    case 'this_quarter': {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1);
+      end = now;
+      break;
+    }
+    case 'this_year':
+      start = new Date(now.getFullYear(), 0, 1);
+      end = now;
+      break;
+    case 'custom':
+      start = customStart ? new Date(customStart) : new Date(now.getFullYear(), 0, 1);
+      end = customEnd ? new Date(customEnd + 'T23:59:59') : now;
+      break;
+    default:
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = now;
+  }
+
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
-function formatMonth(str) {
+function formatCurrency(val) {
+  return `${currencySymbol()}${formatPrice(val)}`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtMonth(str) {
   if (!str) return '';
   const [y, m] = str.split('-');
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[parseInt(m) - 1]} ${y}`;
 }
 
-// CSS bar chart
-function BarChart({ data, valueKey, labelKey, formatValue, color, noDataLabel }) {
-  if (!data || data.length === 0) return <p className="text-v-text-secondary text-sm text-center py-6">{noDataLabel}</p>;
-  const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
-  return (
-    <div className="space-y-2">
-      {data.map((item, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="text-xs text-v-text-secondary w-28 truncate text-right">{item[labelKey]}</span>
-          <div className="flex-1 bg-v-charcoal rounded-full h-6 relative overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.max((item[valueKey] / max) * 100, 2)}%`, backgroundColor: color || COLORS[i % COLORS.length] }}
-            />
-            <span className="absolute right-2 top-0.5 text-xs font-medium text-v-text-secondary">
-              {formatValue ? formatValue(item[valueKey]) : item[valueKey]}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// CSS pie chart using conic-gradient
-function PieChart({ data, valueKey, labelKey, noDataLabel }) {
-  if (!data || data.length === 0) return <p className="text-v-text-secondary text-sm text-center py-6">{noDataLabel}</p>;
-  const total = data.reduce((sum, d) => sum + (d[valueKey] || 0), 0);
-  if (total === 0) return <p className="text-v-text-secondary text-sm text-center py-6">{noDataLabel}</p>;
-
-  let cumulative = 0;
-  const segments = data.map((item, i) => {
-    const pct = (item[valueKey] / total) * 100;
-    const start = cumulative;
-    cumulative += pct;
-    return { ...item, pct, start, end: cumulative, color: COLORS[i % COLORS.length] };
-  });
-
-  const gradient = segments
-    .map(s => `${s.color} ${s.start}% ${s.end}%`)
-    .join(', ');
-
-  return (
-    <div className="flex items-center gap-6">
-      <div
-        className="w-36 h-36 rounded-full flex-shrink-0"
-        style={{ background: `conic-gradient(${gradient})` }}
-      />
-      <div className="space-y-1 flex-1 min-w-0">
-        {segments.map((s, i) => (
-          <div key={i} className="flex items-center gap-2 text-sm">
-            <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: s.color }} />
-            <span className="text-v-text-secondary truncate flex-1">{s[labelKey]}</span>
-            <span className="text-v-text-secondary font-medium">{s[valueKey]}</span>
-            <span className="text-v-text-secondary text-xs">({s.pct.toFixed(0)}%)</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Revenue timeline chart (vertical bars)
-function TimelineChart({ data, noDataLabel }) {
-  if (!data || data.length === 0) return <p className="text-v-text-secondary text-sm text-center py-6">{noDataLabel}</p>;
-  const max = Math.max(...data.map(d => d.revenue || 0), 1);
-  return (
-    <div className="flex items-end gap-1 h-40">
-      {data.map((item, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center justify-end h-full min-w-0">
-          <span className="text-xs text-v-text-secondary mb-1 hidden md:block">{formatCurrency(item.revenue)}</span>
-          <div
-            className="w-full rounded-t transition-all duration-500 min-h-[4px]"
-            style={{
-              height: `${Math.max((item.revenue / max) * 100, 3)}%`,
-              backgroundColor: COLORS[i % COLORS.length],
-            }}
-            title={`${formatMonth(item.month)}: ${formatCurrency(item.revenue)}`}
-          />
-          <span className="text-xs text-v-text-secondary mt-1 truncate w-full text-center">{formatMonth(item.month)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Customer acquisition line (step bars)
-function AcquisitionChart({ data, noDataLabel }) {
-  if (!data || data.length === 0) return <p className="text-v-text-secondary text-sm text-center py-6">{noDataLabel}</p>;
-  const max = Math.max(...data.map(d => d.count || 0), 1);
-  return (
-    <div className="flex items-end gap-1 h-32">
-      {data.map((item, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center justify-end h-full min-w-0">
-          <span className="text-xs text-v-text-secondary mb-1">{item.count}</span>
-          <div
-            className="w-full rounded-t transition-all duration-500 bg-purple-500 min-h-[4px]"
-            style={{ height: `${Math.max((item.count / max) * 100, 3)}%` }}
-            title={`${formatMonth(item.month)}: ${`${item.count} new customers`}`}
-          />
-          <span className="text-xs text-v-text-secondary mt-1 truncate w-full text-center">{formatMonth(item.month)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function ReportsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [report, setReport] = useState(null);
-  const [range, setRange] = useState('month');
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [activeReport, setActiveReport] = useState(null);
+  const [dateRange, setDateRange] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [error, setError] = useState(null);
-
-  const RANGES = {
-    week: { label: 'This Week', days: 7 },
-    month: { label: 'This Month', days: 30 },
-    quarter: { label: 'This Quarter', days: 90 },
-    year: { label: 'This Year', days: 365 },
-    custom: { label: 'Custom', days: 0 },
-  };
-
-  const getDateRange = () => {
-    if (range === 'custom' && customStart && customEnd) {
-      return { start: new Date(customStart).toISOString(), end: new Date(customEnd + 'T23:59:59').toISOString() };
-    }
-    const days = RANGES[range]?.days || 30;
-    const end = new Date();
-    const start = new Date(end - days * 24 * 60 * 60 * 1000);
-    return { start: start.toISOString(), end: end.toISOString() };
-  };
+  const [pdfLoading, setPdfLoading] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    fetchReport(token);
-  }, [router, range, customStart, customEnd]);
+    if (!token) { router.push('/login'); return; }
+    fetchReports(token);
+  }, [router, dateRange, customStart, customEnd]);
 
-  const fetchReport = async (token) => {
+  const fetchReports = async (token) => {
     setLoading(true);
     setError(null);
     try {
-      const { start, end } = getDateRange();
-      const params = new URLSearchParams({ start, end });
+      const { start, end } = getDateRange(dateRange, customStart, customEnd);
+      const params = new URLSearchParams({ start, end, type: 'all' });
       const res = await fetch(`/api/reports?${params}`, {
         headers: { Authorization: `Bearer ${token || localStorage.getItem('vector_token')}` },
       });
       if (res.ok) {
-        const data = await res.json();
-        setReport(data);
+        setData(await res.json());
       } else {
-        setError('Failed to load report');
+        setError('Failed to load reports');
       }
-    } catch (err) {
-      setError('Failed to load report');
+    } catch {
+      setError('Failed to load reports');
     } finally {
       setLoading(false);
     }
   };
 
-  const exportCSV = () => {
-    if (!report?.exportData?.length) return;
-    const headers = ['Date', 'Customer', 'Email', 'Aircraft', 'Status', 'Amount', 'Paid At'];
-    const rows = report.exportData.map(r => [
-      r.date ? new Date(r.date).toLocaleDateString() : '',
-      r.customer,
-      r.email,
-      r.aircraft,
-      r.status,
-      r.amount.toFixed(2),
-      r.paid_at ? new Date(r.paid_at).toLocaleDateString() : '',
-    ]);
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const exportCSV = (type) => {
+    if (!data) return;
+    let headers, rows, filename;
+
+    switch (type) {
+      case 'revenue':
+        if (!data.revenue?.rows?.length) return;
+        headers = ['Date', 'Customer', 'Email', 'Aircraft', 'Services', 'Subtotal', 'Fees', 'Net Total', 'Status'];
+        rows = data.revenue.rows.map(r => [
+          r.date ? new Date(r.date).toLocaleDateString() : '',
+          r.customer, r.email, r.aircraft, r.services,
+          r.subtotal.toFixed(2), r.fees.toFixed(2), r.total.toFixed(2), r.status,
+        ]);
+        filename = `revenue-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        break;
+
+      case 'customers':
+        if (!data.customers?.rows?.length) return;
+        headers = ['Customer', 'Contact', 'Email', 'Lifetime Value', 'Quotes', 'Paid Jobs', 'Last Service', 'Retention'];
+        rows = data.customers.rows.map(r => [
+          r.name, r.contact, r.email, r.totalValue.toFixed(2),
+          r.quoteCount, r.paidCount,
+          r.lastServiceDate ? new Date(r.lastServiceDate).toLocaleDateString() : '',
+          r.retention,
+        ]);
+        filename = `customer-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        break;
+
+      case 'services':
+        if (!data.services?.rows?.length) return;
+        headers = ['Service', 'Times Booked', 'Total Hours', 'Total Revenue', 'Avg Ticket'];
+        rows = data.services.rows.map(r => [
+          r.name, r.timesBooked,
+          r.totalHours > 0 ? r.totalHours.toFixed(1) : '0',
+          r.totalRevenue.toFixed(2), r.avgTicket.toFixed(2),
+        ]);
+        filename = `services-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        break;
+
+      case 'tax':
+        if (!data.tax?.rows?.length) return;
+        headers = ['Month', 'Jobs', 'Gross Revenue', 'Platform Fees', 'Net Revenue'];
+        rows = data.tax.rows.map(r => [
+          fmtMonth(r.month), r.jobCount,
+          r.revenue.toFixed(2), r.fees.toFixed(2), r.net.toFixed(2),
+        ]);
+        filename = `tax-summary-${new Date().toISOString().slice(0, 10)}.csv`;
+        break;
+
+      default:
+        return;
+    }
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vector-report-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const s = report?.summary;
+  const exportPDF = async (type) => {
+    setPdfLoading(type);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const { start, end } = getDateRange(dateRange, customStart, customEnd);
+      const params = new URLSearchParams({ type, start, end });
+      const res = await fetch(`/api/reports/pdf?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } else {
+        alert('Failed to generate PDF');
+      }
+    } catch {
+      alert('Failed to generate PDF');
+    } finally {
+      setPdfLoading(null);
+    }
+  };
 
   return (
-    <div className="page-transition min-h-screen bg-v-charcoal p-4">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
-        <div className="flex items-center gap-3">
-          <a href="/dashboard" className="text-white text-2xl hover:opacity-70">&larr;</a>
-          <h1 className="text-2xl font-bold text-white">{'Reports'}</h1>
+    <div className="page-transition min-h-screen bg-v-charcoal">
+      <div className="px-6 md:px-10 py-8 pb-40 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <a href="/dashboard" className="text-2xl text-v-text-secondary hover:text-v-gold">&#8592;</a>
+            <div>
+              <h1 className="font-heading text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>
+                REPORTS
+              </h1>
+              <p className="text-v-text-secondary text-xs mt-1">Downloadable business reports</p>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {Object.entries(RANGES).map(([key, { label }]) => (
+
+        {/* Date Range Filter */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          {DATE_RANGES.map(r => (
             <button
-              key={key}
-              onClick={() => setRange(key)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                range === key
-                  ? 'bg-amber-900/200 text-white'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+              key={r.key}
+              onClick={() => setDateRange(r.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                dateRange === r.key
+                  ? 'bg-v-gold text-v-charcoal'
+                  : 'bg-v-surface text-v-text-secondary border border-v-border hover:text-v-text-primary hover:border-v-gold/50'
               }`}
             >
-              {label}
+              {r.label}
             </button>
           ))}
-          <button
-            onClick={exportCSV}
-            disabled={!report?.exportData?.length}
-            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {'Export CSV'}
-          </button>
-        </div>
-      </div>
-
-      {/* Custom date range */}
-      {range === 'custom' && (
-        <div className="flex items-center gap-3 mb-4">
-          <input
-            type="date"
-            value={customStart}
-            onChange={(e) => setCustomStart(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-white/10 text-white border border-white/20 [color-scheme:dark]"
-          />
-          <span className="text-white">{'to'}</span>
-          <input
-            type="date"
-            value={customEnd}
-            onChange={(e) => setCustomEnd(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-white/10 text-white border border-white/20 [color-scheme:dark]"
-          />
-        </div>
-      )}
-
-      {/* Loading / Error */}
-      {loading && (
-        <div className="text-white text-center py-16">
-          <div className="inline-block w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mb-3" />
-          <p>{'Loading report...'}</p>
-        </div>
-      )}
-      {error && <p className="text-red-400 text-center py-8">{error}</p>}
-
-      {/* Report Content */}
-      {!loading && report && (
-        <div className="space-y-4">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="bg-v-surface rounded-lg p-3 shadow">
-              <p className="text-v-text-secondary text-xs">{'Total Revenue'}</p>
-              <p className="text-xl font-bold text-v-text-primary">{formatCurrency(s?.totalRevenue)}</p>
-            </div>
-            <div className="bg-v-surface rounded-lg p-3 shadow">
-              <p className="text-v-text-secondary text-xs">{'Quotes Sent'}</p>
-              <p className="text-xl font-bold text-blue-600">{s?.totalQuotes || 0}</p>
-            </div>
-            <div className="bg-v-surface rounded-lg p-3 shadow">
-              <p className="text-v-text-secondary text-xs">{'Jobs Paid'}</p>
-              <p className="text-xl font-bold text-green-600">{s?.totalPaid || 0}</p>
-            </div>
-            <div className="bg-v-surface rounded-lg p-3 shadow">
-              <p className="text-v-text-secondary text-xs">{'Avg Job Value'}</p>
-              <p className="text-xl font-bold text-amber-600">{formatCurrency(s?.avgJobValue)}</p>
-            </div>
-            <div className="bg-v-surface rounded-lg p-3 shadow">
-              <p className="text-v-text-secondary text-xs">{'Conversion Rate'}</p>
-              <p className="text-xl font-bold text-purple-600">{(s?.conversionRate || 0).toFixed(0)}%</p>
-            </div>
-            <div className="bg-v-surface rounded-lg p-3 shadow">
-              <p className="text-v-text-secondary text-xs">{'Pending Revenue'}</p>
-              <p className="text-xl font-bold text-red-500">{formatCurrency(s?.pendingRevenue)}</p>
-            </div>
-          </div>
-
-          {/* Revenue Timeline */}
-          <div className="bg-v-surface rounded-lg p-4 shadow">
-            <h2 className="font-semibold text-v-text-primary mb-3">{'Revenue by Month'}</h2>
-            <TimelineChart data={report.revenueTimeline} noDataLabel={'No data'} />
-          </div>
-
-          {/* Two column: Service Types + Aircraft Revenue */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Jobs by Service Type (Pie) */}
-            <div className="bg-v-surface rounded-lg p-4 shadow">
-              <h2 className="font-semibold text-v-text-primary mb-3">{'Jobs by Service Type'}</h2>
-              <PieChart data={report.jobsByService} valueKey="count" labelKey="name" noDataLabel={'No data'} />
-            </div>
-
-            {/* Revenue by Aircraft Type (Bar) */}
-            <div className="bg-v-surface rounded-lg p-4 shadow">
-              <h2 className="font-semibold text-v-text-primary mb-3">{'Revenue by Aircraft'}</h2>
-              <BarChart
-                data={report.revenueByAircraft}
-                valueKey="revenue"
-                labelKey="name"
-                formatValue={formatCurrency}
-                noDataLabel={'No data'}
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2 ml-2">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="px-2 py-1 rounded text-xs bg-v-surface border border-v-border text-v-text-primary [color-scheme:dark]"
+              />
+              <span className="text-v-text-secondary text-xs">to</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="px-2 py-1 rounded text-xs bg-v-surface border border-v-border text-v-text-primary [color-scheme:dark]"
               />
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Customer Acquisition */}
-          <div className="bg-v-surface rounded-lg p-4 shadow">
-            <h2 className="font-semibold text-v-text-primary mb-3">{'New Customers by Month'}</h2>
-            <AcquisitionChart data={report.customerAcquisition} noDataLabel={'No data'} />
-          </div>
-
-          {/* Data Table */}
-          <div className="bg-v-surface rounded-lg p-4 shadow overflow-x-auto">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="font-semibold text-v-text-primary">{'All Quotes'} ({report.exportData?.length || 0})</h2>
-              <button
-                onClick={exportCSV}
-                disabled={!report?.exportData?.length}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40"
-              >
-                {'Export CSV'}
-              </button>
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-32">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-v-text-secondary text-xs tracking-widest uppercase">Loading reports</p>
             </div>
-            {report.exportData?.length > 0 ? (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-v-text-secondary">
-                    <th className="py-2 pr-3">{'Date'}</th>
-                    <th className="py-2 pr-3">{'Customer'}</th>
-                    <th className="py-2 pr-3">{'Aircraft'}</th>
-                    <th className="py-2 pr-3">{'Status'}</th>
-                    <th className="py-2 text-right">{'Amount'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.exportData.slice(0, 50).map((row, i) => (
-                    <tr key={i} className="border-b border-v-border hover:bg-white/5">
-                      <td className="py-2 pr-3 text-v-text-secondary">{row.date ? new Date(row.date).toLocaleDateString() : ''}</td>
-                      <td className="py-2 pr-3 text-v-text-primary">{row.customer || '-'}</td>
-                      <td className="py-2 pr-3 text-v-text-secondary">{row.aircraft || '-'}</td>
-                      <td className="py-2 pr-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          row.status === 'paid' || row.status === 'completed' ? 'bg-green-900/30 text-green-400' :
-                          row.status === 'sent' || row.status === 'viewed' ? 'bg-blue-900/30 text-blue-400' :
-                          row.status === 'declined' ? 'bg-red-900/30 text-red-400' :
-                          'bg-v-charcoal text-v-text-secondary'
-                        }`}>
-                          {t('status.' + row.status)}
-                        </span>
-                      </td>
-                      <td className="py-2 text-right font-medium text-v-text-primary">{formatCurrency(row.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-v-text-secondary text-center py-6">{'No quotes in this period'}</p>
-            )}
-            {report.exportData?.length > 50 && (
-              <p className="text-xs text-v-text-secondary mt-2 text-center">{'Showing 50 of'} {report.exportData.length} {'rows. Export CSV for full data.'}</p>
-            )}
+          </div>
+        )}
+        {error && <p className="text-red-400 text-center py-8 text-sm">{error}</p>}
+
+        {/* Report Cards Grid */}
+        {!loading && data && !activeReport && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {REPORT_TYPES.map(rt => {
+              const reportData = data[rt.key];
+              const rowCount = reportData?.rows?.length || 0;
+              return (
+                <div
+                  key={rt.key}
+                  className={`bg-v-surface border ${rt.borderColor} rounded-sm p-5 hover:bg-white/[0.02] transition-colors`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xl ${rt.color}`}>{rt.icon}</span>
+                      <div>
+                        <h3 className="text-sm font-medium text-v-text-primary">{rt.label}</h3>
+                        <p className="text-xs text-v-text-secondary mt-0.5">{rt.description}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-v-text-secondary bg-v-charcoal px-2 py-0.5 rounded">
+                      {rowCount} {rowCount === 1 ? 'row' : 'rows'}
+                    </span>
+                  </div>
+
+                  {/* Mini summary */}
+                  {rt.key === 'revenue' && reportData?.summary && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-v-gold font-data">{formatCurrency(reportData.summary.totalRevenue)}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Revenue</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-red-400 font-data">{formatCurrency(reportData.summary.totalFees)}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Fees</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-green-400 font-data">{formatCurrency(reportData.summary.netRevenue)}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Net</p>
+                      </div>
+                    </div>
+                  )}
+                  {rt.key === 'customers' && reportData?.summary && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-blue-400 font-data">{reportData.summary.totalCustomers}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Total</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-green-400 font-data">{reportData.summary.activeCustomers}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Active</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-amber-400 font-data">{reportData.summary.atRiskCustomers}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">At Risk</p>
+                      </div>
+                    </div>
+                  )}
+                  {rt.key === 'services' && reportData?.summary && (
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-purple-400 font-data">{reportData.summary.totalBookings}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Total Bookings</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-v-text-primary font-data truncate">{reportData.summary.topService}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Top Service</p>
+                      </div>
+                    </div>
+                  )}
+                  {rt.key === 'tax' && reportData?.summary && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-v-gold font-data">{formatCurrency(reportData.summary.totalRevenue)}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Gross</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-red-400 font-data">{formatCurrency(reportData.summary.totalFees)}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Fees</p>
+                      </div>
+                      <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
+                        <p className="text-sm font-bold text-green-400 font-data">{formatCurrency(reportData.summary.netRevenue)}</p>
+                        <p className="text-[9px] text-v-text-secondary uppercase">Net</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveReport(rt.key)}
+                      disabled={rowCount === 0}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium text-v-text-primary bg-v-charcoal border border-v-border rounded hover:border-v-gold/50 transition-colors disabled:opacity-40"
+                    >
+                      View Report
+                    </button>
+                    <button
+                      onClick={() => exportCSV(rt.key)}
+                      disabled={rowCount === 0}
+                      className="px-3 py-1.5 text-xs font-medium text-green-400 border border-green-500/30 rounded hover:bg-green-500/10 transition-colors disabled:opacity-40"
+                    >
+                      CSV
+                    </button>
+                    {rt.hasPdf && (
+                      <button
+                        onClick={() => exportPDF(rt.key)}
+                        disabled={rowCount === 0 || pdfLoading === rt.key}
+                        className="px-3 py-1.5 text-xs font-medium text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10 transition-colors disabled:opacity-40"
+                      >
+                        {pdfLoading === rt.key ? '...' : 'PDF'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Active Report Detail View */}
+        {!loading && data && activeReport && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={() => setActiveReport(null)}
+                className="text-v-text-secondary hover:text-v-gold text-lg"
+              >
+                &#8592;
+              </button>
+              <h2 className="text-lg font-medium text-v-text-primary">
+                {REPORT_TYPES.find(r => r.key === activeReport)?.label}
+              </h2>
+              <div className="flex-1" />
+              <button
+                onClick={() => exportCSV(activeReport)}
+                className="px-3 py-1.5 text-xs font-medium text-green-400 border border-green-500/30 rounded hover:bg-green-500/10 transition-colors"
+              >
+                Export CSV
+              </button>
+              {REPORT_TYPES.find(r => r.key === activeReport)?.hasPdf && (
+                <button
+                  onClick={() => exportPDF(activeReport)}
+                  disabled={pdfLoading === activeReport}
+                  className="px-3 py-1.5 text-xs font-medium text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10 transition-colors disabled:opacity-40"
+                >
+                  {pdfLoading === activeReport ? 'Generating...' : 'Export PDF'}
+                </button>
+              )}
+            </div>
+
+            {activeReport === 'revenue' && <RevenueTable data={data.revenue} />}
+            {activeReport === 'customers' && <CustomerTable data={data.customers} />}
+            {activeReport === 'services' && <ServicesTable data={data.services} />}
+            {activeReport === 'tax' && <TaxTable data={data.tax} />}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RevenueTable({ data }) {
+  if (!data?.rows?.length) return <EmptyState />;
+  const { rows, summary } = data;
+  return (
+    <div>
+      <div className="grid grid-cols-4 gap-3 mb-4">
+        <StatCard label="Gross Revenue" value={formatCurrency(summary.totalRevenue)} color="text-v-gold" />
+        <StatCard label="Platform Fees" value={formatCurrency(summary.totalFees)} color="text-red-400" />
+        <StatCard label="Net Revenue" value={formatCurrency(summary.netRevenue)} color="text-green-400" />
+        <StatCard label="Avg Job Value" value={formatCurrency(summary.avgJobValue)} color="text-blue-400" />
+      </div>
+      <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+        <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
+          <div className="grid grid-cols-[100px_1fr_1fr_1.5fr_90px_80px_90px] min-w-[800px] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+            <div>Date</div><div>Customer</div><div>Aircraft</div><div>Services</div>
+            <div className="text-right">Subtotal</div><div className="text-right">Fees</div><div className="text-right">Net</div>
           </div>
         </div>
-      )}
+        {rows.map((row, i) => (
+          <div key={i} className="grid grid-cols-[100px_1fr_1fr_1.5fr_90px_80px_90px] min-w-[800px] px-5 items-center border-b border-[#1A2236] hover:bg-white/[0.02]" style={{ height: '48px' }}>
+            <div className="text-xs text-[#8A9BB0]">{fmtDate(row.date)}</div>
+            <div className="text-sm text-white truncate pr-3">{row.customer || '—'}</div>
+            <div className="text-sm text-[#8A9BB0] truncate pr-3">{row.aircraft || '—'}</div>
+            <div className="text-xs text-[#8A9BB0] truncate pr-3" title={row.services}>{row.services || '—'}</div>
+            <div className="text-right text-sm text-v-text-primary font-data">{formatCurrency(row.subtotal)}</div>
+            <div className="text-right text-xs text-red-400 font-data">{formatCurrency(row.fees)}</div>
+            <div className="text-right text-sm text-[#C9A84C] font-data font-medium">{formatCurrency(row.total)}</div>
+          </div>
+        ))}
+        <div className="px-5 py-3 border-t border-[#1A2236] flex justify-between text-xs text-[#8A9BB0]">
+          <span>{rows.length} transactions</span>
+          <span className="text-[#C9A84C] font-data font-medium">Net: {formatCurrency(summary.netRevenue)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomerTable({ data }) {
+  if (!data?.rows?.length) return <EmptyState />;
+  const { rows, summary } = data;
+  return (
+    <div>
+      <div className="grid grid-cols-4 gap-3 mb-4">
+        <StatCard label="Total Customers" value={summary.totalCustomers} color="text-blue-400" />
+        <StatCard label="Active" value={summary.activeCustomers} color="text-green-400" />
+        <StatCard label="At Risk" value={summary.atRiskCustomers} color="text-amber-400" />
+        <StatCard label="Avg Lifetime Value" value={formatCurrency(summary.avgLifetimeValue)} color="text-v-gold" />
+      </div>
+      <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+        <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
+          <div className="grid grid-cols-[1fr_90px_60px_100px_80px] min-w-[600px] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+            <div>Customer</div><div className="text-right">Lifetime Value</div><div className="text-right">Quotes</div><div>Last Service</div><div>Status</div>
+          </div>
+        </div>
+        {rows.map((row, i) => {
+          const retColors = { Loyal: 'text-green-400 border-green-500/30', Active: 'text-blue-400 border-blue-500/30', 'At Risk': 'text-amber-400 border-amber-500/30', New: 'text-[#8A9BB0] border-gray-500/30' };
+          return (
+            <div key={i} className="grid grid-cols-[1fr_90px_60px_100px_80px] min-w-[600px] px-5 items-center border-b border-[#1A2236] hover:bg-white/[0.02]" style={{ height: '48px' }}>
+              <div className="truncate pr-3">
+                <span className="text-sm text-white">{row.name}</span>
+                {row.email && <span className="text-xs text-[#8A9BB0] ml-2">{row.email}</span>}
+              </div>
+              <div className="text-right text-sm text-[#C9A84C] font-data">{formatCurrency(row.totalValue)}</div>
+              <div className="text-right text-sm text-[#8A9BB0] font-data">{row.quoteCount}</div>
+              <div className="text-xs text-[#8A9BB0]">{row.lastServiceDate ? fmtDate(row.lastServiceDate) : '—'}</div>
+              <div>
+                <span className={`px-2 py-0.5 text-[10px] uppercase tracking-wider border rounded ${retColors[row.retention] || retColors.New}`}>
+                  {row.retention}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        <div className="px-5 py-3 border-t border-[#1A2236] text-xs text-[#8A9BB0]">{rows.length} customers</div>
+      </div>
+    </div>
+  );
+}
+
+function ServicesTable({ data }) {
+  if (!data?.rows?.length) return <EmptyState />;
+  const { rows, summary } = data;
+  const maxRevenue = Math.max(...rows.map(r => r.totalRevenue), 1);
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <StatCard label="Service Types" value={summary.totalServices} color="text-purple-400" />
+        <StatCard label="Total Bookings" value={summary.totalBookings} color="text-blue-400" />
+        <StatCard label="Top Service" value={summary.topService} color="text-v-gold" isText />
+      </div>
+      <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+        <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
+          <div className="grid grid-cols-[1fr_70px_70px_100px_90px_1fr] min-w-[700px] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+            <div>Service</div><div className="text-right">Booked</div><div className="text-right">Hours</div>
+            <div className="text-right">Revenue</div><div className="text-right">Avg Ticket</div><div></div>
+          </div>
+        </div>
+        {rows.map((row, i) => (
+          <div key={i} className="grid grid-cols-[1fr_70px_70px_100px_90px_1fr] min-w-[700px] px-5 items-center border-b border-[#1A2236] hover:bg-white/[0.02]" style={{ height: '48px' }}>
+            <div className="text-sm text-white font-medium truncate pr-3">{row.name}</div>
+            <div className="text-right text-sm text-[#8A9BB0] font-data">{row.timesBooked}</div>
+            <div className="text-right text-sm text-[#8A9BB0] font-data">{row.totalHours > 0 ? row.totalHours.toFixed(1) : '—'}</div>
+            <div className="text-right text-sm text-[#C9A84C] font-data">{formatCurrency(row.totalRevenue)}</div>
+            <div className="text-right text-sm text-[#8A9BB0] font-data">{formatCurrency(row.avgTicket)}</div>
+            <div className="pl-3">
+              <div className="h-2 bg-v-charcoal rounded-full overflow-hidden">
+                <div className="h-full bg-purple-500/60 rounded-full" style={{ width: `${(row.totalRevenue / maxRevenue) * 100}%` }} />
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="px-5 py-3 border-t border-[#1A2236] text-xs text-[#8A9BB0]">{rows.length} services</div>
+      </div>
+    </div>
+  );
+}
+
+function TaxTable({ data }) {
+  if (!data?.rows?.length) return <EmptyState />;
+  const { rows, summary } = data;
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <StatCard label="Gross Revenue" value={formatCurrency(summary.totalRevenue)} color="text-v-gold" />
+        <StatCard label="Platform Fees Paid" value={formatCurrency(summary.totalFees)} color="text-red-400" />
+        <StatCard label="Net Revenue" value={formatCurrency(summary.netRevenue)} color="text-green-400" />
+      </div>
+      <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+        <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
+          <div className="grid grid-cols-[1fr_80px_100px_90px_100px] min-w-[550px] px-5 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+            <div>Month</div><div className="text-right">Jobs</div><div className="text-right">Revenue</div>
+            <div className="text-right">Fees</div><div className="text-right">Net</div>
+          </div>
+        </div>
+        {rows.map((row, i) => (
+          <div key={i} className="grid grid-cols-[1fr_80px_100px_90px_100px] min-w-[550px] px-5 items-center border-b border-[#1A2236] hover:bg-white/[0.02]" style={{ height: '48px' }}>
+            <div className="text-sm text-white font-medium">{fmtMonth(row.month)}</div>
+            <div className="text-right text-sm text-[#8A9BB0] font-data">{row.jobCount}</div>
+            <div className="text-right text-sm text-v-text-primary font-data">{formatCurrency(row.revenue)}</div>
+            <div className="text-right text-xs text-red-400 font-data">{formatCurrency(row.fees)}</div>
+            <div className="text-right text-sm text-[#C9A84C] font-data font-medium">{formatCurrency(row.net)}</div>
+          </div>
+        ))}
+        {/* Totals row */}
+        <div className="grid grid-cols-[1fr_80px_100px_90px_100px] min-w-[550px] px-5 items-center border-t-2 border-[#C9A84C]/30 bg-v-charcoal/50" style={{ height: '48px' }}>
+          <div className="text-sm text-white font-bold">TOTAL</div>
+          <div className="text-right text-sm text-white font-data font-bold">{rows.reduce((s, r) => s + r.jobCount, 0)}</div>
+          <div className="text-right text-sm text-white font-data font-bold">{formatCurrency(summary.totalRevenue)}</div>
+          <div className="text-right text-sm text-red-400 font-data font-bold">{formatCurrency(summary.totalFees)}</div>
+          <div className="text-right text-sm text-[#C9A84C] font-data font-bold">{formatCurrency(summary.netRevenue)}</div>
+        </div>
+        <div className="px-5 py-3 border-t border-[#1A2236] text-xs text-[#8A9BB0]">{rows.length} months</div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, color, isText }) {
+  return (
+    <div className="bg-v-surface border border-v-border-subtle rounded-sm p-3 text-center">
+      <p className={`text-lg font-bold font-data ${color} ${isText ? 'text-sm truncate' : ''}`}>{value}</p>
+      <p className="text-[9px] text-v-text-secondary uppercase tracking-wider mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="bg-v-surface border border-v-border rounded-sm p-12 text-center">
+      <p className="text-v-text-secondary text-sm">No data for this report in the selected date range.</p>
     </div>
   );
 }
