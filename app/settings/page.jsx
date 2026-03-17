@@ -1459,7 +1459,7 @@ function SettingsContent() {
               <input
                 type="url"
                 value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
+                onChange={(e) => { setWebsiteUrl(e.target.value); markDirty('branding'); }}
                 placeholder="https://yourwebsite.com"
                 className="flex-1 bg-v-surface border border-v-border text-v-text-primary px-3 py-2 text-sm focus:border-v-gold focus:outline-none"
               />

@@ -22,7 +22,7 @@ export async function GET(request) {
 
     const { data } = await supabase
       .from('detailers')
-      .select('onboarding_complete, onboarding_step, company, name, phone, country, home_airport, logo_url, theme_primary, theme_colors, portal_theme')
+      .select('*')
       .eq('id', user.id)
       .single();
 

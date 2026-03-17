@@ -34,7 +34,7 @@ export async function GET(request) {
   // Fetch detailer info
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('id, name, email, phone, company, plan, pass_fee_to_customer, cc_fee_mode, quote_display_preference, stripe_account_id, preferred_currency, terms_pdf_url, terms_text, theme_primary, theme_accent, theme_bg, theme_surface, theme_logo_url, logo_url, font_heading, font_subheading, font_body, font_embed_url, portal_theme, disclaimer_text')
+    .select('*')
     .eq('id', quote.detailer_id)
     .single();
 
@@ -102,7 +102,7 @@ export async function GET(request) {
   }
 
   // Remove sensitive fields
-  const { stripe_account_id, ...detailerPublic } = detailer || {};
+  const { stripe_account_id, password_hash, ...detailerPublic } = detailer || {};
 
   return Response.json({
     quote,
