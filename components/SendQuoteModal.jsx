@@ -362,7 +362,8 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
         }
       }
 
-      const link = `${window.location.origin}/q/${share_link}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.vectorav.ai';
+      const link = `${appUrl}/q/${share_link}`;
 
       // Show warnings for any delivery failures
       const warnings = [];
