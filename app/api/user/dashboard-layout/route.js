@@ -15,11 +15,14 @@ export async function GET(request) {
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const supabase = getSupabase();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('detailers')
     .select('dashboard_layout')
     .eq('id', user.id)
     .single();
+
+  // If column doesn't exist yet, return null gracefully
+  if (error) return Response.json({ layout: null });
 
   return Response.json({ layout: data?.dashboard_layout || null });
 }
@@ -34,10 +37,11 @@ export async function POST(request) {
   }
 
   const supabase = getSupabase();
-  await supabase
+  const { error } = await supabase
     .from('detailers')
     .update({ dashboard_layout: body })
     .eq('id', user.id);
 
+  if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ success: true });
 }

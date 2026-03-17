@@ -1,20 +1,32 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import { WIDGET_COMPONENTS } from './widgets';
 import { WIDGET_REGISTRY } from './widgetRegistry';
 
 const ResponsiveGridLayout = dynamic(
-  () => import('react-grid-layout').then(mod => {
-    const RGL = mod.default || mod;
-    const Responsive = RGL.Responsive || mod.Responsive;
-    const WidthProvider = RGL.WidthProvider || mod.WidthProvider;
-    return WidthProvider(Responsive);
-  }),
+  () => import('react-grid-layout').then(mod => mod.ResponsiveGridLayout || mod.Responsive),
   { ssr: false, loading: () => <div className="animate-pulse h-96 bg-v-surface rounded-xl" /> }
 );
 
 export default function DashboardGrid({ layouts, activeWidgets, data, editMode, onLayoutChange, onRemoveWidget }) {
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(1200);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(containerRef.current);
+    setWidth(containerRef.current.offsetWidth);
+    return () => ro.disconnect();
+  }, []);
+
   const filteredLayouts = useMemo(() => {
     if (!layouts) return {};
     const result = {};
@@ -25,8 +37,10 @@ export default function DashboardGrid({ layouts, activeWidgets, data, editMode, 
   }, [layouts, activeWidgets]);
 
   return (
+    <div ref={containerRef}>
     <ResponsiveGridLayout
       className="layout"
+      width={width}
       layouts={filteredLayouts}
       breakpoints={{ lg: 1200, md: 768, sm: 0 }}
       cols={{ lg: 12, md: 6, sm: 1 }}
@@ -71,5 +85,6 @@ export default function DashboardGrid({ layouts, activeWidgets, data, editMode, 
         );
       })}
     </ResponsiveGridLayout>
+    </div>
   );
 }

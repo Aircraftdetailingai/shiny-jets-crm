@@ -21,13 +21,13 @@ export default function AnalyticsPage() {
     const token = localStorage.getItem('vector_token');
     if (!token) { router.push('/login'); return; }
 
-    // Fetch analytics data + saved layout in parallel
+    // Fetch analytics data + saved layout in parallel (each wrapped so one failure doesn't block the other)
     Promise.all([
-      fetch(`/api/analytics?days=${days}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch('/api/user/dashboard-layout', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`/api/analytics?days=${days}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+      fetch('/api/user/dashboard-layout', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]).then(([analyticsData, layoutData]) => {
-      setData(analyticsData);
-      if (layoutData.layout) {
+      if (analyticsData) setData(analyticsData);
+      if (layoutData?.layout) {
         setLayouts(layoutData.layout.layouts || DEFAULT_LAYOUTS);
         setActiveWidgets(layoutData.layout.activeWidgets || DEFAULT_ACTIVE_WIDGETS);
       }
