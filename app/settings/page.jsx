@@ -1209,7 +1209,7 @@ function SettingsContent() {
           await saveTheme({ ...selectedTheme, logo_url: logoUrl });
           // Save portal_theme, disclaimer, and fonts in one call
           const token = localStorage.getItem('vector_token');
-          const extraFields = { portal_theme: portalTheme, disclaimer_text: disclaimerText };
+          const extraFields = { portal_theme: portalTheme, disclaimer_text: disclaimerText, website_url: websiteUrl || null, logo_url: logoUrl || null };
           if (pendingFonts) {
             extraFields.font_heading = pendingFonts.heading;
             extraFields.font_subheading = pendingFonts.subheading;

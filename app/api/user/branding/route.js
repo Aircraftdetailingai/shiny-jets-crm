@@ -16,9 +16,12 @@ export async function GET(request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const supabase = getSupabase();
+
+    // Use select('*') so the query doesn't fail if newer columns
+    // (portal_theme, disclaimer_text, theme_colors, etc.) don't exist yet.
     const { data, error } = await supabase
       .from('detailers')
-      .select('logo_url, theme_primary, theme_accent, theme_bg, theme_surface, theme_logo_url, website_url, font_heading, font_subheading, font_body, font_embed_url, theme_colors, portal_theme, disclaimer_text')
+      .select('*')
       .eq('id', user.id)
       .single();
 
@@ -55,6 +58,9 @@ export async function POST(request) {
     const body = await request.json();
     const updates = {};
 
+    if (body.logo_url !== undefined) {
+      updates.logo_url = body.logo_url || null;
+    }
     if (body.theme_primary !== undefined) {
       if (!HEX_RE.test(body.theme_primary)) return Response.json({ error: 'Invalid theme_primary hex' }, { status: 400 });
       updates.theme_primary = body.theme_primary;
