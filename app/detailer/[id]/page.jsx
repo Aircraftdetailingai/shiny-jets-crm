@@ -30,7 +30,7 @@ export default function DetailerProfilePage() {
   const renderStars = (rating, size = 'w-5 h-5') => (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(s => (
-        <svg key={s} className={`${size} ${s <= Math.round(rating) ? 'text-amber-400' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
+        <svg key={s} className={`${size} ${s <= Math.round(rating) ? 'text-v-gold' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
       ))}
@@ -50,7 +50,7 @@ export default function DetailerProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -61,7 +61,7 @@ export default function DetailerProfilePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white mb-2">Detailer Not Found</h1>
           <p className="text-gray-400 mb-6">This profile is not available.</p>
-          <a href="/find-a-detailer" className="text-amber-400 hover:text-amber-300 text-sm">Browse all detailers</a>
+          <a href="/find-a-detailer" className="text-v-gold hover:text-v-gold text-sm">Browse all detailers</a>
         </div>
       </div>
     );
@@ -90,7 +90,7 @@ export default function DetailerProfilePage() {
             {detailer?.logoUrl ? (
               <img src={detailer.logoUrl} alt="" className="w-16 h-16 rounded-lg object-contain bg-white/5 p-1" />
             ) : (
-              <div className="w-16 h-16 rounded-lg bg-amber-500/10 flex items-center justify-center text-2xl">
+              <div className="w-16 h-16 rounded-lg bg-v-gold/10 flex items-center justify-center text-2xl">
                 {'\u2708\uFE0F'}
               </div>
             )}
@@ -103,7 +103,7 @@ export default function DetailerProfilePage() {
               {stats?.total > 0 && (
                 <div className="flex items-center gap-2 mt-3">
                   {renderStars(stats.avgRating)}
-                  <span className="text-amber-400 font-semibold">{stats.avgRating}</span>
+                  <span className="text-v-gold font-semibold">{stats.avgRating}</span>
                   <span className="text-gray-500 text-sm">({stats.total} review{stats.total !== 1 ? 's' : ''})</span>
                 </div>
               )}
@@ -112,7 +112,7 @@ export default function DetailerProfilePage() {
           <div className="mt-5">
             <a
               href={`/quote-request/${id}`}
-              className="inline-block px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+              className="inline-block px-6 py-2.5 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
             >
               Request a Quote
             </a>

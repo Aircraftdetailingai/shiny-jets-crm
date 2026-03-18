@@ -24,7 +24,7 @@ export default function OfflineBanner() {
   if (!offline || dismissed) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[110] bg-amber-500 text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
+    <div className="fixed top-0 left-0 right-0 z-[110] bg-v-gold text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
       <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M12 12h.01" />
       </svg>

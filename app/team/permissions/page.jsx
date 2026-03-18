@@ -142,7 +142,7 @@ export default function TeamPermissionsPage() {
             className={`px-6 py-2 rounded-lg font-medium transition-all text-sm ${
               saved
                 ? 'bg-green-900/200 text-white'
-                : 'bg-amber-900/200 text-white hover:bg-amber-600 disabled:opacity-50'
+                : 'bg-v-gold-muted/200 text-white hover:bg-v-gold-dim disabled:opacity-50'
             }`}
           >
             {saving ? 'Saving...' : saved ? 'Settings saved' : 'Save'}
@@ -163,7 +163,7 @@ export default function TeamPermissionsPage() {
               {ROLES.map(role => (
                 <th key={role.value} className="px-3 py-3 text-center text-sm font-semibold text-v-text-secondary">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                    role.value === 'owner' ? 'bg-amber-900/30 text-amber-400' :
+                    role.value === 'owner' ? 'bg-v-gold-muted/30 text-v-gold' :
                     role.value === 'manager' ? 'bg-indigo-900/30 text-indigo-400' :
                     role.value === 'lead_tech' ? 'bg-cyan-900/30 text-cyan-400' :
                     role.value === 'contractor' ? 'bg-purple-900/30 text-purple-400' :
@@ -241,7 +241,7 @@ export default function TeamPermissionsPage() {
           {ROLES.map(role => (
             <div key={role.value} className="flex items-start gap-2">
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
-                role.value === 'owner' ? 'bg-amber-900/30 text-amber-400' :
+                role.value === 'owner' ? 'bg-v-gold-muted/30 text-v-gold' :
                 role.value === 'manager' ? 'bg-indigo-900/30 text-indigo-400' :
                 role.value === 'lead_tech' ? 'bg-cyan-900/30 text-cyan-400' :
                 role.value === 'contractor' ? 'bg-purple-900/30 text-purple-400' :

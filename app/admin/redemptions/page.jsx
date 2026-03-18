@@ -148,7 +148,7 @@ export default function RedemptionsPage() {
                 key={s}
                 onClick={() => handleFilterChange(s)}
                 className={`px-3 py-2 text-sm capitalize ${
-                  statusFilter === s ? 'bg-amber-500/10 text-amber-500 font-medium' : 'text-v-text-secondary hover:bg-white/5'
+                  statusFilter === s ? 'bg-v-gold/10 text-v-gold font-medium' : 'text-v-text-secondary hover:bg-white/5'
                 }`}
               >
                 {s}
@@ -218,7 +218,7 @@ export default function RedemptionsPage() {
                       <div className="text-xs text-v-text-secondary">{r.detailers?.company || r.detailers?.email}</div>
                     </td>
                     <td className="px-4 py-3 text-v-text-primary">{r.reward_name}</td>
-                    <td className="px-4 py-3 font-medium text-amber-500">{r.points_spent?.toLocaleString()}</td>
+                    <td className="px-4 py-3 font-medium text-v-gold">{r.points_spent?.toLocaleString()}</td>
                     <td className="px-4 py-3 text-v-text-secondary">{new Date(r.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[r.status] || STATUS_STYLES.pending}`}>

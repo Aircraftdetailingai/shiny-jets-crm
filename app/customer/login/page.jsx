@@ -116,7 +116,7 @@ export default function CustomerLoginPage() {
                 <button
                   type="submit"
                   disabled={loading || !email}
-                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
+                  className="w-full py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {loading ? 'Sending...' : 'Send Login Code'}
                 </button>
@@ -159,7 +159,7 @@ export default function CustomerLoginPage() {
                 <button
                   type="submit"
                   disabled={loading || code.length !== 6}
-                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
+                  className="w-full py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {loading ? 'Verifying...' : 'Login'}
                 </button>
@@ -168,7 +168,7 @@ export default function CustomerLoginPage() {
               <div className="mt-4 text-center">
                 <button
                   onClick={() => setStep('email')}
-                  className="text-amber-600 hover:underline text-sm"
+                  className="text-v-gold-dim hover:underline text-sm"
                 >
                   Use a different email
                 </button>

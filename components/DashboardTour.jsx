@@ -201,7 +201,7 @@ export default function DashboardTour({ onComplete }) {
       {/* Highlight ring */}
       {targetRect && (
         <div
-          className="absolute border-2 border-amber-400 rounded-xl pointer-events-none animate-pulse"
+          className="absolute border-2 border-v-gold rounded-xl pointer-events-none animate-pulse"
           style={{
             top: targetRect.top - padding,
             left: targetRect.left - padding,
@@ -224,7 +224,7 @@ export default function DashboardTour({ onComplete }) {
             <div
               key={i}
               className={`h-1.5 rounded-full transition-all ${
-                i === step ? 'w-6 bg-amber-500' : i < step ? 'w-3 bg-amber-500/50' : 'w-3 bg-white/20'
+                i === step ? 'w-6 bg-v-gold' : i < step ? 'w-3 bg-v-gold/50' : 'w-3 bg-white/20'
               }`}
             />
           ))}
@@ -252,7 +252,7 @@ export default function DashboardTour({ onComplete }) {
             )}
             <button
               onClick={nextStep}
-              className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-400 transition-colors"
+              className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-v-gold text-white hover:bg-v-gold transition-colors"
             >
               {isLast ? 'Finish' : 'Next'}
             </button>

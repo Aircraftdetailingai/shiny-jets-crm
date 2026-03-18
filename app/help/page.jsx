@@ -88,7 +88,7 @@ function FAQAccordion({ items }) {
             onClick={() => setOpenIndex(openIndex === i ? null : i)}
             className="w-full flex items-center justify-between py-4 text-left group"
           >
-            <span className="text-sm font-medium text-white group-hover:text-amber-400 transition-colors pr-4">{item.q}</span>
+            <span className="text-sm font-medium text-white group-hover:text-v-gold transition-colors pr-4">{item.q}</span>
             <svg
               className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${openIndex === i ? 'rotate-180' : ''}`}
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -162,7 +162,7 @@ export default function HelpPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.key
-                  ? 'bg-amber-500 text-white'
+                  ? 'bg-v-gold text-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -182,7 +182,7 @@ export default function HelpPage() {
                   onClick={() => setFaqCategory(i)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                     faqCategory === i
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      ? 'bg-v-gold/20 text-v-gold border border-v-gold/30'
                       : 'bg-white/5 text-gray-400 border border-white/10 hover:text-white'
                   }`}
                 >
@@ -204,7 +204,7 @@ export default function HelpPage() {
               <p className="text-gray-400 text-sm">Follow these guides to set up {'Vector'} and start sending professional quotes.</p>
               <button
                 onClick={() => { restartTour(); window.location.href = '/dashboard'; }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors whitespace-nowrap ml-4"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-v-gold/10 text-v-gold border border-v-gold/20 hover:bg-v-gold/20 transition-colors whitespace-nowrap ml-4"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 Restart Tour
@@ -215,16 +215,16 @@ export default function HelpPage() {
                 <a
                   key={i}
                   href={guide.link}
-                  className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-amber-500/50 transition-colors group block"
+                  className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-v-gold/50 transition-colors group block"
                 >
                   <div className="flex items-start gap-3">
                     <span className="text-2xl">{guide.icon}</span>
                     <div>
-                      <h3 className="text-white font-medium text-sm group-hover:text-amber-400 transition-colors">{guide.title}</h3>
+                      <h3 className="text-white font-medium text-sm group-hover:text-v-gold transition-colors">{guide.title}</h3>
                       <p className="text-gray-400 text-xs mt-1 leading-relaxed">{guide.description}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center gap-1 text-xs text-amber-500 font-medium">
+                  <div className="mt-3 flex items-center gap-1 text-xs text-v-gold font-medium">
                     <span>Start guide</span>
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -247,8 +247,8 @@ export default function HelpPage() {
                   className="bg-white/5 border border-white/10 rounded-xl overflow-hidden group"
                 >
                   <div className="aspect-video bg-white/[0.03] flex items-center justify-center relative">
-                    <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
-                      <svg className="w-6 h-6 text-white/60 group-hover:text-amber-400 transition-colors ml-1" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-v-gold/20 transition-colors">
+                      <svg className="w-6 h-6 text-white/60 group-hover:text-v-gold transition-colors ml-1" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
@@ -256,7 +256,7 @@ export default function HelpPage() {
                   </div>
                   <div className="p-3">
                     <h3 className="text-white text-sm font-medium">{video.title}</h3>
-                    <p className="text-amber-500 text-xs mt-1">Coming soon</p>
+                    <p className="text-v-gold text-xs mt-1">Coming soon</p>
                   </div>
                 </div>
               ))}
@@ -314,7 +314,7 @@ export default function HelpPage() {
                 <p className="text-gray-400 text-sm mb-4">We&apos;ll get back to you within 24 hours.</p>
                 <button
                   onClick={() => setSent(false)}
-                  className="text-amber-500 text-sm font-medium hover:text-amber-400"
+                  className="text-v-gold text-sm font-medium hover:text-v-gold"
                 >
                   Send another message
                 </button>
@@ -332,7 +332,7 @@ export default function HelpPage() {
                     value={contactForm.subject}
                     onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                     placeholder="What do you need help with?"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-amber-500/50"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-v-gold/50"
                     required
                   />
                 </div>
@@ -343,19 +343,19 @@ export default function HelpPage() {
                     onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
                     placeholder="Describe your question or issue..."
                     rows={5}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-amber-500/50 resize-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-gray-500 focus:outline-none focus:border-v-gold/50 resize-none"
                     required
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">
                     Or email us at{' '}
-                    <a href="mailto:support@vectorav.ai" className="text-amber-500 hover:underline">support@vectorav.ai</a>
+                    <a href="mailto:support@vectorav.ai" className="text-v-gold hover:underline">support@vectorav.ai</a>
                   </p>
                   <button
                     type="submit"
                     disabled={sending}
-                    className="px-5 py-2.5 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                    className="px-5 py-2.5 bg-v-gold text-white rounded-lg font-medium text-sm hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
                   >
                     {sending ? 'Sending...' : 'Send' + ' Message'}
                   </button>
@@ -369,7 +369,7 @@ export default function HelpPage() {
         <div className="mt-8 pt-6 border-t border-white/10 text-center">
           <p className="text-gray-500 text-xs">
             Need immediate help? Email{' '}
-            <a href="mailto:support@vectorav.ai" className="text-amber-500 hover:underline">support@vectorav.ai</a>
+            <a href="mailto:support@vectorav.ai" className="text-v-gold hover:underline">support@vectorav.ai</a>
           </p>
         </div>
       </div>

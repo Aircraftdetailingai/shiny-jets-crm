@@ -184,7 +184,7 @@ export default function TimeLogPage() {
                 pattern="[0-9]*"
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="text-center text-3xl tracking-[0.5em] w-48 px-4 py-3 border-2 border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                className="text-center text-3xl tracking-[0.5em] w-48 px-4 py-3 border-2 border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                 placeholder="----"
                 autoFocus
                 required
@@ -194,7 +194,7 @@ export default function TimeLogPage() {
             <button
               type="submit"
               disabled={loading || pin.length < 4}
-              className="w-full py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-lg disabled:opacity-50"
+              className="w-full py-3 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium text-lg disabled:opacity-50"
             >
               {loading ? 'Checking...' : 'Continue'}
             </button>
@@ -272,7 +272,7 @@ export default function TimeLogPage() {
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                     required
-                    className="w-full px-3 py-3 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-lg"
+                    className="w-full px-3 py-3 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none text-lg"
                   />
                 </div>
 
@@ -286,7 +286,7 @@ export default function TimeLogPage() {
                     value={form.hours_worked}
                     onChange={(e) => setForm({ ...form, hours_worked: e.target.value })}
                     required
-                    className="w-full px-3 py-3 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-lg"
+                    className="w-full px-3 py-3 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none text-lg"
                     placeholder="0.00"
                   />
                   <div className="flex gap-2 mt-2">
@@ -308,7 +308,7 @@ export default function TimeLogPage() {
                   <select
                     value={form.service_type}
                     onChange={(e) => setForm({ ...form, service_type: e.target.value })}
-                    className="w-full px-3 py-3 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                    className="w-full px-3 py-3 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                   >
                     <option value="">Select service...</option>
                     <option value="Exterior Wash">Exterior Wash</option>
@@ -327,7 +327,7 @@ export default function TimeLogPage() {
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                    className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                     placeholder="Optional notes about the work"
                   />
                 </div>
@@ -335,7 +335,7 @@ export default function TimeLogPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-lg disabled:opacity-50"
+                  className="w-full py-3 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium text-lg disabled:opacity-50"
                 >
                   {loading ? 'Logging...' : 'Log Time'}
                 </button>

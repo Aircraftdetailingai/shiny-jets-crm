@@ -5,7 +5,7 @@ import { formatPrice } from '@/lib/formatPrice';
 
 const statusColors = {
   scheduled: 'bg-blue-500',
-  in_progress: 'bg-amber-500',
+  in_progress: 'bg-v-gold',
   paid: 'bg-green-500',
   completed: 'bg-purple-500',
 };
@@ -222,7 +222,7 @@ export default function CalendarPage() {
       {/* Header */}
       <header className="flex justify-between items-center mb-4 text-white">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-amber-400">&larr;</a>
+          <a href="/dashboard" className="text-2xl hover:text-v-gold">&larr;</a>
           <h1 className="text-2xl font-bold">Calendar</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ export default function CalendarPage() {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-xs font-medium capitalize ${view === v ? 'bg-amber-500 text-white' : 'text-v-text-secondary hover:bg-white/5'}`}
+                className={`px-3 py-1.5 text-xs font-medium capitalize ${view === v ? 'bg-v-gold text-white' : 'text-v-text-secondary hover:bg-white/5'}`}
               >
                 {v}
               </button>
@@ -282,7 +282,7 @@ export default function CalendarPage() {
                       }`}
                     >
                       <div className={`text-sm font-medium mb-1 ${
-                        isToday ? 'bg-amber-500 text-white w-6 h-6 rounded-full flex items-center justify-center'
+                        isToday ? 'bg-v-gold text-white w-6 h-6 rounded-full flex items-center justify-center'
                           : day.isCurrentMonth ? 'text-v-text-primary' : 'text-v-text-secondary/40'
                       }`}>
                         {day.date.getDate()}
@@ -317,7 +317,7 @@ export default function CalendarPage() {
                   return (
                     <div key={i} className="p-2 text-center border-r border-v-border last:border-r-0">
                       <div className="text-xs text-v-text-secondary">{weekDays[i]}</div>
-                      <div className={`text-lg font-medium ${isToday ? 'text-amber-500' : 'text-v-text-primary'}`}>{d.getDate()}</div>
+                      <div className={`text-lg font-medium ${isToday ? 'text-v-gold' : 'text-v-text-primary'}`}>{d.getDate()}</div>
                     </div>
                   );
                 })}
@@ -448,8 +448,8 @@ export default function CalendarPage() {
               <div><p className="text-xs text-v-text-secondary">Total</p><p className="font-semibold text-lg text-green-400">${formatPrice(selectedJob.total_price)}</p></div>
             </div>
             <div className="flex gap-2 mt-6">
-              <button onClick={() => { setScheduleModal(selectedJob); setSelectedJob(null); }} className="flex-1 py-2 border border-amber-500 text-amber-500 rounded hover:bg-amber-900/20 text-sm">Reschedule</button>
-              <a href={`/q/${selectedJob.share_link}`} target="_blank" className="flex-1 py-2 bg-amber-500 text-white rounded text-center hover:bg-amber-600 text-sm">View Quote</a>
+              <button onClick={() => { setScheduleModal(selectedJob); setSelectedJob(null); }} className="flex-1 py-2 border border-v-gold text-v-gold rounded hover:bg-v-gold-muted/20 text-sm">Reschedule</button>
+              <a href={`/q/${selectedJob.share_link}`} target="_blank" className="flex-1 py-2 bg-v-gold text-white rounded text-center hover:bg-v-gold-dim text-sm">View Quote</a>
             </div>
           </div>
         </div>
@@ -476,7 +476,7 @@ export default function CalendarPage() {
             </div>
             <div className="flex gap-2 mt-6">
               <button onClick={() => setScheduleModal(null)} className="flex-1 py-2 border border-v-border rounded hover:bg-white/5 text-v-text-secondary text-sm">Cancel</button>
-              <button onClick={handleScheduleJob} disabled={!scheduleDate} className="flex-1 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 text-sm">Schedule</button>
+              <button onClick={handleScheduleJob} disabled={!scheduleDate} className="flex-1 py-2 bg-v-gold text-white rounded hover:bg-v-gold-dim disabled:opacity-50 text-sm">Schedule</button>
             </div>
           </div>
         </div>

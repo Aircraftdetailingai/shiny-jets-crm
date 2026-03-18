@@ -17,7 +17,7 @@ const ADMIN_NAV = [
 
 const STATUS_COLORS = {
   free: 'bg-gray-700/30 text-gray-300',
-  pro: 'bg-amber-900/30 text-amber-400',
+  pro: 'bg-v-gold-muted/30 text-v-gold',
   business: 'bg-blue-900/30 text-blue-400',
   enterprise: 'bg-purple-900/30 text-purple-400',
 };
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
             { label: 'Total Detailers', value: metrics.totalDetailers, color: 'text-v-text-primary' },
             { label: 'Active (30d)', value: metrics.activeDetailers, color: 'text-green-400' },
             { label: 'MRR', value: `$${formatPriceWhole(metrics.mrr)}`, color: 'text-blue-400' },
-            { label: 'Platform Fees (month)', value: `$${formatPriceWhole(metrics.platformFeesMonth)}`, color: 'text-amber-400' },
+            { label: 'Platform Fees (month)', value: `$${formatPriceWhole(metrics.platformFeesMonth)}`, color: 'text-v-gold' },
           ].map(m => (
             <div key={m.label} className="bg-v-surface border border-v-border rounded-sm p-4">
               <p className="text-xs text-v-text-secondary uppercase tracking-wide">{m.label}</p>
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
               {[
                 { label: 'Total Issued', value: points.issued.toLocaleString(), color: 'text-blue-400' },
                 { label: 'Redeemed', value: points.redeemed.toLocaleString(), color: 'text-green-400' },
-                { label: 'Outstanding', value: points.outstanding.toLocaleString(), color: 'text-amber-400' },
+                { label: 'Outstanding', value: points.outstanding.toLocaleString(), color: 'text-v-gold' },
                 { label: 'Avg Per User', value: points.avgPerUser.toLocaleString(), color: 'text-v-text-secondary' },
               ].map(s => (
                 <div key={s.label}>
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.key
-                      ? 'border-amber-500 text-amber-500'
+                      ? 'border-v-gold text-v-gold'
                       : 'border-transparent text-v-text-secondary hover:text-v-text-primary'
                   }`}
                 >
@@ -270,7 +270,7 @@ export default function AdminDashboard() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           q.status === 'paid' ? 'bg-green-900/30 text-green-400'
                           : q.status === 'sent' ? 'bg-blue-900/30 text-blue-400'
-                          : q.status === 'accepted' ? 'bg-amber-900/30 text-amber-400'
+                          : q.status === 'accepted' ? 'bg-v-gold-muted/30 text-v-gold'
                           : 'bg-gray-700/30 text-gray-300'
                         }`}>
                           {q.status || 'draft'}
@@ -304,7 +304,7 @@ export default function AdminDashboard() {
                       <td className="py-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           r.status === 'completed' ? 'bg-green-900/30 text-green-400'
-                          : r.status === 'pending' ? 'bg-amber-900/30 text-amber-400'
+                          : r.status === 'pending' ? 'bg-v-gold-muted/30 text-v-gold'
                           : r.status === 'cancelled' ? 'bg-red-900/30 text-red-400'
                           : 'bg-blue-900/30 text-blue-400'
                         }`}>

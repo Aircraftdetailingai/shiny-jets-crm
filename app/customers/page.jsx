@@ -621,7 +621,7 @@ export default function CustomersPage() {
               type="checkbox"
               checked={selectedIds.size === filteredCustomers.length}
               onChange={toggleSelectAll}
-              className="w-4 h-4 rounded border-v-border accent-amber-500 cursor-pointer mr-3"
+              className="w-4 h-4 rounded border-v-border accent-v-gold cursor-pointer mr-3"
             />
             <span className="text-sm font-medium text-v-text-primary">{selectedIds.size} selected</span>
             <button
@@ -686,7 +686,7 @@ export default function CustomersPage() {
               <button
                 type="button"
                 onClick={moveToVip}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10 rounded transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-v-gold/70 hover:text-v-gold hover:bg-v-gold/10 rounded transition-colors cursor-pointer"
                 title="Mark as VIP"
               >
                 <svg className="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
@@ -728,7 +728,7 @@ export default function CustomersPage() {
                   type="checkbox"
                   checked={filteredCustomers.length > 0 && selectedIds.size === filteredCustomers.length}
                   onChange={toggleSelectAll}
-                  className="w-4 h-4 rounded border-v-border text-v-gold cursor-pointer accent-amber-500"
+                  className="w-4 h-4 rounded border-v-border text-v-gold cursor-pointer accent-v-gold"
                 />
               </div>
               <div className="col-span-4 cursor-pointer select-none hover:text-v-text-primary" onClick={() => handleSort('name')}>
@@ -824,7 +824,7 @@ export default function CustomersPage() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(customer.id)}
-                          className="w-4 h-4 mt-1 accent-amber-500 flex-shrink-0"
+                          className="w-4 h-4 mt-1 accent-v-gold flex-shrink-0"
                         />
                       )}
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => customer.id && router.push(`/customers/${customer.id}`)}>
@@ -851,7 +851,7 @@ export default function CustomersPage() {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelect(customer.id)}
-                            className={`w-4 h-4 rounded border-v-border accent-amber-500 cursor-pointer transition-opacity duration-150 ${
+                            className={`w-4 h-4 rounded border-v-border accent-v-gold cursor-pointer transition-opacity duration-150 ${
                               hasSelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                             }`}
                           />

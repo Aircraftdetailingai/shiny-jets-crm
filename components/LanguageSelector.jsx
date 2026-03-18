@@ -26,7 +26,7 @@ export default function LanguageSelector({ variant = 'dropdown', className = '' 
             onClick={() => setLang(l.code)}
             className={`px-2 py-1 rounded text-sm transition-colors ${
               lang === l.code
-                ? 'bg-amber-500 text-white'
+                ? 'bg-v-gold text-white'
                 : 'bg-white/10 text-white/70 hover:bg-white/20'
             }`}
             title={l.label}
@@ -57,12 +57,12 @@ export default function LanguageSelector({ variant = 'dropdown', className = '' 
               key={l.code}
               onClick={() => { setLang(l.code); setOpen(false); }}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                lang === l.code ? 'bg-amber-50 text-amber-700 font-medium' : 'text-gray-700'
+                lang === l.code ? 'bg-v-gold/5 text-v-gold-dim font-medium' : 'text-gray-700'
               }`}
             >
               <span>{l.flag}</span>
               <span>{l.label}</span>
-              {lang === l.code && <span className="ml-auto text-amber-500">&#10003;</span>}
+              {lang === l.code && <span className="ml-auto text-v-gold">&#10003;</span>}
             </button>
           ))}
         </div>

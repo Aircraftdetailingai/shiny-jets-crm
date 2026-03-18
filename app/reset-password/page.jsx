@@ -52,7 +52,7 @@ function ResetPasswordContent() {
           <p className="text-gray-600 mb-4">This password reset link is invalid or has expired.</p>
           <a
             href="/forgot-password"
-            className="inline-block px-6 py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90"
+            className="inline-block px-6 py-2 rounded-md text-white font-medium bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90"
           >
             Request New Link
           </a>
@@ -78,7 +78,7 @@ function ResetPasswordContent() {
             <p className="text-gray-600 mb-6">Your password has been reset successfully. You can now sign in with your new password.</p>
             <a
               href="/login"
-              className="inline-block w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90 text-center"
+              className="inline-block w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90 text-center"
             >
               {'Sign In'}
             </a>
@@ -117,7 +117,7 @@ function ResetPasswordContent() {
               </div>
               <button
                 type="submit"
-                className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90 disabled:opacity-50"
+                className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90 disabled:opacity-50"
                 disabled={loading || password.length < 8 || password !== confirmPassword}
               >
                 {loading ? 'Resetting...' : 'Reset Password'}

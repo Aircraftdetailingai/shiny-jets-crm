@@ -261,7 +261,7 @@ function IntegrationsContent() {
             <button
               onClick={handleImportCustomers}
               disabled={importing}
-              className="w-full px-4 py-2.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 font-semibold text-sm mb-2"
+              className="w-full px-4 py-2.5 rounded-lg bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50 font-semibold text-sm mb-2"
             >
               {importing ? 'Importing customers...' : 'Import Customers from QuickBooks'}
             </button>

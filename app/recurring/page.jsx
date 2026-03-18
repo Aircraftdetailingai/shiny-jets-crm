@@ -6,7 +6,7 @@ import { formatPrice, formatPriceWhole, currencySymbol } from '@/lib/formatPrice
 const statusColors = {
   draft: 'bg-v-charcoal text-v-text-secondary',
   sent: 'bg-blue-900/30 text-blue-400',
-  viewed: 'bg-amber-900/30 text-amber-400',
+  viewed: 'bg-v-gold-muted/30 text-v-gold',
   paid: 'bg-green-900/30 text-green-400',
   approved: 'bg-green-900/30 text-green-400',
   completed: 'bg-purple-900/30 text-purple-400',
@@ -193,7 +193,7 @@ export default function RecurringPage() {
             onClick={() => { setFilter(f); setLoading(true); }}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               filter === f
-                ? 'bg-amber-900/200 text-white'
+                ? 'bg-v-gold-muted/200 text-white'
                 : 'bg-white/10 text-white/70 hover:bg-white/20'
             }`}
           >
@@ -204,8 +204,8 @@ export default function RecurringPage() {
 
       {/* Upcoming This Week */}
       {upcomingThisWeek.length > 0 && (
-        <div className="bg-amber-900/200/20 border border-amber-500/30 rounded-lg p-4 mb-4">
-          <h3 className="text-amber-300 font-medium text-sm mb-2">{'Upcoming This Week'}</h3>
+        <div className="bg-v-gold-muted/200/20 border border-v-gold/30 rounded-lg p-4 mb-4">
+          <h3 className="text-v-gold font-medium text-sm mb-2">{'Upcoming This Week'}</h3>
           <div className="space-y-2">
             {upcomingThisWeek.map(r => (
               <div key={r.id} className="flex items-center justify-between text-white text-sm">
@@ -234,7 +234,7 @@ export default function RecurringPage() {
           </p>
           <a
             href="/dashboard"
-            className="px-6 py-3 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium inline-block"
+            className="px-6 py-3 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium inline-block"
           >
             {'Create a Quote'}
           </a>
@@ -270,7 +270,7 @@ export default function RecurringPage() {
                     value={item.recurring_interval || 'monthly'}
                     onChange={(e) => updateInterval(item.id, e.target.value)}
                     disabled={updating === item.id}
-                    className="w-full px-2 py-1.5 border border-v-border rounded text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="w-full px-2 py-1.5 border border-v-border rounded text-sm focus:ring-2 focus:ring-v-gold outline-none"
                   >
                     <option value="weekly">{'Weekly'}</option>
                     <option value="biweekly">{'Every 2 weeks'}</option>
@@ -289,7 +289,7 @@ export default function RecurringPage() {
                     value={item.next_service_date || ''}
                     onChange={(e) => updateNextDate(item.id, e.target.value)}
                     disabled={updating === item.id}
-                    className="w-full px-2 py-1.5 border border-v-border rounded text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="w-full px-2 py-1.5 border border-v-border rounded text-sm focus:ring-2 focus:ring-v-gold outline-none"
                   />
                 </div>
 
@@ -317,7 +317,7 @@ export default function RecurringPage() {
                 </span>
                 <a
                   href={`/quotes/${item.id}`}
-                  className="text-amber-600 hover:underline"
+                  className="text-v-gold-dim hover:underline"
                 >
                   {'View Quote'}
                 </a>

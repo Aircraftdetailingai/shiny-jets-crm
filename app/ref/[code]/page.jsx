@@ -52,7 +52,7 @@ export default function ReferralLandingPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <a
             href="/"
-            className="inline-block px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
           >
             Visit Vector
           </a>
@@ -85,7 +85,7 @@ export default function ReferralLandingPage() {
 
         <a
           href="/login"
-          className="block w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 transition-opacity mb-3"
+          className="block w-full py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl text-lg hover:opacity-90 transition-opacity mb-3"
         >
           Get Started Free
         </a>

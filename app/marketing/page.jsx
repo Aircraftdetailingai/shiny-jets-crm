@@ -10,7 +10,7 @@ const SEGMENTS = [
 ];
 
 const TEMPLATES = [
-  { value: 'promotional', label: 'Promotional', color: 'bg-amber-900/30 text-amber-400', desc: 'Sales, discounts, new services' },
+  { value: 'promotional', label: 'Promotional', color: 'bg-v-gold-muted/30 text-v-gold', desc: 'Sales, discounts, new services' },
   { value: 'seasonal', label: 'Seasonal', color: 'bg-green-900/30 text-green-400', desc: 'Holiday, seasonal offers' },
   { value: 'follow-up', label: 'Follow-Up', color: 'bg-blue-900/30 text-blue-400', desc: 'Check-ins, re-engagement' },
   { value: 'newsletter', label: 'Newsletter', color: 'bg-purple-900/30 text-purple-400', desc: 'Updates, tips, news' },
@@ -20,7 +20,7 @@ const STATUS_COLORS = {
   draft: 'bg-v-charcoal text-v-text-secondary',
   scheduled: 'bg-blue-900/30 text-blue-400',
   sent: 'bg-green-900/30 text-green-400',
-  sending: 'bg-amber-900/30 text-amber-400',
+  sending: 'bg-v-gold-muted/30 text-v-gold',
 };
 
 const TEMPLATE_STARTERS = {

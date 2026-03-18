@@ -6,7 +6,7 @@ import { formatPrice, formatPriceWhole, currencySymbol } from '@/lib/formatPrice
 const COMMISSION_TIERS = [
   { key: 'basic', name: 'Basic', rate: '10%', color: 'bg-gray-700/30 text-gray-300' },
   { key: 'pro', name: 'Pro', rate: '25%', color: 'bg-v-gold/10 text-v-gold' },
-  { key: 'partner', name: 'Partner', rate: '60%', color: 'bg-amber-900/30 text-amber-400' },
+  { key: 'partner', name: 'Partner', rate: '60%', color: 'bg-v-gold-muted/30 text-v-gold' },
 ];
 
 export default function AdminVendorsPage() {
@@ -121,7 +121,7 @@ export default function AdminVendorsPage() {
     return (
       <div className="min-h-screen bg-v-charcoal flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto"></div>
+          <div className="animate-spin w-8 h-8 border-4 border-v-gold border-t-transparent rounded-full mx-auto"></div>
           <p className="mt-4 text-v-text-secondary">Loading admin panel...</p>
         </div>
       </div>
@@ -177,7 +177,7 @@ export default function AdminVendorsPage() {
           </div>
           <div className="bg-v-surface border border-v-border rounded-sm p-4">
             <p className="text-sm text-v-text-secondary">Pending Approval</p>
-            <p className="text-2xl font-bold text-amber-600">{pendingVendors.length}</p>
+            <p className="text-2xl font-bold text-v-gold-dim">{pendingVendors.length}</p>
           </div>
           <div className="bg-v-surface border border-v-border rounded-sm p-4">
             <p className="text-sm text-v-text-secondary">Total Revenue</p>
@@ -185,7 +185,7 @@ export default function AdminVendorsPage() {
           </div>
           <div className="bg-v-surface border border-v-border rounded-sm p-4">
             <p className="text-sm text-v-text-secondary">Total Commission</p>
-            <p className="text-2xl font-bold text-amber-600">{currencySymbol()}{formatPriceWhole(stats.totalCommission)}</p>
+            <p className="text-2xl font-bold text-v-gold-dim">{currencySymbol()}{formatPriceWhole(stats.totalCommission)}</p>
           </div>
         </div>
       </div>
@@ -197,7 +197,7 @@ export default function AdminVendorsPage() {
             onClick={() => setActiveTab('vendors')}
             className={`px-6 py-3 font-medium border-b-2 -mb-px ${
               activeTab === 'vendors'
-                ? 'border-amber-500 text-amber-500'
+                ? 'border-v-gold text-v-gold'
                 : 'border-transparent text-v-text-secondary hover:text-v-text-primary'
             }`}
           >
@@ -207,7 +207,7 @@ export default function AdminVendorsPage() {
             onClick={() => setActiveTab('pending')}
             className={`px-6 py-3 font-medium border-b-2 -mb-px ${
               activeTab === 'pending'
-                ? 'border-amber-500 text-amber-500'
+                ? 'border-v-gold text-v-gold'
                 : 'border-transparent text-v-text-secondary hover:text-v-text-primary'
             }`}
           >
@@ -217,7 +217,7 @@ export default function AdminVendorsPage() {
             onClick={() => setActiveTab('products')}
             className={`px-6 py-3 font-medium border-b-2 -mb-px ${
               activeTab === 'products'
-                ? 'border-amber-500 text-amber-500'
+                ? 'border-v-gold text-v-gold'
                 : 'border-transparent text-v-text-secondary hover:text-v-text-primary'
             }`}
           >
@@ -257,7 +257,7 @@ export default function AdminVendorsPage() {
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs ${
                           vendor.status === 'active' ? 'bg-green-900/30 text-green-400' :
-                          vendor.status === 'pending' ? 'bg-amber-900/30 text-amber-400' :
+                          vendor.status === 'pending' ? 'bg-v-gold-muted/30 text-v-gold' :
                           'bg-red-900/30 text-red-400'
                         }`}>
                           {vendor.status}
@@ -325,7 +325,7 @@ export default function AdminVendorsPage() {
                       <h3 className="text-xl font-semibold text-v-text-primary">{vendor.company_name}</h3>
                       <p className="text-v-text-secondary">{vendor.website}</p>
                     </div>
-                    <span className="px-3 py-1 bg-amber-900/30 text-amber-400 rounded-full text-sm">
+                    <span className="px-3 py-1 bg-v-gold-muted/30 text-v-gold rounded-full text-sm">
                       Pending Review
                     </span>
                   </div>
@@ -394,12 +394,12 @@ export default function AdminVendorsPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-xl font-semibold text-v-text-primary">{product.name}</h3>
-                          <p className="text-amber-500 font-bold">{currencySymbol()}{formatPrice(product.price)}</p>
+                          <p className="text-v-gold font-bold">{currencySymbol()}{formatPrice(product.price)}</p>
                           <p className="text-sm text-v-text-secondary mt-1">
                             by {product.vendors?.company_name} ({product.vendors?.email})
                           </p>
                         </div>
-                        <span className="px-3 py-1 bg-amber-900/30 text-amber-400 rounded-full text-sm">
+                        <span className="px-3 py-1 bg-v-gold-muted/30 text-v-gold rounded-full text-sm">
                           Pending Review
                         </span>
                       </div>

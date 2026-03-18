@@ -56,7 +56,7 @@ export default function TeamPage() {
           </a>
           <a
             href="/team/add"
-            className="px-4 py-2 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+            className="px-4 py-2 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium"
           >
             {'+ Add Member'}
           </a>
@@ -97,7 +97,7 @@ export default function TeamPage() {
           <p className="text-white/60 text-lg mb-4">{'No team members yet'}</p>
           <a
             href="/team/add"
-            className="px-6 py-3 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium inline-block"
+            className="px-6 py-3 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium inline-block"
           >
             {'Add Your First Team Member'}
           </a>
@@ -128,7 +128,7 @@ export default function TeamPage() {
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      member.role === 'owner' ? 'bg-amber-900/30 text-amber-400' :
+                      member.role === 'owner' ? 'bg-v-gold-muted/30 text-v-gold' :
                       member.role === 'manager' ? 'bg-indigo-900/30 text-indigo-400' :
                       member.role === 'lead_tech' ? 'bg-cyan-900/30 text-cyan-400' :
                       member.role === 'contractor' ? 'bg-purple-900/30 text-purple-400' :

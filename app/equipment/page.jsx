@@ -54,7 +54,7 @@ export default function EquipmentPage() {
   const STATUS_COLORS = {
     active: 'bg-green-900/30 text-green-400',
     needs_repair: 'bg-red-900/30 text-red-400',
-    maintenance: 'bg-amber-900/30 text-amber-400',
+    maintenance: 'bg-v-gold-muted/30 text-v-gold',
     retired: 'bg-v-charcoal text-v-text-secondary',
   };
 
@@ -391,7 +391,7 @@ export default function EquipmentPage() {
                         <p className="text-xs font-medium text-red-600">{'Maintenance overdue by'} {Math.abs(maintDays)} {'days'}</p>
                       )}
                       {item.maintenance_due && !item.maintenance_overdue && (
-                        <p className="text-xs font-medium text-amber-600">{'Maintenance due in'} {maintDays} {'days'}</p>
+                        <p className="text-xs font-medium text-v-gold-dim">{'Maintenance due in'} {maintDays} {'days'}</p>
                       )}
                       <button
                         onClick={() => handleOpenModal(item)}
@@ -514,7 +514,7 @@ export default function EquipmentPage() {
                                 </span>
                               )}
                               {item.maintenance_due && !item.maintenance_overdue && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-400 font-medium">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-v-gold-muted/30 text-v-gold font-medium">
                                   {'Maintenance Soon'}
                                 </span>
                               )}
@@ -553,7 +553,7 @@ export default function EquipmentPage() {
                               {item.next_maintenance && (
                                 <span className={
                                   maintDays < 0 ? 'text-red-600 font-medium' :
-                                  maintDays <= 7 ? 'text-amber-600 font-medium' :
+                                  maintDays <= 7 ? 'text-v-gold-dim font-medium' :
                                   'text-v-text-secondary'
                                 }>
                                   {maintDays < 0
@@ -627,7 +627,7 @@ export default function EquipmentPage() {
                   />
                   {scraping && (
                     <div className="flex items-center px-3">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-500" />
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-v-gold" />
                     </div>
                   )}
                 </div>

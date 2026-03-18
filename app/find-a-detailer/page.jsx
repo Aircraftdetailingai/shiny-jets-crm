@@ -57,9 +57,9 @@ export default function FindADetailerPage() {
             <span>Vector</span>
           </a>
           <div className="flex items-center space-x-4">
-            <a href="/find-a-detailer" className="text-amber-400 text-sm font-medium hidden sm:inline">Directory</a>
+            <a href="/find-a-detailer" className="text-v-gold text-sm font-medium hidden sm:inline">Directory</a>
             <a href="/login" className="text-gray-300 hover:text-white text-sm transition-colors">Sign In</a>
-            <a href="/login" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+            <a href="/login" className="px-4 py-2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
               Start Free
             </a>
           </div>
@@ -84,7 +84,7 @@ export default function FindADetailerPage() {
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm outline-none focus:border-amber-500/50 min-w-[180px]"
+            className="bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm outline-none focus:border-v-gold/50 min-w-[180px]"
           >
             <option value="">All Countries</option>
             {STRIPE_COUNTRIES.map((c) => (
@@ -96,14 +96,14 @@ export default function FindADetailerPage() {
             value={airport}
             onChange={(e) => setAirport(e.target.value)}
             placeholder="Airport code (e.g. KJFK)"
-            className="bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 text-sm outline-none focus:border-amber-500/50 sm:w-[200px]"
+            className="bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 text-sm outline-none focus:border-v-gold/50 sm:w-[200px]"
           />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by company name..."
-            className="flex-1 bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 text-sm outline-none focus:border-amber-500/50"
+            className="flex-1 bg-white/[0.05] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 text-sm outline-none focus:border-v-gold/50"
           />
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function FindADetailerPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
         {loading ? (
           <div className="text-center py-20">
-            <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-500">Loading directory...</p>
           </div>
         ) : detailers.length === 0 ? (
@@ -128,29 +128,29 @@ export default function FindADetailerPage() {
                 const countryData = STRIPE_COUNTRIES.find(c => c.code === d.country);
                 const currencyInfo = CURRENCY_MAP[d.preferred_currency];
                 return (
-                  <div key={d.id} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-amber-500/30 transition-colors">
+                  <div key={d.id} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors">
                     <div className="flex items-center justify-between mb-3">
                       <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        d.plan === 'enterprise' ? 'bg-amber-500/20 text-amber-400' :
+                        d.plan === 'enterprise' ? 'bg-v-gold/20 text-v-gold' :
                         d.plan === 'business' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-white/10 text-gray-400'
                       }`}>
                         {d.plan}
                       </span>
                     </div>
-                    <a href={`/detailer/${d.id}`} className="text-lg font-semibold text-white mb-1 block hover:text-amber-400 transition-colors">
+                    <a href={`/detailer/${d.id}`} className="text-lg font-semibold text-white mb-1 block hover:text-v-gold transition-colors">
                       {d.company || d.name}
                     </a>
                     {d.avg_rating && (
                       <div className="flex items-center gap-1.5 mb-3">
                         <div className="flex gap-0.5">
                           {[1,2,3,4,5].map(s => (
-                            <svg key={s} className={`w-3.5 h-3.5 ${s <= Math.round(d.avg_rating) ? 'text-amber-400' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
+                            <svg key={s} className={`w-3.5 h-3.5 ${s <= Math.round(d.avg_rating) ? 'text-v-gold' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
                               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                             </svg>
                           ))}
                         </div>
-                        <span className="text-sm text-amber-400 font-medium">{d.avg_rating}</span>
+                        <span className="text-sm text-v-gold font-medium">{d.avg_rating}</span>
                         <span className="text-xs text-gray-500">({d.review_count})</span>
                       </div>
                     )}
@@ -173,7 +173,7 @@ export default function FindADetailerPage() {
                     </div>
                     <a
                       href={`/quote-request/${d.id}`}
-                      className="block w-full text-center px-4 py-2.5 border border-amber-500/30 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/10 transition-colors"
+                      className="block w-full text-center px-4 py-2.5 border border-v-gold/30 text-v-gold text-sm font-medium rounded-lg hover:bg-v-gold/10 transition-colors"
                     >
                       Request a Quote
                     </a>
@@ -192,7 +192,7 @@ export default function FindADetailerPage() {
           <p className="text-gray-400 mb-6">Join Vector and get listed in our directory. Reach customers worldwide.</p>
           <a
             href="/login"
-            className="inline-block px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
+            className="inline-block px-8 py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
           >
             Get Started Free
           </a>

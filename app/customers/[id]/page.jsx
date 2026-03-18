@@ -13,10 +13,10 @@ const ACTIVITY_CONFIG = {
   payment_failed: { icon: '!', color: 'bg-red-500', label: 'Failed', group: 'payments' },
   refund_issued: { icon: '\u21A9', color: 'bg-red-400', label: 'Refund', group: 'payments' },
   job_completed: { icon: '\u2713', color: 'bg-emerald-500', label: 'Completed', group: 'jobs' },
-  job_scheduled: { icon: '\uD83D\uDCC5', color: 'bg-amber-500', label: 'Scheduled', group: 'jobs' },
+  job_scheduled: { icon: '\uD83D\uDCC5', color: 'bg-v-gold', label: 'Scheduled', group: 'jobs' },
   followup_sent: { icon: '\u2709', color: 'bg-v-gold', label: 'Follow-up', group: 'quotes' },
   note_added: { icon: '\uD83D\uDCDD', color: 'bg-gray-400', label: 'Note', group: 'notes' },
-  feedback_received: { icon: '\u2605', color: 'bg-amber-400', label: 'Feedback', group: 'feedback' },
+  feedback_received: { icon: '\u2605', color: 'bg-v-gold', label: 'Feedback', group: 'feedback' },
   customer_created: { icon: '\u263A', color: 'bg-v-gold', label: 'Created', group: 'other' },
 };
 

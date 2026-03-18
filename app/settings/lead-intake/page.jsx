@@ -250,7 +250,7 @@ export default function LeadIntakeSettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-v-charcoal flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-8 h-8 border-4 border-v-gold border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -273,7 +273,7 @@ export default function LeadIntakeSettingsPage() {
             <button
               onClick={saveQuestions}
               disabled={saving}
-              className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
+              className="px-4 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save'}
             </button>
@@ -295,7 +295,7 @@ export default function LeadIntakeSettingsPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`px-6 py-3 font-medium border-b-2 -mb-px ${
                 activeTab === tab.key
-                  ? 'border-amber-500 text-amber-600'
+                  ? 'border-v-gold text-v-gold'
                   : 'border-transparent text-v-text-secondary hover:text-v-text-secondary'
               }`}
             >
@@ -333,7 +333,7 @@ export default function LeadIntakeSettingsPage() {
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragEnd={handleDragEnd}
                   className={`border rounded-lg p-4 ${
-                    draggedIndex === index ? 'opacity-50 bg-amber-50' : 'bg-v-surface'
+                    draggedIndex === index ? 'opacity-50 bg-v-gold/10' : 'bg-v-surface'
                   } cursor-move`}
                 >
                   <div className="flex gap-4">
@@ -377,7 +377,7 @@ export default function LeadIntakeSettingsPage() {
                               type="checkbox"
                               checked={q.required}
                               onChange={(e) => updateQuestion(index, 'required', e.target.checked)}
-                              className="w-4 h-4 text-amber-500"
+                              className="w-4 h-4 text-v-gold"
                             />
                             <span className="text-sm">{'Required'}</span>
                           </label>
@@ -401,7 +401,7 @@ export default function LeadIntakeSettingsPage() {
 
             <button
               onClick={addQuestion}
-              className="mt-4 w-full py-3 border-2 border-dashed border-v-border rounded-lg text-v-text-secondary hover:border-amber-500 hover:text-amber-600"
+              className="mt-4 w-full py-3 border-2 border-dashed border-v-border rounded-lg text-v-text-secondary hover:border-v-gold hover:text-v-gold"
             >
               + Add Question
             </button>
@@ -426,7 +426,7 @@ export default function LeadIntakeSettingsPage() {
               <button
                 onClick={analyzeWebsite}
                 disabled={analyzing || !websiteUrl}
-                className="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                className="px-6 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim disabled:opacity-50"
               >
                 {analyzing ? 'Processing...' : 'Analyze'}
               </button>
@@ -480,7 +480,7 @@ A: Yes, we come to your hangar."
             <button
               onClick={uploadFaq}
               disabled={uploadingFaq || !faqText.trim()}
-              className="mt-4 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
+              className="mt-4 px-6 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim disabled:opacity-50"
             >
               {uploadingFaq ? 'Processing...' : 'Extract FAQs'}
             </button>
@@ -539,7 +539,7 @@ A: Yes, we come to your hangar."
 
             <button
               onClick={copyWidgetCode}
-              className="mt-4 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+              className="mt-4 px-6 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim"
             >
               Copy Code
             </button>

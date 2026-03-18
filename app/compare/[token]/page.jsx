@@ -17,7 +17,7 @@ const STATUS_LABELS = {
 
 const STATUS_COLORS = {
   sent: 'bg-blue-100 text-blue-700',
-  viewed: 'bg-amber-100 text-amber-700',
+  viewed: 'bg-v-gold/10 text-v-gold-dim',
   paid: 'bg-green-100 text-green-700',
   approved: 'bg-green-100 text-green-700',
   scheduled: 'bg-purple-100 text-purple-700',
@@ -253,13 +253,13 @@ export default function CompareQuotesPage() {
                 key={q.id}
                 onClick={() => !isPaid && setSelected(q.id)}
                 className={`bg-white rounded-xl shadow-sm border-2 p-5 transition-all cursor-pointer ${
-                  isSelected ? 'border-amber-500 ring-2 ring-amber-200' : 'border-gray-200 hover:border-gray-300'
+                  isSelected ? 'border-v-gold ring-2 ring-v-gold/20' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 {/* Badges */}
                 <div className="flex items-center gap-2 flex-wrap mb-3">
                   {isRecommended && !isPaid && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Best Value</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-v-gold/10 text-v-gold-dim">Best Value</span>
                   )}
                   {isLowest && !isPaid && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">Lowest Price</span>
@@ -325,7 +325,7 @@ export default function CompareQuotesPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); handlePayment(q.id); }}
                     disabled={paymentLoading}
-                    className="w-full py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-90 disabled:opacity-50"
+                    className="w-full py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90 disabled:opacity-50"
                   >
                     {paymentLoading ? 'Processing...' : `Select & Pay ${sym}${formatPrice(q.total_price)}`}
                   </button>
@@ -360,12 +360,12 @@ export default function CompareQuotesPage() {
                           key={q.id}
                           onClick={() => !isPaid && setSelected(q.id)}
                           className={`text-center p-4 min-w-[200px] cursor-pointer transition-colors ${
-                            isSelected ? 'bg-amber-50' : 'hover:bg-gray-100'
+                            isSelected ? 'bg-v-gold/5' : 'hover:bg-gray-100'
                           }`}
                         >
                           <div className="flex flex-col items-center gap-1">
                             {isRecommended && !isPaid && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">BEST VALUE</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-v-gold/10 text-v-gold-dim">BEST VALUE</span>
                             )}
                             {isLowest && !isPaid && !isRecommended && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">LOWEST</span>
@@ -393,7 +393,7 @@ export default function CompareQuotesPage() {
                         return (
                           <td
                             key={q.id}
-                            className={`p-3 text-center text-sm ${isSelected ? 'bg-amber-50/50' : ''}`}
+                            className={`p-3 text-center text-sm ${isSelected ? 'bg-v-gold/5/50' : ''}`}
                           >
                             {has ? (
                               <div className="flex items-center justify-center gap-1.5">
@@ -413,7 +413,7 @@ export default function CompareQuotesPage() {
                   <tr className="border-t">
                     <td className="p-3 text-sm text-gray-700 font-medium border-r">Notes</td>
                     {sortedQuotes.map((q) => (
-                      <td key={q.id} className={`p-3 text-center text-xs text-gray-500 ${selected === q.id ? 'bg-amber-50/50' : ''}`}>
+                      <td key={q.id} className={`p-3 text-center text-xs text-gray-500 ${selected === q.id ? 'bg-v-gold/5/50' : ''}`}>
                         {q.notes || <span className="text-gray-300">&mdash;</span>}
                       </td>
                     ))}
@@ -426,7 +426,7 @@ export default function CompareQuotesPage() {
                       const isPaid = ['paid', 'approved', 'completed'].includes(q.status);
                       const isExpired = !isPaid && q.valid_until && new Date() > new Date(q.valid_until);
                       return (
-                        <td key={q.id} className={`p-3 text-center text-xs ${selected === q.id ? 'bg-amber-50/50' : ''}`}>
+                        <td key={q.id} className={`p-3 text-center text-xs ${selected === q.id ? 'bg-v-gold/5/50' : ''}`}>
                           {isPaid ? (
                             <span className="text-green-600 font-medium">Paid</span>
                           ) : isExpired ? (
@@ -451,7 +451,7 @@ export default function CompareQuotesPage() {
                       const isHighest = q.total_price === highestPrice && sortedQuotes.length > 1;
                       const isSelected = selected === q.id;
                       return (
-                        <td key={q.id} className={`p-4 text-center ${isSelected ? 'bg-amber-50' : ''}`}>
+                        <td key={q.id} className={`p-4 text-center ${isSelected ? 'bg-v-gold/5' : ''}`}>
                           <span className={`text-xl font-bold ${
                             isLowest ? 'text-green-600' : isHighest ? 'text-red-500' : 'text-[#1e3a5f]'
                           }`}>
@@ -471,7 +471,7 @@ export default function CompareQuotesPage() {
                       const isExpired = !isPaid && q.valid_until && new Date() > new Date(q.valid_until);
                       const canPay = !isPaid && !isExpired && stripeConnected && ['sent', 'viewed'].includes(q.status);
                       return (
-                        <td key={q.id} className={`p-4 text-center ${selected === q.id ? 'bg-amber-50/30' : ''}`}>
+                        <td key={q.id} className={`p-4 text-center ${selected === q.id ? 'bg-v-gold/5/30' : ''}`}>
                           {isPaid ? (
                             <span className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold">
                               &#10003; Paid
@@ -480,7 +480,7 @@ export default function CompareQuotesPage() {
                             <button
                               onClick={() => handlePayment(q.id)}
                               disabled={paymentLoading}
-                              className="px-6 py-2.5 rounded-lg text-white font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-90 disabled:opacity-50 text-sm"
+                              className="px-6 py-2.5 rounded-lg text-white font-semibold bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90 disabled:opacity-50 text-sm"
                             >
                               {paymentLoading ? '...' : 'Select & Pay'}
                             </button>

@@ -69,7 +69,7 @@ export default function CrewLoginPage() {
               <div
                 key={i}
                 className={`w-12 h-14 rounded-lg border-2 flex items-center justify-center text-2xl font-bold ${
-                  pin.length > i ? 'border-amber-500 bg-amber-50 text-[#1e3a5f]' : 'border-gray-200 bg-gray-50 text-gray-300'
+                  pin.length > i ? 'border-v-gold bg-v-gold/5 text-[#1e3a5f]' : 'border-gray-200 bg-gray-50 text-gray-300'
                 }`}
               >
                 {pin[i] ? '●' : ''}
@@ -80,7 +80,7 @@ export default function CrewLoginPage() {
                 {[4, 5, 6, 7].map(i => pin[i] && (
                   <div
                     key={i}
-                    className="w-12 h-14 rounded-lg border-2 border-amber-500 bg-amber-50 flex items-center justify-center text-2xl font-bold text-[#1e3a5f]"
+                    className="w-12 h-14 rounded-lg border-2 border-v-gold bg-v-gold/5 flex items-center justify-center text-2xl font-bold text-[#1e3a5f]"
                   >
                     ●
                   </div>
@@ -118,7 +118,7 @@ export default function CrewLoginPage() {
             <button
               type="submit"
               disabled={pin.length < 4 || loading}
-              className="h-14 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="h-14 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {loading ? '...' : 'GO'}
             </button>

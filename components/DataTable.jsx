@@ -238,7 +238,7 @@ export default function DataTable({
                     <span className="font-medium text-sm">Show/Hide Columns</span>
                     <button
                       onClick={resetToDefaults}
-                      className="text-xs text-amber-600 hover:underline"
+                      className="text-xs text-v-gold-dim hover:underline"
                     >
                       Reset to Default
                     </button>
@@ -253,7 +253,7 @@ export default function DataTable({
                             type="checkbox"
                             checked={columnVisibility[id] !== false}
                             onChange={() => toggleColumn(id)}
-                            className="w-4 h-4 text-amber-500 rounded"
+                            className="w-4 h-4 text-v-gold rounded"
                           />
                           <span className="text-sm">{label}</span>
                         </label>
@@ -309,7 +309,7 @@ export default function DataTable({
                       <div className="flex items-center gap-2">
                         <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
                         {header.column.getIsSorted() && (
-                          <span className="text-amber-500">
+                          <span className="text-v-gold">
                             {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
                           </span>
                         )}
@@ -318,7 +318,7 @@ export default function DataTable({
                       {/* Resize handle */}
                       <div
                         onMouseDown={(e) => handleResizeStart(e, columnId)}
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-amber-500 opacity-0 group-hover:opacity-100"
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-v-gold opacity-0 group-hover:opacity-100"
                       />
                     </th>
                   );
@@ -345,7 +345,7 @@ export default function DataTable({
                   className={`
                     row-hover
                     ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                    ${onRowClick ? 'cursor-pointer hover:bg-amber-50' : 'hover:bg-gray-100'}
+                    ${onRowClick ? 'cursor-pointer hover:bg-v-gold/5' : 'hover:bg-gray-100'}
                     border-b
                   `}
                 >

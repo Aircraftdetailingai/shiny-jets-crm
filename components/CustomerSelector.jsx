@@ -134,7 +134,7 @@ export default function CustomerSelector({
           }}
           className={`flex-1 py-2 px-3 rounded text-sm font-medium border transition-colors ${
             customerMode === "existing"
-              ? "bg-amber-500 text-white border-amber-500"
+              ? "bg-v-gold text-white border-v-gold"
               : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10"
           }`}
         >
@@ -148,7 +148,7 @@ export default function CustomerSelector({
           }}
           className={`flex-1 py-2 px-3 rounded text-sm font-medium border transition-colors ${
             customerMode === "new"
-              ? "bg-amber-500 text-white border-amber-500"
+              ? "bg-v-gold text-white border-v-gold"
               : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10"
           }`}
         >
@@ -161,7 +161,7 @@ export default function CustomerSelector({
         <div>
           {selectedCustomer ? (
             // Selected customer chip
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+            <div className="bg-v-gold/10 border border-v-gold/30 rounded-lg p-3">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold text-white">
@@ -179,7 +179,7 @@ export default function CustomerSelector({
                   {Array.isArray(selectedCustomer.tags) && selectedCustomer.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {selectedCustomer.tags.map((tag) => (
-                        <span key={tag} className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded text-xs font-medium">
+                        <span key={tag} className="px-1.5 py-0.5 bg-v-gold/20 text-v-gold rounded text-xs font-medium">
                           {tag}
                         </span>
                       ))}
@@ -232,7 +232,7 @@ export default function CustomerSelector({
                       <div
                         key={customer.id || customer.email}
                         onClick={() => handleSelect(customer)}
-                        className="p-3 hover:bg-amber-500/10 cursor-pointer border-b border-white/5 last:border-b-0"
+                        className="p-3 hover:bg-v-gold/10 cursor-pointer border-b border-white/5 last:border-b-0"
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -282,7 +282,7 @@ export default function CustomerSelector({
                       onClear();
                       setDropdownOpen(false);
                     }}
-                    className="p-3 text-center text-amber-400 hover:bg-amber-500/10 cursor-pointer border-t border-white/10 font-medium text-sm"
+                    className="p-3 text-center text-v-gold hover:bg-v-gold/10 cursor-pointer border-t border-white/10 font-medium text-sm"
                   >
                     + Add New Customer
                   </div>
@@ -349,7 +349,7 @@ export default function CustomerSelector({
             type="button"
             onClick={handleSaveNewCustomer}
             disabled={savingCustomer || !newCustomerFields.name || !newCustomerFields.email}
-            className="w-full py-2 px-4 bg-amber-500 text-white rounded text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors"
+            className="w-full py-2 px-4 bg-v-gold text-white rounded text-sm font-medium hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
           >
             {savingCustomer ? "Saving..." : "Save & Select Customer"}
           </button>

@@ -111,7 +111,7 @@ export default function EmbedQuotePage() {
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center bg-white">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-8 h-8 border-4 border-v-gold border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -297,7 +297,7 @@ export default function EmbedQuotePage() {
         <button
           onClick={handleSubmit}
           disabled={submitting || !formData.name || !formData.email || !formData.aircraft_type}
-          className="w-full py-3 bg-amber-500 text-white font-semibold rounded hover:bg-amber-600 disabled:opacity-50"
+          className="w-full py-3 bg-v-gold text-white font-semibold rounded hover:bg-v-gold-dim disabled:opacity-50"
         >
           {submitting ? 'Submitting...' : 'Request Quote'}
         </button>

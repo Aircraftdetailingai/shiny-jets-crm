@@ -78,7 +78,7 @@ export default function AddTeamMemberPage() {
               value={form.name}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
               placeholder={'Full name'}
             />
           </div>
@@ -89,7 +89,7 @@ export default function AddTeamMemberPage() {
               name="type"
               value={form.type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
             >
               <option value="employee">{'Employee'}</option>
               <option value="contractor">{'Contractor'}</option>
@@ -106,7 +106,7 @@ export default function AddTeamMemberPage() {
                 const type = ['employee', 'owner', 'manager', 'lead_tech'].includes(role) ? 'employee' : 'contractor';
                 setForm({ ...form, role, type });
               }}
-              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
             >
               <option value="manager">{'Manager'}</option>
               <option value="lead_tech">{'Lead Tech'}</option>
@@ -123,7 +123,7 @@ export default function AddTeamMemberPage() {
               name="email"
               value={form.email}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
               placeholder="email@example.com"
             />
           </div>
@@ -135,7 +135,7 @@ export default function AddTeamMemberPage() {
               name="phone"
               value={form.phone}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
               placeholder="(555) 123-4567"
             />
           </div>
@@ -151,7 +151,7 @@ export default function AddTeamMemberPage() {
                 onChange={handleChange}
                 step="0.01"
                 min="0"
-                className="w-full pl-7 pr-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                className="w-full pl-7 pr-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                 placeholder="0.00"
               />
             </div>
@@ -165,7 +165,7 @@ export default function AddTeamMemberPage() {
               value={form.pin_code}
               onChange={handleChange}
               maxLength={6}
-              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
               placeholder={'4-6 digit PIN for time logging'}
             />
             <p className="text-xs text-v-text-secondary mt-1">{'Workers use this PIN to log their hours at /time-log'}</p>
@@ -175,7 +175,7 @@ export default function AddTeamMemberPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium disabled:opacity-50"
+              className="flex-1 py-2 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Add Your First Team Member'}
             </button>

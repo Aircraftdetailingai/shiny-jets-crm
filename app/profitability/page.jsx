@@ -107,7 +107,7 @@ export default function ProfitabilityPage() {
         <div className="bg-v-surface rounded-lg p-8 text-center">
           <p className="text-xl font-semibold mb-2">{'No completed jobs yet'}</p>
           <p className="text-v-text-secondary mb-4">{'Complete jobs and log your actual hours to track profitability.'}</p>
-          <a href="/dashboard" className="text-amber-600 underline">{'Go to Dashboard'}</a>
+          <a href="/dashboard" className="text-v-gold-dim underline">{'Go to Dashboard'}</a>
         </div>
       ) : (
         <div className="space-y-4">
@@ -116,7 +116,7 @@ export default function ProfitabilityPage() {
             <h2 className="font-semibold text-lg mb-3">{'Overall Performance'}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-v-charcoal rounded">
-                <p className="text-2xl font-bold text-amber-600">{stats.overall.totalJobs}</p>
+                <p className="text-2xl font-bold text-v-gold-dim">{stats.overall.totalJobs}</p>
                 <p className="text-sm text-v-text-secondary">{'Jobs Completed'}</p>
               </div>
               <div className="text-center p-3 bg-v-charcoal rounded">
@@ -183,9 +183,9 @@ export default function ProfitabilityPage() {
                   >
                     <div className="flex items-center space-x-3">
                       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
-                        idx === 0 ? 'bg-amber-400 text-white' :
+                        idx === 0 ? 'bg-v-gold text-white' :
                         idx === 1 ? 'bg-v-charcoal text-v-text-secondary' :
-                        idx === 2 ? 'bg-amber-600 text-white' :
+                        idx === 2 ? 'bg-v-gold-dim text-white' :
                         'bg-v-charcoal text-v-text-secondary'
                       }`}>
                         {idx + 1}
@@ -245,7 +245,7 @@ export default function ProfitabilityPage() {
               </div>
               <a
                 href="/jobs"
-                className="px-4 py-2 bg-amber-900/200 text-white rounded hover:bg-amber-600"
+                className="px-4 py-2 bg-v-gold-muted/200 text-white rounded hover:bg-v-gold-dim"
               >
                 {'View Jobs'}
               </a>

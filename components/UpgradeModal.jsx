@@ -128,12 +128,12 @@ export default function UpgradeModal({ isOpen, onClose, detailerId, existingServ
             {/* AI Message */}
             <div className={`p-4 rounded-lg mb-6 ${
               analysis.urgency === 'high' ? 'bg-red-50 border border-red-200' :
-              analysis.urgency === 'medium' ? 'bg-amber-50 border border-amber-200' :
+              analysis.urgency === 'medium' ? 'bg-v-gold/5 border border-v-gold/20' :
               'bg-blue-50 border border-blue-200'
             }`}>
               <p className={`font-medium ${
                 analysis.urgency === 'high' ? 'text-red-800' :
-                analysis.urgency === 'medium' ? 'text-amber-800' :
+                analysis.urgency === 'medium' ? 'text-v-gold-muted' :
                 'text-blue-800'
               }`}>
                 {analysis.message}
@@ -154,7 +154,7 @@ export default function UpgradeModal({ isOpen, onClose, detailerId, existingServ
                   <div className="mt-2">
                     <div className="h-2 bg-v-border rounded-full overflow-hidden">
                       <div
-                        className={`h-full ${analysis.quotesUsedPercent >= 100 ? 'bg-red-500' : 'bg-amber-500'}`}
+                        className={`h-full ${analysis.quotesUsedPercent >= 100 ? 'bg-red-500' : 'bg-v-gold'}`}
                         style={{ width: `${Math.min(100, analysis.quotesUsedPercent)}%` }}
                       />
                     </div>

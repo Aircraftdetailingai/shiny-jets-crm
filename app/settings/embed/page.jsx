@@ -81,10 +81,10 @@ export default function EmbedSettingsPage() {
       {/* Header */}
       <header className="flex justify-between items-center mb-6 text-white">
         <div className="flex items-center space-x-4">
-          <a href="/settings" className="text-2xl hover:text-amber-400">&larr;</a>
+          <a href="/settings" className="text-2xl hover:text-v-gold">&larr;</a>
           <h1 className="text-2xl font-bold">Embed & QR Codes</h1>
         </div>
-        <a href="/dashboard" className="text-amber-400 hover:underline">{'Dashboard'}</a>
+        <a href="/dashboard" className="text-v-gold hover:underline">{'Dashboard'}</a>
       </header>
 
       <div className="max-w-4xl mx-auto space-y-6">
@@ -112,7 +112,7 @@ export default function EmbedSettingsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={downloadQR}
-                  className="px-4 py-2 bg-amber-900/200 text-white rounded hover:bg-amber-600"
+                  className="px-4 py-2 bg-v-gold/100 text-white rounded hover:bg-v-gold-dim"
                 >
                   {'Download'} PNG
                 </button>
@@ -244,7 +244,7 @@ export default function EmbedSettingsPage() {
             />
             <button
               onClick={() => copyToClipboard(directLink, 'direct')}
-              className="px-4 py-2 bg-amber-900/200 text-white rounded hover:bg-amber-600"
+              className="px-4 py-2 bg-v-gold/100 text-white rounded hover:bg-v-gold-dim"
             >
               {copied === 'direct' ? 'Copied to clipboard' : 'Copy'}
             </button>

@@ -4,7 +4,7 @@ export const TYPE_CONFIG = {
   quote_sent:        { icon: '✈️', color: 'text-v-gold',      label: 'Quote Sent' },
   quote_viewed:      { icon: '👁',  color: 'text-v-gold',      label: 'Quote Viewed' },
   quote_accepted:    { icon: '✅', color: 'text-green-400',   label: 'Quote Accepted' },
-  quote_expired:     { icon: '⏰', color: 'text-amber-400',   label: 'Quote Expired' },
+  quote_expired:     { icon: '⏰', color: 'text-v-gold',   label: 'Quote Expired' },
   followup_needed:   { icon: '🔄', color: 'text-orange-400',  label: 'Follow-up Needed' },
   payment_received:  { icon: '💰', color: 'text-green-400',   label: 'Payment Received' },
   invoice_requested: { icon: '📄', color: 'text-blue-400',    label: 'Invoice Requested' },

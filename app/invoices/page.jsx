@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 
 const statusColors = {
   paid: 'bg-green-900/30 text-green-400',
-  unpaid: 'bg-amber-900/30 text-amber-400',
+  unpaid: 'bg-v-gold-muted/30 text-v-gold',
   overdue: 'bg-red-900/30 text-red-400',
   void: 'bg-v-charcoal text-v-text-secondary',
 };
@@ -245,7 +245,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
         </div>
         <div className="bg-v-surface rounded-lg p-3 shadow">
           <p className="text-v-text-secondary text-xs">{'Outstanding'}</p>
-          <p className="text-xl font-bold text-amber-600">{formatCurrency(totalUnpaid)}</p>
+          <p className="text-xl font-bold text-v-gold-dim">{formatCurrency(totalUnpaid)}</p>
         </div>
         <div className="bg-v-surface rounded-lg p-3 shadow">
           <p className="text-v-text-secondary text-xs">{'Collected'}</p>
@@ -497,7 +497,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                   <label
                     key={q.id}
                     className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedQuoteId === q.id ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:border-v-border'
+                      selectedQuoteId === q.id ? 'border-v-gold bg-v-gold-muted/20' : 'border-v-border hover:border-v-border'
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -507,7 +507,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                         value={q.id}
                         checked={selectedQuoteId === q.id}
                         onChange={() => setSelectedQuoteId(q.id)}
-                        className="accent-amber-500"
+                        className="accent-v-gold"
                       />
                       <div>
                         <p className="text-sm font-medium">{q.client_name || q.customer_name || 'Customer'}</p>

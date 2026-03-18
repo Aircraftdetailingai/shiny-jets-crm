@@ -113,7 +113,7 @@ export default function QuoteRequestPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin w-8 h-8 border-4 border-v-gold border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -165,7 +165,7 @@ export default function QuoteRequestPage() {
                 key={label}
                 className={`flex-1 text-center py-3 text-sm font-medium ${
                   step === idx + 1
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-v-gold text-white'
                     : step > idx + 1
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-500'
@@ -224,7 +224,7 @@ export default function QuoteRequestPage() {
                 <button
                   onClick={() => setStep(2)}
                   disabled={!formData.name || !formData.email}
-                  className="w-full py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                  className="w-full py-3 bg-v-gold text-white font-semibold rounded-lg hover:bg-v-gold-dim disabled:opacity-50"
                 >
                   Continue
                 </button>
@@ -293,7 +293,7 @@ export default function QuoteRequestPage() {
                   <button
                     onClick={() => setStep(3)}
                     disabled={!formData.aircraft_type}
-                    className="flex-1 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                    className="flex-1 py-3 bg-v-gold text-white font-semibold rounded-lg hover:bg-v-gold-dim disabled:opacity-50"
                   >
                     Continue
                   </button>
@@ -321,7 +321,7 @@ export default function QuoteRequestPage() {
                               setFormData({ ...formData, services: formData.services.filter(s => s !== service) });
                             }
                           }}
-                          className="w-5 h-5 rounded text-amber-500 mr-3"
+                          className="w-5 h-5 rounded text-v-gold mr-3"
                         />
                         {service}
                       </label>

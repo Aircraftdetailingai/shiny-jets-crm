@@ -88,7 +88,7 @@ export default function WeatherWidget() {
           </div>
           <div className="flex items-center gap-2">
             {warnings.length > 0 && (
-              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+              <span className="px-2 py-0.5 bg-v-gold/10 text-v-gold-dim text-xs font-medium rounded-full">
                 {warnings.length} alert{warnings.length !== 1 ? 's' : ''}
               </span>
             )}
@@ -108,7 +108,7 @@ export default function WeatherWidget() {
               key={day.date}
               className={`flex-1 min-w-[52px] text-center py-1.5 px-1 rounded-lg ${
                 i === 0 ? 'bg-blue-50' : ''
-              } ${day.rain ? 'ring-1 ring-amber-200' : ''}`}
+              } ${day.rain ? 'ring-1 ring-v-gold/20' : ''}`}
             >
               <p className="text-[10px] text-gray-500 font-medium">{i === 0 ? 'Today' : day.dayName}</p>
               <p className="text-sm my-0.5">{day.icon}</p>
@@ -124,8 +124,8 @@ export default function WeatherWidget() {
         <div className="border-t divide-y">
           {/* Weather warnings for scheduled jobs */}
           {warnings.length > 0 && (
-            <div className="p-4 bg-amber-50">
-              <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
+            <div className="p-4 bg-v-gold/5">
+              <h4 className="text-xs font-semibold text-v-gold-muted uppercase tracking-wider mb-2">
                 Weather Alerts for Scheduled Jobs
               </h4>
               <div className="space-y-2">
@@ -133,10 +133,10 @@ export default function WeatherWidget() {
                   <div key={w.jobId} className="flex items-start gap-2 text-sm">
                     <span>{w.icon}</span>
                     <div>
-                      <p className="text-amber-900 font-medium">
+                      <p className="text-v-gold-muted font-medium">
                         {w.dayName} — {w.weather} ({w.precipProbability}% chance)
                       </p>
-                      <p className="text-amber-700 text-xs">
+                      <p className="text-v-gold-dim text-xs">
                         {w.clientName}{w.aircraft ? ` · ${w.aircraft}` : ''}
                         {w.precipitation > 0 ? ` · ${w.precipitation}" expected` : ''}
                       </p>

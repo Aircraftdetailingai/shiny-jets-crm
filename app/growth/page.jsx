@@ -78,7 +78,7 @@ export default function GrowthPage() {
       {/* Header */}
       <header className="text-white flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
+          <a href="/dashboard" className="text-2xl hover:text-v-gold">&#8592;</a>
           <h1 className="text-2xl font-bold">{'Business Growth'}</h1>
         </div>
         <div className="space-x-4 text-sm">
@@ -128,14 +128,14 @@ export default function GrowthPage() {
         <div className="bg-v-surface rounded-xl p-6 shadow">
           <h2 className="text-lg font-bold text-v-text-primary mb-4">{'Growth Opportunities'}</h2>
           <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 bg-amber-900/20 rounded-lg border border-amber-200">
+            <div className="flex items-start gap-4 p-4 bg-v-gold-muted/20 rounded-lg border border-v-gold/20">
               <span className="text-2xl">&#128200;</span>
               <div>
-                <p className="font-medium text-amber-900">{'Review Your Rates Annually'}</p>
-                <p className="text-sm text-amber-700 mt-1">
+                <p className="font-medium text-v-gold-muted">{'Review Your Rates Annually'}</p>
+                <p className="text-sm text-v-gold-dim mt-1">
                   {'Most detailers undercharge. Consider a 10% rate increase for long-term customers - most will stay.'}
                 </p>
-                <a href="/settings/services" className="text-sm text-amber-600 font-medium mt-2 inline-block hover:underline">
+                <a href="/settings/services" className="text-sm text-v-gold-dim font-medium mt-2 inline-block hover:underline">
                   {'Update Service Rates'} &#8594;
                 </a>
               </div>
@@ -174,7 +174,7 @@ export default function GrowthPage() {
           <div className="bg-v-surface rounded-xl p-6 shadow">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-v-text-primary">{'Equipment ROI'}</h2>
-              <a href="/equipment" className="text-sm text-amber-600 hover:underline">{'View All'}</a>
+              <a href="/equipment" className="text-sm text-v-gold-dim hover:underline">{'View All'}</a>
             </div>
             <div className="space-y-2">
               {equipmentWithROI.slice(0, 5).map((item, idx) => (
@@ -200,7 +200,7 @@ export default function GrowthPage() {
         <div className="bg-v-surface rounded-xl p-6 shadow">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold text-v-text-primary">{'Your Services'}</h2>
-            <a href="/settings/services" className="text-sm text-amber-600 hover:underline">{'Manage'}</a>
+            <a href="/settings/services" className="text-sm text-v-gold-dim hover:underline">{'Manage'}</a>
           </div>
           {enabledServices.length === 0 ? (
             <p className="text-v-text-secondary">{'No services configured yet.'}</p>

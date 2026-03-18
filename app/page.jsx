@@ -157,7 +157,7 @@ export default function LandingPage() {
           <div className="flex items-center space-x-2 text-white text-xl font-bold">
             <span className="text-2xl">{'\u2708\uFE0F'}</span>
             <span>Vector</span>
-            <span className="ml-2 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border border-amber-500/50 text-amber-400 rounded-full">Beta</span>
+            <span className="ml-2 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border border-v-gold/50 text-v-gold rounded-full">Beta</span>
           </div>
           <div className="flex items-center space-x-4 sm:space-x-6">
             <a href="#features" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">{T.nav.features}</a>
@@ -165,7 +165,7 @@ export default function LandingPage() {
             <a href="#faq" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">{T.nav.faq}</a>
             <LandingLanguageSelector lang={lang} onChange={handleLangChange} />
             <a href="/login" className="text-gray-300 hover:text-white text-sm transition-colors">{T.nav.signIn}</a>
-            <a href="/login" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+            <a href="/login" className="px-4 py-2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
               {T.nav.startFree}
             </a>
           </div>
@@ -176,12 +176,12 @@ export default function LandingPage() {
       <section className="pt-32 pb-20 sm:pt-40 sm:pb-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-8">
+            <div className="inline-block px-4 py-1.5 rounded-full bg-v-gold/10 border border-v-gold/20 text-v-gold text-sm font-medium mb-8">
               {T.hero.badge}
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
               {T.hero.headline}{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-v-gold to-v-gold-dim">
                 {T.hero.headlineHighlight}
               </span>
             </h1>
@@ -191,7 +191,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="/login"
-                className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-amber-500/25 transition-opacity"
+                className="px-8 py-4 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-v-gold/25 transition-opacity"
               >
                 {T.hero.cta}
               </a>
@@ -237,12 +237,12 @@ export default function LandingPage() {
                   <div className="bg-white/5 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-white font-medium text-sm">Recent: Gulfstream G450</span>
-                      <span className="text-amber-400 text-sm font-medium">$4,890</span>
+                      <span className="text-v-gold text-sm font-medium">$4,890</span>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Exterior</span>
-                      <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Ceramic</span>
-                      <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Interior</span>
+                      <span className="px-2 py-1 bg-v-gold/20 text-v-gold rounded text-xs">Exterior</span>
+                      <span className="px-2 py-1 bg-v-gold/20 text-v-gold rounded text-xs">Ceramic</span>
+                      <span className="px-2 py-1 bg-v-gold/20 text-v-gold rounded text-xs">Interior</span>
                       <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">Paid</span>
                     </div>
                   </div>
@@ -254,7 +254,7 @@ export default function LandingPage() {
                     <div className="flex gap-2 flex-wrap">
                       <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">Mon 68°</span>
                       <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">Tue 71°</span>
-                      <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs">Wed Rain</span>
+                      <span className="px-2 py-1 bg-v-gold/20 text-v-gold rounded text-xs">Wed Rain</span>
                     </div>
                   </div>
                 </div>
@@ -307,7 +307,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {T.steps.map((step, i) => (
               <div key={i} className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white text-xl font-bold mb-5 shadow-lg shadow-amber-500/20">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-v-gold to-v-gold-dim flex items-center justify-center text-white text-xl font-bold mb-5 shadow-lg shadow-v-gold/20">
                   {i + 1}
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
@@ -338,7 +338,7 @@ export default function LandingPage() {
                 onClick={() => setOpenCategory(i)}
                 className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
                   openCategory === i
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25'
+                    ? 'bg-gradient-to-r from-v-gold to-v-gold-dim text-white shadow-lg shadow-v-gold/25'
                     : 'bg-white/[0.05] text-gray-400 hover:text-white hover:bg-white/[0.08] border border-white/10'
                 }`}
               >
@@ -351,7 +351,7 @@ export default function LandingPage() {
           {/* Feature Grid for Active Category */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {FEATURE_CATEGORIES[openCategory].features.map((f) => (
-              <div key={f.name} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-amber-500/30 transition-colors">
+              <div key={f.name} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors">
                 <h3 className="text-lg font-semibold text-white mb-2">{f.name}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
               </div>
@@ -420,12 +420,12 @@ export default function LandingPage() {
                 key={tier.key}
                 className={`rounded-2xl p-5 sm:p-6 flex flex-col ${
                   tier.highlight
-                    ? 'bg-gradient-to-b from-amber-500/10 to-amber-600/5 border-2 border-amber-500 relative'
+                    ? 'bg-gradient-to-b from-v-gold/10 to-v-gold-dim/5 border-2 border-v-gold relative'
                     : 'bg-white/[0.03] border border-white/10'
                 }`}
               >
                 {tier.highlight && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
                     {P('mostPopular')}
                   </div>
                 )}
@@ -447,7 +447,7 @@ export default function LandingPage() {
                 <ul className="space-y-2.5 mb-6 flex-1">
                   {tier.featureKeys.map((fk, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm">
-                      <span className="text-amber-400 mt-0.5 flex-shrink-0">{'\u2713'}</span>
+                      <span className="text-v-gold mt-0.5 flex-shrink-0">{'\u2713'}</span>
                       <span className="text-gray-300">{P(fk)}</span>
                     </li>
                   ))}
@@ -456,7 +456,7 @@ export default function LandingPage() {
                   href="/login"
                   className={`w-full py-3 rounded-xl font-semibold text-center block text-sm transition-opacity ${
                     tier.highlight
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow-lg shadow-amber-500/25'
+                      ? 'bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 shadow-lg shadow-v-gold/25'
                       : 'border border-white/20 text-white hover:bg-white/5'
                   }`}
                 >
@@ -531,7 +531,7 @@ export default function LandingPage() {
           </p>
           <a
             href="/login"
-            className="inline-block px-10 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-amber-500/25 transition-opacity"
+            className="inline-block px-10 py-4 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-v-gold/25 transition-opacity"
           >
             {T.footerCta.cta}
           </a>

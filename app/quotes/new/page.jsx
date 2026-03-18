@@ -546,7 +546,7 @@ function NewQuoteContent() {
       {/* Header */}
       <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-6 bg-gradient-to-b from-v-charcoal via-v-charcoal to-transparent flex justify-between items-center text-white">
         <div className="flex items-center gap-4">
-          <a href="/dashboard" className="text-lg text-gray-400 hover:text-[#C9A84C] transition-colors">&#8592;</a>
+          <a href="/dashboard" className="text-lg text-gray-400 hover:text-v-gold transition-colors">&#8592;</a>
           <h1 className="text-2xl font-normal tracking-[0.2em] uppercase" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>New Quote</h1>
         </div>
         <div className="hidden sm:flex items-center gap-4 text-sm">
@@ -559,7 +559,7 @@ function NewQuoteContent() {
       {/* Step Indicator */}
       <div className="max-w-3xl mx-auto mb-6">
         <div className="relative flex items-center justify-between">
-          <div className="absolute left-0 right-0 top-1/2 h-px bg-[#C9A84C]/30" />
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-v-gold/30" />
           {[
             { n: 1, label: 'Aircraft', active: true },
             { n: 2, label: 'Services', active: !!selectedAircraft },
@@ -568,11 +568,11 @@ function NewQuoteContent() {
           ].map((step) => (
             <div key={step.n} className="relative flex flex-col items-center z-10">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium border ${
-                step.active ? 'bg-[#C9A84C] border-[#C9A84C] text-[#0D1B2A]' : 'bg-v-charcoal border-gray-600 text-gray-500'
+                step.active ? 'bg-v-gold border-v-gold text-v-charcoal' : 'bg-v-charcoal border-gray-600 text-gray-500'
               }`}>
                 {step.n}
               </div>
-              <span className={`text-[10px] uppercase tracking-wider mt-1 ${step.active ? 'text-[#C9A84C]' : 'text-gray-600'}`}>
+              <span className={`text-[10px] uppercase tracking-wider mt-1 ${step.active ? 'text-v-gold' : 'text-gray-600'}`}>
                 {step.label}
               </span>
             </div>
@@ -589,7 +589,7 @@ function NewQuoteContent() {
           </div>
           <a
             href="/settings/services"
-            className="px-5 py-2.5 bg-[#C9A84C] text-[#0D1B2A] text-xs uppercase tracking-wider font-medium hover:bg-[#b8993f] min-h-[44px] flex items-center whitespace-nowrap transition-colors"
+            className="px-5 py-2.5 bg-v-gold text-v-charcoal text-xs uppercase tracking-wider font-medium hover:bg-v-gold-dim min-h-[44px] flex items-center whitespace-nowrap transition-colors"
           >
             Add Services
           </a>
@@ -599,7 +599,7 @@ function NewQuoteContent() {
       <div className="max-w-3xl mx-auto">
           {/* 1. Select Aircraft */}
           <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-            <h3 className="text-lg font-light tracking-wider uppercase text-[#C9A84C] mb-4">Select Aircraft</h3>
+            <h3 className="text-lg font-light tracking-wider uppercase text-v-gold mb-4">Select Aircraft</h3>
 
             {/* Manufacturer Dropdown */}
             <div className="mb-4">
@@ -635,7 +635,7 @@ function NewQuoteContent() {
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => setSelectedCategory('')}
-                  className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${!selectedCategory ? 'border-[#C9A84C] text-[#C9A84C]' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                  className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${!selectedCategory ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                 >
                   All
                 </button>
@@ -643,7 +643,7 @@ function NewQuoteContent() {
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
-                    className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${selectedCategory === cat ? 'border-[#C9A84C] text-[#C9A84C]' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                    className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${selectedCategory === cat ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                   >
                     {categoryLabels[cat] || cat}
                   </button>
@@ -664,8 +664,8 @@ function NewQuoteContent() {
                           onClick={() => handleSelectAircraft(aircraft)}
                           className={`p-3 border text-left transition-all min-h-[56px] ${
                             selectedAircraft?.id === aircraft.id
-                              ? 'border-[#C9A84C] bg-[#C9A84C]/10'
-                              : 'border-v-border/40 hover:border-[#C9A84C]/50'
+                              ? 'border-v-gold bg-v-gold/10'
+                              : 'border-v-border/40 hover:border-v-gold/50'
                           }`}
                         >
                           <p className="font-medium text-v-text-primary text-base truncate">{aircraft.model}</p>
@@ -703,7 +703,7 @@ function NewQuoteContent() {
           {/* 2. Select Services */}
           {selectedAircraft && (
             <div id="services-section" className="bg-v-surface border border-v-border/40 p-5 mb-5">
-              <h3 className="text-lg font-light tracking-wider uppercase text-[#C9A84C] mb-4">Select Services</h3>
+              <h3 className="text-lg font-light tracking-wider uppercase text-v-gold mb-4">Select Services</h3>
 
               {/* Individual Services */}
               <div className="divide-y divide-v-border/30 mb-4">
@@ -721,7 +721,7 @@ function NewQuoteContent() {
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => toggleService(svc.id)} role="button" tabIndex={0}>
                           <div className={`w-4 h-4 border flex items-center justify-center transition-colors flex-shrink-0 ${
-                            isSelected ? 'bg-[#C9A84C] border-[#C9A84C] text-[#0D1B2A]' : 'border-gray-500'
+                            isSelected ? 'bg-v-gold border-v-gold text-v-charcoal' : 'border-gray-500'
                           }`}>
                             {isSelected && <span className="text-[10px]">&#10003;</span>}
                           </div>
@@ -789,7 +789,7 @@ function NewQuoteContent() {
                           <button
                             onClick={() => saveAsDefault(svc.id)}
                             disabled={savingDefault[svc.id]}
-                            className="text-[#C9A84C] hover:text-[#b8993f] font-medium disabled:opacity-50"
+                            className="text-v-gold hover:text-v-gold-dim font-medium disabled:opacity-50"
                           >
                             {savingDefault[svc.id] ? 'Saving...' : 'Save Default'}
                           </button>
@@ -832,7 +832,7 @@ function NewQuoteContent() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             {isSelected ? (
-                              <span className="text-[#C9A84C] text-xs uppercase tracking-wider">Selected</span>
+                              <span className="text-v-gold text-xs uppercase tracking-wider">Selected</span>
                             ) : (
                               <span className="text-gray-300 text-sm font-bold">{currencySymbol()}{formatPrice(pkgPrice)}</span>
                             )}
@@ -862,7 +862,7 @@ function NewQuoteContent() {
                     onClick={() => setAccessDifficulty(opt.value)}
                     className={`px-3 py-3 text-xs transition-all min-h-[44px] ${
                       accessDifficulty === opt.value
-                        ? 'bg-[#C9A84C]/10 text-[#C9A84C]'
+                        ? 'bg-v-gold/10 text-v-gold'
                         : 'bg-v-surface text-gray-400 hover:text-white'
                     }`}
                   >
@@ -891,7 +891,7 @@ function NewQuoteContent() {
                     >
                       <div className="flex items-center gap-2">
                         <div className={`w-4 h-4 border flex items-center justify-center ${
-                          isSelected ? 'bg-[#C9A84C] border-[#C9A84C] text-[#0D1B2A]' : 'border-gray-500'
+                          isSelected ? 'bg-v-gold border-v-gold text-v-charcoal' : 'border-gray-500'
                         }`}>
                           {isSelected && <span className="text-[10px]">&#10003;</span>}
                         </div>
@@ -954,7 +954,7 @@ function NewQuoteContent() {
 
           {/* 8. Quote Summary */}
           {selectedAircraft && selectedServicesList.length > 0 && (
-            <div className="bg-[#0D1B2A] border border-v-border/20 p-5 mb-5 text-white">
+            <div className="bg-v-navy border border-v-border/20 p-5 mb-5 text-white">
               <h3 className="text-sm font-light tracking-wider uppercase text-gray-400 mb-4">Quote Summary</h3>
 
               {/* Line items */}
@@ -985,7 +985,7 @@ function NewQuoteContent() {
 
               {/* Difficulty */}
               {accessDifficulty > 1 && (
-                <div className="flex justify-between text-sm text-amber-400 mb-1">
+                <div className="flex justify-between text-sm text-v-gold mb-1">
                   <span>Access Difficulty ({accessDifficulty}x)</span>
                   <span>+{currencySymbol()}{formatPrice(afterDifficulty - afterDiscount)}</span>
                 </div>
@@ -1012,7 +1012,7 @@ function NewQuoteContent() {
               {/* Total */}
               <div className="flex justify-between items-baseline">
                 <span className="text-sm text-gray-400 uppercase tracking-wider">Total</span>
-                <span className="text-[2.5rem] font-extralight text-[#C9A84C]">{currencySymbol()}{formatPrice(totalPrice)}</span>
+                <span className="text-[2.5rem] font-extralight text-v-gold">{currencySymbol()}{formatPrice(totalPrice)}</span>
               </div>
 
               {/* CC Processing Fee */}
@@ -1086,7 +1086,7 @@ function NewQuoteContent() {
                 type="button"
                 onClick={openSendModal}
                 disabled={totalPrice === 0 || !airport || airport.length < 3}
-                className="w-full mt-6 px-6 py-4 bg-[#C9A84C] text-[#0D1B2A] font-medium uppercase tracking-[0.2em] hover:bg-[#b8993f] disabled:opacity-40 disabled:cursor-not-allowed text-sm min-h-[52px] transition-colors"
+                className="w-full mt-6 px-6 py-4 bg-v-gold text-v-charcoal font-medium uppercase tracking-[0.2em] hover:bg-v-gold-dim disabled:opacity-40 disabled:cursor-not-allowed text-sm min-h-[52px] transition-colors"
               >
                 {!airport || airport.length < 3 ? 'Enter Airport to Send' : 'Send to Client'}
               </button>
@@ -1105,19 +1105,19 @@ function NewQuoteContent() {
 
       {/* Sticky footer bar */}
       {selectedAircraft && selectedServicesList.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-[#0D1B2A]/95 backdrop-blur-sm border-t border-[#C9A84C]/20 px-4 py-3 z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-v-charcoal/95 backdrop-blur-sm border-t border-v-gold/20 px-4 py-3 z-50">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-white text-sm truncate">{selectedAircraft.manufacturer} {selectedAircraft.model}</p>
               <p className="text-gray-500 text-xs">{selectedServicesList.length} service{selectedServicesList.length !== 1 ? 's' : ''} &middot; {totalHours.toFixed(1)}h</p>
             </div>
             <div className="flex items-center gap-4 flex-shrink-0">
-              <span className="text-[#C9A84C] text-2xl font-extralight">{currencySymbol()}{formatPrice(totalPrice)}</span>
+              <span className="text-v-gold text-2xl font-extralight">{currencySymbol()}{formatPrice(totalPrice)}</span>
               <button
                 type="button"
                 onClick={openSendModal}
                 disabled={totalPrice === 0 || !airport || airport.length < 3}
-                className="px-5 sm:px-8 py-3 bg-[#C9A84C] text-[#0D1B2A] font-medium uppercase tracking-[0.15em] hover:bg-[#b8993f] disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm min-h-[44px] whitespace-nowrap transition-colors"
+                className="px-5 sm:px-8 py-3 bg-v-gold text-v-charcoal font-medium uppercase tracking-[0.15em] hover:bg-v-gold-dim disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm min-h-[44px] whitespace-nowrap transition-colors"
               >
                 {!airport || airport.length < 3 ? 'Enter Airport' : 'Send to Client'}
               </button>

@@ -94,7 +94,7 @@ function StarRating({ rating }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(s => (
-        <svg key={s} className={`w-4 h-4 ${s <= Math.round(rating) ? 'text-amber-400' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
+        <svg key={s} className={`w-4 h-4 ${s <= Math.round(rating) ? 'text-v-gold' : 'text-white/10'}`} viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
       ))}
@@ -130,9 +130,9 @@ function NearbyAirports({ current }) {
           <Link
             key={a.icao}
             href={`/airport/${a.icao}`}
-            className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-amber-500/30 transition-colors group"
+            className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors group"
           >
-            <p className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">{a.icao}</p>
+            <p className="text-sm font-semibold text-white group-hover:text-v-gold transition-colors">{a.icao}</p>
             <p className="text-xs text-gray-400 mt-1 line-clamp-1">{a.name}</p>
             <p className="text-xs text-gray-500 mt-1">{Math.round(a.distance)} mi away</p>
           </Link>
@@ -155,7 +155,7 @@ export default async function AirportPage({ params }) {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white mb-2">Airport Not Found</h1>
           <p className="text-gray-400 mb-6">We don't have data for this airport code.</p>
-          <Link href="/find-a-detailer" className="text-amber-400 hover:text-amber-300 text-sm">Browse all detailers</Link>
+          <Link href="/find-a-detailer" className="text-v-gold hover:text-v-gold text-sm">Browse all detailers</Link>
         </div>
       </div>
     );
@@ -200,7 +200,7 @@ export default async function AirportPage({ params }) {
           <div className="flex items-center space-x-4">
             <Link href="/find-a-detailer" className="text-gray-300 hover:text-white text-sm transition-colors">Directory</Link>
             <Link href="/login" className="text-gray-300 hover:text-white text-sm transition-colors">Sign In</Link>
-            <Link href="/signup" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+            <Link href="/signup" className="px-4 py-2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
               Start Free
             </Link>
           </div>
@@ -222,7 +222,7 @@ export default async function AirportPage({ params }) {
           <div className="flex items-center gap-3 mb-4">
             <span className={`text-xs font-medium uppercase tracking-wider px-2.5 py-1 rounded-full ${
               airport.type === 'International' ? 'bg-blue-500/20 text-blue-400' :
-              airport.type === 'Executive' ? 'bg-amber-500/20 text-amber-400' :
+              airport.type === 'Executive' ? 'bg-v-gold/20 text-v-gold' :
               airport.type === 'General Aviation' ? 'bg-emerald-500/20 text-emerald-400' :
               'bg-white/10 text-gray-400'
             }`}>
@@ -246,21 +246,21 @@ export default async function AirportPage({ params }) {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {detailers.map(d => (
-                <div key={d.id} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-amber-500/30 transition-colors">
+                <div key={d.id} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors">
                   <div className="flex items-center gap-3 mb-3">
                     {d.theme_logo_url ? (
                       <img src={d.theme_logo_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-white/5 p-0.5" />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-lg">
+                      <div className="w-10 h-10 rounded-lg bg-v-gold/10 flex items-center justify-center text-lg">
                         {'\u2708\uFE0F'}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <Link href={`/detailer/${d.id}`} className="text-lg font-semibold text-white hover:text-amber-400 transition-colors block truncate">
+                      <Link href={`/detailer/${d.id}`} className="text-lg font-semibold text-white hover:text-v-gold transition-colors block truncate">
                         {d.company || d.name}
                       </Link>
                       <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        d.plan === 'enterprise' ? 'bg-amber-500/20 text-amber-400' :
+                        d.plan === 'enterprise' ? 'bg-v-gold/20 text-v-gold' :
                         d.plan === 'business' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-white/10 text-gray-400'
                       }`}>
@@ -271,7 +271,7 @@ export default async function AirportPage({ params }) {
                   {d.avg_rating && (
                     <div className="flex items-center gap-2 mb-3">
                       <StarRating rating={d.avg_rating} />
-                      <span className="text-sm text-amber-400 font-medium">{d.avg_rating}</span>
+                      <span className="text-sm text-v-gold font-medium">{d.avg_rating}</span>
                       <span className="text-xs text-gray-500">({d.review_count} review{d.review_count !== 1 ? 's' : ''})</span>
                     </div>
                   )}
@@ -280,7 +280,7 @@ export default async function AirportPage({ params }) {
                   </div>
                   <Link
                     href={`/quote-request/${d.id}`}
-                    className="block w-full text-center px-4 py-2.5 border border-amber-500/30 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/10 transition-colors"
+                    className="block w-full text-center px-4 py-2.5 border border-v-gold/30 text-v-gold text-sm font-medium rounded-lg hover:bg-v-gold/10 transition-colors"
                   >
                     Request a Quote
                   </Link>
@@ -299,13 +299,13 @@ export default async function AirportPage({ params }) {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/signup"
-                className="px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                className="px-8 py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
                 Join Vector Free
               </Link>
               <Link
                 href="/find-a-detailer"
-                className="px-8 py-3 border border-white/10 text-gray-300 font-medium rounded-lg hover:border-amber-500/30 hover:text-white transition-colors"
+                className="px-8 py-3 border border-white/10 text-gray-300 font-medium rounded-lg hover:border-v-gold/30 hover:text-white transition-colors"
               >
                 Browse All Detailers
               </Link>
@@ -364,14 +364,14 @@ export default async function AirportPage({ params }) {
         <NearbyAirports current={airport} />
 
         {/* CTA */}
-        <section className="mt-16 py-12 px-8 rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 text-center">
+        <section className="mt-16 py-12 px-8 rounded-2xl bg-gradient-to-br from-v-gold/10 to-v-gold-dim/5 border border-v-gold/20 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Ready to Get Your Aircraft Detailed?</h2>
           <p className="text-gray-400 mb-6 max-w-xl mx-auto">
             Browse our directory of verified aviation detailers and request a quote in minutes.
           </p>
           <Link
             href="/find-a-detailer"
-            className="inline-block px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+            className="inline-block px-8 py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
           >
             Get a Quote
           </Link>

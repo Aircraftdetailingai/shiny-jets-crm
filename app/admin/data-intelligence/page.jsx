@@ -260,7 +260,7 @@ export default function DataIntelligencePage() {
       {/* Header */}
       <header className="text-white flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
+          <a href="/dashboard" className="text-2xl hover:text-v-gold">&#8592;</a>
           <div>
             <h1 className="text-2xl font-bold">Data Intelligence</h1>
             <p className="text-sm text-v-text-secondary">Aircraft hours database optimization</p>
@@ -280,7 +280,7 @@ export default function DataIntelligencePage() {
             onClick={() => setTab(t)}
             className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
               tab === t
-                ? 'bg-amber-900/200 text-white'
+                ? 'bg-v-gold-muted/200 text-white'
                 : 'text-gray-300 hover:text-white'
             }`}
           >
@@ -318,9 +318,9 @@ export default function DataIntelligencePage() {
               <h2 className="text-lg font-bold text-v-text-primary mb-4">Smart Suggestions</h2>
               <div className="space-y-3">
                 {suggestions.map((s, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-amber-900/20 rounded-sm border border-amber-200">
+                  <div key={i} className="flex items-start gap-3 p-3 bg-v-gold-muted/20 rounded-sm border border-v-gold/20">
                     <span className="text-xl" dangerouslySetInnerHTML={{ __html: '&#128161;' }} />
-                    <p className="text-sm text-amber-800">{s}</p>
+                    <p className="text-sm text-v-gold-muted">{s}</p>
                   </div>
                 ))}
               </div>
@@ -485,7 +485,7 @@ export default function DataIntelligencePage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={selectAllFlagged}
-                  className="text-sm text-amber-600 hover:underline"
+                  className="text-sm text-v-gold-dim hover:underline"
                 >
                   Select All Flagged (10+ samples)
                 </button>
@@ -501,7 +501,7 @@ export default function DataIntelligencePage() {
               {selectedCount > 0 && (
                 <button
                   onClick={() => setShowBulkModal(true)}
-                  className="px-4 py-2 bg-amber-900/200 text-white rounded-sm text-sm font-medium hover:bg-amber-600"
+                  className="px-4 py-2 bg-v-gold-muted/200 text-white rounded-sm text-sm font-medium hover:bg-v-gold-dim"
                 >
                   Bulk Update {selectedCount} Items
                 </button>
@@ -554,7 +554,7 @@ export default function DataIntelligencePage() {
                               type="checkbox"
                               checked={selectedRows[i] || false}
                               onChange={() => setSelectedRows(prev => ({ ...prev, [i]: !prev[i] }))}
-                              className="rounded text-amber-500"
+                              className="rounded text-v-gold"
                             />
                           </td>
                           <td className="px-3 py-3">
@@ -582,7 +582,7 @@ export default function DataIntelligencePage() {
                           <td className="px-3 py-3 text-center">
                             <button
                               onClick={() => openUpdateModal(item)}
-                              className="px-3 py-1 text-xs bg-amber-900/30 text-amber-400 rounded hover:bg-amber-200 font-medium"
+                              className="px-3 py-1 text-xs bg-v-gold-muted/30 text-v-gold rounded hover:bg-v-gold/20 font-medium"
                             >
                               Update Default
                             </button>
@@ -638,7 +638,7 @@ export default function DataIntelligencePage() {
               <div className="flex items-end">
                 <button
                   onClick={fetchRawLogs}
-                  className="w-full px-2 py-1.5 text-sm text-amber-700 bg-amber-900/20 border border-amber-200 rounded hover:bg-amber-100"
+                  className="w-full px-2 py-1.5 text-sm text-v-gold-dim bg-v-gold-muted/20 border border-v-gold/20 rounded hover:bg-v-gold/10"
                 >
                   Refresh
                 </button>
@@ -673,7 +673,7 @@ export default function DataIntelligencePage() {
                     {rawLogs.map((log) => {
                       const flagged = Math.abs(log.variance_percent) > 10;
                       return (
-                        <tr key={log.id} className={flagged ? 'bg-amber-900/20' : 'hover:bg-white/5'}>
+                        <tr key={log.id} className={flagged ? 'bg-v-gold-muted/20' : 'hover:bg-white/5'}>
                           <td className="px-3 py-3 text-v-text-secondary whitespace-nowrap">
                             {new Date(log.created_at).toLocaleDateString()}
                           </td>
@@ -744,7 +744,7 @@ export default function DataIntelligencePage() {
                         <td className="px-3 py-3 text-right font-mono text-v-text-secondary">
                           {h.old_value != null ? `${parseFloat(h.old_value).toFixed(1)}h` : '-'}
                         </td>
-                        <td className="px-3 py-3 text-right font-mono font-semibold text-amber-600">
+                        <td className="px-3 py-3 text-right font-mono font-semibold text-v-gold-dim">
                           {h.new_value != null ? `${parseFloat(h.new_value).toFixed(1)}h` : '-'}
                         </td>
                         <td className="px-3 py-3 text-v-text-secondary text-sm max-w-xs truncate">{h.reason || '-'}</td>
@@ -773,9 +773,9 @@ export default function DataIntelligencePage() {
                 <p className="text-xs text-v-text-secondary">Current Default</p>
                 <p className="text-xl font-bold">{modalItem.current_default.toFixed(2)}h</p>
               </div>
-              <div className="p-3 bg-amber-900/20 rounded-sm">
-                <p className="text-xs text-amber-600">Field Average</p>
-                <p className="text-xl font-bold text-amber-700">{modalItem.avg_actual.toFixed(2)}h</p>
+              <div className="p-3 bg-v-gold-muted/20 rounded-sm">
+                <p className="text-xs text-v-gold-dim">Field Average</p>
+                <p className="text-xl font-bold text-v-gold-dim">{modalItem.avg_actual.toFixed(2)}h</p>
               </div>
             </div>
 
@@ -795,7 +795,7 @@ export default function DataIntelligencePage() {
                 step="0.01"
                 value={newValue}
                 onChange={(e) => setNewValue(e.target.value)}
-                className="w-full border rounded-sm px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                className="w-full border rounded-sm px-3 py-2 focus:ring-2 focus:ring-v-gold"
               />
               <p className="text-xs text-v-text-secondary mt-1">This will affect all users' default pricing for this aircraft.</p>
             </div>
@@ -807,7 +807,7 @@ export default function DataIntelligencePage() {
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g., Aligned with field average from 47 vector points"
                 rows={2}
-                className="w-full border rounded-sm px-3 py-2 focus:ring-2 focus:ring-amber-500 resize-none"
+                className="w-full border rounded-sm px-3 py-2 focus:ring-2 focus:ring-v-gold resize-none"
               />
             </div>
 
@@ -821,7 +821,7 @@ export default function DataIntelligencePage() {
               <button
                 onClick={handleUpdate}
                 disabled={updating || !newValue}
-                className="flex-1 px-4 py-2 bg-amber-900/200 text-white rounded-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-v-gold-muted/200 text-white rounded-sm font-medium hover:bg-v-gold-dim disabled:opacity-50"
               >
                 {updating ? 'Updating...' : 'Confirm Update'}
               </button>
@@ -848,14 +848,14 @@ export default function DataIntelligencePage() {
                   </div>
                   <div className="text-right">
                     <p className="text-v-text-secondary line-through">{item.current_default.toFixed(1)}h</p>
-                    <p className="font-semibold text-amber-600">{item.avg_actual.toFixed(1)}h</p>
+                    <p className="font-semibold text-v-gold-dim">{item.avg_actual.toFixed(1)}h</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="bg-amber-900/20 border border-amber-200 rounded-sm p-3 mb-4">
-              <p className="text-sm text-amber-800">
+            <div className="bg-v-gold-muted/20 border border-v-gold/20 rounded-sm p-3 mb-4">
+              <p className="text-sm text-v-gold-muted">
                 This will update all selected aircraft defaults. All changes are logged and can be reviewed in the History tab.
               </p>
             </div>
@@ -870,7 +870,7 @@ export default function DataIntelligencePage() {
               <button
                 onClick={handleBulkUpdate}
                 disabled={bulkUpdating}
-                className="flex-1 px-4 py-2 bg-amber-900/200 text-white rounded-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-v-gold-muted/200 text-white rounded-sm font-medium hover:bg-v-gold-dim disabled:opacity-50"
               >
                 {bulkUpdating ? 'Updating...' : `Update ${selectedCount} Defaults`}
               </button>

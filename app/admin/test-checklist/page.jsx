@@ -85,13 +85,13 @@ export default function TestChecklistPage() {
               <span className="text-sm font-medium text-v-text-secondary">
                 {totalDone} of {totalItems} complete
               </span>
-              <span className={`text-sm font-bold ${pct === 100 ? 'text-green-600' : 'text-amber-600'}`}>
+              <span className={`text-sm font-bold ${pct === 100 ? 'text-green-600' : 'text-v-gold-dim'}`}>
                 {pct}%
               </span>
             </div>
             <div className="w-full bg-v-charcoal rounded-full h-3">
               <div
-                className={`h-3 rounded-full transition-all duration-500 ${pct === 100 ? 'bg-green-500' : 'bg-amber-500'}`}
+                className={`h-3 rounded-full transition-all duration-500 ${pct === 100 ? 'bg-green-500' : 'bg-v-gold'}`}
                 style={{ width: `${pct}%` }}
               />
             </div>

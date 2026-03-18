@@ -9,7 +9,7 @@ export default function TermsPage() {
       <div className="max-w-3xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-8">
-          <a href="/" className="text-amber-400 hover:text-amber-300 text-sm">&larr; Back to Vector</a>
+          <a href="/" className="text-v-gold hover:text-v-gold text-sm">&larr; Back to Vector</a>
           <h1 className="text-3xl font-bold text-white mt-4">Terms of Service</h1>
           <p className="text-gray-400 mt-2">Last updated: March 12, 2026</p>
         </div>
@@ -100,14 +100,14 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">6. Independent Contractor Relationship</h2>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="font-bold text-amber-900 mb-2">Detailers Are Independent Businesses:</p>
-              <p className="text-amber-800 mb-3">
+            <div className="bg-v-gold/5 border border-v-gold/20 rounded-lg p-4">
+              <p className="font-bold text-v-gold-muted mb-2">Detailers Are Independent Businesses:</p>
+              <p className="text-v-gold-muted mb-3">
                 Detailers who use Vector are independent contractors and independent business operators.
                 They are NOT employees, agents, representatives, or partners of Vector Aviation
                 Artificial Intelligence. Vector does not:
               </p>
-              <ul className="list-disc ml-6 space-y-1 text-amber-800">
+              <ul className="list-disc ml-6 space-y-1 text-v-gold-muted">
                 <li>Employ, hire, or contract detailers to perform services</li>
                 <li>Set or control detailer pricing, schedules, or work methods</li>
                 <li>Supervise, direct, or oversee any detailing work</li>
@@ -163,11 +163,11 @@ export default function TermsPage() {
             <p>
               Payment processing is provided by Stripe, Inc. through Stripe Connect. By using
               Vector&apos;s payment features, you also agree to Stripe&apos;s{' '}
-              <a href="https://stripe.com/connect-account/legal" className="text-amber-600 hover:underline" target="_blank" rel="noreferrer">
+              <a href="https://stripe.com/connect-account/legal" className="text-v-gold-dim hover:underline" target="_blank" rel="noreferrer">
                 Connected Account Agreement
               </a>{' '}
               and{' '}
-              <a href="https://stripe.com/legal" className="text-amber-600 hover:underline" target="_blank" rel="noreferrer">
+              <a href="https://stripe.com/legal" className="text-v-gold-dim hover:underline" target="_blank" rel="noreferrer">
                 Terms of Service
               </a>.
               Vector is not responsible for Stripe&apos;s service availability, processing delays,
@@ -295,7 +295,7 @@ export default function TermsPage() {
             <p className="mb-2">
               Upon termination, your right to use the Platform ceases immediately. You may request
               an export of your data within 30 days of termination by contacting{' '}
-              <a href="mailto:support@vectorav.ai" className="text-amber-600 hover:underline">
+              <a href="mailto:support@vectorav.ai" className="text-v-gold-dim hover:underline">
                 support@vectorav.ai
               </a>.
               After 30 days, your data may be permanently deleted.
@@ -337,7 +337,7 @@ export default function TermsPage() {
             <p className="mt-2">
               Vector Aviation Artificial Intelligence<br />
               Email:{' '}
-              <a href="mailto:support@vectorav.ai" className="text-amber-600 hover:underline">
+              <a href="mailto:support@vectorav.ai" className="text-v-gold-dim hover:underline">
                 support@vectorav.ai
               </a>
             </p>

@@ -139,7 +139,7 @@ export default function ScheduledQuotesPage() {
   if (loading) {
     return (
       <div className="page-transition min-h-screen bg-v-charcoal flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-v-gold" />
       </div>
     );
   }
@@ -154,7 +154,7 @@ export default function ScheduledQuotesPage() {
         </div>
         <a
           href="/dashboard"
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 shadow"
         >
           {'New Quote'}
         </a>
@@ -320,7 +320,7 @@ export default function ScheduledQuotesPage() {
                   value={editDate}
                   onChange={e => setEditDate(e.target.value)}
                   min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                 />
               </div>
               <div>
@@ -329,7 +329,7 @@ export default function ScheduledQuotesPage() {
                   type="text"
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                 />
               </div>
               <div>
@@ -338,7 +338,7 @@ export default function ScheduledQuotesPage() {
                   type="email"
                   value={editEmail}
                   onChange={e => setEditEmail(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                 />
               </div>
               <div>
@@ -347,7 +347,7 @@ export default function ScheduledQuotesPage() {
                   type="tel"
                   value={editPhone}
                   onChange={e => setEditPhone(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none"
                 />
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function ScheduledQuotesPage() {
               <button
                 onClick={saveEdit}
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 text-sm"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 text-sm"
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>

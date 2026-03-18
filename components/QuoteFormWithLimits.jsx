@@ -100,19 +100,19 @@ export default function QuoteFormWithLimits({ children, onQuoteCreated }) {
         <div className={`mb-4 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
           quotesRemaining === 0
             ? 'bg-red-100 border border-red-300'
-            : 'bg-amber-100 border border-amber-300'
+            : 'bg-v-gold/10 border border-v-gold'
         }`}>
           <div className="flex items-center">
-            <span className={`text-lg sm:text-xl mr-3 ${quotesRemaining === 0 ? 'text-red-500' : 'text-amber-500'}`}>
+            <span className={`text-lg sm:text-xl mr-3 ${quotesRemaining === 0 ? 'text-red-500' : 'text-v-gold'}`}>
               {quotesRemaining === 0 ? '⚠️' : '📊'}
             </span>
             <div>
-              <p className={`font-medium text-sm sm:text-base ${quotesRemaining === 0 ? 'text-red-800' : 'text-amber-800'}`}>
+              <p className={`font-medium text-sm sm:text-base ${quotesRemaining === 0 ? 'text-red-800' : 'text-v-gold-muted'}`}>
                 {quotesRemaining === 0
                   ? 'Quote limit reached!'
                   : `${quotesRemaining} quote${quotesRemaining === 1 ? '' : 's'} remaining this month`}
               </p>
-              <p className={`text-xs sm:text-sm ${quotesRemaining === 0 ? 'text-red-600' : 'text-amber-600'}`}>
+              <p className={`text-xs sm:text-sm ${quotesRemaining === 0 ? 'text-red-600' : 'text-v-gold-dim'}`}>
                 {quotesRemaining === 0
                   ? 'Upgrade to continue sending quotes'
                   : `You've used ${usage.quotesThisMonth} of ${quotesLimit} quotes`}
@@ -124,7 +124,7 @@ export default function QuoteFormWithLimits({ children, onQuoteCreated }) {
             className={`px-4 py-3 rounded-lg font-medium min-h-[44px] whitespace-nowrap ${
               quotesRemaining === 0
                 ? 'bg-red-500 text-white hover:bg-red-600'
-                : 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-v-gold text-white hover:bg-v-gold-dim'
             }`}
           >
             Upgrade
@@ -172,7 +172,7 @@ export function UsageDisplay({ className = '' }) {
         <div
           className={`h-full transition-all ${
             percentage >= 100 ? 'bg-red-500' :
-            percentage >= 80 ? 'bg-amber-500' :
+            percentage >= 80 ? 'bg-v-gold' :
             'bg-green-500'
           }`}
           style={{ width: `${Math.min(100, percentage)}%` }}

@@ -111,7 +111,7 @@ export default function InstallPrompt() {
           </div>
           <button
             onClick={handleDismiss}
-            className="mt-3 w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+            className="mt-3 w-full py-2.5 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
           >
             Got it
           </button>
@@ -130,14 +130,14 @@ export default function InstallPrompt() {
             {deferredPrompt ? (
               <button
                 onClick={handleInstall}
-                className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                className="flex-1 py-2.5 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
               >
                 Install Now
               </button>
             ) : (
               <button
                 onClick={handleDismiss}
-                className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                className="flex-1 py-2.5 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
               >
                 Got it
               </button>

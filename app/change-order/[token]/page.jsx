@@ -130,7 +130,7 @@ export default function ChangeOrderPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto"></div>
+          <div className="animate-spin w-8 h-8 border-4 border-v-gold border-t-transparent rounded-full mx-auto"></div>
           <p className="mt-4 text-gray-500">Loading...</p>
         </div>
       </div>
@@ -211,7 +211,7 @@ export default function ChangeOrderPage() {
             {/* Additional Services */}
             <div className="mb-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-2">Additional Services Requested</h2>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="bg-v-gold/5 border border-v-gold/20 rounded-lg p-4">
                 <ul className="space-y-2 mb-4">
                   {changeOrder?.services?.map((service, idx) => (
                     <li key={idx} className="flex justify-between">
@@ -222,17 +222,17 @@ export default function ChangeOrderPage() {
                 </ul>
 
                 {changeOrder?.reason && (
-                  <div className="border-t border-amber-200 pt-3 mt-3">
-                    <p className="text-sm text-amber-800">
+                  <div className="border-t border-v-gold/20 pt-3 mt-3">
+                    <p className="text-sm text-v-gold-muted">
                       <strong>Note from detailer:</strong> {changeOrder.reason}
                     </p>
                   </div>
                 )}
 
-                <div className="border-t border-amber-200 pt-3 mt-3">
+                <div className="border-t border-v-gold/20 pt-3 mt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Additional Amount</span>
-                    <span className="text-amber-600">{formatCurrency(changeOrder?.amount)}</span>
+                    <span className="text-v-gold-dim">{formatCurrency(changeOrder?.amount)}</span>
                   </div>
                 </div>
               </div>
@@ -279,7 +279,7 @@ export default function ChangeOrderPage() {
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-500">
                 Questions? Contact your detailer at{' '}
-                <a href={`mailto:${quote?.detailers?.email}`} className="text-amber-600 hover:underline">
+                <a href={`mailto:${quote?.detailers?.email}`} className="text-v-gold-dim hover:underline">
                   {quote?.detailers?.email}
                 </a>
               </p>

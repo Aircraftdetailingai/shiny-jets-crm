@@ -426,7 +426,7 @@ export default function QuotesPage() {
             </div>
             <div className="flex items-center gap-5">
               {['all', 'active', 'paid', 'completed', 'expired'].map((f) => (
-                <button key={f} onClick={() => setFilter(f)} className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-[#C9A84C]' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
+                <button key={f} onClick={() => setFilter(f)} className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-v-gold' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
                   {f === 'all' ? `All (${stats.total})` : f === 'active' ? `Active (${stats.active})` : f === 'paid' ? `Paid (${stats.paid})` : f === 'completed' ? `Done (${stats.completed})` : 'Expired'}
                 </button>
               ))}
@@ -468,7 +468,7 @@ export default function QuotesPage() {
         <div className="overflow-x-auto">
           <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
             <div className="flex items-center justify-center">
-              <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-amber-500 cursor-pointer" onClick={(e) => e.stopPropagation()} />
+              <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer" onClick={(e) => e.stopPropagation()} />
             </div>
             <div>Customer</div>
             <div>Aircraft</div>
@@ -490,7 +490,7 @@ export default function QuotesPage() {
                   className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-amber-500 cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                    <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
                   </div>
                   <div className="truncate pr-4">
                     <span className="text-white text-sm">{getDisplayName(q)}</span>
@@ -621,8 +621,8 @@ export default function QuotesPage() {
                   <p className="text-sm font-medium text-white mb-3 flex items-center gap-2"><span>Track Hidden Costs</span><span className="text-[10px] bg-v-gold/10 text-v-gold px-2 py-0.5">+Points</span></p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label className="block text-sm text-v-text-secondary mb-1">Wait Time (min)</label><div className="flex items-center gap-2"><input type="number" value={completionData.wait_time_minutes} onChange={(e) => setCompletionData({ ...completionData, wait_time_minutes: e.target.value })} placeholder="0" className="w-20 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm" /><span className="text-xs text-v-text-secondary">mins</span></div></div>
-                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.repositioning_needed} onChange={(e) => setCompletionData({ ...completionData, repositioning_needed: e.target.checked })} className="rounded-sm border-v-border accent-amber-500" /><span className="text-sm text-v-text-secondary">Repositioning needed</span></label></div>
-                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.customer_late} onChange={(e) => setCompletionData({ ...completionData, customer_late: e.target.checked })} className="rounded-sm border-v-border accent-amber-500" /><span className="text-sm text-v-text-secondary">Customer was late</span></label></div>
+                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.repositioning_needed} onChange={(e) => setCompletionData({ ...completionData, repositioning_needed: e.target.checked })} className="rounded-sm border-v-border accent-v-gold" /><span className="text-sm text-v-text-secondary">Repositioning needed</span></label></div>
+                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.customer_late} onChange={(e) => setCompletionData({ ...completionData, customer_late: e.target.checked })} className="rounded-sm border-v-border accent-v-gold" /><span className="text-sm text-v-text-secondary">Customer was late</span></label></div>
                   </div>
                   <div className="mt-3"><label className="block text-sm text-v-text-secondary mb-1">Issues (optional)</label><textarea value={completionData.issues} onChange={(e) => setCompletionData({ ...completionData, issues: e.target.value })} placeholder="Access problems, condition notes, etc..." className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 text-sm" rows={2} /></div>
                   <p className="text-xs text-v-text-secondary/60 mt-2">Tracking this data earns points and helps identify problem customers.</p>
@@ -674,7 +674,7 @@ export default function QuotesPage() {
               <p className="text-sm text-v-text-secondary mb-6">{bulkConfirm.description}</p>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setBulkConfirm(null)} disabled={bulkProcessing} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white transition-colors disabled:opacity-50">Cancel</button>
-                <button onClick={() => executeBulkAction(bulkConfirm.action)} disabled={bulkProcessing} className={`px-4 py-2 text-white disabled:opacity-50 ${bulkConfirm.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : bulkConfirm.action === 'expire' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-v-gold hover:bg-v-gold-dim text-white'}`}>{bulkProcessing ? 'Processing...' : 'Confirm'}</button>
+                <button onClick={() => executeBulkAction(bulkConfirm.action)} disabled={bulkProcessing} className={`px-4 py-2 text-white disabled:opacity-50 ${bulkConfirm.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : bulkConfirm.action === 'expire' ? 'bg-v-gold-dim hover:bg-v-gold-dim' : 'bg-v-gold hover:bg-v-gold-dim text-white'}`}>{bulkProcessing ? 'Processing...' : 'Confirm'}</button>
               </div>
             </div>
           </div>

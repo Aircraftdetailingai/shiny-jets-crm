@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
             </p>
             <a
               href="/login"
-              className="inline-block px-6 py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90"
+              className="inline-block px-6 py-2 rounded-md text-white font-medium bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90"
             >
               Back to {'Login'}
             </a>
@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
               </div>
               <button
                 type="submit"
-                className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90 disabled:opacity-50"
+                className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90 disabled:opacity-50"
                 disabled={loading}
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}

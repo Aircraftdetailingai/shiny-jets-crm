@@ -61,7 +61,7 @@ export default function VendorDashboardPage() {
           </div>
           <h2 className="text-lg font-bold text-gray-900 mb-2">{'Failed to load report'}</h2>
           <p className="text-gray-500 text-sm mb-4">Please check your connection and try again.</p>
-          <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600">
+          <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-v-gold text-white rounded-lg font-medium hover:bg-v-gold-dim">
             {'Retry'}
           </button>
         </div>
@@ -86,7 +86,7 @@ export default function VendorDashboardPage() {
           <div className="flex items-center gap-4">
             <span className={`px-2 py-1 rounded text-xs ${
               vendor.commission_tier === 'partner' ? 'bg-purple-500' :
-              vendor.commission_tier === 'pro' ? 'bg-amber-500' : 'bg-gray-500'
+              vendor.commission_tier === 'pro' ? 'bg-v-gold' : 'bg-gray-500'
             }`}>
               {tierBenefits.name} Tier
             </span>
@@ -201,16 +201,16 @@ export default function VendorDashboardPage() {
             </div>
 
             {/* Tier Benefits */}
-            <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg p-6 text-white">
+            <div className="bg-gradient-to-r from-v-gold to-v-gold-dim rounded-lg p-6 text-white">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-semibold text-lg">{tierBenefits.name} Tier Benefits</h3>
-                  <p className="text-amber-100 text-sm">{tierBenefits.commission}% commission to {'Vector'}</p>
+                  <p className="text-v-gold/10 text-sm">{tierBenefits.commission}% commission to {'Vector'}</p>
                 </div>
                 {vendor.commission_tier !== 'partner' && (
                   <button
                     onClick={() => setActiveTab('settings')}
-                    className="px-4 py-2 bg-white text-amber-600 rounded font-medium text-sm hover:bg-amber-50"
+                    className="px-4 py-2 bg-white text-v-gold-dim rounded font-medium text-sm hover:bg-v-gold/5"
                   >
                     {'Upgrade'} Tier
                   </button>
@@ -368,7 +368,7 @@ function VendorProducts() {
             setForm({ name: '', description: '', category: 'accessories', price: '', sku: '', inventory_count: '', unlimited_inventory: false, shipping_type: 'vendor' });
             setShowModal(true);
           }}
-          className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium"
+          className="px-4 py-2 bg-v-gold text-white rounded-lg font-medium"
         >
           {'+ Add Product'}
         </button>
@@ -516,7 +516,7 @@ function VendorProducts() {
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded">{'Cancel'}</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 bg-amber-500 text-white rounded disabled:opacity-50">
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-v-gold text-white rounded disabled:opacity-50">
                   {saving ? 'Saving...' : editingProduct ? 'Save' : 'Add Product'}
                 </button>
               </div>
@@ -783,7 +783,7 @@ function VendorAnalytics({ stats }) {
           </div>
           <div className="flex justify-between items-center">
             <span className="font-semibold">Available Balance</span>
-            <span className="font-bold text-amber-600">{currencySymbol()}{formatPriceWhole(stats.currentBalance)}</span>
+            <span className="font-bold text-v-gold-dim">{currencySymbol()}{formatPriceWhole(stats.currentBalance)}</span>
           </div>
         </div>
       </div>
@@ -884,10 +884,10 @@ function VendorSettings({ vendor, onUpdate }) {
           ].map((tier) => (
             <div
               key={tier.key}
-              className={`border-2 rounded-lg p-4 ${vendor.commission_tier === tier.key ? 'border-amber-500 bg-amber-50' : 'border-gray-200'}`}
+              className={`border-2 rounded-lg p-4 ${vendor.commission_tier === tier.key ? 'border-v-gold bg-v-gold/5' : 'border-gray-200'}`}
             >
               <h4 className="font-semibold">{tier.name}</h4>
-              <p className="text-2xl font-bold text-amber-600">{tier.commission}%</p>
+              <p className="text-2xl font-bold text-v-gold-dim">{tier.commission}%</p>
               <p className="text-xs text-gray-500 mb-3">commission to {'Vector'}</p>
               <ul className="text-xs space-y-1 mb-4">
                 {tier.benefits.map((b, i) => (
@@ -897,7 +897,7 @@ function VendorSettings({ vendor, onUpdate }) {
               {vendor.commission_tier !== tier.key && (
                 <button
                   onClick={() => changeTier(tier.key)}
-                  className="w-full py-2 border border-amber-500 text-amber-600 rounded text-sm hover:bg-amber-50"
+                  className="w-full py-2 border border-v-gold text-v-gold-dim rounded text-sm hover:bg-v-gold/5"
                 >
                   Select
                 </button>
@@ -966,7 +966,7 @@ function VendorSettings({ vendor, onUpdate }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-amber-500 text-white rounded disabled:opacity-50"
+            className="px-4 py-2 bg-v-gold text-white rounded disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>

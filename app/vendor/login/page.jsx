@@ -165,15 +165,15 @@ export default function VendorLoginPage() {
                   type="checkbox"
                   checked={agreedToTerms}
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-v-gold focus:ring-v-gold"
                 />
                 <span>
                   I agree to the{' '}
-                  <a href="/terms" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline">
+                  <a href="/terms" target="_blank" rel="noreferrer" className="text-v-gold-dim hover:underline">
                     Terms of Service
                   </a>{' '}
                   and{' '}
-                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-amber-600 hover:underline">
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="text-v-gold-dim hover:underline">
                     Privacy Policy
                   </a>
                 </span>
@@ -183,7 +183,7 @@ export default function VendorLoginPage() {
             <button
               type="submit"
               disabled={loading || (isRegister && !agreedToTerms)}
-              className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
             >
               {loading ? 'Processing...' : isRegister ? 'Submit' : 'Login'}
             </button>
@@ -197,7 +197,7 @@ export default function VendorLoginPage() {
                 setSuccess('');
                 setAgreedToTerms(false);
               }}
-              className="text-amber-600 hover:underline text-sm"
+              className="text-v-gold-dim hover:underline text-sm"
             >
               {isRegister ? 'Already have an account? Login' : 'New vendor? Apply here'}
             </button>

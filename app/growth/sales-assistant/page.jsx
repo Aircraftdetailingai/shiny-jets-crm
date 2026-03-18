@@ -41,7 +41,7 @@ const SCRIPT_TYPE_COLORS = {
   cold_walkin: 'bg-orange-100 text-orange-700',
   email: 'bg-purple-900/30 text-purple-400',
   linkedin: 'bg-sky-100 text-sky-700',
-  follow_up: 'bg-amber-900/30 text-amber-400',
+  follow_up: 'bg-v-gold-muted/30 text-v-gold',
   objection_handler: 'bg-red-900/30 text-red-400',
   voicemail: 'bg-indigo-900/30 text-indigo-400',
   gatekeeper: 'bg-teal-100 text-teal-700',
@@ -211,7 +211,7 @@ export default function SalesAssistantPage() {
     <div className="min-h-screen bg-v-charcoal p-4">
       <header className="text-white flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
-          <a href="/growth" className="text-2xl hover:text-amber-400">&#8592;</a>
+          <a href="/growth" className="text-2xl hover:text-v-gold">&#8592;</a>
           <div>
             <h1 className="text-2xl font-bold">{'AI Sales Assistant'}</h1>
             <p className="text-sm text-v-text-secondary">{'Research prospects and generate personalized cold call, email, and LinkedIn scripts'}</p>
@@ -288,11 +288,11 @@ export default function SalesAssistantPage() {
                         onClick={() => setContactType(ct.value)}
                         className={`p-3 rounded-lg border-2 text-left transition-all ${
                           contactType === ct.value
-                            ? 'border-amber-500 bg-amber-900/20'
+                            ? 'border-v-gold bg-v-gold-muted/20'
                             : 'border-v-border hover:border-v-border bg-v-surface'
                         }`}
                       >
-                        <p className={`text-sm font-medium ${contactType === ct.value ? 'text-amber-700' : 'text-v-text-primary'}`}>{ct.label}</p>
+                        <p className={`text-sm font-medium ${contactType === ct.value ? 'text-v-gold-dim' : 'text-v-text-primary'}`}>{ct.label}</p>
                         <p className="text-[10px] text-v-text-secondary mt-0.5 leading-tight">{ct.description}</p>
                       </button>
                     ))}
@@ -400,7 +400,7 @@ export default function SalesAssistantPage() {
                 <button
                   onClick={generate}
                   disabled={loading}
-                  className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 rounded-lg bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading
                     ? (companyName.trim() ? 'Researching & Generating...' : 'Processing...')
@@ -424,7 +424,7 @@ export default function SalesAssistantPage() {
                       {i < progressStep ? (
                         <span className="text-green-400 text-lg">&#10003;</span>
                       ) : i === progressStep ? (
-                        <span className="text-amber-400 animate-pulse text-lg">&#9679;</span>
+                        <span className="text-v-gold animate-pulse text-lg">&#9679;</span>
                       ) : (
                         <span className="text-v-text-secondary text-lg">&#9675;</span>
                       )}
@@ -479,7 +479,7 @@ export default function SalesAssistantPage() {
                           <div
                             className={`h-full rounded-full ${
                               companyIntel.opportunity_score >= 8 ? 'bg-green-900/200' :
-                              companyIntel.opportunity_score >= 5 ? 'bg-amber-900/200' : 'bg-red-900/200'
+                              companyIntel.opportunity_score >= 5 ? 'bg-v-gold-muted/200' : 'bg-red-900/200'
                             }`}
                             style={{ width: `${companyIntel.opportunity_score * 10}%` }}
                           />
@@ -530,9 +530,9 @@ export default function SalesAssistantPage() {
                     <div className="p-4">
                       <div className="whitespace-pre-line text-v-text-primary text-sm leading-relaxed">{script.content}</div>
                       {script.tips && (
-                        <div className="mt-4 p-3 bg-amber-900/20 rounded-lg border border-amber-200">
-                          <p className="text-xs font-medium text-amber-800 mb-1">Tips</p>
-                          <p className="text-sm text-amber-700">{script.tips}</p>
+                        <div className="mt-4 p-3 bg-v-gold-muted/20 rounded-lg border border-v-gold/20">
+                          <p className="text-xs font-medium text-v-gold-muted mb-1">Tips</p>
+                          <p className="text-sm text-v-gold-dim">{script.tips}</p>
                         </div>
                       )}
                     </div>

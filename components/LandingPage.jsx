@@ -60,7 +60,7 @@ export default function LandingPage({ t, lang = 'en' }) {
                         key={l.code}
                         href={langHref(l.code)}
                         className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                          l.code === lang ? 'text-amber-400 bg-amber-500/10' : 'text-gray-300 hover:text-white hover:bg-white/5'
+                          l.code === lang ? 'text-v-gold bg-v-gold/10' : 'text-gray-300 hover:text-white hover:bg-white/5'
                         }`}
                       >
                         <span className="text-base">{l.flag}</span>
@@ -73,7 +73,7 @@ export default function LandingPage({ t, lang = 'en' }) {
             </div>
 
             <a href="/login" className="text-gray-300 hover:text-white text-sm transition-colors">{t.nav.signIn}</a>
-            <a href="/login" className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+            <a href="/login" className="px-4 py-2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
               {t.nav.startFree}
             </a>
           </div>
@@ -84,12 +84,12 @@ export default function LandingPage({ t, lang = 'en' }) {
       <section className="pt-32 pb-20 sm:pt-40 sm:pb-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-block px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-8">
+            <div className="inline-block px-4 py-1.5 rounded-full bg-v-gold/10 border border-v-gold/20 text-v-gold text-sm font-medium mb-8">
               {t.hero.badge}
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
               {t.hero.headline}{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-v-gold to-v-gold-dim">
                 {t.hero.headlineHighlight}
               </span>
             </h1>
@@ -99,7 +99,7 @@ export default function LandingPage({ t, lang = 'en' }) {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="/login"
-                className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-amber-500/25 transition-opacity"
+                className="px-8 py-4 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-v-gold/25 transition-opacity"
               >
                 {t.hero.cta}
               </a>
@@ -140,7 +140,7 @@ export default function LandingPage({ t, lang = 'en' }) {
                 <div className="bg-white/5 rounded-lg p-4">
                   <div className="flex justify-between items-center">
                     <span className="text-white font-medium text-sm">{t.mockup.recentQuote}</span>
-                    <span className="text-amber-400 text-sm font-medium">$4,890</span>
+                    <span className="text-v-gold text-sm font-medium">$4,890</span>
                   </div>
                 </div>
               </div>
@@ -174,7 +174,7 @@ export default function LandingPage({ t, lang = 'en' }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {t.steps.map((step, i) => (
               <div key={i} className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white text-xl font-bold mb-5 shadow-lg shadow-amber-500/20">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-v-gold to-v-gold-dim flex items-center justify-center text-white text-xl font-bold mb-5 shadow-lg shadow-v-gold/20">
                   {i + 1}
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
@@ -194,7 +194,7 @@ export default function LandingPage({ t, lang = 'en' }) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {t.features.items.map((f, i) => (
-              <div key={i} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-amber-500/30 transition-colors">
+              <div key={i} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors">
                 <div className="text-3xl mb-4">{FEATURE_ICONS[i]}</div>
                 <h3 className="text-lg font-semibold text-white mb-2">{f.title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
@@ -244,12 +244,12 @@ export default function LandingPage({ t, lang = 'en' }) {
                   key={i}
                   className={`rounded-2xl p-6 flex flex-col ${
                     isHighlight
-                      ? 'bg-gradient-to-b from-amber-500/10 to-amber-600/5 border-2 border-amber-500 relative'
+                      ? 'bg-gradient-to-b from-v-gold/10 to-v-gold-dim/5 border-2 border-v-gold relative'
                       : 'bg-white/[0.03] border border-white/10'
                   }`}
                 >
                   {isHighlight && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
                       {t.pricing.mostPopular}
                     </div>
                   )}
@@ -271,7 +271,7 @@ export default function LandingPage({ t, lang = 'en' }) {
                   <ul className="space-y-2.5 mb-6 flex-1">
                     {tier.features.map((f, j) => (
                       <li key={j} className="flex items-start gap-2.5 text-sm">
-                        <span className="text-amber-400 mt-0.5 flex-shrink-0">{'\u2713'}</span>
+                        <span className="text-v-gold mt-0.5 flex-shrink-0">{'\u2713'}</span>
                         <span className="text-gray-300">{f}</span>
                       </li>
                     ))}
@@ -280,7 +280,7 @@ export default function LandingPage({ t, lang = 'en' }) {
                     href="/login"
                     className={`w-full py-3 rounded-xl font-semibold text-center block text-sm transition-opacity ${
                       isHighlight
-                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow-lg shadow-amber-500/25'
+                        ? 'bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 shadow-lg shadow-v-gold/25'
                         : 'border border-white/20 text-white hover:bg-white/5'
                     }`}
                   >
@@ -303,7 +303,7 @@ export default function LandingPage({ t, lang = 'en' }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {t.testimonials.items.map((item, i) => (
               <div key={i} className="p-6 rounded-xl bg-white/[0.03] border border-white/5">
-                <div className="flex gap-1 text-amber-400 mb-4">
+                <div className="flex gap-1 text-v-gold mb-4">
                   {[...Array(5)].map((_, j) => <span key={j}>{'\u2605'}</span>)}
                 </div>
                 <p className="text-gray-300 text-sm leading-relaxed mb-6">&ldquo;{item.quote}&rdquo;</p>
@@ -346,7 +346,7 @@ export default function LandingPage({ t, lang = 'en' }) {
           <p className="text-gray-400 mb-8 text-lg">{t.footerCta.sub}</p>
           <a
             href="/login"
-            className="inline-block px-10 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-amber-500/25 transition-opacity"
+            className="inline-block px-10 py-4 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl text-lg hover:opacity-90 shadow-lg shadow-v-gold/25 transition-opacity"
           >
             {t.footerCta.cta}
           </a>

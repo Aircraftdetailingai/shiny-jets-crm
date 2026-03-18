@@ -107,7 +107,7 @@ export default function ManagerDashboard() {
           </div>
           <div className="bg-v-surface border border-v-border rounded-sm p-4">
             <p className="text-xs text-v-text-secondary uppercase tracking-wide">Pending Approvals</p>
-            <p className="text-2xl font-bold text-amber-400 mt-1">{pendingApprovals.length}</p>
+            <p className="text-2xl font-bold text-v-gold mt-1">{pendingApprovals.length}</p>
           </div>
         </div>
 
@@ -225,7 +225,7 @@ export default function ManagerDashboard() {
                       <td className="py-2 text-v-text-secondary">{job.aircraft_model || job.aircraft_type}</td>
                       <td className="py-2 text-v-text-secondary">{new Date(job.scheduled_date).toLocaleDateString()}</td>
                       <td className="py-2">
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-amber-900/30 text-amber-400">
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-v-gold-muted/30 text-v-gold">
                           Needs Staff
                         </span>
                       </td>

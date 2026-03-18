@@ -110,7 +110,7 @@ export default function ROIPage() {
       {/* Header */}
       <header className="flex justify-between items-center mb-6 text-white">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-amber-400">←</a>
+          <a href="/dashboard" className="text-2xl hover:text-v-gold">←</a>
           <h1 className="text-2xl font-bold">ROI Dashboard</h1>
         </div>
         <div className="flex items-center space-x-4 text-sm">
@@ -141,7 +141,7 @@ export default function ROIPage() {
                   key={star}
                   onClick={() => setRating(star)}
                   className={`text-3xl transition-transform hover:scale-110 ${
-                    star <= rating ? 'text-amber-400' : 'text-gray-300'
+                    star <= rating ? 'text-v-gold' : 'text-gray-300'
                   }`}
                 >
                   ★
@@ -158,8 +158,8 @@ export default function ROIPage() {
               rows={3}
             />
 
-            <div className="bg-amber-900/20 border border-amber-200 rounded-lg p-3 mb-4 text-center">
-              <p className="text-amber-800 text-sm">
+            <div className="bg-v-gold-muted/20 border border-v-gold/20 rounded-lg p-3 mb-4 text-center">
+              <p className="text-v-gold-muted text-sm">
                 <strong>+{testimonialText ? 200 : 100} bonus points</strong> for sharing!
               </p>
             </div>
@@ -174,7 +174,7 @@ export default function ROIPage() {
               <button
                 onClick={submitTestimonial}
                 disabled={rating === 0 || submitting}
-                className="flex-1 px-4 py-2 bg-amber-900/200 text-white rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-v-gold-muted/200 text-white rounded-lg font-medium hover:bg-v-gold-dim disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : 'Submit'}
               </button>

@@ -4,13 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const TYPE_CONFIG = {
   quote: { icon: '📄', labelKey: 'search.quote', color: 'text-v-gold' },
   customer: { icon: '👤', labelKey: 'common.customer', color: 'text-green-400' },
-  aircraft: { icon: '✈️', labelKey: 'common.aircraft', color: 'text-amber-400' },
+  aircraft: { icon: '✈️', labelKey: 'common.aircraft', color: 'text-v-gold' },
 };
 
 const STATUS_BADGES = {
   draft: 'bg-gray-500/20 text-gray-300',
   sent: 'bg-v-gold/20 text-v-gold',
-  viewed: 'bg-amber-500/20 text-amber-300',
+  viewed: 'bg-v-gold/20 text-v-gold',
   paid: 'bg-green-500/20 text-green-300',
   completed: 'bg-purple-500/20 text-purple-300',
 };
@@ -180,7 +180,7 @@ export default function GlobalSearch() {
               className="flex-1 bg-transparent text-white placeholder-gray-400 py-4 text-sm outline-none"
             />
             {loading && (
-              <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-v-gold border-t-transparent rounded-full animate-spin" />
             )}
             <button onClick={() => setOpen(false)} className="text-v-text-secondary hover:text-v-text-primary text-xs font-mono bg-v-surface-light px-2 py-1 rounded">
               ESC

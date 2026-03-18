@@ -205,7 +205,7 @@ export default function JobsPage() {
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[#C9A84C] text-sm font-data">{currencySymbol()}{formatPrice(job.total_price)}</span>
+                  <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(job.total_price)}</span>
                 </div>
               </div>
             ))}

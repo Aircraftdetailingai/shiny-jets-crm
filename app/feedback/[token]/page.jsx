@@ -15,7 +15,7 @@ export default function FeedbackPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-white/20 border-t-amber-400 rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-white/20 border-t-v-gold rounded-full animate-spin" />
     </div>
   );
 }

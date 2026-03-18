@@ -235,7 +235,7 @@ export default function TeamMemberPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-3 py-1.5 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm disabled:opacity-50"
+                className="px-3 py-1.5 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors text-sm disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -291,7 +291,7 @@ export default function TeamMemberPage() {
                 type="text"
                 value={editForm.name || ''}
                 onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               />
             </div>
             <div>
@@ -299,7 +299,7 @@ export default function TeamMemberPage() {
               <select
                 value={editForm.type || 'employee'}
                 onChange={e => setEditForm({ ...editForm, type: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               >
                 <option value="employee">{'Employee'}</option>
                 <option value="contractor">{'Contractor'}</option>
@@ -311,7 +311,7 @@ export default function TeamMemberPage() {
                 type="email"
                 value={editForm.email || ''}
                 onChange={e => setEditForm({ ...editForm, email: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               />
             </div>
             <div>
@@ -320,7 +320,7 @@ export default function TeamMemberPage() {
                 type="tel"
                 value={editForm.phone || ''}
                 onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               />
             </div>
             <div>
@@ -330,7 +330,7 @@ export default function TeamMemberPage() {
                 step="0.01"
                 value={editForm.hourly_pay || ''}
                 onChange={e => setEditForm({ ...editForm, hourly_pay: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               />
             </div>
             <div>
@@ -340,7 +340,7 @@ export default function TeamMemberPage() {
                 maxLength={6}
                 value={editForm.pin_code || ''}
                 onChange={e => setEditForm({ ...editForm, pin_code: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               />
             </div>
             <div>
@@ -348,7 +348,7 @@ export default function TeamMemberPage() {
               <select
                 value={editForm.status || 'active'}
                 onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
               >
                 <option value="active">{'Active'}</option>
                 <option value="inactive">{'Inactive'}</option>
@@ -398,7 +398,7 @@ export default function TeamMemberPage() {
               <div key={idx} className="flex items-center gap-3">
                 <div
                   onClick={() => toggleAvailDay(dayKey)}
-                  className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${isEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+                  className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${isEnabled ? 'bg-v-gold' : 'bg-gray-600'}`}
                 >
                   <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${isEnabled ? 'translate-x-5' : ''}`} />
                 </div>
@@ -427,7 +427,7 @@ export default function TeamMemberPage() {
           <h2 className="text-lg font-semibold text-v-text-primary">Time Entries</h2>
           <button
             onClick={() => setShowAddEntry(!showAddEntry)}
-            className="px-3 py-1.5 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium"
+            className="px-3 py-1.5 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors text-sm font-medium"
           >
             {showAddEntry ? 'Cancel' : '+ Add Entry'}
           </button>
@@ -444,7 +444,7 @@ export default function TeamMemberPage() {
                   value={entryForm.date}
                   onChange={e => setEntryForm({ ...entryForm, date: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm"
+                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none text-sm"
                 />
               </div>
               <div>
@@ -456,7 +456,7 @@ export default function TeamMemberPage() {
                   value={entryForm.hours_worked}
                   onChange={e => setEntryForm({ ...entryForm, hours_worked: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm"
+                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none text-sm"
                   placeholder="0.00"
                 />
               </div>
@@ -466,7 +466,7 @@ export default function TeamMemberPage() {
                   type="text"
                   value={entryForm.service_type}
                   onChange={e => setEntryForm({ ...entryForm, service_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm"
+                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none text-sm"
                   placeholder="e.g. Exterior Wash"
                 />
               </div>
@@ -476,14 +476,14 @@ export default function TeamMemberPage() {
                   type="text"
                   value={entryForm.notes}
                   onChange={e => setEntryForm({ ...entryForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm"
+                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none text-sm"
                   placeholder={'Optional'}
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="px-4 py-2 bg-amber-900/200 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors text-sm font-medium"
             >
               {'Save'}
             </button>

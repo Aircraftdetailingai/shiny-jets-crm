@@ -323,7 +323,7 @@ export default function CrewDashboard() {
     paid: 'bg-green-100 text-green-800',
     accepted: 'bg-blue-100 text-blue-800',
     scheduled: 'bg-purple-100 text-purple-800',
-    in_progress: 'bg-amber-100 text-amber-800',
+    in_progress: 'bg-v-gold/10 text-v-gold-muted',
   };
 
   const tabs = [
@@ -341,7 +341,7 @@ export default function CrewDashboard() {
           <h1 className="text-white font-bold text-lg flex items-center gap-2">
             <span>✈️</span> {'Vector Crew'}
           </h1>
-          <p className="text-white/60 text-sm">{user.name} {user.is_lead_tech && <span className="text-amber-400 text-xs ml-1">{'Lead Tech'}</span>}</p>
+          <p className="text-white/60 text-sm">{user.name} {user.is_lead_tech && <span className="text-v-gold text-xs ml-1">{'Lead Tech'}</span>}</p>
         </div>
         <button onClick={logout} className="text-white/60 hover:text-white text-sm px-3 py-1 rounded border border-white/20">
           {'Logout'}
@@ -364,7 +364,7 @@ export default function CrewDashboard() {
             key={tb.id}
             onClick={() => { setTab(tb.id); setSelectedJob(null); }}
             className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-              tab === tb.id ? 'text-amber-400 border-b-2 border-amber-400' : 'text-white/60 hover:text-white'
+              tab === tb.id ? 'text-v-gold border-b-2 border-v-gold' : 'text-white/60 hover:text-white'
             }`}
           >
             {tb.icon} {tb.label}
@@ -419,7 +419,7 @@ export default function CrewDashboard() {
         {/* ===== JOB DETAIL ===== */}
         {tab === 'jobs' && selectedJob && (
           <div className="space-y-4">
-            <button onClick={() => setSelectedJob(null)} className="text-amber-400 text-sm hover:underline">
+            <button onClick={() => setSelectedJob(null)} className="text-v-gold text-sm hover:underline">
               {'← Back to Jobs'}
             </button>
 
@@ -442,14 +442,14 @@ export default function CrewDashboard() {
 
               {/* Lead tech contact info */}
               {user.is_lead_tech && (selectedJob.client_name || selectedJob.client_phone) && (
-                <div className="bg-amber-400/10 border border-amber-400/30 rounded-lg p-3 mb-3">
-                  <p className="text-amber-400 text-xs font-medium mb-1">{'Client Contact (Lead Tech)'}</p>
+                <div className="bg-v-gold/10 border border-v-gold/30 rounded-lg p-3 mb-3">
+                  <p className="text-v-gold text-xs font-medium mb-1">{'Client Contact (Lead Tech)'}</p>
                   {selectedJob.client_name && <p className="text-white text-sm">{selectedJob.client_name}</p>}
                   {selectedJob.client_phone && (
-                    <a href={`tel:${selectedJob.client_phone}`} className="text-amber-400 text-sm hover:underline">{selectedJob.client_phone}</a>
+                    <a href={`tel:${selectedJob.client_phone}`} className="text-v-gold text-sm hover:underline">{selectedJob.client_phone}</a>
                   )}
                   {selectedJob.client_email && (
-                    <a href={`mailto:${selectedJob.client_email}`} className="text-amber-400 text-sm hover:underline block">{selectedJob.client_email}</a>
+                    <a href={`mailto:${selectedJob.client_email}`} className="text-v-gold text-sm hover:underline block">{selectedJob.client_email}</a>
                   )}
                 </div>
               )}
@@ -585,7 +585,7 @@ export default function CrewDashboard() {
                   </label>
                 ))}
               </div>
-              {photoUploading && <p className="text-amber-400 text-sm text-center">{'Uploading...'}</p>}
+              {photoUploading && <p className="text-v-gold text-sm text-center">{'Uploading...'}</p>}
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   {photos.map(p => (
@@ -608,7 +608,7 @@ export default function CrewDashboard() {
               <div className="bg-white/10 backdrop-blur rounded-xl p-4">
                 <h3 className="text-white font-semibold mb-3">{'Log Product Usage'}</h3>
                 {products.length === 0 ? (
-                  <button onClick={fetchProducts} className="text-amber-400 text-sm hover:underline">{'Load products'}</button>
+                  <button onClick={fetchProducts} className="text-v-gold text-sm hover:underline">{'Load products'}</button>
                 ) : (
                   <div className="space-y-2">
                     <select
@@ -634,7 +634,7 @@ export default function CrewDashboard() {
                     />
                     <button
                       onClick={handleLogUsage}
-                      className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                      className="w-full bg-v-gold-dim hover:bg-v-gold-dim text-white py-2 rounded-lg text-sm font-medium transition-colors"
                     >
                       {'Log Usage'}
                     </button>
@@ -798,14 +798,14 @@ export default function CrewDashboard() {
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                     e.status === 'active' ? 'bg-green-100 text-green-800' :
                     e.status === 'needs_repair' ? 'bg-red-100 text-red-800' :
-                    e.status === 'maintenance' ? 'bg-amber-100 text-amber-800' :
+                    e.status === 'maintenance' ? 'bg-v-gold/10 text-v-gold-muted' :
                     'bg-gray-100 text-gray-800'
                   }`}>
                     {e.status?.replace('_', ' ')}
                   </span>
                 </div>
                 {e.needs_maintenance && (
-                  <p className="text-amber-400 text-xs mb-1">{'Maintenance due'}</p>
+                  <p className="text-v-gold text-xs mb-1">{'Maintenance due'}</p>
                 )}
               </div>
             ))}

@@ -2,7 +2,7 @@
 import WidgetCard from '../WidgetCard';
 
 const RISK_STYLES = {
-  warning: { bg: 'bg-amber-500/10', text: 'text-amber-400', label: '60-89d' },
+  warning: { bg: 'bg-v-gold/10', text: 'text-v-gold', label: '60-89d' },
   danger: { bg: 'bg-orange-500/10', text: 'text-orange-400', label: '90-119d' },
   critical: { bg: 'bg-red-500/10', text: 'text-red-400', label: '120d+' },
 };

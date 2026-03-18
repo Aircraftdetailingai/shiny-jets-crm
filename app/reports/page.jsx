@@ -36,8 +36,8 @@ const REPORT_TYPES = [
     label: 'Tax Summary',
     description: 'Monthly revenue, platform fees, net for accounting',
     icon: '\u2261',
-    color: 'text-amber-400',
-    borderColor: 'border-amber-500/30',
+    color: 'text-v-gold',
+    borderColor: 'border-v-gold/30',
     hasPdf: true,
   },
 ];
@@ -341,7 +341,7 @@ export default function ReportsPage() {
                         <p className="text-[9px] text-v-text-secondary uppercase">Active</p>
                       </div>
                       <div className="bg-v-charcoal rounded px-2 py-1.5 text-center">
-                        <p className="text-sm font-bold text-amber-400 font-data">{reportData.summary.atRiskCustomers}</p>
+                        <p className="text-sm font-bold text-v-gold font-data">{reportData.summary.atRiskCustomers}</p>
                         <p className="text-[9px] text-v-text-secondary uppercase">At Risk</p>
                       </div>
                     </div>
@@ -475,12 +475,12 @@ function RevenueTable({ data }) {
             <div className="text-xs text-[#8A9BB0] truncate pr-3" title={row.services}>{row.services || '—'}</div>
             <div className="text-right text-sm text-v-text-primary font-data">{formatCurrency(row.subtotal)}</div>
             <div className="text-right text-xs text-red-400 font-data">{formatCurrency(row.fees)}</div>
-            <div className="text-right text-sm text-[#C9A84C] font-data font-medium">{formatCurrency(row.total)}</div>
+            <div className="text-right text-sm text-v-gold font-data font-medium">{formatCurrency(row.total)}</div>
           </div>
         ))}
         <div className="px-5 py-3 border-t border-[#1A2236] flex justify-between text-xs text-[#8A9BB0]">
           <span>{rows.length} transactions</span>
-          <span className="text-[#C9A84C] font-data font-medium">Net: {formatCurrency(summary.netRevenue)}</span>
+          <span className="text-v-gold font-data font-medium">Net: {formatCurrency(summary.netRevenue)}</span>
         </div>
       </div>
     </div>
@@ -495,7 +495,7 @@ function CustomerTable({ data }) {
       <div className="grid grid-cols-4 gap-3 mb-4">
         <StatCard label="Total Customers" value={summary.totalCustomers} color="text-blue-400" />
         <StatCard label="Active" value={summary.activeCustomers} color="text-green-400" />
-        <StatCard label="At Risk" value={summary.atRiskCustomers} color="text-amber-400" />
+        <StatCard label="At Risk" value={summary.atRiskCustomers} color="text-v-gold" />
         <StatCard label="Avg Lifetime Value" value={formatCurrency(summary.avgLifetimeValue)} color="text-v-gold" />
       </div>
       <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
@@ -505,14 +505,14 @@ function CustomerTable({ data }) {
           </div>
         </div>
         {rows.map((row, i) => {
-          const retColors = { Loyal: 'text-green-400 border-green-500/30', Active: 'text-blue-400 border-blue-500/30', 'At Risk': 'text-amber-400 border-amber-500/30', New: 'text-[#8A9BB0] border-gray-500/30' };
+          const retColors = { Loyal: 'text-green-400 border-green-500/30', Active: 'text-blue-400 border-blue-500/30', 'At Risk': 'text-v-gold border-v-gold/30', New: 'text-[#8A9BB0] border-gray-500/30' };
           return (
             <div key={i} className="grid grid-cols-[1fr_90px_60px_100px_80px] min-w-[600px] px-5 items-center border-b border-[#1A2236] hover:bg-white/[0.02]" style={{ height: '48px' }}>
               <div className="truncate pr-3">
                 <span className="text-sm text-white">{row.name}</span>
                 {row.email && <span className="text-xs text-[#8A9BB0] ml-2">{row.email}</span>}
               </div>
-              <div className="text-right text-sm text-[#C9A84C] font-data">{formatCurrency(row.totalValue)}</div>
+              <div className="text-right text-sm text-v-gold font-data">{formatCurrency(row.totalValue)}</div>
               <div className="text-right text-sm text-[#8A9BB0] font-data">{row.quoteCount}</div>
               <div className="text-xs text-[#8A9BB0]">{row.lastServiceDate ? fmtDate(row.lastServiceDate) : '—'}</div>
               <div>
@@ -552,7 +552,7 @@ function ServicesTable({ data }) {
             <div className="text-sm text-white font-medium truncate pr-3">{row.name}</div>
             <div className="text-right text-sm text-[#8A9BB0] font-data">{row.timesBooked}</div>
             <div className="text-right text-sm text-[#8A9BB0] font-data">{row.totalHours > 0 ? row.totalHours.toFixed(1) : '—'}</div>
-            <div className="text-right text-sm text-[#C9A84C] font-data">{formatCurrency(row.totalRevenue)}</div>
+            <div className="text-right text-sm text-v-gold font-data">{formatCurrency(row.totalRevenue)}</div>
             <div className="text-right text-sm text-[#8A9BB0] font-data">{formatCurrency(row.avgTicket)}</div>
             <div className="pl-3">
               <div className="h-2 bg-v-charcoal rounded-full overflow-hidden">
@@ -590,16 +590,16 @@ function TaxTable({ data }) {
             <div className="text-right text-sm text-[#8A9BB0] font-data">{row.jobCount}</div>
             <div className="text-right text-sm text-v-text-primary font-data">{formatCurrency(row.revenue)}</div>
             <div className="text-right text-xs text-red-400 font-data">{formatCurrency(row.fees)}</div>
-            <div className="text-right text-sm text-[#C9A84C] font-data font-medium">{formatCurrency(row.net)}</div>
+            <div className="text-right text-sm text-v-gold font-data font-medium">{formatCurrency(row.net)}</div>
           </div>
         ))}
         {/* Totals row */}
-        <div className="grid grid-cols-[1fr_80px_100px_90px_100px] min-w-[550px] px-5 items-center border-t-2 border-[#C9A84C]/30 bg-v-charcoal/50" style={{ height: '48px' }}>
+        <div className="grid grid-cols-[1fr_80px_100px_90px_100px] min-w-[550px] px-5 items-center border-t-2 border-v-gold/30 bg-v-charcoal/50" style={{ height: '48px' }}>
           <div className="text-sm text-white font-bold">TOTAL</div>
           <div className="text-right text-sm text-white font-data font-bold">{rows.reduce((s, r) => s + r.jobCount, 0)}</div>
           <div className="text-right text-sm text-white font-data font-bold">{formatCurrency(summary.totalRevenue)}</div>
           <div className="text-right text-sm text-red-400 font-data font-bold">{formatCurrency(summary.totalFees)}</div>
-          <div className="text-right text-sm text-[#C9A84C] font-data font-bold">{formatCurrency(summary.netRevenue)}</div>
+          <div className="text-right text-sm text-v-gold font-data font-bold">{formatCurrency(summary.netRevenue)}</div>
         </div>
         <div className="px-5 py-3 border-t border-[#1A2236] text-xs text-[#8A9BB0]">{rows.length} months</div>
       </div>

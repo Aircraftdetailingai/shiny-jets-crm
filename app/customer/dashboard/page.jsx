@@ -130,7 +130,7 @@ export default function CustomerDashboardPage() {
       sent: 'bg-blue-100 text-blue-800',
       viewed: 'bg-purple-100 text-purple-800',
       paid: 'bg-green-100 text-green-800',
-      scheduled: 'bg-amber-100 text-amber-800',
+      scheduled: 'bg-v-gold/10 text-v-gold-muted',
       in_progress: 'bg-indigo-100 text-indigo-800',
       completed: 'bg-emerald-100 text-emerald-800',
       cancelled: 'bg-red-100 text-red-800',
@@ -180,7 +180,7 @@ export default function CustomerDashboardPage() {
       header: 'Quote Total',
       accessorFn: (row) => row.total || 0,
       cell: ({ getValue }) => (
-        <span className="font-semibold text-amber-600">{formatCurrency(getValue())}</span>
+        <span className="font-semibold text-v-gold-dim">{formatCurrency(getValue())}</span>
       ),
     },
     {
@@ -252,7 +252,7 @@ export default function CustomerDashboardPage() {
             <a
               href={`/q/${quote.share_link}`}
               onClick={(e) => e.stopPropagation()}
-              className="px-3 py-1 bg-amber-500 text-white rounded text-xs hover:bg-amber-600"
+              className="px-3 py-1 bg-v-gold text-white rounded text-xs hover:bg-v-gold-dim"
             >
               View & Pay
             </a>
@@ -272,7 +272,7 @@ export default function CustomerDashboardPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto"></div>
+          <div className="animate-spin w-8 h-8 border-4 border-v-gold border-t-transparent rounded-full mx-auto"></div>
           <p className="mt-4 text-gray-500">{'Loading dashboard...'}</p>
         </div>
       </div>
@@ -322,7 +322,7 @@ export default function CustomerDashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Active Quotes</p>
-            <p className="text-2xl font-bold text-amber-600">{data?.stats?.activeQuotes || 0}</p>
+            <p className="text-2xl font-bold text-v-gold-dim">{data?.stats?.activeQuotes || 0}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Upcoming Jobs</p>
@@ -355,7 +355,7 @@ export default function CustomerDashboardPage() {
               onClick={() => setActiveTab(tabItem.key)}
               className={`px-6 py-3 font-medium capitalize border-b-2 -mb-px whitespace-nowrap ${
                 activeTab === tabItem.key
-                  ? 'border-amber-500 text-amber-600'
+                  ? 'border-v-gold text-v-gold-dim'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -539,7 +539,7 @@ export default function CustomerDashboardPage() {
                         fetchMessages(d.id);
                       }}
                       className={`w-full p-4 text-left hover:bg-gray-50 ${
-                        selectedDetailer?.id === d.id ? 'bg-amber-50' : ''
+                        selectedDetailer?.id === d.id ? 'bg-v-gold/5' : ''
                       }`}
                     >
                       <p className="font-medium">{d.company_name}</p>
@@ -568,11 +568,11 @@ export default function CustomerDashboardPage() {
                         >
                           <div
                             className={`max-w-[70%] p-3 rounded-lg ${
-                              msg.sender === 'customer' ? 'bg-amber-500 text-white' : 'bg-gray-100'
+                              msg.sender === 'customer' ? 'bg-v-gold text-white' : 'bg-gray-100'
                             }`}
                           >
                             <p>{msg.message}</p>
-                            <p className={`text-xs mt-1 ${msg.sender === 'customer' ? 'text-amber-100' : 'text-gray-400'}`}>
+                            <p className={`text-xs mt-1 ${msg.sender === 'customer' ? 'text-v-gold/10' : 'text-gray-400'}`}>
                               {new Date(msg.created_at).toLocaleString()}
                             </p>
                           </div>
@@ -597,7 +597,7 @@ export default function CustomerDashboardPage() {
                       <button
                         onClick={sendMessage}
                         disabled={sendingMessage || !newMessage.trim()}
-                        className="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                        className="px-6 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim disabled:opacity-50"
                       >
                         {'Send'}
                       </button>

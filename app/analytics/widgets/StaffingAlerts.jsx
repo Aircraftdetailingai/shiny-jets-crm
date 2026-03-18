@@ -68,7 +68,7 @@ export default function StaffingAlerts({ data }) {
           return (
             <div key={alert.id} className="border-b border-v-border-subtle last:border-0">
               <div className="flex items-center gap-3 py-2">
-                <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-v-gold flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-v-text-primary truncate">
                     {dateStr} — {quote.client_name || 'Customer'}
@@ -83,7 +83,7 @@ export default function StaffingAlerts({ data }) {
                   className={`px-3 py-1 text-[11px] font-medium rounded-full transition-colors flex-shrink-0 ${
                     isAssigning && selectedMembers.length > 0
                       ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                      : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                      : 'bg-v-gold/20 text-v-gold hover:bg-v-gold/30'
                   }`}
                 >
                   {isAssigning && selectedMembers.length > 0 ? 'Confirm' : 'Assign'}

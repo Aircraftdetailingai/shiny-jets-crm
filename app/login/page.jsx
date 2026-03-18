@@ -124,7 +124,7 @@ export default function Page() {
           </div>
           <button
             type="submit"
-            className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:opacity-90"
+            className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-v-gold to-v-gold-dim hover:opacity-90"
             disabled={loading}
           >
             {loading ? 'Signing in...' : 'Sign In'}

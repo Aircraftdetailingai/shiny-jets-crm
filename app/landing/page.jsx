@@ -160,15 +160,15 @@ export default function LandingPage() {
         {/* Navigation */}
         <nav className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-[1px] bg-[#C9A84C]" />
+            <div className="w-8 h-[1px] bg-v-gold" />
             <span className="text-[#F5F5F5] text-xs tracking-[0.3em] uppercase font-light">Vector</span>
-            <span className="ml-2 px-2 py-0.5 text-[9px] tracking-[0.15em] uppercase border border-[#C9A84C]/50 text-[#C9A84C] rounded-full">Beta</span>
+            <span className="ml-2 px-2 py-0.5 text-[9px] tracking-[0.15em] uppercase border border-v-gold/50 text-v-gold rounded-full">Beta</span>
           </div>
           <div className="flex items-center gap-8">
-            <a href="#how" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors hidden sm:inline">Process</a>
-            <a href="#features" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors hidden sm:inline">Features</a>
-            <a href="#pricing" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors hidden sm:inline">Pricing</a>
-            <a href="/login" className="px-5 py-2 border border-[#2A3A50] text-[#F5F5F5] text-xs tracking-[0.2em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors">
+            <a href="#how" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-v-gold transition-colors hidden sm:inline">Process</a>
+            <a href="#features" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-v-gold transition-colors hidden sm:inline">Features</a>
+            <a href="#pricing" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-v-gold transition-colors hidden sm:inline">Pricing</a>
+            <a href="/login" className="px-5 py-2 border border-[#2A3A50] text-[#F5F5F5] text-xs tracking-[0.2em] uppercase hover:border-v-gold hover:text-v-gold transition-colors">
               Sign In
             </a>
           </div>
@@ -192,22 +192,22 @@ export default function LandingPage() {
           </h1>
 
           {/* Gold rule */}
-          <div className="w-20 h-[1px] bg-[#C9A84C] mx-auto mb-8" />
+          <div className="w-20 h-[1px] bg-v-gold mx-auto mb-8" />
 
-          <p className="text-[#C9A84C] text-[10px] sm:text-xs tracking-[0.3em] uppercase text-center max-w-xl mb-12">
+          <p className="text-v-gold text-[10px] sm:text-xs tracking-[0.3em] uppercase text-center max-w-xl mb-12">
             The Professional Standard in Aircraft Detailing Software
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <a
               href="/signup"
-              className="px-10 py-4 bg-[#C9A84C] text-[#080C12] text-xs tracking-[0.25em] uppercase font-medium hover:bg-[#D4B85A] transition-colors text-center"
+              className="px-10 py-4 bg-v-gold text-[#080C12] text-xs tracking-[0.25em] uppercase font-medium hover:bg-[#D4B85A] transition-colors text-center"
             >
               Join as a Founding Member
             </a>
             <a
               href="#how"
-              className="px-10 py-4 border border-[#F5F5F5]/30 text-[#F5F5F5] text-xs tracking-[0.25em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors text-center"
+              className="px-10 py-4 border border-[#F5F5F5]/30 text-[#F5F5F5] text-xs tracking-[0.25em] uppercase hover:border-v-gold hover:text-v-gold transition-colors text-center"
             >
               See How It Works
             </a>
@@ -220,7 +220,7 @@ export default function LandingPage() {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
-          <div className="w-[1px] h-8 bg-gradient-to-b from-transparent to-[#C9A84C]/30" />
+          <div className="w-[1px] h-8 bg-gradient-to-b from-transparent to-v-gold/30" />
         </div>
       </section>
 
@@ -229,14 +229,14 @@ export default function LandingPage() {
       <section id="how" className="py-24 sm:py-32" style={{ background: '#080C12' }}>
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-20">
-            <p className="text-[#C9A84C] text-[10px] tracking-[0.4em] uppercase mb-4">Process</p>
+            <p className="text-v-gold text-[10px] tracking-[0.4em] uppercase mb-4">Process</p>
             <h2
               className="text-[#F5F5F5] text-2xl sm:text-3xl mb-4"
               style={{ fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 300, letterSpacing: '0.1em' }}
             >
               Build a Quote in Three Steps
             </h2>
-            <div className="w-12 h-[1px] bg-[#C9A84C] mx-auto" />
+            <div className="w-12 h-[1px] bg-v-gold mx-auto" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
@@ -271,14 +271,14 @@ export default function LandingPage() {
       <section id="features" className="py-24 sm:py-32" style={{ background: '#0D1B2A' }}>
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-20">
-            <p className="text-[#C9A84C] text-[10px] tracking-[0.4em] uppercase mb-4">Capabilities</p>
+            <p className="text-v-gold text-[10px] tracking-[0.4em] uppercase mb-4">Capabilities</p>
             <h2
               className="text-[#F5F5F5] text-2xl sm:text-3xl mb-4"
               style={{ fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 300, letterSpacing: '0.1em' }}
             >
               Everything You Need
             </h2>
-            <div className="w-12 h-[1px] bg-[#C9A84C] mx-auto" />
+            <div className="w-12 h-[1px] bg-v-gold mx-auto" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
@@ -316,14 +316,14 @@ export default function LandingPage() {
       <section id="pricing" className="py-24 sm:py-32" style={{ background: '#080C12' }}>
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
-            <p className="text-[#C9A84C] text-[10px] tracking-[0.4em] uppercase mb-4">Investment</p>
+            <p className="text-v-gold text-[10px] tracking-[0.4em] uppercase mb-4">Investment</p>
             <h2
               className="text-[#F5F5F5] text-2xl sm:text-3xl mb-4"
               style={{ fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 300, letterSpacing: '0.1em' }}
             >
               Transparent Pricing
             </h2>
-            <div className="w-12 h-[1px] bg-[#C9A84C] mx-auto mb-6" />
+            <div className="w-12 h-[1px] bg-v-gold mx-auto mb-6" />
             <p className="text-[#8A9BB0] text-sm max-w-lg mx-auto">
               Start free and upgrade as your business grows. No hidden fees, no long-term contracts.
             </p>
@@ -335,7 +335,7 @@ export default function LandingPage() {
               <button
                 onClick={() => setAnnualBilling(false)}
                 className={`px-6 py-2.5 text-[10px] tracking-[0.2em] uppercase font-medium transition-all ${
-                  !annualBilling ? 'bg-[#C9A84C] text-[#080C12]' : 'text-[#8A9BB0] hover:text-[#F5F5F5]'
+                  !annualBilling ? 'bg-v-gold text-[#080C12]' : 'text-[#8A9BB0] hover:text-[#F5F5F5]'
                 }`}
               >
                 Monthly
@@ -343,7 +343,7 @@ export default function LandingPage() {
               <button
                 onClick={() => setAnnualBilling(true)}
                 className={`px-6 py-2.5 text-[10px] tracking-[0.2em] uppercase font-medium transition-all ${
-                  annualBilling ? 'bg-[#C9A84C] text-[#080C12]' : 'text-[#8A9BB0] hover:text-[#F5F5F5]'
+                  annualBilling ? 'bg-v-gold text-[#080C12]' : 'text-[#8A9BB0] hover:text-[#F5F5F5]'
                 }`}
               >
                 Annual
@@ -361,16 +361,16 @@ export default function LandingPage() {
                   key={tier.key}
                   className={`p-8 flex flex-col ${
                     tier.highlight
-                      ? 'border-2 border-[#C9A84C] relative'
+                      ? 'border-2 border-v-gold relative'
                       : 'border border-[#2A3A50]'
                   }`}
                   style={{ background: tier.highlight ? 'rgba(201,168,76,0.04)' : '#0D1B2A' }}
                 >
                   {tier.highlight && (
-                    <div className="absolute -top-px left-8 right-8 h-[2px] bg-[#C9A84C]" />
+                    <div className="absolute -top-px left-8 right-8 h-[2px] bg-v-gold" />
                   )}
                   {tier.highlight && (
-                    <p className="text-[#C9A84C] text-[9px] tracking-[0.3em] uppercase mb-4">Most Popular</p>
+                    <p className="text-v-gold text-[9px] tracking-[0.3em] uppercase mb-4">Most Popular</p>
                   )}
                   <h3
                     className="text-[#F5F5F5] text-xl mb-1"
@@ -406,7 +406,7 @@ export default function LandingPage() {
                   <ul className="space-y-3 mb-10 flex-1">
                     {tier.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-3 text-sm text-[#8A9BB0]">
-                        <span className="text-[#C9A84C] text-xs mt-0.5">&#10003;</span>
+                        <span className="text-v-gold text-xs mt-0.5">&#10003;</span>
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -416,8 +416,8 @@ export default function LandingPage() {
                     href="/signup"
                     className={`w-full py-3.5 text-center text-[10px] tracking-[0.25em] uppercase font-medium transition-colors block ${
                       tier.highlight
-                        ? 'bg-[#C9A84C] text-[#080C12] hover:bg-[#D4B85A]'
-                        : 'border border-[#2A3A50] text-[#F5F5F5] hover:border-[#C9A84C] hover:text-[#C9A84C]'
+                        ? 'bg-v-gold text-[#080C12] hover:bg-[#D4B85A]'
+                        : 'border border-[#2A3A50] text-[#F5F5F5] hover:border-v-gold hover:text-v-gold'
                     }`}
                   >
                     {tier.cta}
@@ -451,21 +451,21 @@ export default function LandingPage() {
         />
 
         <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
-          <p className="text-[#C9A84C] text-[10px] tracking-[0.4em] uppercase mb-4">Begin</p>
+          <p className="text-v-gold text-[10px] tracking-[0.4em] uppercase mb-4">Begin</p>
           <h2
             className="text-[#F5F5F5] text-2xl sm:text-3xl mb-4"
             style={{ fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 300, letterSpacing: '0.1em' }}
           >
             Ready to Elevate Your Business?
           </h2>
-          <div className="w-12 h-[1px] bg-[#C9A84C] mx-auto mb-6" />
+          <div className="w-12 h-[1px] bg-v-gold mx-auto mb-6" />
           <p className="text-[#8A9BB0] text-sm mb-10 max-w-md mx-auto leading-relaxed">
             Join aircraft detailing professionals who save hours every week with Vector.
             Start free — no credit card required.
           </p>
           <a
             href="/signup"
-            className="inline-block px-12 py-4 bg-[#C9A84C] text-[#080C12] text-xs tracking-[0.25em] uppercase font-medium hover:bg-[#D4B85A] transition-colors"
+            className="inline-block px-12 py-4 bg-v-gold text-[#080C12] text-xs tracking-[0.25em] uppercase font-medium hover:bg-[#D4B85A] transition-colors"
           >
             Get Started Free
           </a>
@@ -477,15 +477,15 @@ export default function LandingPage() {
       <footer className="py-10 border-t border-[#1A2236]" style={{ background: '#080C12' }}>
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-6 h-[1px] bg-[#C9A84C]" />
+            <div className="w-6 h-[1px] bg-v-gold" />
             <span className="text-[#F5F5F5] text-xs tracking-[0.2em] uppercase font-light">Vector Aviation</span>
           </div>
           <div className="flex items-center gap-8 text-[10px] tracking-[0.2em] uppercase text-[#8A9BB0]">
-            <a href="/login" className="hover:text-[#C9A84C] transition-colors">Sign In</a>
-            <a href="#pricing" className="hover:text-[#C9A84C] transition-colors">Pricing</a>
-            <a href="#features" className="hover:text-[#C9A84C] transition-colors">Features</a>
-            <a href="/terms" className="hover:text-[#C9A84C] transition-colors">Terms</a>
-            <a href="/privacy" className="hover:text-[#C9A84C] transition-colors">Privacy</a>
+            <a href="/login" className="hover:text-v-gold transition-colors">Sign In</a>
+            <a href="#pricing" className="hover:text-v-gold transition-colors">Pricing</a>
+            <a href="#features" className="hover:text-v-gold transition-colors">Features</a>
+            <a href="/terms" className="hover:text-v-gold transition-colors">Terms</a>
+            <a href="/privacy" className="hover:text-v-gold transition-colors">Privacy</a>
           </div>
         </div>
       </footer>

@@ -22,7 +22,7 @@ export default function ExportGate({ plan, children, className = '' }) {
           <p className="text-gray-500 text-xs mb-3">Upgrade to Pro to export your data as CSV.</p>
           <a
             href="/settings"
-            className="block w-full text-center px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded hover:opacity-90"
+            className="block w-full text-center px-3 py-2 bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium rounded hover:opacity-90"
           >
             Upgrade to Pro - $79/mo
           </a>

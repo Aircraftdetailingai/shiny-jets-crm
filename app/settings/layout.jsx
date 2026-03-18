@@ -31,7 +31,7 @@ export default function SettingsLayout({ children }) {
                   href={item.href}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-amber-500 text-white'
+                      ? 'bg-v-gold text-white'
                       : 'text-white/70 hover:bg-white/10 hover:text-white'
                   }`}
                 >

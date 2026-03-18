@@ -526,7 +526,7 @@ export default function ServicesPage() {
           <a href="/settings" className="text-v-text-secondary hover:text-white">&larr; {'Settings'}</a>
           <h1 className="text-2xl font-bold">{'Services'}</h1>
         </div>
-        <a href="/dashboard" className="text-amber-400 hover:underline">{'Dashboard'}</a>
+        <a href="/dashboard" className="text-v-gold hover:underline">{'Dashboard'}</a>
       </header>
 
       {/* Info Banner */}
@@ -552,7 +552,7 @@ export default function ServicesPage() {
                   Import Defaults
                 </button>
               )}
-              <button onClick={() => setShowServiceModal(true)} className="px-3 py-1.5 text-sm bg-amber-900/200 text-white rounded hover:bg-amber-600">
+              <button onClick={() => setShowServiceModal(true)} className="px-3 py-1.5 text-sm bg-v-gold text-white rounded hover:bg-v-gold-dim">
                 + Add
               </button>
             </div>
@@ -561,15 +561,15 @@ export default function ServicesPage() {
             {services.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed rounded-lg">
                 <p className="text-v-text-secondary mb-2">No services yet</p>
-                <button onClick={importDefaults} className="text-amber-600 hover:underline">Import suggested services</button>
+                <button onClick={importDefaults} className="text-v-gold hover:underline">Import suggested services</button>
               </div>
             ) : (
               <div className="space-y-2">
                 {services.map((svc) => (
                   <div key={svc.id} draggable onDragStart={(e) => handleDragStart(e, svc)} onDragEnd={handleDragEnd}
-                    className={`flex items-center justify-between p-3 bg-v-charcoal rounded-lg border cursor-grab hover:border-amber-400 hover:bg-amber-900/20 transition-all group ${draggedService?.id === svc.id ? 'opacity-50 border-amber-400' : ''}`}>
+                    className={`flex items-center justify-between p-3 bg-v-charcoal rounded-lg border cursor-grab hover:border-v-gold hover:bg-v-gold/10 transition-all group ${draggedService?.id === svc.id ? 'opacity-50 border-v-gold' : ''}`}>
                     <div className="flex items-center gap-3">
-                      <span className="text-gray-300 group-hover:text-amber-400">&#9776;</span>
+                      <span className="text-gray-300 group-hover:text-v-gold">&#9776;</span>
                       <div>
                         <p className="font-medium">{svc.name}</p>
                         {svc.description && <p className="text-xs text-v-text-secondary">{svc.description}</p>}
@@ -586,7 +586,7 @@ export default function ServicesPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <span className="text-lg font-bold text-amber-600">${svc.hourly_rate || 0}</span>
+                        <span className="text-lg font-bold text-v-gold">${svc.hourly_rate || 0}</span>
                         <span className="text-xs text-v-text-secondary">/hr</span>
                         {parseFloat(svc.product_cost_per_hour) > 0 && (
                           <p className="text-[10px] text-v-text-secondary">${svc.product_cost_per_hour} product/hr</p>
@@ -630,7 +630,7 @@ export default function ServicesPage() {
                 {/* Drop Zone */}
                 <div onDragOver={handleDragOverNew} onDragLeave={handleDragLeaveNew}
                   onDrop={(e) => { e.stopPropagation(); handleDropNew(e); }}
-                  className={`min-h-[100px] border-2 border-dashed rounded-lg p-3 mb-3 transition-colors ${dragOver === 'new' ? 'border-amber-500 bg-amber-900/20 scale-[1.02]' : 'border-v-border'}`}>
+                  className={`min-h-[100px] border-2 border-dashed rounded-lg p-3 mb-3 transition-colors ${dragOver === 'new' ? 'border-v-gold bg-v-gold/10 scale-[1.02]' : 'border-v-border'}`}>
                   {newPackage.service_ids.length === 0 ? (
                     <p className="text-center text-v-text-secondary py-6">Drag services here</p>
                   ) : (
@@ -679,10 +679,10 @@ export default function ServicesPage() {
                   <div key={pkg.id} onDragOver={(e) => handleDragOverPkg(e, pkg.id)} onDragLeave={handleDragLeavePkg}
                     onDrop={(e) => { e.stopPropagation(); handleDropOnPackage(e, pkg); }}
                     className={`p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border transition-all ${
-                      dragOver === pkg.id ? 'border-amber-500 ring-2 ring-amber-300 scale-[1.02]' : 'border-green-200'
+                      dragOver === pkg.id ? 'border-v-gold ring-2 ring-v-gold/50 scale-[1.02]' : 'border-green-200'
                     }`}>
                     {dragOver === pkg.id && (
-                      <div className="text-xs text-amber-600 font-medium mb-2">
+                      <div className="text-xs text-v-gold font-medium mb-2">
                         Drop to add &quot;{draggedService?.name}&quot; to this package
                       </div>
                     )}
@@ -957,7 +957,7 @@ export default function ServicesPage() {
                       ))}
                     </select>
                   ) : (
-                    <a href="/products" className="text-xs text-amber-600 hover:underline">Add products to inventory first</a>
+                    <a href="/products" className="text-xs text-v-gold hover:underline">Add products to inventory first</a>
                   )}
                 </>
               )}
@@ -1001,7 +1001,7 @@ export default function ServicesPage() {
                       ))}
                     </select>
                   ) : (
-                    <a href="/equipment" className="text-xs text-amber-600 hover:underline">Add equipment first</a>
+                    <a href="/equipment" className="text-xs text-v-gold hover:underline">Add equipment first</a>
                   )}
                 </>
               )}

@@ -103,8 +103,8 @@ const STATUS_COLORS = {
   draft: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-text-secondary,#8A9BB0)]',
   sent: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-primary,#C9A84C)]',
   viewed: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-primary,#C9A84C)]',
-  paid: 'bg-[#C9A84C]/10 text-[var(--brand-primary,#C9A84C)]',
-  approved: 'bg-[#C9A84C]/10 text-[var(--brand-primary,#C9A84C)]',
+  paid: 'bg-v-gold/10 text-[var(--brand-primary,#C9A84C)]',
+  approved: 'bg-v-gold/10 text-[var(--brand-primary,#C9A84C)]',
   scheduled: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-text-secondary,#8A9BB0)]',
   in_progress: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-text-secondary,#8A9BB0)]',
   completed: 'bg-emerald-500/10 text-emerald-400',
@@ -493,7 +493,7 @@ export default function PortalPage() {
                         key={l.code}
                         onClick={() => changeLanguage(l.code)}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          lang === l.code ? 'bg-[#C9A84C]/10 text-[var(--brand-primary,#C9A84C)]' : 'text-[var(--brand-text-secondary,#8A9BB0)] hover:bg-[var(--brand-border,#1A2236)] hover:text-[var(--brand-text,#F5F5F5)]'
+                          lang === l.code ? 'bg-v-gold/10 text-[var(--brand-primary,#C9A84C)]' : 'text-[var(--brand-text-secondary,#8A9BB0)] hover:bg-[var(--brand-border,#1A2236)] hover:text-[var(--brand-text,#F5F5F5)]'
                         }`}
                       >
                         {l.label}

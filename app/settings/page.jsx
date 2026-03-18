@@ -1275,7 +1275,7 @@ function SettingsContent() {
             {/* Spacer to prevent content from hiding behind fixed bar */}
             <div className="h-14" />
             <div className={`fixed top-0 left-0 right-0 z-50 px-4 py-3 border-b border-v-border animate-[slideDown_0.3s_ease] ${
-              saveSuccess ? 'bg-green-900/30 border-green-600/30 text-green-400' : 'bg-v-surface border-v-border text-amber-400'
+              saveSuccess ? 'bg-green-900/30 border-green-600/30 text-green-400' : 'bg-v-surface border-v-border text-v-gold'
             }`}>
               <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
                 {saveSuccess ? (
@@ -1286,7 +1286,7 @@ function SettingsContent() {
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
-                      <span className="text-amber-500 text-lg">&#9888;</span>
+                      <span className="text-v-gold text-lg">&#9888;</span>
                       <span className="text-sm font-medium">
                         You have unsaved changes
                       </span>
@@ -1862,7 +1862,7 @@ function SettingsContent() {
                     <button
                       onClick={() => setUpgradeBilling('monthly')}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                        upgradeBilling === 'monthly' ? 'bg-amber-500 text-white' : 'text-v-text-secondary hover:text-v-text-primary border border-v-border'
+                        upgradeBilling === 'monthly' ? 'bg-v-gold text-white' : 'text-v-text-secondary hover:text-v-text-primary border border-v-border'
                       }`}
                     >
                       {'Monthly'}
@@ -1870,7 +1870,7 @@ function SettingsContent() {
                     <button
                       onClick={() => setUpgradeBilling('annual')}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                        upgradeBilling === 'annual' ? 'bg-amber-500 text-white' : 'text-v-text-secondary hover:text-v-text-primary border border-v-border'
+                        upgradeBilling === 'annual' ? 'bg-v-gold text-white' : 'text-v-text-secondary hover:text-v-text-primary border border-v-border'
                       }`}
                     >
                       {'Annual'} <span className="text-green-500 font-bold">-25%</span>
@@ -1960,7 +1960,7 @@ function SettingsContent() {
                             else if (data.error) alert(data.error);
                           } catch (e) { alert('Upgrade failed'); }
                         }}
-                        className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm"
+                        className="px-4 py-2 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm"
                       >
                         Business - ${upgradeBilling === 'annual' ? '112' : '149'}/mo
                         {upgradeBilling === 'annual' && <span className="ml-1 text-xs opacity-75">($1,344/yr)</span>}
@@ -2027,14 +2027,14 @@ function SettingsContent() {
           ) : stripeStatus.connected && stripeStatus.status === 'PENDING' ? (
             <div>
               <div className="flex items-center mb-2">
-                <span className="text-amber-500 mr-2">&#9888;</span>
-                <span className="text-amber-400 font-medium">{'Pending Verification'}</span>
+                <span className="text-v-gold mr-2">&#9888;</span>
+                <span className="text-v-gold font-medium">{'Pending Verification'}</span>
               </div>
               <p className="text-sm text-v-text-secondary mb-3">{'Your Stripe account is being reviewed. This usually takes 1-2 business days.'}</p>
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
-                className="px-4 py-2 rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                className="px-4 py-2 rounded bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50"
               >
                 {stripeLoading ? 'Loading...' : 'Complete Setup'}
               </button>
@@ -2066,7 +2066,7 @@ function SettingsContent() {
               <button
                 onClick={handleConnectStripe}
                 disabled={stripeLoading}
-                className="px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 disabled:opacity-50"
+                className="px-4 py-2 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 disabled:opacity-50"
               >
                 {stripeLoading ? 'Connecting...' : 'Connect Stripe'}
               </button>
@@ -2141,12 +2141,12 @@ function SettingsContent() {
           </div>
 
           {stripeMode === 'live' && (
-            <div className="mt-3 p-3 bg-amber-900/30 border border-amber-600/30 rounded-sm">
+            <div className="mt-3 p-3 bg-v-gold/10 border border-v-gold/30 rounded-sm">
               <div className="flex items-start gap-2">
-                <span className="text-amber-400">&#9888;</span>
+                <span className="text-v-gold">&#9888;</span>
                 <div>
-                  <p className="text-sm font-medium text-amber-400">{'Live mode processes real payments'}</p>
-                  <p className="text-xs text-amber-400/80 mt-1">
+                  <p className="text-sm font-medium text-v-gold">{'Live mode processes real payments'}</p>
+                  <p className="text-xs text-v-gold/80 mt-1">
                     {'Customers will be charged real money. Make sure your Stripe account is fully verified and your services/pricing are correct before enabling live mode.'}
                   </p>
                 </div>
@@ -2178,7 +2178,7 @@ function SettingsContent() {
           <div className="space-y-3">
             <label
               className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
-                !passFeeToCustomer ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:bg-white/5'
+                !passFeeToCustomer ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
               }`}
             >
               <input
@@ -2195,7 +2195,7 @@ function SettingsContent() {
             </label>
             <label
               className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
-                passFeeToCustomer ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:bg-white/5'
+                passFeeToCustomer ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
               }`}
             >
               <input
@@ -2222,7 +2222,7 @@ function SettingsContent() {
           <div className="space-y-3">
             <label
               className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
-                ccFeeMode === 'absorb' ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:bg-white/5'
+                ccFeeMode === 'absorb' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
               }`}
             >
               <input
@@ -2239,7 +2239,7 @@ function SettingsContent() {
             </label>
             <label
               className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
-                ccFeeMode === 'pass' ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:bg-white/5'
+                ccFeeMode === 'pass' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
               }`}
             >
               <input
@@ -2256,7 +2256,7 @@ function SettingsContent() {
             </label>
             <label
               className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
-                ccFeeMode === 'customer_choice' ? 'border-amber-500 bg-amber-900/20' : 'border-v-border hover:bg-white/5'
+                ccFeeMode === 'customer_choice' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
               }`}
             >
               <input
@@ -2355,7 +2355,7 @@ function SettingsContent() {
             </div>
             <div
               onClick={() => { setNotifyQuoteViewed(!notifyQuoteViewed); markDirty('notifications'); }}
-              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${notifyQuoteViewed ? 'bg-amber-500' : 'bg-gray-600'}`}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${notifyQuoteViewed ? 'bg-v-gold' : 'bg-gray-600'}`}
             >
               <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyQuoteViewed ? 'translate-x-5' : ''}`} />
             </div>
@@ -2372,7 +2372,7 @@ function SettingsContent() {
             </div>
             <div
               onClick={() => { setMonthlyReportEnabled(!monthlyReportEnabled); markDirty('notifications'); }}
-              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${monthlyReportEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${monthlyReportEnabled ? 'bg-v-gold' : 'bg-gray-600'}`}
             >
               <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${monthlyReportEnabled ? 'translate-x-5' : ''}`} />
             </div>
@@ -2389,7 +2389,7 @@ function SettingsContent() {
             </div>
             <div
               onClick={() => { setNotifyWeeklyDigest(!notifyWeeklyDigest); markDirty('notifications'); }}
-              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${notifyWeeklyDigest ? 'bg-amber-500' : 'bg-gray-600'}`}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${notifyWeeklyDigest ? 'bg-v-gold' : 'bg-gray-600'}`}
             >
               <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifyWeeklyDigest ? 'translate-x-5' : ''}`} />
             </div>
@@ -2409,7 +2409,7 @@ function SettingsContent() {
             </div>
             <div
               onClick={() => { setReviewRequestEnabled(!reviewRequestEnabled); markDirty('notifications'); }}
-              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${reviewRequestEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${reviewRequestEnabled ? 'bg-v-gold' : 'bg-gray-600'}`}
             >
               <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${reviewRequestEnabled ? 'translate-x-5' : ''}`} />
             </div>
@@ -2462,7 +2462,7 @@ function SettingsContent() {
                   setFollowupSettings(prev => ({ ...prev, notViewed: { ...prev.notViewed, enabled: !prev.notViewed.enabled } }));
                   markDirty('automation');
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.notViewed.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.notViewed.enabled ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.notViewed.enabled ? 'translate-x-5' : ''}`} />
               </div>
@@ -2498,7 +2498,7 @@ function SettingsContent() {
                   setFollowupSettings(prev => ({ ...prev, viewedNotAccepted: { ...prev.viewedNotAccepted, enabled: !prev.viewedNotAccepted.enabled } }));
                   markDirty('automation');
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.viewedNotAccepted.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.viewedNotAccepted.enabled ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.viewedNotAccepted.enabled ? 'translate-x-5' : ''}`} />
               </div>
@@ -2534,7 +2534,7 @@ function SettingsContent() {
                   setFollowupSettings(prev => ({ ...prev, expiryWarning: { ...prev.expiryWarning, enabled: !prev.expiryWarning.enabled } }));
                   markDirty('automation');
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.expiryWarning.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.expiryWarning.enabled ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.expiryWarning.enabled ? 'translate-x-5' : ''}`} />
               </div>
@@ -2570,7 +2570,7 @@ function SettingsContent() {
                   setFollowupSettings(prev => ({ ...prev, includeAvailableDates: !prev.includeAvailableDates }));
                   markDirty('automation');
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.includeAvailableDates ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.includeAvailableDates ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.includeAvailableDates ? 'translate-x-5' : ''}`} />
               </div>
@@ -2589,7 +2589,7 @@ function SettingsContent() {
                   setFollowupSettings(prev => ({ ...prev, availabilityConflict: { ...prev.availabilityConflict, enabled: !prev.availabilityConflict.enabled } }));
                   markDirty('automation');
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.availabilityConflict?.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.availabilityConflict?.enabled ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.availabilityConflict?.enabled ? 'translate-x-5' : ''}`} />
               </div>
@@ -2608,7 +2608,7 @@ function SettingsContent() {
                   setFollowupSettings(prev => ({ ...prev, expiredRecovery: { ...prev.expiredRecovery, enabled: !prev.expiredRecovery.enabled } }));
                   markDirty('automation');
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.expiredRecovery?.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.expiredRecovery?.enabled ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.expiredRecovery?.enabled ? 'translate-x-5' : ''}`} />
               </div>
@@ -2687,13 +2687,13 @@ function SettingsContent() {
           )}
 
           {(termsPdfUrl || termsUpdatedAt) && (
-            <div className="mb-4 p-3 bg-amber-900/30 border border-amber-600/30 rounded-sm flex items-center justify-between">
+            <div className="mb-4 p-3 bg-v-gold/10 border border-v-gold/30 rounded-sm flex items-center justify-between">
               <div>
-                <span className="text-sm text-amber-400 font-medium">
+                <span className="text-sm text-v-gold font-medium">
                   {termsPdfUrl ? 'PDF uploaded' : 'Text terms saved'}
                 </span>
                 {termsUpdatedAt && (
-                  <span className="text-xs text-amber-400/70 ml-2">
+                  <span className="text-xs text-v-gold/70 ml-2">
                     Updated {new Date(termsUpdatedAt).toLocaleDateString()}
                   </span>
                 )}
@@ -2720,9 +2720,9 @@ function SettingsContent() {
                 accept=".pdf"
                 onChange={handleTermsUpload}
                 disabled={termsUploading}
-                className="block w-full text-sm text-v-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-amber-900/30 file:text-amber-400 hover:file:bg-amber-900/50 disabled:opacity-50"
+                className="block w-full text-sm text-v-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-v-gold/10 file:text-v-gold hover:file:bg-v-gold/20 disabled:opacity-50"
               />
-              {termsUploading && <p className="text-xs text-amber-400 mt-1">Uploading...</p>}
+              {termsUploading && <p className="text-xs text-v-gold mt-1">Uploading...</p>}
               <p className="text-xs text-v-text-secondary mt-1">PDF only, max 5MB</p>
             </div>
 
@@ -2742,7 +2742,7 @@ function SettingsContent() {
             <button
               onClick={saveTermsText}
               disabled={termsSaving || !termsText.trim()}
-              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-sm text-sm font-medium disabled:opacity-50 transition-colors"
+              className="bg-v-gold hover:bg-v-gold-dim text-white px-4 py-2 rounded-sm text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {termsSaving ? 'Saving...' : 'Save Terms Text'}
             </button>
@@ -2765,7 +2765,7 @@ function SettingsContent() {
               const isEnabled = dayConfig !== null && dayConfig !== undefined;
               return (
                 <div key={idx} className="flex items-center gap-4">
-                  <div onClick={() => toggleDay(dayKey)} className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${isEnabled ? 'bg-amber-500' : 'bg-gray-600'}`}>
+                  <div onClick={() => toggleDay(dayKey)} className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${isEnabled ? 'bg-v-gold' : 'bg-gray-600'}`}>
                     <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${isEnabled ? 'translate-x-5' : ''}`} />
                   </div>
                   <span className="w-24 text-sm text-v-text-primary">{dayName}</span>
@@ -2818,7 +2818,7 @@ function SettingsContent() {
                 onChange={(e) => setNewBlockedDate(e.target.value)}
                 className="bg-v-charcoal border border-v-border text-v-text-primary rounded px-3 py-2 text-sm" />
               <button onClick={addBlockedDate}
-                className="px-3 py-2 bg-amber-500 text-white rounded text-sm font-medium hover:bg-amber-600 transition-colors">
+                className="px-3 py-2 bg-v-gold text-white rounded text-sm font-medium hover:bg-v-gold-dim transition-colors">
                 Block Date
               </button>
             </div>
@@ -2868,7 +2868,7 @@ function SettingsContent() {
               </div>
               <div
                 onClick={() => { setUseCalendlyScheduling(!useCalendlyScheduling); markDirty('calendly'); }}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${useCalendlyScheduling ? 'bg-amber-500' : 'bg-gray-600'}`}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${useCalendlyScheduling ? 'bg-v-gold' : 'bg-gray-600'}`}
               >
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${useCalendlyScheduling ? 'translate-x-5' : ''}`} />
               </div>

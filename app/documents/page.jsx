@@ -6,7 +6,7 @@ const CATEGORY_COLORS = {
   insurance: 'bg-blue-900/30 text-blue-400',
   licenses: 'bg-purple-900/30 text-purple-400',
   contracts: 'bg-green-900/30 text-green-400',
-  sops: 'bg-amber-900/30 text-amber-400',
+  sops: 'bg-v-gold-muted/30 text-v-gold',
   other: 'bg-v-charcoal text-v-text-secondary',
 };
 
@@ -60,7 +60,7 @@ function ExpiryBadge({ expiresAt, t }) {
   const days = daysUntilExpiry(expiresAt);
   if (days === null) return null;
   if (days < 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 font-medium">{'Expired'}</span>;
-  if (days <= 30) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-400 font-medium">{'Expires in'} {days}d</span>;
+  if (days <= 30) return <span className="text-xs px-2 py-0.5 rounded-full bg-v-gold-muted/30 text-v-gold font-medium">{'Expires in'} {days}d</span>;
   return <span className="text-xs px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 font-medium">{'Valid'}</span>;
 }
 
@@ -290,7 +290,7 @@ export default function DocumentsPage() {
 
       {/* Expiring Soon Alert */}
       {expiringSoon.length > 0 && (
-        <div className="bg-amber-900/20 border border-v-gold/40 rounded-lg p-3 mb-4">
+        <div className="bg-v-gold-muted/20 border border-v-gold/40 rounded-lg p-3 mb-4">
           <p className="text-v-gold font-medium text-sm">
             {expiringSoon.length} {'documents expiring soon or expired'}
           </p>

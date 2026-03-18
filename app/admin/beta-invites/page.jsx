@@ -537,7 +537,7 @@ function ProspectsTab() {
                   type="checkbox"
                   checked={prospects.length > 0 && selected.size === prospects.length}
                   onChange={toggleAll}
-                  className="w-4 h-4 rounded accent-[#C9A84C]"
+                  className="w-4 h-4 rounded accent-v-gold"
                 />
               </th>
               <th className="text-left px-4 py-3 text-xs text-v-text-secondary uppercase tracking-widest font-medium">Airport</th>
@@ -564,7 +564,7 @@ function ProspectsTab() {
                     type="checkbox"
                     checked={selected.has(p.id)}
                     onChange={() => toggleSelect(p.id)}
-                    className="w-4 h-4 rounded accent-[#C9A84C]"
+                    className="w-4 h-4 rounded accent-v-gold"
                   />
                 </td>
                 <td className="px-4 py-4 text-v-text-primary font-medium max-w-[200px] truncate">{p.airport_name || '—'}</td>

@@ -150,7 +150,7 @@ export default function JobPhotosPage() {
       {/* Header */}
       <header className="text-white flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
-          <a href="/calendar" className="text-2xl hover:text-amber-400">&#8592;</a>
+          <a href="/calendar" className="text-2xl hover:text-v-gold">&#8592;</a>
           <div>
             <h1 className="text-2xl font-bold">{'Job Documentation'}</h1>
             {quote && (
@@ -160,7 +160,7 @@ export default function JobPhotosPage() {
             )}
           </div>
         </div>
-        <a href={`/quotes/${quoteId}`} className="text-sm text-amber-400 hover:underline">
+        <a href={`/quotes/${quoteId}`} className="text-sm text-v-gold hover:underline">
           {'View Quote'}
         </a>
       </header>
@@ -370,9 +370,9 @@ export default function JobPhotosPage() {
         </div>
 
         {/* Tips Card */}
-        <div className="bg-amber-900/20 border border-amber-200 rounded-xl p-4">
-          <h3 className="font-bold text-amber-900 mb-2">&#128161; {'Documentation Tips'}</h3>
-          <ul className="text-sm text-amber-800 space-y-1">
+        <div className="bg-v-gold-muted/20 border border-v-gold/20 rounded-xl p-4">
+          <h3 className="font-bold text-v-gold-muted mb-2">&#128161; {'Documentation Tips'}</h3>
+          <ul className="text-sm text-v-gold-muted space-y-1">
             <li>&#8226; {'Capture any existing damage or stains before starting'}</li>
             <li>&#8226; {'Take wide shots and close-ups of problem areas'}</li>
             <li>&#8226; {'Video walk-around shows more than photos'}</li>
@@ -390,7 +390,7 @@ export default function JobPhotosPage() {
               {beforeMedia.length > 0 ? (
                 <span className="text-green-600 font-medium">&#10003; {'Complete'}</span>
               ) : (
-                <span className="text-amber-600 font-medium">&#9888; {'Missing'}</span>
+                <span className="text-v-gold-dim font-medium">&#9888; {'Missing'}</span>
               )}
             </div>
             <div className="flex items-center justify-between">
@@ -398,7 +398,7 @@ export default function JobPhotosPage() {
               {afterMedia.length > 0 ? (
                 <span className="text-green-600 font-medium">&#10003; {'Complete'}</span>
               ) : (
-                <span className="text-amber-600 font-medium">&#9888; {'Missing'}</span>
+                <span className="text-v-gold-dim font-medium">&#9888; {'Missing'}</span>
               )}
             </div>
           </div>

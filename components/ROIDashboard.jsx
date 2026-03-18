@@ -85,7 +85,7 @@ export default function ROIDashboard({ compact = false }) {
           </div>
           <div className="bg-white rounded-lg p-3 text-center">
             <p className="text-xs text-gray-500">Your ROI</p>
-            <p className="text-xl font-bold text-amber-500">{m.roiMultiple}</p>
+            <p className="text-xl font-bold text-v-gold">{m.roiMultiple}</p>
             <p className="text-xs text-gray-400">return</p>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function ROIDashboard({ compact = false }) {
           </div>
           <div className="text-right">
             <p className="text-emerald-100 text-sm">Your ROI</p>
-            <p className="text-4xl font-bold text-amber-300">{m.roiMultiple}</p>
+            <p className="text-4xl font-bold text-v-gold">{m.roiMultiple}</p>
             <p className="text-emerald-200 text-xs">return on investment</p>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function ROIDashboard({ compact = false }) {
             <p className="text-sm text-gray-500">Close Rate</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-3xl font-bold text-amber-600">${m.totalRevenue.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-v-gold-dim">${m.totalRevenue.toLocaleString()}</p>
             <p className="text-sm text-gray-500">Revenue Booked</p>
           </div>
         </div>
