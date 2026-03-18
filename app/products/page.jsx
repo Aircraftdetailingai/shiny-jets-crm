@@ -367,7 +367,7 @@ export default function ProductsPage() {
                     <div key={p.id} className="flex items-center justify-between">
                       <div className="text-sm text-red-400">
                         <span className="font-medium">{p.name}</span>
-                        <span className="text-red-400/70 ml-1">&#8212; {p.current_quantity} {p.unit} {'remaining'}</span>
+                        <span className="text-red-400/70 ml-1">&#8212; {p.current_quantity} {'remaining'}{p.size ? ` (${p.size} containers)` : ''}</span>
                         <span className="text-red-400 text-xs ml-1">{`(reorder at ${p.reorder_threshold})`}</span>
                       </div>
                       {p.product_url && (
@@ -423,71 +423,79 @@ export default function ProductsPage() {
                   <span className="text-xs text-v-text-secondary">{categoryProducts.length} {'items'}</span>
                 </div>
                 <div className="divide-y divide-v-border">
-                  {categoryProducts.map((product) => (
-                    <div key={product.id} className="p-4 hover:bg-white/5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {product.image_url && (
-                            <img
-                              src={product.image_url}
-                              alt=""
-                              className="w-10 h-10 rounded object-cover flex-shrink-0 bg-v-charcoal"
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                  {categoryProducts.map((product) => {
+                    const isLow = product.reorder_threshold > 0 && product.current_quantity <= product.reorder_threshold;
+                    const qty = product.current_quantity || 0;
+                    return (
+                      <div key={product.id} className="p-4 hover:bg-white/5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt=""
+                                className="w-12 h-12 rounded object-cover flex-shrink-0 bg-v-charcoal border border-v-border"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded bg-v-charcoal border border-v-border flex items-center justify-center text-v-text-secondary text-lg flex-shrink-0">
+                                &#128230;
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-v-text-primary truncate">{product.name}</p>
+                                {isLow && (
+                                  <span className="text-[10px] bg-yellow-900/40 text-yellow-400 px-2 py-0.5 rounded-full flex-shrink-0 font-medium">Low Stock</span>
+                                )}
+                              </div>
                               {product.brand && (
-                                <span className="text-xs text-v-text-secondary font-medium">{product.brand}</span>
+                                <p className="text-xs text-v-text-secondary mt-0.5">{product.brand}</p>
                               )}
-                              <p className="font-medium text-v-text-primary truncate">{product.name}</p>
-                              {product.size && (
-                                <span className="text-xs text-v-text-secondary">{product.size}</span>
-                              )}
-                              {product.reorder_threshold > 0 && product.current_quantity <= product.reorder_threshold && (
-                                <span className="text-xs bg-red-900/30 text-red-400 px-2 py-0.5 rounded-full flex-shrink-0">{'Low'}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-v-text-secondary">
-                              <span>{'Quantity'}: <strong>{product.current_quantity || 0}</strong> {product.unit}</span>
-                              {product.cost_per_unit > 0 && (
-                                <span>${product.cost_per_unit.toFixed(2)}/{product.unit}</span>
-                              )}
-                              {product.supplier && (
-                                <span className="text-v-text-secondary">{product.supplier}</span>
-                              )}
-                              {product.product_url && (
-                                <a href={product.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs">{'Reorder'}</a>
-                              )}
+                              <div className="flex items-center gap-4 mt-2 text-xs text-v-text-secondary flex-wrap">
+                                {product.size && (
+                                  <span>Size: <strong className="text-v-text-primary">{product.size}</strong></span>
+                                )}
+                                <span>In stock: <strong className={`${isLow ? 'text-yellow-400' : 'text-v-text-primary'}`}>{qty}</strong></span>
+                                {product.cost_per_unit > 0 && (
+                                  <span>${product.cost_per_unit.toFixed(2)} each</span>
+                                )}
+                                {product.supplier && (
+                                  <span>{product.supplier}</span>
+                                )}
+                                {product.product_url && (
+                                  <a href={product.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Reorder</a>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setShowAdjustModal(product);
-                              setAdjustAmount('');
-                            }}
-                            className="px-3 py-1 text-sm bg-v-charcoal text-v-text-secondary hover:bg-v-charcoal rounded"
-                          >
-                            {'Adjust Qty'}
-                          </button>
-                          <button
-                            onClick={() => handleOpenModal(product)}
-                            className="px-3 py-1 text-sm text-blue-400 hover:bg-blue-900/20 rounded"
-                          >
-                            {'Edit'}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(product.id)}
-                            className="px-3 py-1 text-sm text-red-400 hover:bg-red-900/20 rounded"
-                          >
-                            {'Delete'}
-                          </button>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => {
+                                setShowAdjustModal(product);
+                                setAdjustAmount('');
+                              }}
+                              className="px-3 py-1 text-xs bg-v-charcoal text-v-text-secondary hover:text-v-text-primary rounded border border-v-border"
+                            >
+                              Adjust
+                            </button>
+                            <button
+                              onClick={() => handleOpenModal(product)}
+                              className="px-3 py-1 text-xs text-blue-400 hover:bg-blue-900/20 rounded"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(product.id)}
+                              className="px-3 py-1 text-xs text-red-400 hover:bg-red-900/20 rounded"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -609,12 +617,12 @@ export default function ProductsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Size'}</label>
+                  <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Container Size'}</label>
                   <input
                     type="text"
                     value={formData.size}
                     onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                    placeholder={'e.g., 32 oz'}
+                    placeholder={'e.g., 32 oz, 1 gal'}
                     className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
@@ -662,7 +670,8 @@ export default function ProductsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Current Quantity'}</label>
+                  <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Quantity in Stock'}</label>
+                  <p className="text-[10px] text-v-text-secondary/70 -mt-0.5 mb-1">How many containers</p>
                   <input
                     type="number"
                     step="1"
@@ -742,7 +751,7 @@ export default function ProductsPage() {
             <div className="px-6 py-4 border-b border-v-border">
               <h2 className="text-lg font-semibold text-v-text-primary">{'Adjust Inventory'}</h2>
               <p className="text-sm text-v-text-secondary">{showAdjustModal.name}</p>
-              <p className="text-xs text-v-text-secondary">{'Current'}: {showAdjustModal.current_quantity} {showAdjustModal.unit}</p>
+              <p className="text-xs text-v-text-secondary">{'Current'}: {showAdjustModal.current_quantity} {showAdjustModal.size ? `containers (${showAdjustModal.size} each)` : 'units'}</p>
             </div>
 
             <div className="p-6">
