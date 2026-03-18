@@ -26,7 +26,7 @@ const TIERS = [
     description: 'Most popular for full-time detailers',
     features: [
       'Unlimited quotes',
-      'Full aircraft database (300+ models)',
+      'Full aircraft database (208 models)',
       'Custom services & packages',
       'Email notifications',
       'Remove Vector branding',
@@ -44,7 +44,7 @@ const TIERS = [
     description: 'For teams and high-volume shops',
     features: [
       'Unlimited quotes',
-      'Full aircraft database (300+ models)',
+      'Full aircraft database (208 models)',
       'Custom services & packages',
       'Email notifications',
       'Team management',
@@ -60,7 +60,7 @@ const FEATURES = [
   {
     num: '01',
     title: 'Aircraft-Specific Pricing',
-    description: 'Select from 220+ aircraft models with pre-loaded dimensions and hour estimates. Your hourly rate multiplied by aircraft hours gives you accurate quotes every time.',
+    description: 'Select from 208 aircraft models with pre-loaded dimensions and hour estimates. Your hourly rate multiplied by aircraft hours gives you accurate quotes every time.',
   },
   {
     num: '02',
@@ -93,7 +93,7 @@ const STEPS = [
   {
     num: '01',
     title: 'Select Aircraft',
-    description: 'Choose from 220+ aircraft models. Hours and surface area are pre-loaded for each model.',
+    description: 'Choose from 208 aircraft models. Hours and surface area are pre-loaded for each model.',
   },
   {
     num: '02',
@@ -162,6 +162,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-[1px] bg-[#C9A84C]" />
             <span className="text-[#F5F5F5] text-xs tracking-[0.3em] uppercase font-light">Vector</span>
+            <span className="ml-2 px-2 py-0.5 text-[9px] tracking-[0.15em] uppercase border border-[#C9A84C]/50 text-[#C9A84C] rounded-full">Beta</span>
           </div>
           <div className="flex items-center gap-8">
             <a href="#how" className="text-[#8A9BB0] text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors hidden sm:inline">Process</a>
@@ -202,7 +203,7 @@ export default function LandingPage() {
               href="/signup"
               className="px-10 py-4 bg-[#C9A84C] text-[#080C12] text-xs tracking-[0.25em] uppercase font-medium hover:bg-[#D4B85A] transition-colors text-center"
             >
-              Start Free
+              Join as a Founding Member
             </a>
             <a
               href="#how"

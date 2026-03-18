@@ -10,7 +10,7 @@ const FEATURE_CATEGORIES = [
     title: 'Quoting & Payments',
     icon: '\uD83D\uDCB0',
     features: [
-      { name: '300+ Aircraft Database', desc: 'Pre-loaded service hours from Robinson R22 to Boeing 747. Use our defaults or upload your own.' },
+      { name: '208 Aircraft Database', desc: 'Pre-loaded service hours from Robinson R22 to Boeing 747. Use our defaults or upload your own.' },
       { name: 'One-Click Quote Creation', desc: 'Select aircraft, pick services, and generate an accurate quote in under 60 seconds.' },
       { name: 'Professional PDF Quotes', desc: 'Send branded, professional quotes via email. Track when clients open them.' },
       { name: 'Stripe Payments', desc: 'Clients accept and pay online with one click. Funds go directly to your Stripe account.' },
@@ -58,7 +58,7 @@ const FEATURE_CATEGORIES = [
 
 const STEPS = [
   { num: '1', title: 'Add Your Services & Rates', desc: 'Set up your service menu and hourly rates. Exterior wash, ceramic coating, interior detail — whatever you offer.' },
-  { num: '2', title: 'Select Aircraft, Build Quote', desc: 'Choose from 300+ pre-loaded aircraft or add your own hours. Vector calculates the price — you stay in control.' },
+  { num: '2', title: 'Select Aircraft, Build Quote', desc: 'Choose from 208 pre-loaded aircraft or add your own hours. Vector calculates the price — you stay in control.' },
   { num: '3', title: 'Send to Client, Get Paid', desc: 'Email or text the quote. Your client views a professional branded page and pays online with one click.' },
 ];
 
@@ -94,7 +94,7 @@ const TIERS = [
 ];
 
 const FAQS = [
-  { q: 'How does pricing work?', a: 'Vector multiplies your hourly rate by the service hours for each aircraft. We pre-load default hours for 300+ models, but you can upload your own or adjust hours on any quote. A G450 ceramic coating might default to 7.2 hours \u2014 at $190/hr that\'s $1,368 \u2014 but you can change it to whatever fits your crew.' },
+  { q: 'How does pricing work?', a: 'Vector multiplies your hourly rate by the service hours for each aircraft. We pre-load default hours for 208 models, but you can upload your own or adjust hours on any quote. A G450 ceramic coating might default to 7.2 hours \u2014 at $190/hr that\'s $1,368 \u2014 but you can change it to whatever fits your crew.' },
   { q: 'Can I customize my services?', a: 'Absolutely. Add any service you offer \u2014 exterior wash, interior detail, ceramic coating, brightwork, decon, or create your own. Bundle them into packages with automatic discounts.' },
   { q: 'What payment methods do you accept?', a: 'Clients pay via Stripe \u2014 all major credit cards, Apple Pay, and Google Pay. Funds go directly to your connected Stripe account. We support 20+ currencies.' },
   { q: 'Is there a long-term contract?', a: 'No contracts. Start free, upgrade anytime, cancel anytime. The free plan is free forever with up to 3 quotes per month.' },
@@ -157,6 +157,7 @@ export default function LandingPage() {
           <div className="flex items-center space-x-2 text-white text-xl font-bold">
             <span className="text-2xl">{'\u2708\uFE0F'}</span>
             <span>Vector</span>
+            <span className="ml-2 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border border-amber-500/50 text-amber-400 rounded-full">Beta</span>
           </div>
           <div className="flex items-center space-x-4 sm:space-x-6">
             <a href="#features" className="text-gray-400 hover:text-white text-sm hidden sm:inline transition-colors">{T.nav.features}</a>
@@ -262,14 +263,14 @@ export default function LandingPage() {
           </div>
 
           {/* Trust Badges */}
+          {/* TODO: Replace with real stats after 90 days beta */}
           <div className="mt-16 max-w-4xl mx-auto">
             <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-4">
               {[
-                { label: '100+ Detailers', icon: '\uD83D\uDC65' },
-                { label: '10,000+ Quotes Sent', icon: '\uD83D\uDCE8' },
-                { label: '300+ Aircraft Models', icon: '\u2708\uFE0F' },
+                { label: '208 Aircraft Models', icon: '\u2708\uFE0F' },
                 { label: '20+ Currencies', icon: '\uD83C\uDF0D' },
                 { label: '9 Languages', icon: '\uD83D\uDDE3\uFE0F' },
+                { label: 'Built by an Aircraft Detailer', icon: '\uD83D\uDC77' },
               ].map((b) => (
                 <div key={b.label} className="flex items-center gap-2 text-gray-400 text-sm">
                   <span className="text-lg">{b.icon}</span>
@@ -471,29 +472,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Founder Story */}
       <section className="py-20 border-t border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{T.testimonials.title}</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {[
-              { quote: 'Vector saved me 10 hours a week on quoting. I used to spend 30 minutes per quote with spreadsheets \u2014 now it takes 60 seconds.', name: 'Aircraft Detailer', location: 'Scottsdale, AZ' },
-              { quote: 'The smart follow-ups are incredible. I got three clients to book just from the automated reminders. It\'s like having a sales assistant working 24/7.', name: 'Detailing Business Owner', location: 'Van Nuys, CA' },
-              { quote: 'My crew uses the mobile app every day. Clock in, check their jobs, upload photos \u2014 everything is tracked. Managing 5 guys is way easier now.', name: 'Aviation Detailer', location: 'Teterboro, NJ' },
-            ].map((t, i) => (
-              <div key={i} className="p-6 rounded-xl bg-white/[0.03] border border-white/5">
-                <div className="flex gap-1 text-amber-400 mb-4">
-                  {[...Array(5)].map((_, j) => <span key={j}>{'\u2605'}</span>)}
-                </div>
-                <p className="text-gray-300 text-sm leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
+          <div className="max-w-3xl mx-auto">
+            <div className="p-8 rounded-xl bg-white/[0.03] border border-white/5">
+              <p className="text-gray-300 leading-relaxed mb-6">
+                I&apos;m Brett Berry, President of the Aircraft Detailers Association, and I&apos;ve been detailing aircraft for over 15 years. I built Vector because I was tired of quoting with spreadsheets and losing track of jobs on whiteboards. Every feature in Vector exists because I needed it in my own business.
+              </p>
+              <p className="text-gray-300 leading-relaxed mb-6">
+                Vector is currently in beta. I&apos;m looking for the first 50 detailers to join as founding members &mdash; you&apos;ll get locked-in Pro pricing forever, direct access to me for feedback, and a platform that&apos;s being built by someone who actually does this work.
+              </p>
+              <div className="flex items-center gap-4">
                 <div>
-                  <p className="text-white font-medium text-sm">{t.name}</p>
-                  <p className="text-gray-500 text-xs">{t.location}</p>
+                  <p className="text-white font-semibold">Brett Berry</p>
+                  <p className="text-gray-500 text-sm">President, Aircraft Detailers Association</p>
+                  <p className="text-gray-500 text-sm">15+ years in aircraft detailing</p>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
@@ -537,7 +537,7 @@ export default function LandingPage() {
           </a>
           <div className="mt-8 flex flex-wrap justify-center gap-6 text-gray-500 text-sm">
             <span>No credit card required</span>
-            <span>Free plan forever</span>
+            <span>Founding member pricing locked in forever</span>
             <span>Cancel anytime</span>
           </div>
         </div>
