@@ -14,23 +14,57 @@ export async function GET(request) {
   const configured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALENDAR_REDIRECT_URI);
 
   const supabase = getSupabase();
-  const { data: conn, error } = await supabase
-    .from('google_calendar_connections')
-    .select('connected_at, last_sync_at, sync_enabled, push_enabled, calendar_id')
-    .eq('detailer_id', user.id)
-    .single();
 
-  if (error || !conn) {
-    return Response.json({ connected: false, configured });
+  // Check OAuth connection
+  let oauthConnected = false;
+  let oauthData = null;
+  try {
+    const { data: conn } = await supabase
+      .from('google_calendar_connections')
+      .select('connected_at, last_sync_at, sync_enabled, push_enabled, calendar_id')
+      .eq('detailer_id', user.id)
+      .single();
+    if (conn) {
+      oauthConnected = true;
+      oauthData = conn;
+    }
+  } catch {}
+
+  // Check ICS sync status from detailer availability
+  let icsUrl = null;
+  let icsLastSync = null;
+  try {
+    const { data: detailer } = await supabase
+      .from('detailers')
+      .select('availability')
+      .eq('id', user.id)
+      .single();
+    if (detailer?.availability) {
+      icsUrl = detailer.availability.icsUrl || null;
+      icsLastSync = detailer.availability.icsLastSync || null;
+    }
+  } catch {}
+
+  if (oauthConnected) {
+    return Response.json({
+      connected: true,
+      method: 'oauth',
+      configured,
+      connected_at: oauthData.connected_at,
+      last_sync_at: oauthData.last_sync_at,
+      sync_enabled: oauthData.sync_enabled,
+      push_enabled: oauthData.push_enabled,
+      calendar_id: oauthData.calendar_id,
+      icsUrl,
+      icsLastSync,
+    });
   }
 
   return Response.json({
-    connected: true,
+    connected: !!icsUrl,
+    method: icsUrl ? 'ics' : null,
     configured,
-    connected_at: conn.connected_at,
-    last_sync_at: conn.last_sync_at,
-    sync_enabled: conn.sync_enabled,
-    push_enabled: conn.push_enabled,
-    calendar_id: conn.calendar_id,
+    icsUrl,
+    icsLastSync,
   });
 }
