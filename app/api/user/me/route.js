@@ -43,6 +43,9 @@ function buildUserResponse(data, isAdmin) {
     notify_weekly_digest: data.notify_weekly_digest !== false,
     review_request_enabled: data.review_request_enabled !== false,
     review_request_delay_days: data.review_request_delay_days || 1,
+    theme_primary: data.theme_primary || '#C9A84C',
+    portal_theme: data.portal_theme || 'dark',
+    theme_logo_url: data.theme_logo_url || null,
   };
 }
 
@@ -60,7 +63,7 @@ export async function GET(request) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('detailers')
-    .select('id, email, name, phone, company, plan, status, rates, notification_settings, price_reminder_months, quote_display_preference, efficiency_factor, default_labor_rate, sms_enabled, preferred_currency, country, home_airport, airports_served, listed_in_directory, notify_quote_viewed, cc_fee_mode, pass_fee_to_customer, followup_discount_percent, logo_url, terms_accepted_version, created_at, onboarding_completed, availability, notify_weekly_digest, review_request_enabled, review_request_delay_days')
+    .select('id, email, name, phone, company, plan, status, rates, notification_settings, price_reminder_months, quote_display_preference, efficiency_factor, default_labor_rate, sms_enabled, preferred_currency, country, home_airport, airports_served, listed_in_directory, notify_quote_viewed, cc_fee_mode, pass_fee_to_customer, followup_discount_percent, logo_url, terms_accepted_version, created_at, onboarding_completed, availability, notify_weekly_digest, review_request_enabled, review_request_delay_days, theme_primary, portal_theme, theme_logo_url')
     .eq('id', user.id)
     .single();
 

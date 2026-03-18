@@ -6,7 +6,7 @@ import { setUserCurrency, STRIPE_COUNTRIES } from '@/lib/currency';
 import { currencySymbol } from '@/lib/formatPrice';
 import { restartTour } from '@/components/DashboardTour';
 import { useTranslation, LANGUAGES } from '@/lib/i18n';
-import { generateThemeFromPrimary } from '@/lib/theme';
+import { generateThemeFromPrimary, applyFullTheme } from '@/lib/theme';
 import { paletteToTheme, checkContrast, suggestAccessibleColor, generatePalettes } from '@/lib/color-utils';
 
 const DEFAULT_ADDON_FEES = [
@@ -129,6 +129,10 @@ function SettingsContent() {
   const [availability, setAvailability] = useState(null);
   const [newBlockedDate, setNewBlockedDate] = useState('');
 
+  // Calendly state
+  const [calendlyUrl, setCalendlyUrl] = useState('');
+  const [useCalendlyScheduling, setUseCalendlyScheduling] = useState(false);
+
   // Terms & Conditions state
   const [termsText, setTermsText] = useState('');
   const [termsPdfUrl, setTermsPdfUrl] = useState(null);
@@ -204,6 +208,8 @@ function SettingsContent() {
     setAirportsServed(u.airports_served || []);
     setCountry(u.country || '');
     setListedInDirectory(u.listed_in_directory || false);
+    setCalendlyUrl(u.calendly_url || '');
+    setUseCalendlyScheduling(u.use_calendly_scheduling || false);
       setNotifyQuoteViewed(u.notify_quote_viewed || false);
       setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
       setReviewRequestEnabled(u.review_request_enabled !== false);
@@ -1206,6 +1212,14 @@ function SettingsContent() {
       if (pendingChanges.has('smsEnabled')) promises.push(saveSmsSettings({ sms_enabled: smsEnabled }));
       if (pendingChanges.has('productRatios')) promises.push(saveProductRatios(productRatios || {}));
       if (pendingChanges.has('availability')) promises.push(saveAvailability(availability));
+      if (pendingChanges.has('calendly')) {
+        const token = localStorage.getItem('vector_token');
+        promises.push(fetch('/api/user/settings', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calendly_url: calendlyUrl || null, use_calendly_scheduling: useCalendlyScheduling }),
+        }));
+      }
       if (pendingChanges.has('branding')) {
         const brandingPromise = (async () => {
           // Save theme colors
@@ -1230,6 +1244,16 @@ function SettingsContent() {
       }
       const hadBrandingOnly = pendingChanges.has('branding') && pendingChanges.size === 1;
       await Promise.all(promises);
+      // Apply full theme including dark/light mode across entire CRM
+      if (pendingChanges.has('branding')) {
+        applyFullTheme(portalTheme, selectedTheme?.primary || '#C9A84C');
+        try {
+          const u = JSON.parse(localStorage.getItem('vector_user') || '{}');
+          u.portal_theme = portalTheme;
+          u.theme_primary = selectedTheme?.primary || '#C9A84C';
+          localStorage.setItem('vector_user', JSON.stringify(u));
+        } catch {}
+      }
       setPendingChanges(new Set());
       setSaveSuccess(hadBrandingOnly ? 'branding' : true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -2808,6 +2832,47 @@ function SettingsContent() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Calendly Integration */}
+        <div className="pb-6 mb-2">
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Calendly Integration</h3>
+          <p className="text-sm text-v-text-secondary mb-6">
+            Connect your Calendly account to let customers schedule directly through your Calendly page after payment.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Calendly URL</label>
+              <input
+                type="url"
+                value={calendlyUrl}
+                onChange={(e) => { setCalendlyUrl(e.target.value); markDirty('calendly'); }}
+                placeholder="https://calendly.com/your-name/30min"
+                className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-3 py-2 text-sm placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+              />
+              {calendlyUrl && !calendlyUrl.includes('calendly.com') && (
+                <p className="text-xs text-red-400 mt-1">URL should be a calendly.com link</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-v-text-primary font-medium">Use Calendly for customer scheduling</p>
+                <p className="text-xs text-v-text-secondary mt-0.5">
+                  {useCalendlyScheduling
+                    ? 'Customers will see Calendly embed after payment instead of the built-in calendar.'
+                    : 'Customers use the built-in calendar picker. Calendly shown as secondary option if URL is set.'}
+                </p>
+              </div>
+              <div
+                onClick={() => { setUseCalendlyScheduling(!useCalendlyScheduling); markDirty('calendly'); }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${useCalendlyScheduling ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${useCalendlyScheduling ? 'translate-x-5' : ''}`} />
+              </div>
+            </div>
           </div>
         </div>
 

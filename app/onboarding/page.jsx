@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { STRIPE_COUNTRIES } from '@/lib/currency';
 import { TERMS_VERSION } from '@/lib/terms';
-import { generateThemeFromPrimary, applyThemeToCss } from '@/lib/theme';
+import { generateThemeFromPrimary, applyThemeToCss, applyFullTheme } from '@/lib/theme';
 import { generatePalettes } from '@/lib/color-utils';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -256,14 +256,15 @@ export default function OnboardingPage() {
         }),
       });
       if (!brandRes.ok) { const d = await brandRes.json(); setError(d.error || 'Failed to save branding'); return; }
-      // Update localStorage so sidebar picks up the color
+      // Update localStorage so sidebar picks up the color and mode
       try {
         const stored = JSON.parse(localStorage.getItem('vector_user') || '{}');
         stored.theme_primary = selectedColor;
+        stored.portal_theme = portalTheme;
         stored.theme_logo_url = logoUrl || null;
         localStorage.setItem('vector_user', JSON.stringify(stored));
       } catch {}
-      applyThemeToCss(selectedColor);
+      applyFullTheme(portalTheme, selectedColor);
       await fetch('/api/onboarding', { method: 'POST', headers, body: JSON.stringify({ action: 'save_step', step: 3 }) });
       goNext();
     } catch (err) { setError(err.message); }

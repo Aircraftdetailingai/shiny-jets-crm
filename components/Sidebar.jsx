@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import NotificationBell from './NotificationBell.jsx';
 import PointsBadge from './PointsBadge.jsx';
+import { applyFullTheme } from '@/lib/theme';
 
 const NAV_GROUPS = [
   {
@@ -89,16 +90,33 @@ export default function Sidebar() {
       if (stored) {
         const u = JSON.parse(stored);
         setUser(u);
-        if (u.theme_primary) {
-          document.documentElement.style.setProperty('--v-gold', u.theme_primary);
-          const r = parseInt(u.theme_primary.slice(1, 3), 16);
-          const g = parseInt(u.theme_primary.slice(3, 5), 16);
-          const b = parseInt(u.theme_primary.slice(5, 7), 16);
-          const dim = '#' + [r, g, b].map(c => Math.max(0, Math.round(c * 0.82)).toString(16).padStart(2, '0')).join('');
-          document.documentElement.style.setProperty('--v-gold-dim', dim);
-        }
+        // Apply full theme from stored user data
+        applyFullTheme(u.portal_theme || 'dark', u.theme_primary || '#C9A84C');
       }
     } catch {}
+
+    // Fetch latest branding from server and apply
+    const token = localStorage.getItem('vector_token');
+    if (token) {
+      fetch('/api/user/branding', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          const mode = data.portal_theme || 'dark';
+          const primary = data.theme_primary || '#C9A84C';
+          applyFullTheme(mode, primary);
+          // Persist to localStorage for instant load next time
+          try {
+            const u = JSON.parse(localStorage.getItem('vector_user') || '{}');
+            u.theme_primary = primary;
+            u.portal_theme = mode;
+            u.theme_logo_url = data.theme_logo_url || data.logo_url || null;
+            localStorage.setItem('vector_user', JSON.stringify(u));
+            setUser(prev => ({ ...prev, theme_primary: primary, portal_theme: mode, theme_logo_url: u.theme_logo_url }));
+          } catch {}
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const handleLogout = () => {
@@ -140,8 +158,8 @@ export default function Sidebar() {
                   onClick={() => setMobileOpen(false)}
                   className={`sidebar-nav-item flex items-center gap-3 h-12 px-7 text-xs uppercase transition-colors relative ${
                     active
-                      ? 'text-v-gold bg-white/[0.03]'
-                      : 'text-v-text-secondary hover:text-v-text-primary hover:bg-white/[0.02]'
+                      ? 'text-v-gold bg-v-surface-light/30'
+                      : 'text-v-text-secondary hover:text-v-text-primary'
                   }`}
                   style={{ letterSpacing: '0.15em' }}
                 >
@@ -182,7 +200,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] bg-v-sidebar z-40">
+      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] bg-v-sidebar border-r border-v-border-subtle z-40">
         {navContent}
       </aside>
 
@@ -215,7 +233,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <>
           <div className="md:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setMobileOpen(false)} />
-          <aside className="md:hidden fixed left-0 top-0 bottom-0 w-[260px] bg-v-sidebar z-50 flex flex-col slide-in-left">
+          <aside className="md:hidden fixed left-0 top-0 bottom-0 w-[260px] bg-v-sidebar border-r border-v-border-subtle z-50 flex flex-col slide-in-left">
             {navContent}
           </aside>
         </>

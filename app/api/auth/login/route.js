@@ -101,6 +101,9 @@ export async function POST(request) {
       default_labor_rate: data.default_labor_rate || 25,
       sms_enabled: isAdmin ? true : (data.sms_enabled !== false),
       terms_accepted_version: data.terms_accepted_version || null,
+      theme_primary: data.theme_primary || '#C9A84C',
+      portal_theme: data.portal_theme || 'dark',
+      theme_logo_url: data.theme_logo_url || null,
     };
     return new Response(
       JSON.stringify({ token, user, must_change_password: data.must_change_password, onboarding_complete: data.onboarding_complete !== false }),

@@ -10,14 +10,50 @@
 :root {
   --v-charcoal: #0F1117;
   --v-navy: #0D1B2A;
+  --v-sidebar: #080C12;
   --v-surface: #1A2236;
   --v-surface-light: #1E2A40;
   --v-gold: #C9A84C;
   --v-gold-dim: #A68A3E;
+  --v-gold-muted: #8B7433;
   --v-border: #2A3A50;
   --v-border-subtle: #1A2236;
   --v-text-primary: #F5F5F5;
   --v-text-secondary: #8A9BB0;
+}
+
+/* ========== LIGHT MODE OVERRIDES ========== */
+
+.theme-light .sidebar-nav-item:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .sidebar-nav-item.text-v-gold {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.theme-light .row-hover:hover {
+  background-color: #F3F4F6;
+}
+
+.theme-light .card-hover:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.theme-light .skeleton {
+  background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
+}
+
+.theme-light .modal-glow {
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .react-grid-item.react-grid-placeholder {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
 }
 
 /* ========== EXISTING ANIMATIONS ========== */
