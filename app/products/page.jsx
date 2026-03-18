@@ -24,7 +24,7 @@ export default function ProductsPage() {
     unit: 'oz',
     size: '',
     costPerUnit: '',
-    currentQuantity: '',
+    currentQuantity: '1',
     reorderThreshold: '',
     supplier: '',
     notes: '',
@@ -125,7 +125,7 @@ export default function ProductsPage() {
         unit: 'oz',
         size: '',
         costPerUnit: '',
-        currentQuantity: '',
+        currentQuantity: '1',
         reorderThreshold: '',
         supplier: '',
         notes: '',
@@ -198,8 +198,8 @@ export default function ProductsPage() {
       unit: formData.unit,
       size: formData.size,
       costPerUnit: parseFloat(formData.costPerUnit) || 0,
-      currentQuantity: parseFloat(formData.currentQuantity) || 0,
-      reorderThreshold: parseFloat(formData.reorderThreshold) || 0,
+      currentQuantity: parseInt(formData.currentQuantity, 10) || 1,
+      reorderThreshold: parseInt(formData.reorderThreshold, 10) || 0,
       supplier: formData.supplier,
       notes: formData.notes,
       productUrl: formData.productUrl,
@@ -245,7 +245,7 @@ export default function ProductsPage() {
   const handleAdjustInventory = async (isAdd) => {
     if (!adjustAmount || !showAdjustModal) return;
     const token = localStorage.getItem('vector_token');
-    const adjustment = isAdd ? parseFloat(adjustAmount) : -parseFloat(adjustAmount);
+    const adjustment = isAdd ? parseInt(adjustAmount, 10) : -parseInt(adjustAmount, 10);
 
     try {
       const res = await fetch('/api/products', {
@@ -645,10 +645,11 @@ export default function ProductsPage() {
                   <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Current Quantity'}</label>
                   <input
                     type="number"
-                    step="0.1"
+                    step="1"
+                    min="0"
                     value={formData.currentQuantity}
                     onChange={(e) => setFormData({ ...formData, currentQuantity: e.target.value })}
-                    placeholder="0"
+                    placeholder="1"
                     className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
@@ -658,7 +659,8 @@ export default function ProductsPage() {
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Reorder Alert Threshold'}</label>
                 <input
                   type="number"
-                  step="0.1"
+                  step="1"
+                  min="0"
                   value={formData.reorderThreshold}
                   onChange={(e) => setFormData({ ...formData, reorderThreshold: e.target.value })}
                   placeholder={'Alert when quantity falls below this'}
@@ -722,7 +724,8 @@ export default function ProductsPage() {
             <div className="p-6">
               <input
                 type="number"
-                step="0.1"
+                step="1"
+                min="0"
                 value={adjustAmount}
                 onChange={(e) => setAdjustAmount(e.target.value)}
                 placeholder={'Amount'}

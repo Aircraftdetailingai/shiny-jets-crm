@@ -629,7 +629,7 @@ export default function CrewDashboard() {
                       value={usageForm.amount_used}
                       onChange={e => setUsageForm(f => ({ ...f, amount_used: e.target.value }))}
                       className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40"
-                      step="0.1"
+                      step="1"
                       min="0"
                     />
                     <button
