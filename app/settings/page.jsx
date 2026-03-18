@@ -97,6 +97,10 @@ function SettingsContent() {
   // CC fee mode
   const [ccFeeMode, setCcFeeMode] = useState('absorb');
 
+  // Booking mode
+  const [bookingMode, setBookingMode] = useState('pay_to_book');
+  const [depositPercentage, setDepositPercentage] = useState(25);
+
   // Add-on Fees state
   const [addonFees, setAddonFees] = useState([]);
   const [addonLoading, setAddonLoading] = useState(false);
@@ -366,6 +370,39 @@ function SettingsContent() {
     }
   };
 
+  const fetchBookingMode = async () => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/user/booking-mode', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBookingMode(data.booking_mode || 'pay_to_book');
+        setDepositPercentage(data.deposit_percentage || 25);
+      }
+    } catch (err) {
+      console.log('Failed to fetch booking mode:', err);
+    }
+  };
+
+  const saveBookingMode = async (mode, pct) => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      await fetch('/api/user/booking-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ booking_mode: mode || bookingMode, deposit_percentage: pct ?? depositPercentage }),
+      });
+      const stored = localStorage.getItem('vector_user');
+      if (stored) {
+        try { const u = JSON.parse(stored); u.booking_mode = mode || bookingMode; u.deposit_percentage = pct ?? depositPercentage; localStorage.setItem('vector_user', JSON.stringify(u)); } catch {}
+      }
+    } catch (err) {
+      console.error('Failed to save booking mode:', err);
+    }
+  };
+
   // generateThemeFromPrimary imported from @/lib/theme
 
   const fetchBranding = async () => {
@@ -606,6 +643,7 @@ function SettingsContent() {
     fetchAddonFees();
     fetchPassFee();
     fetchCcFee();
+    fetchBookingMode();
     fetchBranding();
     fetchProductRatios();
     fetchReferralData();
@@ -1201,6 +1239,7 @@ function SettingsContent() {
       if (pendingChanges.has('airportsServed')) promises.push(saveAirportsServed(airportsServed));
       if (pendingChanges.has('passFee')) promises.push(savePassFee(passFeeToCustomer));
       if (pendingChanges.has('ccFee')) promises.push(saveCcFee(ccFeeMode));
+      if (pendingChanges.has('bookingMode')) promises.push(saveBookingMode(bookingMode, depositPercentage));
       if (pendingChanges.has('quoteDisplay')) promises.push(saveQuoteDisplayPref(quoteDisplayPref));
       if (pendingChanges.has('notifications') || pendingChanges.has('automation')) {
         const allNotifs = { ...emailNotifs, ...smsAlerts, ...smsClient, priceReviewMonths: priceReminder, autoDiscountEnabled, monthlyReportEnabled, notifyQuoteViewed, notifyWeeklyDigest, reviewRequestEnabled, reviewRequestDelay, followups: followupSettings };
@@ -2271,6 +2310,84 @@ function SettingsContent() {
                 <p className="text-sm text-v-text-secondary">Customer can pay by card (fee included) or request an invoice to pay by check/ACH (no fee).</p>
               </div>
             </label>
+          </div>
+        </div>
+
+        {/* Booking Requirements */}
+        <div className="pb-6 mb-2">
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Booking Requirements</h3>
+          <p className="text-sm text-v-text-secondary mb-3">
+            Choose how customers pay when they accept a quote.
+          </p>
+          <div className="space-y-3">
+            <label
+              className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
+                bookingMode === 'pay_to_book' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
+              }`}
+            >
+              <input
+                type="radio"
+                name="bookingMode"
+                checked={bookingMode === 'pay_to_book'}
+                onChange={() => { setBookingMode('pay_to_book'); markDirty('bookingMode'); }}
+                className="mt-1 mr-3"
+              />
+              <div>
+                <p className="font-medium text-v-text-primary">Pay to Book</p>
+                <p className="text-sm text-v-text-secondary">Customer pays the full amount to confirm the booking. This is the default behavior.</p>
+              </div>
+            </label>
+            <label
+              className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
+                bookingMode === 'book_later' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
+              }`}
+            >
+              <input
+                type="radio"
+                name="bookingMode"
+                checked={bookingMode === 'book_later'}
+                onChange={() => { setBookingMode('book_later'); markDirty('bookingMode'); }}
+                className="mt-1 mr-3"
+              />
+              <div>
+                <p className="font-medium text-v-text-primary">Book Now, Pay Later</p>
+                <p className="text-sm text-v-text-secondary">Customer accepts and schedules without paying. You send an invoice separately.</p>
+              </div>
+            </label>
+            <label
+              className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
+                bookingMode === 'deposit' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
+              }`}
+            >
+              <input
+                type="radio"
+                name="bookingMode"
+                checked={bookingMode === 'deposit'}
+                onChange={() => { setBookingMode('deposit'); markDirty('bookingMode'); }}
+                className="mt-1 mr-3"
+              />
+              <div>
+                <p className="font-medium text-v-text-primary">Deposit to Book</p>
+                <p className="text-sm text-v-text-secondary">Customer pays a percentage upfront to hold their date. You invoice the remainder after completion.</p>
+              </div>
+            </label>
+            {bookingMode === 'deposit' && (
+              <div className="ml-8 mt-2">
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">Deposit Percentage</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="5"
+                    max="90"
+                    step="5"
+                    value={depositPercentage}
+                    onChange={(e) => { setDepositPercentage(parseInt(e.target.value) || 25); markDirty('bookingMode'); }}
+                    className="w-20 bg-v-charcoal border border-v-border text-v-text-primary rounded px-3 py-2"
+                  />
+                  <span className="text-v-text-secondary">%</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

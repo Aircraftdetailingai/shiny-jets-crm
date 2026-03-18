@@ -5,8 +5,17 @@ import { useRouter } from 'next/navigation';
 const statusColors = {
   paid: 'bg-green-900/30 text-green-400',
   unpaid: 'bg-v-gold-muted/30 text-v-gold',
+  partially_paid: 'bg-blue-900/30 text-blue-400',
   overdue: 'bg-red-900/30 text-red-400',
   void: 'bg-v-charcoal text-v-text-secondary',
+};
+
+const statusLabels = {
+  paid: 'Paid',
+  unpaid: 'Unpaid',
+  partially_paid: 'Partially Paid',
+  overdue: 'Overdue',
+  void: 'Void',
 };
 
 function formatCurrency(val) {
@@ -26,6 +35,7 @@ export default function InvoicesPage() {
   const [paidQuotes, setPaidQuotes] = useState([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState('');
   const [error, setError] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -96,6 +106,34 @@ export default function InvoicesPage() {
     }
   };
 
+  const getDisplayStatus = (inv) => {
+    if (inv.status === 'paid') return 'paid';
+    if (inv.status === 'partially_paid') return 'partially_paid';
+    if ((inv.status === 'unpaid' || inv.status === 'partially_paid') && inv.due_date && new Date(inv.due_date) < new Date()) return 'overdue';
+    return inv.status || 'unpaid';
+  };
+
+  const sendReminder = async (invoice) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/remind`, {
+        method: 'POST',
+        headers: headers(),
+      });
+      if (res.ok) {
+        alert('Reminder sent to ' + invoice.customer_email);
+        setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, last_reminder_at: new Date().toISOString() } : inv));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to send reminder');
+      }
+    } catch (err) {
+      alert('Failed to send reminder');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const markAsPaid = async () => {
     if (!markPaidModal) return;
     setActionLoading(true);
@@ -103,7 +141,7 @@ export default function InvoicesPage() {
       const res = await fetch(`/api/invoices/${markPaidModal.id}`, {
         method: 'PUT',
         headers: headers(),
-        body: JSON.stringify({ status: 'paid', payment_method: paymentMethod }),
+        body: JSON.stringify({ status: 'paid', payment_method: paymentMethod, manual_payment_note: paymentNote || undefined }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -197,15 +235,20 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
     setTimeout(() => win.print(), 300);
   };
 
-  const filtered = filter === 'all' ? invoices : invoices.filter(inv => inv.status === filter);
+  const enriched = invoices.map(inv => ({ ...inv, displayStatus: getDisplayStatus(inv) }));
+  const filtered = filter === 'all' ? enriched
+    : filter === 'overdue' ? enriched.filter(inv => inv.displayStatus === 'overdue')
+    : enriched.filter(inv => inv.status === filter);
 
-  const totalUnpaid = invoices.filter(i => i.status === 'unpaid').reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
+  const totalUnpaid = invoices.filter(i => i.status === 'unpaid' || i.status === 'partially_paid').reduce((sum, i) => sum + (parseFloat(i.balance_due) || parseFloat(i.total) || 0), 0);
   const totalPaid = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0);
 
   const filterLabels = {
     all: 'All',
     unpaid: 'Unpaid',
+    partially_paid: 'Partial',
     paid: 'Paid',
+    overdue: 'Overdue',
   };
 
   return (
@@ -217,7 +260,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
           <h1 className="text-2xl font-bold text-white">{'Invoices'}</h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {['all', 'unpaid', 'paid'].map(f => (
+          {['all', 'unpaid', 'partially_paid', 'paid', 'overdue'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -269,7 +312,9 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               <p className="text-v-text-secondary">{'No invoices yet. Create one from a completed job.'}</p>
             </div>
           ) : (
-            filtered.map(inv => (
+            filtered.map(inv => {
+              const ds = inv.displayStatus || inv.status || 'unpaid';
+              return (
               <div
                 key={inv.id}
                 className="bg-v-surface rounded-lg p-4 shadow hover:shadow-md transition-shadow cursor-pointer"
@@ -279,8 +324,8 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-v-text-primary">{inv.invoice_number}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[inv.status] || statusColors.unpaid}`}>
-                        {inv.status || 'Unpaid'}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[ds] || statusColors.unpaid}`}>
+                        {statusLabels[ds] || ds}
                       </span>
                     </div>
                     <p className="text-sm text-v-text-secondary mt-0.5">
@@ -289,42 +334,60 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                     </p>
                     <p className="text-xs text-v-text-secondary">
                       {new Date(inv.created_at).toLocaleDateString()}
-                      {inv.emailed_at ? ` \u00B7 ${'Emailed'}` : ''}
+                      {inv.due_date ? ` \u00B7 Due ${new Date(inv.due_date).toLocaleDateString()}` : ''}
+                      {inv.emailed_at ? ` \u00B7 Emailed` : ''}
                       {inv.payment_method ? ` \u00B7 ${inv.payment_method}` : ''}
                     </p>
+                    {(parseFloat(inv.amount_paid) > 0 || parseFloat(inv.balance_due) > 0) && inv.status !== 'paid' && (
+                      <p className="text-xs mt-0.5">
+                        {parseFloat(inv.amount_paid) > 0 && <span className="text-green-400">Paid {formatCurrency(inv.amount_paid)}</span>}
+                        {parseFloat(inv.balance_due) > 0 && <span className="text-red-400 ml-2">Due {formatCurrency(inv.balance_due)}</span>}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-v-text-primary">{formatCurrency(inv.total)}</p>
-                    <div className="flex gap-1 mt-1">
+                    <div className="flex gap-1 mt-1 flex-wrap justify-end">
                       <button
                         onClick={(e) => { e.stopPropagation(); downloadPDF(inv); }}
                         className="text-xs px-2 py-1 bg-v-charcoal rounded hover:bg-v-charcoal text-v-text-secondary"
-                        title={'Download PDF'}
+                        title="Download PDF"
                       >
-                        {'PDF'}
+                        PDF
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); emailInvoice(inv); }}
                         disabled={!inv.customer_email || actionLoading}
                         className="text-xs px-2 py-1 bg-blue-100 rounded hover:bg-blue-200 text-blue-700 disabled:opacity-40"
-                        title={'Email Invoice'}
+                        title="Email Invoice"
                       >
-                        {'Email'}
+                        Email
                       </button>
+                      {ds === 'overdue' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); sendReminder(inv); }}
+                          disabled={!inv.customer_email || actionLoading}
+                          className="text-xs px-2 py-1 bg-red-100 rounded hover:bg-red-200 text-red-700 disabled:opacity-40"
+                          title="Send Payment Reminder"
+                        >
+                          Remind
+                        </button>
+                      )}
                       {inv.status !== 'paid' && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); setMarkPaidModal(inv); setPaymentMethod('cash'); }}
+                          onClick={(e) => { e.stopPropagation(); setMarkPaidModal(inv); setPaymentMethod('cash'); setPaymentNote(''); }}
                           className="text-xs px-2 py-1 bg-green-100 rounded hover:bg-green-200 text-green-700"
-                          title={'Mark as Paid'}
+                          title="Mark as Paid"
                         >
-                          {'Mark as Paid'}
+                          Mark Paid
                         </button>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -339,8 +402,8 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                 <p className="text-sm text-v-text-secondary">{new Date(viewInvoice.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-3 py-1 rounded-full font-medium ${statusColors[viewInvoice.status] || statusColors.unpaid}`}>
-                  {(viewInvoice.status || 'Unpaid').toUpperCase()}
+                <span className={`text-xs px-3 py-1 rounded-full font-medium ${statusColors[getDisplayStatus(viewInvoice)] || statusColors.unpaid}`}>
+                  {(statusLabels[getDisplayStatus(viewInvoice)] || viewInvoice.status || 'Unpaid').toUpperCase()}
                 </span>
                 <button onClick={() => setViewInvoice(null)} className="text-v-text-secondary hover:text-v-text-secondary text-xl">&times;</button>
               </div>
@@ -408,9 +471,36 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                 </div>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-lg font-bold">{'Total'}</span>
+                <span className="text-lg font-bold">Total</span>
                 <span className="text-2xl font-bold text-v-gold">{formatCurrency(viewInvoice.total)}</span>
               </div>
+              {(parseFloat(viewInvoice.amount_paid) > 0 || parseFloat(viewInvoice.deposit_amount) > 0) && viewInvoice.status !== 'paid' && (
+                <div className="mt-2 pt-2 border-t border-v-border space-y-1">
+                  {parseFloat(viewInvoice.deposit_amount) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-400">Deposit Paid</span>
+                      <span className="text-green-400 font-semibold">{formatCurrency(viewInvoice.deposit_amount)}</span>
+                    </div>
+                  )}
+                  {parseFloat(viewInvoice.amount_paid) > 0 && !parseFloat(viewInvoice.deposit_amount) && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-400">Amount Paid</span>
+                      <span className="text-green-400 font-semibold">{formatCurrency(viewInvoice.amount_paid)}</span>
+                    </div>
+                  )}
+                  {parseFloat(viewInvoice.balance_due) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-red-400 font-semibold">Balance Due</span>
+                      <span className="text-red-400 font-bold text-base">{formatCurrency(viewInvoice.balance_due)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {viewInvoice.due_date && viewInvoice.status !== 'paid' && (
+                <p className={`text-sm mt-2 ${getDisplayStatus(viewInvoice) === 'overdue' ? 'text-red-400 font-semibold' : 'text-v-gold'}`}>
+                  {getDisplayStatus(viewInvoice) === 'overdue' ? 'Overdue — was due' : 'Due by'} {new Date(viewInvoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              )}
             </div>
 
             {viewInvoice.notes && (
@@ -420,13 +510,16 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
             )}
 
             {viewInvoice.payment_method && (
-              <p className="text-sm text-v-text-secondary mt-2">{'Payment method'}: {viewInvoice.payment_method}</p>
+              <p className="text-sm text-v-text-secondary mt-2">Payment method: {viewInvoice.payment_method}</p>
+            )}
+            {viewInvoice.manual_payment_note && (
+              <p className="text-sm text-v-text-secondary mt-1">Note: {viewInvoice.manual_payment_note}</p>
             )}
 
             {/* Actions */}
             <div className="flex gap-2 mt-4 flex-wrap">
               <button onClick={() => downloadPDF(viewInvoice)} className="px-4 py-2 bg-v-charcoal rounded-lg text-sm font-medium hover:bg-v-charcoal">
-                {'Download PDF'}
+                Download PDF
               </button>
               <button
                 onClick={() => emailInvoice(viewInvoice)}
@@ -435,12 +528,21 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               >
                 {actionLoading ? 'Sending...' : 'Email Invoice'}
               </button>
+              {viewInvoice.status !== 'paid' && getDisplayStatus(viewInvoice) === 'overdue' && (
+                <button
+                  onClick={() => sendReminder(viewInvoice)}
+                  disabled={!viewInvoice.customer_email || actionLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-40"
+                >
+                  Send Reminder
+                </button>
+              )}
               {viewInvoice.status !== 'paid' && (
                 <button
-                  onClick={() => { setMarkPaidModal(viewInvoice); setPaymentMethod('cash'); }}
+                  onClick={() => { setMarkPaidModal(viewInvoice); setPaymentMethod('cash'); setPaymentNote(''); }}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
                 >
-                  {'Mark as Paid'}
+                  Mark as Paid
                 </button>
               )}
             </div>
@@ -455,8 +557,8 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
             <h3 className="text-lg font-bold mb-3">{'Mark as Paid'}</h3>
             <p className="text-sm text-v-text-secondary mb-3">{markPaidModal.invoice_number} &mdash; {formatCurrency(markPaidModal.total)}</p>
             <label className="block text-sm font-medium mb-1">{'Payment method'}</label>
-            <div className="flex gap-2 mb-4">
-              {['cash', 'check', 'wire', 'other'].map(m => (
+            <div className="flex gap-2 mb-3 flex-wrap">
+              {['cash', 'check', 'bank_transfer', 'other'].map(m => (
                 <button
                   key={m}
                   onClick={() => setPaymentMethod(m)}
@@ -464,10 +566,18 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                     paymentMethod === m ? 'bg-v-gold text-white border-v-gold' : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
                   }`}
                 >
-                  {m === 'cash' ? 'Cash' : m === 'check' ? 'Check' : m === 'wire' ? 'Wire' : 'Other'}
+                  {m === 'cash' ? 'Cash' : m === 'check' ? 'Check' : m === 'bank_transfer' ? 'Bank Transfer' : 'Other'}
                 </button>
               ))}
             </div>
+            <label className="block text-sm font-medium mb-1 text-v-text-secondary">Note (optional)</label>
+            <input
+              type="text"
+              value={paymentNote}
+              onChange={(e) => setPaymentNote(e.target.value)}
+              placeholder="e.g. Check #1234, Venmo confirmation..."
+              className="w-full px-3 py-2 rounded-lg bg-v-charcoal border border-v-border text-v-text-primary text-sm mb-4 placeholder:text-v-text-secondary/50"
+            />
             <div className="flex gap-2">
               <button onClick={() => setMarkPaidModal(null)} className="flex-1 px-4 py-2 border rounded-lg text-v-text-secondary hover:bg-white/5">{'Cancel'}</button>
               <button

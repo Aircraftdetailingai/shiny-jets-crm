@@ -14,7 +14,7 @@ export async function POST(request) {
   const supabase = getSupabase();
 
   try {
-    const { quoteId, shareLink, agreedToTermsAt } = await request.json();
+    const { quoteId, shareLink, agreedToTermsAt, paymentType } = await request.json();
     if (!quoteId || !shareLink) {
       return new Response(JSON.stringify({ error: 'Quote ID and share link required' }), { status: 400 });
     }
@@ -57,7 +57,7 @@ export async function POST(request) {
     // Fetch detailer for Stripe Connect account
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_account_id, company, email, plan, pass_fee_to_customer, cc_fee_mode')
+      .select('stripe_account_id, company, email, plan, pass_fee_to_customer, cc_fee_mode, booking_mode, deposit_percentage')
       .eq('id', quote.detailer_id)
       .single();
 
@@ -71,9 +71,29 @@ export async function POST(request) {
       : detailer.stripe_account_id;
 
     // Calculate application fee based on plan
-    const baseAmount = Math.round((quote.total_price || 0) * 100); // Convert to cents
+    const fullBaseAmount = Math.round((quote.total_price || 0) * 100); // Convert to cents
     const plan = detailer?.plan || 'free';
     const passFee = detailer?.pass_fee_to_customer || false;
+
+    // Determine if this is a deposit payment
+    const isDeposit = paymentType === 'deposit' && detailer?.booking_mode === 'deposit';
+    const depositPct = detailer?.deposit_percentage || 25;
+    const baseAmount = isDeposit ? Math.round(fullBaseAmount * depositPct / 100) : fullBaseAmount;
+
+    // Store deposit info on quote before checkout
+    if (isDeposit) {
+      const depositDollars = Math.round((quote.total_price || 0) * depositPct) / 100;
+      await supabase
+        .from('quotes')
+        .update({
+          booking_mode: 'deposit',
+          deposit_percentage: depositPct,
+          deposit_amount: depositDollars,
+          balance_due: (quote.total_price || 0) - depositDollars,
+        })
+        .eq('id', quoteId)
+        .eq('share_link', shareLink);
+    }
 
     // Use tier-based platform fees
     const FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
@@ -81,7 +101,6 @@ export async function POST(request) {
     const applicationFee = Math.round(baseAmount * feeRate);
 
     // When pass-through is enabled, add service fee to the total charged to customer
-    // The application fee stays the same — it just comes from the customer instead of the detailer
     let totalAmount = passFee ? baseAmount + applicationFee : baseAmount;
 
     // CC processing fee pass-through
@@ -103,7 +122,9 @@ export async function POST(request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Aircraft Detail - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`,
+              name: isDeposit
+              ? `Deposit (${depositPct}%) - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`
+              : `Aircraft Detail - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`,
               description: `Quote from ${detailer.company || 'Detailer'}`,
             },
             unit_amount: totalAmount,
@@ -122,6 +143,8 @@ export async function POST(request) {
       metadata: {
         quote_id: quote.id,
         detailer_id: quote.detailer_id,
+        payment_type: isDeposit ? 'deposit' : 'full',
+        deposit_percentage: isDeposit ? String(depositPct) : '',
       },
     });
 

@@ -66,6 +66,11 @@ export async function PUT(request, { params }) {
     if (body.paid_at) updates.paid_at = body.paid_at;
     if (body.payment_method) updates.payment_method = body.payment_method;
     if (body.notes !== undefined) updates.notes = body.notes;
+    if (body.manual_payment_note) updates.manual_payment_note = body.manual_payment_note;
+    if (body.status === 'paid') {
+      updates.amount_paid = body.amount_paid || invoice.total || 0;
+      updates.balance_due = 0;
+    }
     updates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -76,6 +81,18 @@ export async function PUT(request, { params }) {
       .single();
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
+
+    // When marking invoice as paid, also update the linked quote
+    if (body.status === 'paid' && data?.quote_id) {
+      try {
+        await supabase.from('quotes').update({
+          status: 'paid',
+          paid_at: updates.paid_at || new Date().toISOString(),
+          amount_paid: data.total || 0,
+          balance_due: 0,
+        }).eq('id', data.quote_id);
+      } catch (e) { console.error('Failed to sync quote status:', e); }
+    }
 
     return Response.json({ invoice: data });
   } catch (err) {

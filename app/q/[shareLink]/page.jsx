@@ -100,7 +100,10 @@ export default function QuoteViewPage() {
 
   const sym = getCurrencySymbol(detailer?.preferred_currency || 'USD');
   const isExpired = quote && new Date() > new Date(quote.valid_until);
-  const isPaid = quote && (quote.status === 'paid' || quote.status === 'approved' || quote.status === 'accepted' || quote.status === 'scheduled');
+  const isPaid = quote && (quote.status === 'paid' || quote.status === 'approved' || quote.status === 'accepted' || quote.status === 'scheduled' || quote.status === 'deposit_paid');
+  const isDepositPaid = quote?.status === 'deposit_paid';
+  const bookingMode = detailer?.booking_mode || 'pay_to_book';
+  const depositPct = detailer?.deposit_percentage || 25;
   const isScheduled = quote && (quote.status === 'scheduled' || quote.scheduled_date);
   const hasAvailability = detailer?.availability != null;
   const hasCalendly = !!(detailer?.calendly_url && detailer?.use_calendly_scheduling);
@@ -166,6 +169,29 @@ export default function QuoteViewPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink, agreedToTermsAt: new Date().toISOString() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const errorCode = data.code || 'default';
+        setPaymentError(PAYMENT_ERROR_MESSAGES[errorCode] || PAYMENT_ERROR_MESSAGES.default);
+        return;
+      }
+      if (data.url) window.location.href = data.url;
+    } catch (err) {
+      setPaymentError(PAYMENT_ERROR_MESSAGES.default);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleDepositPayment = async () => {
+    setPaymentError('');
+    setPaymentLoading(true);
+    try {
+      const res = await fetch('/api/payments/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink, agreedToTermsAt: new Date().toISOString(), paymentType: 'deposit' }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -642,8 +668,20 @@ export default function QuoteViewPage() {
 
           {/* Total */}
           <div className="border-t border-[var(--brand-border-strong,#2A3A50)] pt-6 mb-8 text-center">
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Total Paid</p>
-            <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
+            {isDepositPaid ? (
+              <>
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Deposit Paid</p>
+                <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light">{sym}{formatPrice(quote.amount_paid || quote.deposit_amount || 0)}</p>
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm mt-2">
+                  Balance due: {sym}{formatPrice(quote.balance_due || ((quote.total_price || 0) - (quote.amount_paid || quote.deposit_amount || 0)))}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Total Paid</p>
+                <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
+              </>
+            )}
             {quote.paid_at && (
               <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs mt-2">{formatDate(quote.paid_at)}</p>
             )}
@@ -908,8 +946,46 @@ export default function QuoteViewPage() {
         {/* CTA Buttons */}
         {invoiceAccepted ? (
           <div className="border border-[var(--brand-border-strong,#2A3A50)] p-6 text-center">
-            <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase mb-1">Invoice Requested</p>
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{detailer?.company || 'The detailer'} has been notified and will send you an invoice.</p>
+            <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase mb-1">{bookingMode === 'book_later' ? 'Booking Confirmed' : 'Invoice Requested'}</p>
+            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
+              {bookingMode === 'book_later'
+                ? `${detailer?.company || 'The detailer'} will invoice you separately for this service.`
+                : `${detailer?.company || 'The detailer'} has been notified and will send you an invoice.`}
+            </p>
+          </div>
+        ) : bookingMode === 'book_later' ? (
+          <div className="space-y-3">
+            <button
+              onClick={handleRequestInvoice}
+              disabled={invoiceRequesting || !agreedToTerms}
+              className="w-full py-4 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+            >
+              {invoiceRequesting ? 'Submitting...' : 'Accept & Schedule'}
+            </button>
+            <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-[10px] tracking-[0.1em] text-center uppercase">
+              Your detailer will invoice you separately
+            </p>
+          </div>
+        ) : bookingMode === 'deposit' && stripeConnected ? (
+          <div className="space-y-3">
+            <div className="border border-[var(--brand-border-strong,#2A3A50)] p-4 text-center">
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">
+                {depositPct}% Deposit Required
+              </p>
+              <p className="text-[var(--brand-primary,#C9A84C)] text-2xl font-light">
+                {sym}{formatPrice(Math.round((quote.total_price || 0) * depositPct) / 100)}
+              </p>
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs mt-1">
+                Remainder of {sym}{formatPrice((quote.total_price || 0) - Math.round((quote.total_price || 0) * depositPct) / 100)} due at completion
+              </p>
+            </div>
+            <button
+              onClick={handleDepositPayment}
+              disabled={paymentLoading || !agreedToTerms}
+              className="w-full py-4 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+            >
+              {paymentLoading ? 'Processing...' : 'Accept & Pay Deposit'}
+            </button>
           </div>
         ) : stripeConnected ? (
           detailer?.cc_fee_mode === 'customer_choice' ? (

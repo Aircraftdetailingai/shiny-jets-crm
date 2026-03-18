@@ -41,12 +41,48 @@ export async function POST(request, { params }) {
       .update({ status: 'accepted', accepted_at: new Date().toISOString() })
       .eq('id', id);
 
-    // Fetch detailer for notification
+    // Fetch detailer for notification + booking mode
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('email, company, name')
+      .select('email, company, name, booking_mode')
       .eq('id', quote.detailer_id)
       .single();
+
+    // Store booking mode on quote + auto-create invoice for book_later
+    if (detailer?.booking_mode === 'book_later') {
+      await supabase
+        .from('quotes')
+        .update({
+          booking_mode: 'book_later',
+          amount_paid: 0,
+          balance_due: quote.total_price,
+        })
+        .eq('id', id);
+
+      // Auto-create unpaid invoice
+      try {
+        const { nanoid } = await import('nanoid');
+        const invoiceNumber = `INV-${new Date().getFullYear().toString().slice(-2)}${String(new Date().getMonth() + 1).padStart(2, '0')}-${nanoid(4).toUpperCase()}`;
+        await supabase.from('invoices').insert({
+          detailer_id: quote.detailer_id,
+          quote_id: quote.id,
+          invoice_number: invoiceNumber,
+          status: 'unpaid',
+          customer_name: quote.client_name || '',
+          customer_email: quote.client_email || '',
+          detailer_name: detailer.name || '',
+          detailer_email: detailer.email || '',
+          detailer_company: detailer.company || '',
+          aircraft: quote.aircraft_model || quote.aircraft_type || '',
+          total: quote.total_price || 0,
+          subtotal: quote.total_price || 0,
+          amount_paid: 0,
+          balance_due: quote.total_price || 0,
+          booking_mode: 'book_later',
+          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      } catch (e) { console.error('Auto-invoice creation failed:', e); }
+    }
 
     // Send notification email to detailer via Resend
     if (detailer?.email) {

@@ -44,23 +44,70 @@ export async function POST(request) {
       const quoteId = session.metadata?.quote_id;
 
       if (quoteId) {
-        // Update quote as paid
-        await supabase
-          .from('quotes')
-          .update({
-            status: 'paid',
-            paid_at: new Date().toISOString(),
-            stripe_session_id: session.id,
-            stripe_payment_intent_id: session.payment_intent,
-          })
-          .eq('id', quoteId);
+        // Check if this is a deposit payment
+        const isDeposit = session.metadata?.payment_type === 'deposit';
+        const depositPct = parseInt(session.metadata?.deposit_percentage) || 0;
 
-        // Fetch quote and detailer for notification
+        // Fetch quote first to get total_price for deposit calculation
         const { data: quote } = await supabase
           .from('quotes')
           .select('*, detailers(*)')
           .eq('id', quoteId)
           .single();
+
+        if (isDeposit && quote) {
+          const depositAmount = Math.round((quote.total_price || 0) * depositPct) / 100;
+          await supabase
+            .from('quotes')
+            .update({
+              status: 'deposit_paid',
+              paid_at: new Date().toISOString(),
+              stripe_session_id: session.id,
+              stripe_payment_intent_id: session.payment_intent,
+              amount_paid: depositAmount,
+              balance_due: (quote.total_price || 0) - depositAmount,
+            })
+            .eq('id', quoteId);
+
+          // Auto-create partially_paid invoice for deposit
+          try {
+            const { nanoid } = await import('nanoid');
+            const invoiceNumber = `INV-${new Date().getFullYear().toString().slice(-2)}${String(new Date().getMonth() + 1).padStart(2, '0')}-${nanoid(4).toUpperCase()}`;
+            const detailer = quote.detailers;
+            await supabase.from('invoices').insert({
+              detailer_id: quote.detailer_id,
+              quote_id: quote.id,
+              invoice_number: invoiceNumber,
+              status: 'partially_paid',
+              customer_name: quote.client_name || quote.customer_name || '',
+              customer_email: quote.client_email || quote.customer_email || '',
+              detailer_name: detailer?.name || '',
+              detailer_email: detailer?.email || '',
+              detailer_company: detailer?.company || '',
+              aircraft: quote.aircraft_model || quote.aircraft_type || '',
+              total: quote.total_price || 0,
+              subtotal: quote.total_price || 0,
+              amount_paid: depositAmount,
+              deposit_amount: depositAmount,
+              balance_due: (quote.total_price || 0) - depositAmount,
+              booking_mode: 'deposit',
+              due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            });
+          } catch (e) { console.error('Auto-invoice for deposit failed:', e); }
+        } else {
+          // Full payment — update quote as paid
+          await supabase
+            .from('quotes')
+            .update({
+              status: 'paid',
+              paid_at: new Date().toISOString(),
+              stripe_session_id: session.id,
+              stripe_payment_intent_id: session.payment_intent,
+              amount_paid: quote?.total_price || 0,
+              balance_due: 0,
+            })
+            .eq('id', quoteId);
+        }
 
         if (quote) {
           const detailer = quote.detailers;
