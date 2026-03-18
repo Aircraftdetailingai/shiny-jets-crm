@@ -393,7 +393,7 @@ export default function CompareQuotesPage() {
                         return (
                           <td
                             key={q.id}
-                            className={`p-3 text-center text-sm ${isSelected ? 'bg-v-gold/5/50' : ''}`}
+                            className={`p-3 text-center text-sm ${isSelected ? 'bg-v-gold/5' : ''}`}
                           >
                             {has ? (
                               <div className="flex items-center justify-center gap-1.5">
@@ -413,7 +413,7 @@ export default function CompareQuotesPage() {
                   <tr className="border-t">
                     <td className="p-3 text-sm text-gray-700 font-medium border-r">Notes</td>
                     {sortedQuotes.map((q) => (
-                      <td key={q.id} className={`p-3 text-center text-xs text-gray-500 ${selected === q.id ? 'bg-v-gold/5/50' : ''}`}>
+                      <td key={q.id} className={`p-3 text-center text-xs text-gray-500 ${selected === q.id ? 'bg-v-gold/5' : ''}`}>
                         {q.notes || <span className="text-gray-300">&mdash;</span>}
                       </td>
                     ))}
@@ -426,7 +426,7 @@ export default function CompareQuotesPage() {
                       const isPaid = ['paid', 'approved', 'completed'].includes(q.status);
                       const isExpired = !isPaid && q.valid_until && new Date() > new Date(q.valid_until);
                       return (
-                        <td key={q.id} className={`p-3 text-center text-xs ${selected === q.id ? 'bg-v-gold/5/50' : ''}`}>
+                        <td key={q.id} className={`p-3 text-center text-xs ${selected === q.id ? 'bg-v-gold/5' : ''}`}>
                           {isPaid ? (
                             <span className="text-green-600 font-medium">Paid</span>
                           ) : isExpired ? (
@@ -471,7 +471,7 @@ export default function CompareQuotesPage() {
                       const isExpired = !isPaid && q.valid_until && new Date() > new Date(q.valid_until);
                       const canPay = !isPaid && !isExpired && stripeConnected && ['sent', 'viewed'].includes(q.status);
                       return (
-                        <td key={q.id} className={`p-4 text-center ${selected === q.id ? 'bg-v-gold/5/30' : ''}`}>
+                        <td key={q.id} className={`p-4 text-center ${selected === q.id ? 'bg-v-gold/5' : ''}`}>
                           {isPaid ? (
                             <span className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold">
                               &#10003; Paid

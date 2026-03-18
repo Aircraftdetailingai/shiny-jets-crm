@@ -193,7 +193,7 @@ export default function RecurringPage() {
             onClick={() => { setFilter(f); setLoading(true); }}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               filter === f
-                ? 'bg-v-gold-muted/200 text-white'
+                ? 'bg-v-gold-muted/20 text-white'
                 : 'bg-white/10 text-white/70 hover:bg-white/20'
             }`}
           >
@@ -204,7 +204,7 @@ export default function RecurringPage() {
 
       {/* Upcoming This Week */}
       {upcomingThisWeek.length > 0 && (
-        <div className="bg-v-gold-muted/200/20 border border-v-gold/30 rounded-lg p-4 mb-4">
+        <div className="bg-v-gold-muted/20 border border-v-gold/30 rounded-lg p-4 mb-4">
           <h3 className="text-v-gold font-medium text-sm mb-2">{'Upcoming This Week'}</h3>
           <div className="space-y-2">
             {upcomingThisWeek.map(r => (
@@ -234,7 +234,7 @@ export default function RecurringPage() {
           </p>
           <a
             href="/dashboard"
-            className="px-6 py-3 bg-v-gold-muted/200 text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium inline-block"
+            className="px-6 py-3 bg-v-gold-muted/20 text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium inline-block"
           >
             {'Create a Quote'}
           </a>
