@@ -100,12 +100,16 @@ export default function InventoryPage() {
   const buildRewardValue = () => {
     const type = form.reward_type.toLowerCase();
     if (type === 'discount') {
-      return JSON.stringify({ percent: parseInt(form.discount_percent) || 0 });
+      return { percent: parseInt(form.discount_percent) || 0 };
     }
     if (type === 'subscription credit') {
-      return JSON.stringify({ months: parseInt(form.credit_months) || 1, plan: form.credit_plan });
+      return { months: parseInt(form.credit_months) || 1, plan: form.credit_plan };
     }
-    return form.reward_value || '{}';
+    // Parse string to object if needed
+    if (typeof form.reward_value === 'string') {
+      try { return JSON.parse(form.reward_value); } catch { return {}; }
+    }
+    return form.reward_value || {};
   };
 
   const handleSave = async () => {
@@ -192,7 +196,7 @@ export default function InventoryPage() {
       category: item.category || 'supplies',
       min_tier: item.min_tier || 'pro',
       reward_type: (item.reward_type || 'physical').replace('_', ' '),
-      reward_value: JSON.stringify(item.reward_value || '{}'),
+      reward_value: JSON.stringify(rewardVal),
       active: item.active !== false,
       featured: item.featured || false,
       discount_percent: String(rewardVal.percent || ''),

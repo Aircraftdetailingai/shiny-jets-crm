@@ -65,17 +65,30 @@ export async function GET(request) {
   }
 }
 
+// Parse reward_value — accept string or object, always return object
+function parseRewardValue(val) {
+  if (!val) return {};
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch { return {}; }
+}
+
 // POST - Create new inventory item
 export async function POST(request) {
   try {
     if (!await isAdmin(request)) {
+      console.error('[inventory POST] Unauthorized — isAdmin returned false');
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = getSupabase();
-    if (!supabase) return Response.json({ error: 'DB error' }, { status: 500 });
+    if (!supabase) {
+      console.error('[inventory POST] Supabase client failed to initialize');
+      return Response.json({ error: 'DB error' }, { status: 500 });
+    }
 
     const body = await request.json();
+    console.log('[inventory POST] body received:', JSON.stringify(body));
+
     const row = {
       name: body.name,
       description: body.description || '',
@@ -85,30 +98,38 @@ export async function POST(request) {
       category: body.category || 'supplies',
       min_tier: body.min_tier || 'pro',
       reward_type: body.reward_type || 'physical',
-      reward_value: body.reward_value || '{}',
+      reward_value: parseRewardValue(body.reward_value),
       active: body.active !== false,
       featured: body.featured || false,
     };
+
+    console.log('[inventory POST] inserting row:', JSON.stringify(row));
 
     // Column-stripping retry
     let data, error;
     ({ data, error } = await supabase.from('reward_inventory').insert(row).select().single());
 
     if (error && error.code === '42P01') {
+      console.error('[inventory POST] table not found');
       return Response.json({ error: 'reward_inventory table not found. Run migration first.' }, { status: 500 });
     }
 
     if (error && error.message?.includes('column')) {
-      // Try without optional columns
+      console.warn('[inventory POST] column error, retrying without optional columns:', error.message);
       delete row.featured;
       delete row.image_url;
       ({ data, error } = await supabase.from('reward_inventory').insert(row).select().single());
     }
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[inventory POST] insert error:', error.message, error.code);
+      return Response.json({ error: error.message }, { status: 500 });
+    }
 
+    console.log('[inventory POST] success, id:', data?.id);
     return Response.json({ item: data });
   } catch (err) {
+    console.error('[inventory POST] exception:', err.message, err.stack);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
@@ -117,6 +138,7 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     if (!await isAdmin(request)) {
+      console.error('[inventory PUT] Unauthorized');
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -130,22 +152,29 @@ export async function PUT(request) {
 
     if (updates.points_cost) updates.points_cost = parseInt(updates.points_cost);
     if (updates.quantity_available !== undefined) updates.quantity_available = parseInt(updates.quantity_available);
+    if (updates.reward_value !== undefined) updates.reward_value = parseRewardValue(updates.reward_value);
+
+    console.log('[inventory PUT] updating id:', id, 'updates:', JSON.stringify(updates));
 
     let data, error;
     ({ data, error } = await supabase.from('reward_inventory').update(updates).eq('id', id).select().single());
 
     if (error && error.message?.includes('column')) {
-      // Strip unknown columns and retry
       const safeUpdates = { ...updates };
       delete safeUpdates.featured;
       delete safeUpdates.image_url;
       ({ data, error } = await supabase.from('reward_inventory').update(safeUpdates).eq('id', id).select().single());
     }
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[inventory PUT] error:', error.message);
+      return Response.json({ error: error.message }, { status: 500 });
+    }
 
+    console.log('[inventory PUT] success, id:', data?.id);
     return Response.json({ item: data });
   } catch (err) {
+    console.error('[inventory PUT] exception:', err.message);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
