@@ -150,8 +150,8 @@ export async function PUT(request) {
 
     if (!id) return Response.json({ error: 'ID required' }, { status: 400 });
 
-    if (updates.points_cost) updates.points_cost = parseInt(updates.points_cost);
-    if (updates.quantity_available !== undefined) updates.quantity_available = parseInt(updates.quantity_available);
+    if (updates.points_cost !== undefined) updates.points_cost = parseInt(updates.points_cost) || 0;
+    if (updates.quantity_available !== undefined) updates.quantity_available = parseInt(updates.quantity_available) || 0;
     if (updates.reward_value !== undefined) updates.reward_value = parseRewardValue(updates.reward_value);
 
     console.log('[inventory PUT] updating id:', id, 'updates:', JSON.stringify(updates));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import AppShell from '@/components/AppShell';
 
 const ADMIN_NAV = [
   { label: 'Dashboard', href: '/admin' },
@@ -252,7 +253,7 @@ export default function InventoryPage() {
   const rewardTypeDisplay = form.reward_type.toLowerCase();
 
   return (
-    <div className="min-h-screen bg-v-charcoal">
+    <AppShell title="Reward Inventory">
       {/* Admin Nav */}
       <nav className="bg-v-surface border-b border-v-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
@@ -586,6 +587,6 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
