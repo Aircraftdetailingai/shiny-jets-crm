@@ -777,25 +777,25 @@ export default function ServicesPage() {
       {/* Add Service Modal */}
       {showServiceModal && (
         <Modal onClose={() => { setShowServiceModal(false); setError(''); }}>
-          <h3 className="text-lg font-semibold mb-4">{'Add'} {'Services'}</h3>
-          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+          <h3 className="text-lg font-semibold mb-4 text-v-text-primary">Add Service</h3>
+          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-900/40 rounded-lg text-red-400 text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Name'} *</label>
               <input type="text" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })}
-                placeholder="e.g., Full Interior Detail" className="w-full border rounded-lg px-3 py-2" autoFocus />
+                placeholder="e.g., Full Interior Detail" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" autoFocus />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Description'}</label>
               <textarea value={newService.description} onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                placeholder="What's included?" rows={2} className="w-full border rounded-lg px-3 py-2 resize-y min-h-[60px]" />
+                placeholder="What's included?" rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[60px]" />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Hourly Rate *</label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
                 <input type="number" value={newService.hourly_rate} onChange={(e) => setNewService({ ...newService, hourly_rate: e.target.value })}
-                  placeholder="120" className="w-full border rounded-lg pl-7 pr-12 py-2" />
+                  placeholder="120" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-12 py-2" />
                 <span className="absolute right-3 top-2.5 text-v-text-secondary">/hr</span>
               </div>
             </div>
@@ -803,7 +803,7 @@ export default function ServicesPage() {
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Aircraft Hours Field</label>
               <select value={newService.hours_field || 'ext_wash_hours'}
                 onChange={(e) => setNewService({ ...newService, hours_field: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2">
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2">
                 {Object.entries(HOURS_FIELD_OPTIONS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -813,7 +813,7 @@ export default function ServicesPage() {
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Default Hours</label>
               <input type="number" step="0.5" min="0" value={newService.default_hours || ''} onChange={(e) => setNewService({ ...newService, default_hours: e.target.value })}
-                placeholder="Auto from aircraft" className="w-full border rounded-lg px-3 py-2" />
+                placeholder="Auto from aircraft" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
               <p className="text-xs text-v-text-secondary mt-1">Override aircraft hours with a fixed default. Leave blank to auto-calculate from aircraft data.</p>
             </div>
             <div className="border-t pt-4">
@@ -823,7 +823,7 @@ export default function ServicesPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
                   <input type="number" step="0.01" value={newService.product_cost_per_hour} onChange={(e) => setNewService({ ...newService, product_cost_per_hour: e.target.value })}
-                    placeholder="0.00" className="w-full border rounded-lg pl-7 pr-12 py-2" />
+                    placeholder="0.00" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-12 py-2" />
                   <span className="absolute right-3 top-2.5 text-v-text-secondary">/hr</span>
                 </div>
                 <p className="text-xs text-v-text-secondary mt-1">Average product/material cost per hour of this service</p>
@@ -831,14 +831,14 @@ export default function ServicesPage() {
               <div className="mt-3">
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">Product Notes</label>
                 <textarea value={newService.product_notes} onChange={(e) => setNewService({ ...newService, product_notes: e.target.value })}
-                  placeholder="e.g., 1oz IronX, 2oz ceramic per hour" rows={2} className="w-full border rounded-lg px-3 py-2 resize-y min-h-[40px]" />
+                  placeholder="e.g., 1oz IronX, 2oz ceramic per hour" rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[40px]" />
               </div>
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => setShowServiceModal(false)} className="px-4 py-2 border rounded-lg">{'Cancel'}</button>
+            <button onClick={() => setShowServiceModal(false)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
             <button onClick={addService} disabled={saving || !newService.name || !newService.hourly_rate}
-              className="px-4 py-2 bg-amber-900/200 text-white rounded-lg disabled:opacity-50">{'Add'}</button>
+              className="px-4 py-2 bg-v-gold text-v-charcoal rounded-lg disabled:opacity-50 font-medium">{'Add'}</button>
           </div>
         </Modal>
       )}
@@ -846,25 +846,25 @@ export default function ServicesPage() {
       {/* Edit Service Modal */}
       {editingService && (
         <Modal onClose={() => { setEditingService(null); setLinkedProducts([]); setLinkedEquipment([]); setError(''); }}>
-          <h3 className="text-lg font-semibold mb-4">{'Edit'} {'Services'}</h3>
-          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+          <h3 className="text-lg font-semibold mb-4 text-v-text-primary">Edit {editingService.name || 'Service'}</h3>
+          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-900/40 rounded-lg text-red-400 text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Name'}</label>
               <input type="text" value={editingService.name} onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2" />
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Description'}</label>
               <textarea value={editingService.description || ''} onChange={(e) => setEditingService({ ...editingService, description: e.target.value })}
-                rows={2} className="w-full border rounded-lg px-3 py-2 resize-y min-h-[60px]" />
+                rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[60px]" />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Hourly Rate</label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
                 <input type="number" value={editingService.hourly_rate || ''} onChange={(e) => setEditingService({ ...editingService, hourly_rate: e.target.value })}
-                  className="w-full border rounded-lg pl-7 pr-12 py-2" />
+                  className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-12 py-2" />
                 <span className="absolute right-3 top-2.5 text-v-text-secondary">/hr</span>
               </div>
             </div>
@@ -872,7 +872,7 @@ export default function ServicesPage() {
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Aircraft Hours Field</label>
               <select value={editingService.hours_field || 'ext_wash_hours'}
                 onChange={(e) => setEditingService({ ...editingService, hours_field: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2">
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2">
                 {Object.entries(HOURS_FIELD_OPTIONS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -882,7 +882,7 @@ export default function ServicesPage() {
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Default Hours</label>
               <input type="number" step="0.5" min="0" value={editingService.default_hours || ''} onChange={(e) => setEditingService({ ...editingService, default_hours: e.target.value })}
-                placeholder="Auto from aircraft" className="w-full border rounded-lg px-3 py-2" />
+                placeholder="Auto from aircraft" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
               <p className="text-xs text-v-text-secondary mt-1">Override aircraft hours with a fixed default. Leave blank to auto-calculate from aircraft data.</p>
             </div>
             <div className="border-t pt-4">
@@ -892,7 +892,7 @@ export default function ServicesPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
                   <input type="number" step="0.01" value={editingService.product_cost_per_hour || ''} onChange={(e) => setEditingService({ ...editingService, product_cost_per_hour: e.target.value })}
-                    placeholder="0.00" className="w-full border rounded-lg pl-7 pr-12 py-2" />
+                    placeholder="0.00" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-12 py-2" />
                   <span className="absolute right-3 top-2.5 text-v-text-secondary">/hr</span>
                 </div>
                 <p className="text-xs text-v-text-secondary mt-1">Average product/material cost per hour of this service</p>
@@ -900,7 +900,7 @@ export default function ServicesPage() {
               <div className="mt-3">
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">Product Notes</label>
                 <textarea value={editingService.product_notes || ''} onChange={(e) => setEditingService({ ...editingService, product_notes: e.target.value })}
-                  placeholder="e.g., 1oz IronX, 2oz ceramic per hour" rows={2} className="w-full border rounded-lg px-3 py-2 resize-y min-h-[40px]" />
+                  placeholder="e.g., 1oz IronX, 2oz ceramic per hour" rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[40px]" />
               </div>
             </div>
 
@@ -915,7 +915,7 @@ export default function ServicesPage() {
                   {linkedProducts.length > 0 && (
                     <div className="space-y-2 mb-3">
                       {linkedProducts.map(link => (
-                        <div key={link.id} className="flex items-center gap-2 p-2 bg-blue-900/20 rounded-lg border border-blue-200">
+                        <div key={link.id} className="flex items-center gap-2 p-2 bg-blue-900/20 rounded-lg border border-blue-900/40">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-v-text-primary truncate">{link.products?.name}</p>
                             <p className="text-[10px] text-v-text-secondary">{link.products?.category} &middot; {currencySymbol()}{link.products?.cost_per_unit}/{link.products?.unit}</p>
@@ -930,7 +930,7 @@ export default function ServicesPage() {
                                 setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_hour: val } : l));
                               }}
                               onBlur={(e) => updateProductLink(link.id, { quantity_per_hour: parseFloat(e.target.value) || 0 })}
-                              className="w-16 border rounded px-1.5 py-1 text-xs text-right"
+                              className="w-16 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
                               title="Quantity per hour"
                             />
                             <span className="text-[10px] text-v-text-secondary">/hr</span>
@@ -949,7 +949,7 @@ export default function ServicesPage() {
                         }
                         e.target.value = '';
                       }}
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="">+ Link a product...</option>
                       {allProducts.filter(p => !linkedProducts.some(l => l.product_id === p.id)).map(p => (
@@ -974,7 +974,7 @@ export default function ServicesPage() {
                   {linkedEquipment.length > 0 && (
                     <div className="space-y-2 mb-3">
                       {linkedEquipment.map(link => (
-                        <div key={link.id} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
+                        <div key={link.id} className="flex items-center gap-2 p-2 bg-purple-900/20 rounded-lg border border-purple-900/40">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-v-text-primary truncate">{link.equipment?.name}</p>
                             <p className="text-[10px] text-v-text-secondary">{link.equipment?.brand} {link.equipment?.model}</p>
@@ -993,7 +993,7 @@ export default function ServicesPage() {
                         }
                         e.target.value = '';
                       }}
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="">+ Link equipment...</option>
                       {allEquipment.filter(eq => !linkedEquipment.some(l => l.equipment_id === eq.id)).map(eq => (
@@ -1008,8 +1008,8 @@ export default function ServicesPage() {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => { setEditingService(null); setLinkedProducts([]); setLinkedEquipment([]); }} className="px-4 py-2 border rounded-lg">{'Cancel'}</button>
-            <button onClick={updateService} disabled={saving} className="px-4 py-2 bg-amber-900/200 text-white rounded-lg disabled:opacity-50">{'Save'}</button>
+            <button onClick={() => { setEditingService(null); setLinkedProducts([]); setLinkedEquipment([]); }} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">Cancel</button>
+            <button onClick={updateService} disabled={saving} className="px-4 py-2 bg-v-gold text-v-charcoal rounded-lg disabled:opacity-50 font-medium">Save</button>
           </div>
         </Modal>
       )}
@@ -1020,10 +1020,10 @@ export default function ServicesPage() {
           <h3 className="text-lg font-semibold mb-4">{'Edit'} Package</h3>
           <div className="space-y-4">
             <input type="text" placeholder="Package name" value={editingPackage.name}
-              onChange={(e) => setEditingPackage({ ...editingPackage, name: e.target.value })} className="w-full border rounded-lg px-3 py-2" />
+              onChange={(e) => setEditingPackage({ ...editingPackage, name: e.target.value })} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             <textarea placeholder="Description" value={editingPackage.description || ''}
               onChange={(e) => setEditingPackage({ ...editingPackage, description: e.target.value })}
-              rows={2} className="w-full border rounded-lg px-3 py-2 resize-y min-h-[60px]" />
+              rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[60px]" />
             <div>
               <p className="text-sm font-medium mb-2">Services:</p>
               <div className="space-y-2 mb-2">
@@ -1044,7 +1044,7 @@ export default function ServicesPage() {
                   setEditingPackage({ ...editingPackage, service_ids: [...(editingPackage.service_ids || []), id] });
                 }
                 e.target.value = '';
-              }} className="w-full border rounded-lg px-3 py-2">
+              }} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2">
                 <option value="">+ Add service...</option>
                 {services.filter(s => !(editingPackage.service_ids || []).includes(s.id)).map(svc => (
                   <option key={svc.id} value={svc.id}>{svc.name}</option>
@@ -1063,7 +1063,7 @@ export default function ServicesPage() {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => setEditingPackage(null)} className="px-4 py-2 border rounded-lg">{'Cancel'}</button>
+            <button onClick={() => setEditingPackage(null)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
             <button onClick={updatePackage} disabled={saving} className="px-4 py-2 bg-green-900/200 text-white rounded-lg disabled:opacity-50">{'Save'}</button>
           </div>
         </Modal>
@@ -1073,17 +1073,17 @@ export default function ServicesPage() {
       {showAddonModal && (
         <Modal onClose={() => { setShowAddonModal(false); setError(''); }}>
           <h3 className="text-lg font-semibold mb-4">{'Add'}</h3>
-          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-900/40 rounded-lg text-red-400 text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Name'} *</label>
               <input type="text" value={newAddon.name} onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
-                placeholder="e.g., After Hours" className="w-full border rounded-lg px-3 py-2" autoFocus />
+                placeholder="e.g., After Hours" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" autoFocus />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Description'}</label>
               <input type="text" value={newAddon.description} onChange={(e) => setNewAddon({ ...newAddon, description: e.target.value })}
-                placeholder="Optional description" className="w-full border rounded-lg px-3 py-2" />
+                placeholder="Optional description" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Fee Type</label>
@@ -1110,7 +1110,7 @@ export default function ServicesPage() {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => setShowAddonModal(false)} className="px-4 py-2 border rounded-lg">{'Cancel'}</button>
+            <button onClick={() => setShowAddonModal(false)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
             <button onClick={addAddonFee} disabled={saving || !newAddon.name}
               className="px-4 py-2 bg-orange-500 text-white rounded-lg disabled:opacity-50">{'Add'}</button>
           </div>
@@ -1121,17 +1121,17 @@ export default function ServicesPage() {
       {editingAddon && (
         <Modal onClose={() => { setEditingAddon(null); setError(''); }}>
           <h3 className="text-lg font-semibold mb-4">{'Edit'}</h3>
-          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+          {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-900/40 rounded-lg text-red-400 text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Name'}</label>
               <input type="text" value={editingAddon.name} onChange={(e) => setEditingAddon({ ...editingAddon, name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2" />
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Description'}</label>
               <input type="text" value={editingAddon.description || ''} onChange={(e) => setEditingAddon({ ...editingAddon, description: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2" />
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
             <div>
               <label className="block text-sm font-medium text-v-text-secondary mb-1">Fee Type</label>
@@ -1157,7 +1157,7 @@ export default function ServicesPage() {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => setEditingAddon(null)} className="px-4 py-2 border rounded-lg">{'Cancel'}</button>
+            <button onClick={() => setEditingAddon(null)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
             <button onClick={updateAddonFee} disabled={saving} className="px-4 py-2 bg-orange-500 text-white rounded-lg disabled:opacity-50">{'Save'}</button>
           </div>
         </Modal>
