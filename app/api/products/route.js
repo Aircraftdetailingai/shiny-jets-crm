@@ -194,9 +194,7 @@ export async function PUT(request) {
     return Response.json({ error: 'Product ID required' }, { status: 400 });
   }
 
-  const updates = {
-    updated_at: new Date().toISOString(),
-  };
+  const updates = {};
 
   if (name !== undefined) updates.name = name;
   if (brand !== undefined) updates.brand = brand;
@@ -275,7 +273,6 @@ export async function PATCH(request) {
     .from('products')
     .update({
       quantity: newQuantity,
-      updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('detailer_id', user.id)

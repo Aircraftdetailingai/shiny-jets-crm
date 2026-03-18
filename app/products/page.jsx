@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import AppShell from '@/components/AppShell';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -308,7 +309,8 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="page-transition min-h-screen bg-v-charcoal p-4 text-v-text-primary">
+    <AppShell title="Inventory">
+    <div className="page-transition p-4 text-v-text-primary">
       {/* Header */}
       <header className="flex justify-between items-center mb-6 text-v-text-primary">
         <div className="flex items-center space-x-4">
@@ -785,5 +787,6 @@ export default function ProductsPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }
