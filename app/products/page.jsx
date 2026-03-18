@@ -302,7 +302,7 @@ export default function ProductsPage() {
       {/* Header */}
       <header className="flex justify-between items-center mb-6 text-white">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
+          <a href="/dashboard" className="text-2xl hover:text-v-gold">&#8592;</a>
           <h1 className="text-2xl font-bold">{'Inventory'}</h1>
         </div>
         <div className="space-x-4 text-sm">
@@ -339,17 +339,17 @@ export default function ProductsPage() {
 
         {/* Low Stock Alert */}
         {lowStock.length > 0 && (
-          <div className="bg-red-900/20 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
               <span className="text-xl">&#9888;</span>
               <div className="flex-1">
-                <p className="font-semibold text-red-800">{'Low Stock Alert'} ({lowStock.length})</p>
+                <p className="font-semibold text-red-400">{'Low Stock Alert'} ({lowStock.length})</p>
                 <div className="mt-2 space-y-2">
                   {lowStock.map(p => (
                     <div key={p.id} className="flex items-center justify-between">
-                      <div className="text-sm text-red-700">
+                      <div className="text-sm text-red-400">
                         <span className="font-medium">{p.name}</span>
-                        <span className="text-red-500 ml-1">&#8212; {p.current_quantity} {p.unit} {'remaining'}</span>
+                        <span className="text-red-400/70 ml-1">&#8212; {p.current_quantity} {p.unit} {'remaining'}</span>
                         <span className="text-red-400 text-xs ml-1">{`(reorder at ${p.reorder_threshold})`}</span>
                       </div>
                       {p.product_url && (
@@ -357,7 +357,7 @@ export default function ProductsPage() {
                           href={p.product_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-1 text-xs bg-amber-900/200 text-white font-medium rounded hover:bg-amber-600 whitespace-nowrap ml-3"
+                          className="px-3 py-1 text-xs bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded whitespace-nowrap ml-3"
                         >
                           {'Reorder'}
                         </a>
@@ -377,7 +377,7 @@ export default function ProductsPage() {
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-amber-900/200 text-white font-medium rounded-lg hover:bg-amber-600"
+            className="px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-lg"
           >
             {'+ Add Product'}
           </button>
@@ -391,7 +391,7 @@ export default function ProductsPage() {
             <p className="text-v-text-secondary mt-2">{'Add your detailing products to track inventory and costs'}</p>
             <button
               onClick={() => handleOpenModal()}
-              className="mt-4 px-4 py-2 bg-amber-900/200 text-white font-medium rounded-lg hover:bg-amber-600"
+              className="mt-4 px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-lg"
             >
               {'Add Your First Product'}
             </button>
@@ -483,11 +483,11 @@ export default function ProductsPage() {
             <div className="flex items-center gap-4">
               <div className="flex-1 h-4 bg-v-charcoal rounded-full overflow-hidden flex">
                 <div
-                  className="bg-blue-900/200 h-full"
+                  className="bg-v-gold h-full"
                   style={{ width: `${insights.costBreakdown.labor}%` }}
                 ></div>
                 <div
-                  className="bg-amber-900/200 h-full"
+                  className="bg-v-gold-dim h-full"
                   style={{ width: `${insights.costBreakdown.materials}%` }}
                 ></div>
                 <div
@@ -498,11 +498,11 @@ export default function ProductsPage() {
             </div>
             <div className="flex justify-between mt-2 text-xs text-v-text-secondary">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-blue-900/200 rounded"></span>
+                <span className="w-2 h-2 bg-v-gold rounded"></span>
                 {'Labor'} {insights.costBreakdown.labor}%
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-amber-900/200 rounded"></span>
+                <span className="w-2 h-2 bg-v-gold-dim rounded"></span>
                 {'Materials'} {insights.costBreakdown.materials}%
               </span>
               <span className="flex items-center gap-1">
@@ -527,36 +527,36 @@ export default function ProductsPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Paste Product Link */}
               {!editingProduct && (
-                <div className="bg-blue-900/20 border border-blue-200 rounded-lg p-3">
-                  <label className="block text-sm font-medium text-blue-800 mb-1">{'Paste Product Link'}</label>
+                <div className="bg-v-gold/10 border border-v-gold/30 rounded-lg p-3">
+                  <label className="block text-sm font-medium text-v-gold mb-1">{'Paste Product Link'}</label>
                   <div className="flex gap-2">
                     <input
                       type="url"
                       value={pasteUrl}
                       onChange={handlePasteUrlChange}
                       placeholder={'https://www.chemicalguys.com/product...'}
-                      className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 bg-v-surface"
+                      className="flex-1 border border-v-gold/30 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none bg-v-surface"
                     />
                     {pasteUrl && !scraping && (
                       <button
                         type="button"
                         onClick={() => handleScrapeUrl(pasteUrl)}
-                        className="px-3 py-2 bg-blue-900/200 text-white text-sm rounded-lg hover:bg-blue-600"
+                        className="px-3 py-2 bg-v-gold hover:bg-v-gold-dim text-white text-sm rounded-lg"
                       >
                         {'Fetch'}
                       </button>
                     )}
                   </div>
                   {scraping && (
-                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
+                    <p className="text-xs text-v-gold mt-1 flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 border-2 border-v-gold border-t-transparent rounded-full animate-spin"></span>
                       {'Extracting product info...'}
                     </p>
                   )}
                   {scrapeError && (
                     <p className="text-xs text-red-600 mt-1">{scrapeError}</p>
                   )}
-                  <p className="text-[10px] text-blue-500 mt-1">{'Supports: Detail King, Autogeek, Amazon, Chemical Guys, P&S, and more'}</p>
+                  <p className="text-[10px] text-v-gold/70 mt-1">{'Supports: Detail King, Autogeek, Amazon, Chemical Guys, P&S, and more'}</p>
                 </div>
               )}
 
@@ -577,7 +577,7 @@ export default function ProductsPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                     placeholder={'e.g., M105 Ultra-Cut Compound'}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
                 <div>
@@ -587,7 +587,7 @@ export default function ProductsPage() {
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                     placeholder={'e.g., Meguiar\'s'}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
                 <div>
@@ -597,7 +597,7 @@ export default function ProductsPage() {
                     value={formData.size}
                     onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                     placeholder={'e.g., 32 oz'}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
               </div>
@@ -608,7 +608,7 @@ export default function ProductsPage() {
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   >
                     {categories.map((cat) => (
                       <option key={cat} value={cat}>{CATEGORY_LABELS[cat] || cat}</option>
@@ -620,7 +620,7 @@ export default function ProductsPage() {
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   >
                     {units.map((u) => (
                       <option key={u} value={u}>{u}</option>
@@ -638,7 +638,7 @@ export default function ProductsPage() {
                     value={formData.costPerUnit}
                     onChange={(e) => setFormData({ ...formData, costPerUnit: e.target.value })}
                     placeholder="0.00"
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
                 <div>
@@ -649,7 +649,7 @@ export default function ProductsPage() {
                     value={formData.currentQuantity}
                     onChange={(e) => setFormData({ ...formData, currentQuantity: e.target.value })}
                     placeholder="0"
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
               </div>
@@ -662,7 +662,7 @@ export default function ProductsPage() {
                   value={formData.reorderThreshold}
                   onChange={(e) => setFormData({ ...formData, reorderThreshold: e.target.value })}
                   placeholder={'Alert when quantity falls below this'}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                  className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -673,7 +673,7 @@ export default function ProductsPage() {
                   value={formData.supplier}
                   onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                   placeholder={'e.g., Detail King, Amazon'}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500"
+                  className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -684,7 +684,7 @@ export default function ProductsPage() {
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={2}
                   placeholder={'Optional notes'}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 resize-none"
+                  className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none resize-none"
                 />
               </div>
 
@@ -699,7 +699,7 @@ export default function ProductsPage() {
                 <button
                   type="submit"
                   disabled={saving || !formData.name}
-                  className="px-4 py-2 bg-amber-900/200 text-white font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                  className="px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-lg disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : editingProduct ? 'Update' : '+ Add Product'}
                 </button>
@@ -726,7 +726,7 @@ export default function ProductsPage() {
                 value={adjustAmount}
                 onChange={(e) => setAdjustAmount(e.target.value)}
                 placeholder={'Amount'}
-                className="w-full border rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-amber-500"
+                className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 mb-4 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
               />
 
               <div className="grid grid-cols-2 gap-3">

@@ -239,7 +239,7 @@ export default function MarketingPage() {
   if (loading) {
     return (
       <div className="page-transition min-h-screen bg-v-charcoal flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-v-gold" />
       </div>
     );
   }
@@ -254,7 +254,7 @@ export default function MarketingPage() {
         </div>
         <button
           onClick={openCreateModal}
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-v-gold text-white shadow"
         >
           {'+ New Campaign'}
         </button>
@@ -298,7 +298,7 @@ export default function MarketingPage() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === f ? 'bg-amber-900/200 text-white' : 'bg-white/10 text-white hover:bg-white/20'
+              filter === f ? 'bg-v-gold text-white' : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
             {f === 'all' ? 'All' : f === 'draft' ? 'Draft' : f === 'scheduled' ? 'Scheduled' : 'Sent'}
@@ -313,7 +313,7 @@ export default function MarketingPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
           <p className="text-v-text-secondary mb-2">{'No campaigns yet'}</p>
-          <button onClick={openCreateModal} className="text-amber-600 hover:text-amber-700 font-medium text-sm">
+          <button onClick={openCreateModal} className="text-v-gold hover:text-v-gold-dim font-medium text-sm">
             {'Create your first campaign'}
           </button>
         </div>
@@ -407,7 +407,7 @@ export default function MarketingPage() {
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
                   placeholder="e.g. Spring Detailing Special"
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -422,7 +422,7 @@ export default function MarketingPage() {
                       onClick={() => handleTemplateChange(tmpl.value)}
                       className={`p-2 rounded-lg text-left border transition ${
                         formTemplate === tmpl.value
-                          ? 'border-amber-500 bg-amber-900/20'
+                          ? 'border-v-gold bg-v-gold/20'
                           : 'border-v-border hover:border-v-border'
                       }`}
                     >
@@ -444,7 +444,7 @@ export default function MarketingPage() {
                       onClick={() => setFormSegment(s.value)}
                       className={`p-2 rounded-lg text-left border transition ${
                         formSegment === s.value
-                          ? 'border-amber-500 bg-amber-900/20'
+                          ? 'border-v-gold bg-v-gold/20'
                           : 'border-v-border hover:border-v-border'
                       }`}
                     >
@@ -463,7 +463,7 @@ export default function MarketingPage() {
                   value={formSubject}
                   onChange={e => setFormSubject(e.target.value)}
                   placeholder="e.g. Exclusive 10% Off Your Next Detail!"
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -474,7 +474,7 @@ export default function MarketingPage() {
                   value={formContent}
                   onChange={e => setFormContent(e.target.value)}
                   rows={8}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none resize-none"
                 />
                 <p className="text-xs text-v-text-secondary mt-1">{'Your company info and unsubscribe link will be added automatically.'}</p>
               </div>
@@ -486,7 +486,7 @@ export default function MarketingPage() {
                   type="datetime-local"
                   value={formSchedule}
                   onChange={e => setFormSchedule(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
                 <p className="text-xs text-v-text-secondary mt-1">{'Leave empty to save as draft and send manually.'}</p>
               </div>
@@ -499,7 +499,7 @@ export default function MarketingPage() {
               <button
                 onClick={createCampaign}
                 disabled={creating || !formName || !formSubject || !formContent}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 text-sm"
+                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm"
               >
                 {creating ? 'Creating...' : formSchedule ? 'Schedule Campaign' : 'Save as Draft'}
               </button>

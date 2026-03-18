@@ -521,14 +521,14 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
         }}
         className={`cursor-pointer border rounded p-3 flex items-center justify-between mb-2 ${
           locked ? "opacity-60" : ""
-        } ${isSelected ? "border-amber-500 bg-amber-500/10" : "border-white/10"}`}
+        } ${isSelected ? "border-v-gold bg-v-gold/10" : "border-v-border"}`}
       >
-        <span className="text-white">{label}</span>
+        <span className="text-v-text-primary">{label}</span>
         {locked && (
           <a
             href="/settings?upgrade=business"
             onClick={(e) => e.stopPropagation()}
-            className="text-xs px-2 py-1 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium hover:opacity-90"
+            className="text-xs px-2 py-1 rounded bg-v-gold hover:bg-v-gold-dim text-white font-medium"
           >
             Upgrade — $149/mo
           </a>
@@ -539,19 +539,19 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
-      <div className="modal-content bg-[#111827] text-white border border-white/10 rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
+      <div className="modal-content bg-v-surface text-white border border-v-border rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
         <div>
             <h2 className="text-xl font-semibold mb-2">{'Send to Client'}</h2>
-            <p className="mb-4 text-gray-400">
+            <p className="mb-4 text-v-text-secondary">
               {aircraftName && `${'Aircraft'}: ${aircraftName}`}{quote?.airport ? ` • ${quote.airport}` : ''} • {'Total'}: {currencySymbol()}{formatPrice(totalPrice)}
             </p>
             {error && <p className="text-red-400 mb-2">{error}</p>}
 
             {/* Quote Limit Upgrade Prompt */}
             {quoteLimitHit && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-4">
-                <p className="font-semibold text-amber-400 mb-1">{'Quote limit reached this month'}</p>
-                <p className="text-sm text-amber-300 mb-3">
+              <div className="bg-v-gold/10 border border-v-gold/30 rounded-lg p-4 mb-4">
+                <p className="font-semibold text-v-gold mb-1">{'Quote limit reached this month'}</p>
+                <p className="text-sm text-v-gold/80 mb-3">
                   You&apos;ve used {quoteLimitHit.quotesUsed} of {quoteLimitHit.quotesLimit} free quotes this month.
                   {'Upgrade for Unlimited'}.
                 </p>
@@ -570,7 +570,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                         else if (data.error) setError(data.error);
                       } catch (e) { setError("Failed to start upgrade"); }
                     }}
-                    className="w-full px-4 py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:opacity-90"
+                    className="w-full px-4 py-2 rounded bg-v-gold hover:bg-v-gold-dim text-white font-semibold"
                   >
                     Upgrade to Pro - $79/mo
                   </button>
@@ -597,14 +597,14 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             )}
 
             {/* Customer Selection */}
-            <label className="block mb-2 text-sm font-medium text-gray-300">{'Customer'}</label>
+            <label className="block mb-2 text-sm font-medium text-v-text-secondary">{'Customer'}</label>
             {customerLocked && selectedCustomer ? (
-              <div className="mb-3 p-3 bg-white/5 border border-white/10 rounded-lg flex items-center justify-between">
+              <div className="mb-3 p-3 bg-v-surface-light/30 border border-v-border rounded-lg flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-white">{selectedCustomer.name}</p>
-                  <p className="text-xs text-gray-400">{selectedCustomer.email}</p>
+                  <p className="text-xs text-v-text-secondary">{selectedCustomer.email}</p>
                 </div>
-                <span className="text-xs text-gray-500 bg-white/10 px-2 py-1 rounded">Pre-selected</span>
+                <span className="text-xs text-v-text-secondary bg-v-surface-light/30 px-2 py-1 rounded">Pre-selected</span>
               </div>
             ) : (
               <CustomerSelector
@@ -623,43 +623,43 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
               <button
                 type="button"
                 onClick={() => setShowContacts(!showContacts)}
-                className="w-full flex items-center justify-between text-sm font-medium text-gray-300 py-2 px-3 bg-white/5 rounded-lg hover:bg-white/10"
+                className="w-full flex items-center justify-between text-sm font-medium text-v-text-secondary py-2 px-3 bg-v-surface-light/30 rounded-lg hover:bg-v-surface-light/30"
               >
                 <span>Aircraft Contact Info {(pocName || emergencyName) && <span className="text-green-400 ml-1">&#10003;</span>}</span>
-                <span className="text-gray-500">{showContacts ? '\u25B2' : '\u25BC'}</span>
+                <span className="text-v-text-secondary">{showContacts ? '\u25B2' : '\u25BC'}</span>
               </button>
               {showContacts && (
-                <div className="mt-2 space-y-3 p-3 border border-white/10 rounded-lg bg-white/5">
+                <div className="mt-2 space-y-3 p-3 border border-v-border rounded-lg bg-v-surface-light/30">
                   {/* POC Section */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Who should we contact about this aircraft?</p>
+                    <p className="text-xs font-semibold text-v-text-secondary uppercase tracking-wider mb-2">Who should we contact about this aircraft?</p>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
                         value={pocName}
                         onChange={(e) => setPocName(e.target.value)}
                         placeholder="Contact name"
-                        className="col-span-2 border border-white/10 bg-white/5 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        className="col-span-2 border border-v-border bg-v-surface-light/30 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                       />
                       <input
                         type="tel"
                         value={pocPhone}
                         onChange={(e) => setPocPhone(e.target.value)}
                         placeholder={'Phone'}
-                        className="border border-white/10 bg-white/5 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        className="border border-v-border bg-v-surface-light/30 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                       />
                       <input
                         type="email"
                         value={pocEmail}
                         onChange={(e) => setPocEmail(e.target.value)}
                         placeholder={'Email'}
-                        className="border border-white/10 bg-white/5 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        className="border border-v-border bg-v-surface-light/30 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                       />
                     </div>
                     <select
                       value={pocRole}
                       onChange={(e) => setPocRole(e.target.value)}
-                      className="mt-2 w-full border border-white/10 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                      className="mt-2 w-full border border-v-border bg-v-surface-light/30 text-white rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                     >
                       <option value="">Select role...</option>
                       <option value="Owner">Owner</option>
@@ -672,21 +672,21 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
                   {/* Emergency Contact */}
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Emergency contact for day of service</p>
+                    <p className="text-xs font-semibold text-v-text-secondary uppercase tracking-wider mb-2">Emergency contact for day of service</p>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
                         value={emergencyName}
                         onChange={(e) => setEmergencyName(e.target.value)}
                         placeholder="Emergency contact name"
-                        className="border border-white/10 bg-white/5 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        className="border border-v-border bg-v-surface-light/30 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                       />
                       <input
                         type="tel"
                         value={emergencyPhone}
                         onChange={(e) => setEmergencyPhone(e.target.value)}
                         placeholder="Emergency phone"
-                        className="border border-white/10 bg-white/5 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        className="border border-v-border bg-v-surface-light/30 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                       />
                     </div>
                   </div>
@@ -698,7 +698,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                       onChange={(e) => setContactNotes(e.target.value)}
                       placeholder="Contact notes (e.g., best time to call, gate access code...)"
                       rows={2}
-                      className="w-full border border-white/10 bg-white/5 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                      className="w-full border border-v-border bg-v-surface-light/30 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none resize-none"
                     />
                   </div>
                 </div>
@@ -712,13 +712,13 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             </div>
 
             {/* Schedule Send Option */}
-            <div className="mb-3 border-t border-white/10 pt-3">
+            <div className="mb-3 border-t border-v-border pt-3">
               <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isScheduled}
                   onChange={(e) => { setIsScheduled(e.target.checked); if (!e.target.checked) setScheduledDate(""); }}
-                  className="mr-2 w-4 h-4 text-amber-500"
+                  className="mr-2 w-4 h-4 text-v-gold"
                 />
                 <span className="text-sm font-medium">Schedule for later</span>
               </label>
@@ -729,32 +729,32 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                    className="w-full border border-white/10 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                    className="w-full border border-v-border bg-v-surface-light/30 text-white rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Quote will be sent automatically at this time.</p>
+                  <p className="text-xs text-v-text-secondary mt-1">Quote will be sent automatically at this time.</p>
                 </div>
               )}
             </div>
 
             {/* Recurring Service Option */}
-            <div className="mb-3 border-t border-white/10 pt-3">
+            <div className="mb-3 border-t border-v-border pt-3">
               <label className="flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isRecurring}
                   onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="mr-2 w-4 h-4 text-amber-500"
+                  className="mr-2 w-4 h-4 text-v-gold"
                 />
                 <span className="text-sm font-medium">Set up as recurring service</span>
               </label>
 
               {isRecurring && (
                 <div className="mt-3 pl-6">
-                  <label className="block mb-2 text-sm font-medium text-gray-300">{'Frequency'}</label>
+                  <label className="block mb-2 text-sm font-medium text-v-text-secondary">{'Frequency'}</label>
                   <select
                     value={recurringInterval}
                     onChange={(e) => setRecurringInterval(e.target.value)}
-                    className="w-full border border-white/10 bg-white/5 text-white rounded px-3 py-2 mb-2"
+                    className="w-full border border-v-border bg-v-surface-light/30 text-white rounded px-3 py-2 mb-2"
                   >
                     <option value="4_weeks">{'Every 4 weeks'} (Recommended)</option>
                     <option value="monthly">{'Monthly'}</option>
@@ -763,7 +763,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                   </select>
 
                   {recurringInterval === "4_weeks" && (
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded p-2 text-xs text-amber-300">
+                    <div className="bg-v-gold/10 border border-v-gold/30 rounded p-2 text-xs text-v-gold/80">
                       <span className="font-semibold">Smart choice!</span> Billing every 4 weeks = 13 cycles/year vs 12 months = 8% more annual revenue.
                     </div>
                   )}
@@ -781,7 +781,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                 type="button"
                 onClick={onClose}
                 disabled={loading || draftLoading}
-                className="px-4 py-3 border border-white/10 rounded-lg text-gray-300 hover:bg-white/5 min-h-[44px] font-medium"
+                className="px-4 py-3 border border-v-border rounded-lg text-v-text-secondary hover:bg-v-surface-light/30 min-h-[44px] font-medium"
               >
                 {'Cancel'}
               </button>
@@ -789,7 +789,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                 type="button"
                 onClick={handleSend}
                 disabled={loading || draftLoading}
-                className="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white disabled:opacity-50 min-h-[44px] font-medium flex items-center justify-center gap-2"
+                className="px-4 py-3 rounded-lg bg-v-gold hover:bg-v-gold-dim text-white disabled:opacity-50 min-h-[44px] font-medium flex items-center justify-center gap-2"
               >
                 {loading && <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
                 {loading ? (isScheduled ? 'Scheduling...' : 'Sending...') : (isScheduled && scheduledDate ? 'Schedule Quote' : 'Save & Send Quote')}
@@ -798,7 +798,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
                 type="button"
                 onClick={handleSaveDraft}
                 disabled={loading || draftLoading}
-                className="px-4 py-3 rounded-lg border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 min-h-[44px] font-medium flex items-center justify-center gap-2"
+                className="px-4 py-3 rounded-lg border border-v-gold/30 text-v-gold hover:bg-v-gold/10 disabled:opacity-50 min-h-[44px] font-medium flex items-center justify-center gap-2"
               >
                 {draftLoading ? 'Saving...' : 'Save as Draft'}
               </button>

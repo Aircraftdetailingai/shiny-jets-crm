@@ -222,7 +222,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filter === f ? 'bg-amber-900/200 text-white' : 'bg-white/10 text-white hover:bg-white/20'
+                filter === f ? 'bg-v-gold text-white' : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
               {filterLabels[f]}
@@ -230,7 +230,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
           ))}
           <button
             onClick={() => { setCreateModal(true); fetchPaidQuotes(); }}
-            className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow"
+            className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-v-gold text-white shadow"
           >
             {'+ Create Invoice'}
           </button>
@@ -400,7 +400,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
             )}
 
             {/* Fee + Total */}
-            <div className="border-t-2 border-[#1e3a5f] pt-3">
+            <div className="border-t-2 border-v-border pt-3">
               {viewInvoice.platform_fee > 0 && (
                 <div className="flex justify-between text-sm text-v-text-secondary mb-1">
                   <span>{'Platform fee'} ({(viewInvoice.platform_fee_rate * 100).toFixed(0)}%)</span>
@@ -409,12 +409,12 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               )}
               <div className="flex justify-between items-center">
                 <span className="text-lg font-bold">{'Total'}</span>
-                <span className="text-2xl font-bold text-[#1e3a5f]">{formatCurrency(viewInvoice.total)}</span>
+                <span className="text-2xl font-bold text-v-gold">{formatCurrency(viewInvoice.total)}</span>
               </div>
             </div>
 
             {viewInvoice.notes && (
-              <div className="mt-3 p-3 bg-amber-900/20 rounded-lg border border-amber-200 text-sm text-amber-800">
+              <div className="mt-3 p-3 bg-v-gold/10 rounded-lg border border-v-gold/30 text-sm text-v-gold">
                 <strong>{'Notes'}:</strong> {viewInvoice.notes}
               </div>
             )}
@@ -461,7 +461,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
                   key={m}
                   onClick={() => setPaymentMethod(m)}
                   className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                    paymentMethod === m ? 'bg-amber-900/200 text-white border-amber-500' : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
+                    paymentMethod === m ? 'bg-v-gold text-white border-v-gold' : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
                   }`}
                 >
                   {m === 'cash' ? 'Cash' : m === 'check' ? 'Check' : m === 'wire' ? 'Wire' : 'Other'}
@@ -524,7 +524,7 @@ ${invoice.payment_method ? `<p style="margin-top:12px;color:#6b7280;font-size:14
               <button
                 onClick={createInvoice}
                 disabled={!selectedQuoteId || actionLoading}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50"
               >
                 {actionLoading ? 'Creating...' : '+ Create Invoice'}
               </button>

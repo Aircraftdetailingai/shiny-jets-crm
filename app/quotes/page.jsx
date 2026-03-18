@@ -7,9 +7,9 @@ import ExportGate from '@/components/ExportGate';
 import AppShell from '@/components/AppShell';
 
 const statusColors = {
-  draft: 'border border-gray-500/40 text-gray-400',
+  draft: 'border border-v-border text-v-text-secondary',
   sent: 'border border-white/30 text-white',
-  viewed: 'border border-[#C9A84C]/50 text-[#C9A84C]',
+  viewed: 'border border-v-gold/50 text-v-gold',
   paid: 'border border-green-500/40 text-green-400',
   approved: 'border border-green-500/40 text-green-400',
   completed: 'border border-purple-400/40 text-purple-300',
@@ -411,22 +411,22 @@ export default function QuotesPage() {
                     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `quotes-export-${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(a.href);
                   }}
                   disabled={quotes.length === 0}
-                  className="text-[#8A9BB0] hover:text-white text-xs uppercase tracking-widest transition-colors"
+                  className="text-v-text-secondary hover:text-white text-xs uppercase tracking-widest transition-colors"
                 >Export</button>
               </ExportGate>
-              <a href="/quotes/new" className="px-5 py-2 bg-[#C9A84C] text-[#0D1B2A] text-xs font-medium uppercase tracking-[0.15em] hover:bg-[#b8993f] transition-colors">New Quote</a>
+              <a href="/quotes/new" className="px-5 py-2 bg-v-gold text-white text-xs font-medium uppercase tracking-[0.15em] hover:bg-v-gold-dim transition-colors">New Quote</a>
             </div>
           </div>
 
           {/* Search + Filter */}
           <div className="px-6 pb-3 flex items-center gap-6 overflow-x-auto">
             <div className="relative flex-shrink-0">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8A9BB0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-sm pl-9 pr-4 py-1.5 w-56 focus:outline-none focus:border-[#C9A84C]/40 transition-colors" />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-v-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-sm pl-9 pr-4 py-1.5 w-56 focus:outline-none focus:border-v-gold/40 transition-colors" />
             </div>
             <div className="flex items-center gap-5">
               {['all', 'active', 'paid', 'completed', 'expired'].map((f) => (
-                <button key={f} onClick={() => setFilter(f)} className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-[#C9A84C] border-b border-[#C9A84C]' : 'text-[#8A9BB0] hover:text-white border-b border-transparent'}`}>
+                <button key={f} onClick={() => setFilter(f)} className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-[#C9A84C]' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
                   {f === 'all' ? `All (${stats.total})` : f === 'active' ? `Active (${stats.active})` : f === 'paid' ? `Paid (${stats.paid})` : f === 'completed' ? `Done (${stats.completed})` : 'Expired'}
                 </button>
               ))}
@@ -435,13 +435,13 @@ export default function QuotesPage() {
 
           {/* Gmail-style Bulk Toolbar */}
           {selectedIds.size > 0 && (
-            <div className="px-6 py-2.5 bg-[#1A2236] border-t border-[#2A3A50] flex items-center gap-4">
+            <div className="px-6 py-2.5 bg-v-surface border-t border-v-border flex items-center gap-4">
               <span className="text-white text-sm font-medium">{selectedIds.size} selected</span>
-              <button onClick={clearSelection} className="text-[#8A9BB0] hover:text-white text-xs uppercase tracking-wider transition-colors">Clear</button>
+              <button onClick={clearSelection} className="text-v-text-secondary hover:text-white text-xs uppercase tracking-wider transition-colors">Clear</button>
               <div className="w-px h-4 bg-[#2A3A50]" />
-              <button onClick={() => setBulkConfirm({ action: 'send', label: `Send ${selectedIds.size} quote(s)?`, description: 'Quotes with a customer email in draft/sent status will be emailed.' })} disabled={bulkProcessing} className="text-[#8A9BB0] hover:text-white text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Send</button>
-              <button onClick={() => setBulkConfirm({ action: 'expire', label: `Expire ${selectedIds.size} quote(s)?`, description: 'This will change their status to expired.' })} disabled={bulkProcessing} className="text-[#8A9BB0] hover:text-white text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Archive</button>
-              <ExportGate plan={userPlan}><button onClick={() => executeBulkAction('export')} disabled={bulkProcessing} className="text-[#8A9BB0] hover:text-white text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Export</button></ExportGate>
+              <button onClick={() => setBulkConfirm({ action: 'send', label: `Send ${selectedIds.size} quote(s)?`, description: 'Quotes with a customer email in draft/sent status will be emailed.' })} disabled={bulkProcessing} className="text-v-text-secondary hover:text-white text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Send</button>
+              <button onClick={() => setBulkConfirm({ action: 'expire', label: `Expire ${selectedIds.size} quote(s)?`, description: 'This will change their status to expired.' })} disabled={bulkProcessing} className="text-v-text-secondary hover:text-white text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Archive</button>
+              <ExportGate plan={userPlan}><button onClick={() => executeBulkAction('export')} disabled={bulkProcessing} className="text-v-text-secondary hover:text-white text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Export</button></ExportGate>
               <button onClick={() => setBulkConfirm({ action: 'delete', label: `Delete ${selectedIds.size} quote(s)?`, description: 'This cannot be undone.' })} disabled={bulkProcessing} className="text-red-400/70 hover:text-red-400 text-xs uppercase tracking-wider transition-colors disabled:opacity-40">Delete</button>
             </div>
           )}
@@ -451,14 +451,14 @@ export default function QuotesPage() {
         <div className="px-6 py-5 grid grid-cols-3 sm:grid-cols-6 gap-8 border-b border-[#1A2236]">
           {[
             { label: 'Total', value: stats.total, color: 'text-white' },
-            { label: 'Active', value: stats.active, color: 'text-[#C9A84C]' },
+            { label: 'Active', value: stats.active, color: 'text-v-gold' },
             { label: 'Paid', value: stats.paid, color: 'text-green-400' },
             { label: 'Completed', value: stats.completed, color: 'text-purple-300' },
             { label: 'Revenue', value: `${currencySymbol()}${formatPriceWhole(stats.revenue)}`, color: 'text-white' },
             { label: 'Profit', value: `${currencySymbol()}${formatPriceWhole(stats.revenue - stats.productCost)}`, color: 'text-green-400' },
           ].map((s, i) => (
             <div key={i}>
-              <p className="text-[#8A9BB0] text-[10px] uppercase tracking-[0.2em]">{s.label}</p>
+              <p className="text-v-text-secondary text-[10px] uppercase tracking-[0.2em]">{s.label}</p>
               <p className={`text-lg font-light mt-0.5 font-data ${s.color}`}>{s.value}</p>
             </div>
           ))}
@@ -466,9 +466,9 @@ export default function QuotesPage() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
             <div className="flex items-center justify-center">
-              <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-[#2A3A50] bg-transparent accent-[#C9A84C] cursor-pointer" onClick={(e) => e.stopPropagation()} />
+              <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-amber-500 cursor-pointer" onClick={(e) => e.stopPropagation()} />
             </div>
             <div>Customer</div>
             <div>Aircraft</div>
@@ -480,37 +480,37 @@ export default function QuotesPage() {
           </div>
 
           {filteredQuotes.length === 0 ? (
-            <div className="px-6 py-16 text-center text-[#8A9BB0] text-sm">{search ? 'No quotes match your search' : 'No quotes yet'}</div>
+            <div className="px-6 py-16 text-center text-v-text-secondary text-sm">{search ? 'No quotes match your search' : 'No quotes yet'}</div>
           ) : (
             filteredQuotes.map((q) => {
               const status = getStatus(q);
               const isSelected = selectedIds.has(q.id);
               return (
                 <div key={q.id} onClick={() => { if (q.share_link) window.open(`/q/${q.share_link}`, '_blank'); }}
-                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-[#C9A84C]/[0.04]' : 'hover:bg-white/[0.02]'}`}
+                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-[#2A3A50] bg-transparent accent-[#C9A84C] cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                    <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-amber-500 cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
                   </div>
                   <div className="truncate pr-4">
                     <span className="text-white text-sm">{getDisplayName(q)}</span>
-                    {q.customer_company && q.client_name && q.customer_company !== q.client_name && <span className="text-[#8A9BB0] text-xs ml-2">{q.client_name}</span>}
+                    {q.customer_company && q.client_name && q.customer_company !== q.client_name && <span className="text-v-text-secondary text-xs ml-2">{q.client_name}</span>}
                   </div>
                   <div className="truncate pr-4">
-                    <span className="text-[#8A9BB0] text-sm">{getAircraftLabel(q)}</span>
-                    {q.tail_number && <span className="text-[#8A9BB0]/60 text-xs ml-2">{q.tail_number}</span>}
+                    <span className="text-v-text-secondary text-sm">{getAircraftLabel(q)}</span>
+                    {q.tail_number && <span className="text-v-text-secondary/60 text-xs ml-2">{q.tail_number}</span>}
                   </div>
                   <div className="truncate pr-4">
-                    <span className="text-[#8A9BB0] text-sm" title={(q.line_items || []).map(i => i.description || i.service).join(', ')}>{getServicesLabel(q)}</span>
+                    <span className="text-v-text-secondary text-sm" title={(q.line_items || []).map(i => i.description || i.service).join(', ')}>{getServicesLabel(q)}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[#C9A84C] text-sm font-data">{currencySymbol()}{formatPrice(q.total_price)}</span>
+                    <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(q.total_price)}</span>
                   </div>
                   <div className="flex justify-center">
-                    <span className={`px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${statusColors[status] || 'border border-gray-500/30 text-gray-400'}`}>{statusLabels[status] || status}</span>
+                    <span className={`px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${statusColors[status] || 'border border-v-border text-v-text-secondary'}`}>{statusLabels[status] || status}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[#8A9BB0] text-xs">{formatDate(q.created_at)}</span>
+                    <span className="text-v-text-secondary text-xs">{formatDate(q.created_at)}</span>
                   </div>
                   <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
                     {(status === 'paid' || status === 'approved') && (
@@ -530,26 +530,26 @@ export default function QuotesPage() {
           )}
         </div>
 
-        <div className="px-6 py-3 border-t border-[#1A2236] text-[#8A9BB0] text-xs">{filteredQuotes.length} of {quotes.length} quotes{search && ' (filtered)'}</div>
+        <div className="px-6 py-3 border-t border-[#1A2236] text-v-text-secondary text-xs">{filteredQuotes.length} of {quotes.length} quotes{search && ' (filtered)'}</div>
 
         {/* Complete Job Modal */}
         {completeModal && (
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-4 text-white">Complete Job</h3>
-              <p className="text-[#8A9BB0] mb-4">{completeModal.aircraft_model || completeModal.aircraft_type}{completeModal.client_name && ` - ${completeModal.client_name}`}</p>
+              <p className="text-v-text-secondary mb-4">{completeModal.aircraft_model || completeModal.aircraft_type}{completeModal.client_name && ` - ${completeModal.client_name}`}</p>
               {(completeModal.poc_name || completeModal.emergency_contact_name) && (
                 <div className="mb-4 p-3 bg-[#0F1117] border border-[#1A2236] text-sm space-y-2">
                   {completeModal.poc_name && (
                     <div className="flex items-center justify-between">
-                      <div><span className="font-medium text-white">{completeModal.poc_name}</span>{completeModal.poc_role && <span className="text-[#8A9BB0] ml-1">({completeModal.poc_role})</span>}</div>
-                      {completeModal.poc_phone && <a href={`tel:${completeModal.poc_phone}`} className="text-[#C9A84C] hover:underline">{completeModal.poc_phone}</a>}
+                      <div><span className="font-medium text-white">{completeModal.poc_name}</span>{completeModal.poc_role && <span className="text-v-text-secondary ml-1">({completeModal.poc_role})</span>}</div>
+                      {completeModal.poc_phone && <a href={`tel:${completeModal.poc_phone}`} className="text-v-gold hover:underline">{completeModal.poc_phone}</a>}
                     </div>
                   )}
                   {completeModal.emergency_contact_name && (
                     <div className="flex items-center justify-between pt-1 border-t border-[#1A2236]">
                       <div><span className="text-xs text-red-400 font-semibold uppercase">Emergency: </span><span className="font-medium text-white">{completeModal.emergency_contact_name}</span></div>
-                      {completeModal.emergency_contact_phone && <a href={`tel:${completeModal.emergency_contact_phone}`} className="text-[#C9A84C] hover:underline">{completeModal.emergency_contact_phone}</a>}
+                      {completeModal.emergency_contact_phone && <a href={`tel:${completeModal.emergency_contact_phone}`} className="text-v-gold hover:underline">{completeModal.emergency_contact_phone}</a>}
                     </div>
                   )}
                 </div>
@@ -561,31 +561,31 @@ export default function QuotesPage() {
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                       {serviceHours.map((sh, idx) => (
                         <div key={idx} className="flex items-center justify-between p-2 bg-[#0F1117] border border-[#1A2236]">
-                          <div className="flex-1 min-w-0 mr-3"><p className="text-sm font-medium text-white truncate">{sh.service_name}</p><p className="text-xs text-[#8A9BB0]">{`Quoted: ${sh.quoted_hours.toFixed(1)}h`}</p></div>
+                          <div className="flex-1 min-w-0 mr-3"><p className="text-sm font-medium text-white truncate">{sh.service_name}</p><p className="text-xs text-v-text-secondary">{`Quoted: ${sh.quoted_hours.toFixed(1)}h`}</p></div>
                           <div className="flex items-center gap-1">
-                            <input type="number" step="0.25" value={sh.actual_hours} onChange={(e) => { const updated = [...serviceHours]; updated[idx] = { ...updated[idx], actual_hours: parseFloat(e.target.value) || 0 }; setServiceHours(updated); const total = updated.reduce((sum, s) => sum + (parseFloat(s.actual_hours) || 0), 0); setCompletionData(prev => ({ ...prev, actual_hours: total.toString() })); }} className="w-20 bg-[#0D1B2A] border border-[#2A3A50] text-white px-2 py-1.5 text-sm text-right" />
-                            <span className="text-xs text-[#8A9BB0]">h</span>
+                            <input type="number" step="0.25" value={sh.actual_hours} onChange={(e) => { const updated = [...serviceHours]; updated[idx] = { ...updated[idx], actual_hours: parseFloat(e.target.value) || 0 }; setServiceHours(updated); const total = updated.reduce((sum, s) => sum + (parseFloat(s.actual_hours) || 0), 0); setCompletionData(prev => ({ ...prev, actual_hours: total.toString() })); }} className="w-20 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm text-right" />
+                            <span className="text-xs text-v-text-secondary">h</span>
                           </div>
                         </div>
                       ))}
                     </div>
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-[#1A2236]">
                       <span className="text-sm font-medium text-white">Total Hours</span>
-                      <span className="text-lg font-bold text-[#C9A84C] font-data">{parseFloat(completionData.actual_hours || 0).toFixed(1)}h</span>
+                      <span className="text-lg font-bold text-v-gold font-data">{parseFloat(completionData.actual_hours || 0).toFixed(1)}h</span>
                     </div>
-                    <p className="text-xs text-[#8A9BB0] mt-1">{`Quote estimate: ${completeModal.total_hours?.toFixed(1) || "0"} hours`}{completeModal.total_hours && parseFloat(completionData.actual_hours) !== completeModal.total_hours && <span className={parseFloat(completionData.actual_hours) > completeModal.total_hours ? ' text-red-400' : ' text-green-400'}> ({parseFloat(completionData.actual_hours) > completeModal.total_hours ? '+' : ''}{(parseFloat(completionData.actual_hours) - completeModal.total_hours).toFixed(1)}h)</span>}</p>
+                    <p className="text-xs text-v-text-secondary mt-1">{`Quote estimate: ${completeModal.total_hours?.toFixed(1) || "0"} hours`}{completeModal.total_hours && parseFloat(completionData.actual_hours) !== completeModal.total_hours && <span className={parseFloat(completionData.actual_hours) > completeModal.total_hours ? ' text-red-400' : ' text-green-400'}> ({parseFloat(completionData.actual_hours) > completeModal.total_hours ? '+' : ''}{(parseFloat(completionData.actual_hours) - completeModal.total_hours).toFixed(1)}h)</span>}</p>
                   </div>
                 ) : (
                   <div>
                     <label className="block text-sm font-medium mb-1 text-white">Actual Hours Worked</label>
-                    <input type="number" step="0.25" value={completionData.actual_hours} onChange={(e) => setCompletionData({ ...completionData, actual_hours: e.target.value })} placeholder={`Estimated: ${completeModal.total_hours?.toFixed(1) || "0"}`} className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2" />
-                    <p className="text-xs text-[#8A9BB0] mt-1">{`Quote estimate: ${completeModal.total_hours?.toFixed(1) || "0"} hours`}</p>
+                    <input type="number" step="0.25" value={completionData.actual_hours} onChange={(e) => setCompletionData({ ...completionData, actual_hours: e.target.value })} placeholder={`Estimated: ${completeModal.total_hours?.toFixed(1) || "0"}`} className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2" />
+                    <p className="text-xs text-v-text-secondary mt-1">{`Quote estimate: ${completeModal.total_hours?.toFixed(1) || "0"} hours`}</p>
                   </div>
                 )}
                 {completeModal.product_estimates && completeModal.product_estimates.length > 0 && (
-                  <div className="bg-[#0D1B2A] border border-[#2A3A50] p-3">
-                    <p className="text-sm font-medium text-[#C9A84C] mb-1">Estimated Products (from quote)</p>
-                    <div className="space-y-0.5">{completeModal.product_estimates.map((e, i) => (<div key={i} className="flex justify-between text-sm"><span className="text-[#8A9BB0]">{e.product_name}</span><span className="font-medium text-white">{e.amount}{e.unit}</span></div>))}</div>
+                  <div className="bg-v-charcoal border border-v-border p-3">
+                    <p className="text-sm font-medium text-v-gold mb-1">Estimated Products (from quote)</p>
+                    <div className="space-y-0.5">{completeModal.product_estimates.map((e, i) => (<div key={i} className="flex justify-between text-sm"><span className="text-v-text-secondary">{e.product_name}</span><span className="font-medium text-white">{e.amount}{e.unit}</span></div>))}</div>
                   </div>
                 )}
                 <div>
@@ -594,42 +594,42 @@ export default function QuotesPage() {
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                       {selectedProducts.map((sp, idx) => (
                         <div key={idx} className="flex items-center gap-2 p-2 bg-[#0F1117] border border-[#1A2236]">
-                          <select value={sp.product_id} onChange={(e) => { const updated = [...selectedProducts]; updated[idx] = { ...updated[idx], product_id: e.target.value }; setSelectedProducts(updated); }} className="flex-1 bg-[#0D1B2A] border border-[#2A3A50] text-white px-2 py-1.5 text-sm">
+                          <select value={sp.product_id} onChange={(e) => { const updated = [...selectedProducts]; updated[idx] = { ...updated[idx], product_id: e.target.value }; setSelectedProducts(updated); }} className="flex-1 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm">
                             <option value="">Select product...</option>
                             {inventoryProducts.map(p => (<option key={p.id} value={p.id}>{p.name} ({p.current_quantity} {p.unit})</option>))}
                           </select>
-                          <input type="number" step="0.1" value={sp.amount} onChange={(e) => { const updated = [...selectedProducts]; updated[idx] = { ...updated[idx], amount: e.target.value }; setSelectedProducts(updated); let totalCost = 0; updated.forEach(s => { const prod = inventoryProducts.find(p => p.id === s.product_id); if (prod) totalCost += (parseFloat(s.amount) || 0) * (prod.cost_per_unit || 0); }); setCompletionData(prev => ({ ...prev, product_cost: totalCost.toFixed(2) })); }} placeholder="Qty" className="w-20 bg-[#0D1B2A] border border-[#2A3A50] text-white px-2 py-1.5 text-sm text-right" />
+                          <input type="number" step="0.1" value={sp.amount} onChange={(e) => { const updated = [...selectedProducts]; updated[idx] = { ...updated[idx], amount: e.target.value }; setSelectedProducts(updated); let totalCost = 0; updated.forEach(s => { const prod = inventoryProducts.find(p => p.id === s.product_id); if (prod) totalCost += (parseFloat(s.amount) || 0) * (prod.cost_per_unit || 0); }); setCompletionData(prev => ({ ...prev, product_cost: totalCost.toFixed(2) })); }} placeholder="Qty" className="w-20 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm text-right" />
                           <button type="button" onClick={() => setSelectedProducts(selectedProducts.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-300 text-lg">&times;</button>
                         </div>
                       ))}
-                      <button type="button" onClick={() => setSelectedProducts([...selectedProducts, { product_id: '', amount: '' }])} className="text-sm text-[#C9A84C] hover:underline">Add Product</button>
-                      {selectedProducts.length > 0 && completionData.product_cost && <p className="text-xs text-[#8A9BB0] mt-1">Estimated material cost: {currencySymbol()}{completionData.product_cost}</p>}
+                      <button type="button" onClick={() => setSelectedProducts([...selectedProducts, { product_id: '', amount: '' }])} className="text-sm text-v-gold hover:underline">Add Product</button>
+                      {selectedProducts.length > 0 && completionData.product_cost && <p className="text-xs text-v-text-secondary mt-1">Estimated material cost: {currencySymbol()}{completionData.product_cost}</p>}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-[#8A9BB0]">{currencySymbol()}</span>
-                      <input type="number" step="0.01" value={completionData.product_cost} onChange={(e) => setCompletionData({ ...completionData, product_cost: e.target.value })} placeholder="0.00" className="w-32 bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2" />
-                      <a href="/products" className="text-xs text-[#C9A84C] hover:underline">Add products to track inventory</a>
+                      <span className="text-sm text-v-text-secondary">{currencySymbol()}</span>
+                      <input type="number" step="0.01" value={completionData.product_cost} onChange={(e) => setCompletionData({ ...completionData, product_cost: e.target.value })} placeholder="0.00" className="w-32 bg-v-charcoal border border-v-border text-white px-3 py-2" />
+                      <a href="/products" className="text-xs text-v-gold hover:underline">Add products to track inventory</a>
                     </div>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-white">Notes (optional)</label>
-                  <textarea value={completionData.notes} onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })} placeholder="Any notes about this job..." className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2" rows={2} />
+                  <textarea value={completionData.notes} onChange={(e) => setCompletionData({ ...completionData, notes: e.target.value })} placeholder="Any notes about this job..." className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2" rows={2} />
                 </div>
                 <div className="border-t border-[#1A2236] pt-4 mt-4">
-                  <p className="text-sm font-medium text-white mb-3 flex items-center gap-2"><span>Track Hidden Costs</span><span className="text-[10px] bg-[#C9A84C]/10 text-[#C9A84C] px-2 py-0.5">+Points</span></p>
+                  <p className="text-sm font-medium text-white mb-3 flex items-center gap-2"><span>Track Hidden Costs</span><span className="text-[10px] bg-v-gold/10 text-v-gold px-2 py-0.5">+Points</span></p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label className="block text-sm text-[#8A9BB0] mb-1">Wait Time (min)</label><div className="flex items-center gap-2"><input type="number" value={completionData.wait_time_minutes} onChange={(e) => setCompletionData({ ...completionData, wait_time_minutes: e.target.value })} placeholder="0" className="w-20 bg-[#0D1B2A] border border-[#2A3A50] text-white px-2 py-1.5 text-sm" /><span className="text-xs text-[#8A9BB0]">mins</span></div></div>
-                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.repositioning_needed} onChange={(e) => setCompletionData({ ...completionData, repositioning_needed: e.target.checked })} className="rounded-sm border-[#2A3A50] accent-[#C9A84C]" /><span className="text-sm text-[#8A9BB0]">Repositioning needed</span></label></div>
-                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.customer_late} onChange={(e) => setCompletionData({ ...completionData, customer_late: e.target.checked })} className="rounded-sm border-[#2A3A50] accent-[#C9A84C]" /><span className="text-sm text-[#8A9BB0]">Customer was late</span></label></div>
+                    <div><label className="block text-sm text-v-text-secondary mb-1">Wait Time (min)</label><div className="flex items-center gap-2"><input type="number" value={completionData.wait_time_minutes} onChange={(e) => setCompletionData({ ...completionData, wait_time_minutes: e.target.value })} placeholder="0" className="w-20 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm" /><span className="text-xs text-v-text-secondary">mins</span></div></div>
+                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.repositioning_needed} onChange={(e) => setCompletionData({ ...completionData, repositioning_needed: e.target.checked })} className="rounded-sm border-v-border accent-amber-500" /><span className="text-sm text-v-text-secondary">Repositioning needed</span></label></div>
+                    <div className="flex flex-col justify-end"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={completionData.customer_late} onChange={(e) => setCompletionData({ ...completionData, customer_late: e.target.checked })} className="rounded-sm border-v-border accent-amber-500" /><span className="text-sm text-v-text-secondary">Customer was late</span></label></div>
                   </div>
-                  <div className="mt-3"><label className="block text-sm text-[#8A9BB0] mb-1">Issues (optional)</label><textarea value={completionData.issues} onChange={(e) => setCompletionData({ ...completionData, issues: e.target.value })} placeholder="Access problems, condition notes, etc..." className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 text-sm" rows={2} /></div>
-                  <p className="text-xs text-[#8A9BB0]/60 mt-2">Tracking this data earns points and helps identify problem customers.</p>
+                  <div className="mt-3"><label className="block text-sm text-v-text-secondary mb-1">Issues (optional)</label><textarea value={completionData.issues} onChange={(e) => setCompletionData({ ...completionData, issues: e.target.value })} placeholder="Access problems, condition notes, etc..." className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 text-sm" rows={2} /></div>
+                  <p className="text-xs text-v-text-secondary/60 mt-2">Tracking this data earns points and helps identify problem customers.</p>
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <button onClick={() => setCompleteModal(null)} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white hover:border-white/20 transition-colors">Cancel</button>
+                <button onClick={() => setCompleteModal(null)} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white hover:border-white/20 transition-colors">Cancel</button>
                 <button onClick={completeJob} disabled={!completionData.actual_hours || completing} className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">{completing ? 'Saving...' : 'Complete Job'}</button>
               </div>
             </div>
@@ -644,22 +644,22 @@ export default function QuotesPage() {
               <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-medium text-white">{scheduleModal.aircraft_model || scheduleModal.aircraft_type || 'Aircraft'}</span>
-                  <span className="font-bold text-[#C9A84C] font-data">{currencySymbol()}{formatPrice(scheduleModal.total_price)}</span>
+                  <span className="font-bold text-v-gold font-data">{currencySymbol()}{formatPrice(scheduleModal.total_price)}</span>
                 </div>
-                <p className="text-xs text-[#8A9BB0]">{getDisplayName(scheduleModal)}</p>
+                <p className="text-xs text-v-text-secondary">{getDisplayName(scheduleModal)}</p>
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-wider text-[#8A9BB0] mb-1">Service Date & Time</label>
+                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Service Date & Time</label>
                 <input
                   type="datetime-local"
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
                   min={new Date().toISOString().slice(0, 16)}
-                  className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 focus:border-[#C9A84C]/40 focus:outline-none"
+                  className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none"
                 />
               </div>
               <div className="flex justify-end space-x-3 mt-5">
-                <button onClick={() => { setScheduleModal(null); setScheduleDate(''); }} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white hover:border-white/20 transition-colors">Cancel</button>
+                <button onClick={() => { setScheduleModal(null); setScheduleDate(''); }} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white hover:border-white/20 transition-colors">Cancel</button>
                 <button onClick={submitSchedule} disabled={!scheduleDate || scheduling} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{scheduling ? 'Scheduling...' : 'Schedule & Notify'}</button>
               </div>
             </div>
@@ -671,10 +671,10 @@ export default function QuotesPage() {
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-sm">
               <h3 className="text-lg font-semibold text-white mb-2">{bulkConfirm.label}</h3>
-              <p className="text-sm text-[#8A9BB0] mb-6">{bulkConfirm.description}</p>
+              <p className="text-sm text-v-text-secondary mb-6">{bulkConfirm.description}</p>
               <div className="flex justify-end gap-3">
-                <button onClick={() => setBulkConfirm(null)} disabled={bulkProcessing} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white transition-colors disabled:opacity-50">Cancel</button>
-                <button onClick={() => executeBulkAction(bulkConfirm.action)} disabled={bulkProcessing} className={`px-4 py-2 text-white disabled:opacity-50 ${bulkConfirm.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : bulkConfirm.action === 'expire' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#C9A84C] hover:bg-[#b8993f] text-[#0D1B2A]'}`}>{bulkProcessing ? 'Processing...' : 'Confirm'}</button>
+                <button onClick={() => setBulkConfirm(null)} disabled={bulkProcessing} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white transition-colors disabled:opacity-50">Cancel</button>
+                <button onClick={() => executeBulkAction(bulkConfirm.action)} disabled={bulkProcessing} className={`px-4 py-2 text-white disabled:opacity-50 ${bulkConfirm.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : bulkConfirm.action === 'expire' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-v-gold hover:bg-v-gold-dim text-white'}`}>{bulkProcessing ? 'Processing...' : 'Confirm'}</button>
               </div>
             </div>
           </div>
@@ -685,25 +685,25 @@ export default function QuotesPage() {
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-2 text-white">Duplicate Quote</h3>
-              <p className="text-[#8A9BB0] mb-4">Create a copy of this quote with new customer details.</p>
+              <p className="text-v-text-secondary mb-4">Create a copy of this quote with new customer details.</p>
               <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-medium text-white">{duplicateModal.aircraft_model || duplicateModal.aircraft_type || 'Aircraft'}</span>
-                  <span className="font-bold text-[#C9A84C] font-data">{currencySymbol()}{formatPrice(duplicateModal.total_price)}</span>
+                  <span className="font-bold text-v-gold font-data">{currencySymbol()}{formatPrice(duplicateModal.total_price)}</span>
                 </div>
                 {duplicateModal.line_items && duplicateModal.line_items.length > 0 && (
-                  <div className="mt-1">{duplicateModal.line_items.slice(0, 4).map((li, i) => (<span key={i} className="text-xs text-[#8A9BB0]">{li.description || li.service}{i < Math.min(duplicateModal.line_items.length, 4) - 1 ? ', ' : ''}</span>))}{duplicateModal.line_items.length > 4 && <span className="text-xs text-[#8A9BB0]/60"> {`+${duplicateModal.line_items.length - 4} more`}</span>}</div>
+                  <div className="mt-1">{duplicateModal.line_items.slice(0, 4).map((li, i) => (<span key={i} className="text-xs text-v-text-secondary">{li.description || li.service}{i < Math.min(duplicateModal.line_items.length, 4) - 1 ? ', ' : ''}</span>))}{duplicateModal.line_items.length > 4 && <span className="text-xs text-v-text-secondary/60"> {`+${duplicateModal.line_items.length - 4} more`}</span>}</div>
                 )}
               </div>
               <div className="space-y-3">
-                <div><label className="block text-xs uppercase tracking-wider text-[#8A9BB0] mb-1">Client Name</label><input type="text" value={duplicateData.client_name} onChange={(e) => setDuplicateData({ ...duplicateData, client_name: e.target.value })} placeholder="Client Name" className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 focus:border-[#C9A84C]/40 focus:outline-none" /></div>
-                <div><label className="block text-xs uppercase tracking-wider text-[#8A9BB0] mb-1">Client Email</label><input type="email" value={duplicateData.client_email} onChange={(e) => setDuplicateData({ ...duplicateData, client_email: e.target.value })} placeholder="customer@email.com" className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 focus:border-[#C9A84C]/40 focus:outline-none" /></div>
-                <div><label className="block text-xs uppercase tracking-wider text-[#8A9BB0] mb-1">Phone (optional)</label><input type="tel" value={duplicateData.client_phone} onChange={(e) => setDuplicateData({ ...duplicateData, client_phone: e.target.value })} placeholder="(555) 123-4567" className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 focus:border-[#C9A84C]/40 focus:outline-none" /></div>
-                <div><label className="block text-xs uppercase tracking-wider text-[#8A9BB0] mb-1">Notes (optional)</label><textarea value={duplicateData.notes} onChange={(e) => setDuplicateData({ ...duplicateData, notes: e.target.value })} placeholder="Add notes for this quote..." className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 resize-none focus:border-[#C9A84C]/40 focus:outline-none" rows={2} /></div>
+                <div><label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Client Name</label><input type="text" value={duplicateData.client_name} onChange={(e) => setDuplicateData({ ...duplicateData, client_name: e.target.value })} placeholder="Client Name" className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none" /></div>
+                <div><label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Client Email</label><input type="email" value={duplicateData.client_email} onChange={(e) => setDuplicateData({ ...duplicateData, client_email: e.target.value })} placeholder="customer@email.com" className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none" /></div>
+                <div><label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Phone (optional)</label><input type="tel" value={duplicateData.client_phone} onChange={(e) => setDuplicateData({ ...duplicateData, client_phone: e.target.value })} placeholder="(555) 123-4567" className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none" /></div>
+                <div><label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Notes (optional)</label><textarea value={duplicateData.notes} onChange={(e) => setDuplicateData({ ...duplicateData, notes: e.target.value })} placeholder="Add notes for this quote..." className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 resize-none focus:border-v-gold/40 focus:outline-none" rows={2} /></div>
               </div>
               <div className="flex justify-end space-x-3 mt-5">
-                <button onClick={() => setDuplicateModal(null)} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white transition-colors">Cancel</button>
-                <button onClick={submitDuplicate} disabled={duplicating} className="px-4 py-2 bg-[#C9A84C] text-[#0D1B2A] hover:bg-[#b8993f] disabled:opacity-50 font-medium">{duplicating ? 'Creating...' : 'Duplicate Quote'}</button>
+                <button onClick={() => setDuplicateModal(null)} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white transition-colors">Cancel</button>
+                <button onClick={submitDuplicate} disabled={duplicating} className="px-4 py-2 bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50 font-medium">{duplicating ? 'Creating...' : 'Duplicate Quote'}</button>
               </div>
             </div>
           </div>
@@ -714,32 +714,32 @@ export default function QuotesPage() {
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-2 text-white">Change Order</h3>
-              <p className="text-[#8A9BB0] mb-4">{changeOrderModal.aircraft_model || changeOrderModal.aircraft_type}{changeOrderModal.client_name && ` - ${changeOrderModal.client_name}`}</p>
-              <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4"><p className="text-sm text-[#8A9BB0]"><strong className="text-white">Current Quote Total:</strong> <span className="text-[#C9A84C] font-data">{currencySymbol()}{formatPrice(changeOrderModal.total_price)}</span></p></div>
+              <p className="text-v-text-secondary mb-4">{changeOrderModal.aircraft_model || changeOrderModal.aircraft_type}{changeOrderModal.client_name && ` - ${changeOrderModal.client_name}`}</p>
+              <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4"><p className="text-sm text-v-text-secondary"><strong className="text-white">Current Quote Total:</strong> <span className="text-v-gold font-data">{currencySymbol()}{formatPrice(changeOrderModal.total_price)}</span></p></div>
               <div className="space-y-4">
                 <div>
-                  <div className="flex justify-between items-center mb-2"><label className="block text-sm font-medium text-white">Additional Services</label><button type="button" onClick={addChangeOrderService} className="text-[#C9A84C] hover:text-[#b8993f] text-sm font-medium">+ Add Service</button></div>
+                  <div className="flex justify-between items-center mb-2"><label className="block text-sm font-medium text-white">Additional Services</label><button type="button" onClick={addChangeOrderService} className="text-v-gold hover:text-[#b8993f] text-sm font-medium">+ Add Service</button></div>
                   <div className="space-y-2">
                     {changeOrderData.services.map((svc, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <input type="text" value={svc.name} onChange={(e) => updateChangeOrderService(idx, 'name', e.target.value)} placeholder="Service name" className="flex-1 bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 text-sm" />
-                        <div className="flex items-center gap-1"><span className="text-sm text-[#8A9BB0]">{currencySymbol()}</span><input type="number" value={svc.amount} onChange={(e) => updateChangeOrderService(idx, 'amount', e.target.value)} placeholder="0.00" className="w-24 bg-[#0D1B2A] border border-[#2A3A50] text-white px-2 py-2 text-sm text-right" /></div>
+                        <input type="text" value={svc.name} onChange={(e) => updateChangeOrderService(idx, 'name', e.target.value)} placeholder="Service name" className="flex-1 bg-v-charcoal border border-v-border text-white px-3 py-2 text-sm" />
+                        <div className="flex items-center gap-1"><span className="text-sm text-v-text-secondary">{currencySymbol()}</span><input type="number" value={svc.amount} onChange={(e) => updateChangeOrderService(idx, 'amount', e.target.value)} placeholder="0.00" className="w-24 bg-v-charcoal border border-v-border text-white px-2 py-2 text-sm text-right" /></div>
                         {changeOrderData.services.length > 1 && <button type="button" onClick={() => removeChangeOrderService(idx)} className="text-red-400 hover:text-red-300">&times;</button>}
                       </div>
                     ))}
                   </div>
                 </div>
-                <div><label className="block text-sm font-medium text-white mb-1">Reason (optional)</label><textarea value={changeOrderData.reason} onChange={(e) => setChangeOrderData({ ...changeOrderData, reason: e.target.value })} placeholder="Reason for the change order..." className="w-full bg-[#0D1B2A] border border-[#2A3A50] text-white px-3 py-2 text-sm" rows={2} /></div>
+                <div><label className="block text-sm font-medium text-white mb-1">Reason (optional)</label><textarea value={changeOrderData.reason} onChange={(e) => setChangeOrderData({ ...changeOrderData, reason: e.target.value })} placeholder="Reason for the change order..." className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 text-sm" rows={2} /></div>
                 {changeOrderData.services.some(s => s.amount) && (
                   <div className="bg-[#0F1117] border border-[#1A2236] p-3">
-                    <div className="flex justify-between text-sm"><span className="text-[#8A9BB0]">Additional Amount:</span><span className="text-[#C9A84C] font-data font-semibold">{currencySymbol()}{changeOrderData.services.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0).toFixed(2)}</span></div>
-                    <div className="flex justify-between text-sm mt-1"><span className="text-[#8A9BB0]">New Total:</span><span className="text-white font-data font-semibold">{currencySymbol()}{((changeOrderModal.total_price || 0) + changeOrderData.services.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0)).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-v-text-secondary">Additional Amount:</span><span className="text-v-gold font-data font-semibold">{currencySymbol()}{changeOrderData.services.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm mt-1"><span className="text-v-text-secondary">New Total:</span><span className="text-white font-data font-semibold">{currencySymbol()}{((changeOrderModal.total_price || 0) + changeOrderData.services.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0)).toFixed(2)}</span></div>
                   </div>
                 )}
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <button onClick={() => setChangeOrderModal(null)} className="px-4 py-2 border border-[#2A3A50] text-[#8A9BB0] hover:text-white transition-colors">Cancel</button>
-                <button onClick={submitChangeOrder} disabled={submittingChangeOrder} className="px-4 py-2 bg-[#C9A84C] text-[#0D1B2A] hover:bg-[#b8993f] disabled:opacity-50 font-medium">{submittingChangeOrder ? 'Sending...' : 'Send Change Order'}</button>
+                <button onClick={() => setChangeOrderModal(null)} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white transition-colors">Cancel</button>
+                <button onClick={submitChangeOrder} disabled={submittingChangeOrder} className="px-4 py-2 bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50 font-medium">{submittingChangeOrder ? 'Sending...' : 'Send Change Order'}</button>
               </div>
             </div>
           </div>

@@ -323,14 +323,14 @@ export default function EquipmentPage() {
       {/* Header */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 text-white">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-amber-400">&#8592;</a>
+          <a href="/dashboard" className="text-2xl hover:text-v-gold">&#8592;</a>
           <h1 className="text-2xl font-bold">{'Equipment Tracker'}</h1>
         </div>
         <div className="flex items-center gap-3">
           <a href="/products" className="text-sm text-white/70 hover:text-white underline">{'Inventory'}</a>
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium rounded-lg hover:opacity-90"
+            className="px-4 py-2 bg-v-gold text-white font-medium rounded-lg"
           >
             {'+ Add Equipment'}
           </button>
@@ -370,8 +370,8 @@ export default function EquipmentPage() {
 
         {/* Maintenance Alerts */}
         {attentionItems.length > 0 && (
-          <div className="bg-red-900/20 border border-red-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-red-900 mb-2">{'Needs Attention'}</h3>
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-red-400 mb-2">{'Needs Attention'}</h3>
             <div className="space-y-2">
               {attentionItems.map((item) => {
                 const maintDays = daysUntil(item.next_maintenance);
@@ -409,8 +409,8 @@ export default function EquipmentPage() {
 
         {/* ROI Leaderboard */}
         {sortedByROI.length > 0 && (
-          <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-emerald-900 mb-3">{'Best ROI Equipment'}</h3>
+          <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-green-400 mb-3">{'Best ROI Equipment'}</h3>
             <div className="space-y-2">
               {sortedByROI.slice(0, 3).map((item, idx) => (
                 <div key={item.id} className="flex items-center justify-between bg-v-surface rounded-lg px-3 py-2">
@@ -447,7 +447,7 @@ export default function EquipmentPage() {
               onClick={() => setFilter(f.key)}
               className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap ${
                 filter === f.key
-                  ? 'bg-amber-900/200 text-white'
+                  ? 'bg-v-gold text-white'
                   : 'bg-v-surface text-v-text-secondary hover:bg-white/5'
               }`}
             >
@@ -466,7 +466,7 @@ export default function EquipmentPage() {
                 <p className="text-v-text-secondary mt-2">{'Add your tools and equipment to track usage, maintenance, and ROI'}</p>
                 <button
                   onClick={() => handleOpenModal()}
-                  className="mt-4 px-4 py-2 bg-amber-900/200 text-white font-medium rounded-lg hover:bg-amber-600"
+                  className="mt-4 px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-lg"
                 >
                   {'Add Your First Equipment'}
                 </button>
@@ -501,7 +501,7 @@ export default function EquipmentPage() {
                             {/* Name + Status row */}
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.product_url ? (
-                                <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-v-text-primary hover:text-amber-600 underline decoration-gray-300 hover:decoration-amber-500">{item.name}</a>
+                                <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-v-text-primary hover:text-v-gold underline decoration-v-border hover:decoration-v-gold">{item.name}</a>
                               ) : (
                                 <p className="font-semibold text-v-text-primary">{item.name}</p>
                               )}
@@ -615,15 +615,15 @@ export default function EquipmentPage() {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Product Link Auto-fill */}
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-3">
-                <label className="block text-sm font-semibold text-amber-800 mb-1.5">{'Paste Product Link'}</label>
+              <div className="bg-v-gold/10 border border-v-gold/30 rounded-lg p-3">
+                <label className="block text-sm font-semibold text-v-gold mb-1.5">{'Paste Product Link'}</label>
                 <div className="flex gap-2">
                   <input
                     type="url"
                     value={scrapeUrl}
                     onChange={handlePasteUrl}
                     placeholder={'https://www.amazon.com/... or any product page'}
-                    className="flex-1 border border-amber-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-v-surface"
+                    className="flex-1 border border-v-gold/30 rounded-lg px-3 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none bg-v-surface"
                   />
                   {scraping && (
                     <div className="flex items-center px-3">
@@ -634,7 +634,7 @@ export default function EquipmentPage() {
                 {scrapeError && (
                   <p className="text-xs text-red-600 mt-1">{scrapeError}</p>
                 )}
-                <p className="text-xs text-amber-600 mt-1">{'Supports Amazon, Home Depot, Grainger, Detail King, Rupes, Autogeek, Fly Shiny, Real Clean Aviation, Skygeek, Aircraft Spruce, Chief Aircraft, Nuvite & more'}</p>
+                <p className="text-xs text-v-gold/80 mt-1">{'Supports Amazon, Home Depot, Grainger, Detail King, Rupes, Autogeek, Fly Shiny, Real Clean Aviation, Skygeek, Aircraft Spruce, Chief Aircraft, Nuvite & more'}</p>
               </div>
 
               {/* Image preview from scrape */}
@@ -663,7 +663,7 @@ export default function EquipmentPage() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                   placeholder={'e.g., Rupes LHR21 Mark III'}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -676,7 +676,7 @@ export default function EquipmentPage() {
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                     placeholder={'e.g., Rupes'}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
                 <div>
@@ -686,7 +686,7 @@ export default function EquipmentPage() {
                     value={formData.model}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                     placeholder={'e.g., LHR21 Mark III'}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
               </div>
@@ -698,7 +698,7 @@ export default function EquipmentPage() {
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   >
                     {categories.length > 0 ? (
                       categories.map((cat) => (
@@ -716,7 +716,7 @@ export default function EquipmentPage() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   >
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -735,7 +735,7 @@ export default function EquipmentPage() {
                     value={formData.purchasePrice}
                     onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
                     placeholder="0.00"
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
                 <div>
@@ -744,7 +744,7 @@ export default function EquipmentPage() {
                     type="date"
                     value={formData.purchaseDate}
                     onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
               </div>
@@ -757,7 +757,7 @@ export default function EquipmentPage() {
                     type="date"
                     value={formData.warrantyExpiry}
                     onChange={(e) => setFormData({ ...formData, warrantyExpiry: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
                 <div>
@@ -766,7 +766,7 @@ export default function EquipmentPage() {
                     type="date"
                     value={formData.nextMaintenance}
                     onChange={(e) => setFormData({ ...formData, nextMaintenance: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                 </div>
               </div>
@@ -779,7 +779,7 @@ export default function EquipmentPage() {
                   onChange={(e) => setFormData({ ...formData, maintenanceNotes: e.target.value })}
                   rows={2}
                   placeholder={'Maintenance schedule, repair history, parts to order...'}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                  className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none resize-none"
                 />
               </div>
 
@@ -794,7 +794,7 @@ export default function EquipmentPage() {
                 <button
                   type="submit"
                   disabled={saving || !formData.name}
-                  className="px-4 py-2 bg-amber-900/200 text-white font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50"
+                  className="px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-lg disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : editingItem ? 'Edit Equipment' : '+ Add Equipment'}
                 </button>

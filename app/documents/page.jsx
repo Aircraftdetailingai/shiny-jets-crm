@@ -256,7 +256,7 @@ export default function DocumentsPage() {
   if (loading) {
     return (
       <div className="page-transition min-h-screen bg-v-charcoal flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-v-gold" />
       </div>
     );
   }
@@ -271,7 +271,7 @@ export default function DocumentsPage() {
         </div>
         <button
           onClick={openUploadModal}
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90 shadow"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-v-gold text-white shadow"
         >
           {'+ Upload Document'}
         </button>
@@ -290,15 +290,15 @@ export default function DocumentsPage() {
 
       {/* Expiring Soon Alert */}
       {expiringSoon.length > 0 && (
-        <div className="bg-amber-900/20 border border-amber-300 rounded-lg p-3 mb-4">
-          <p className="text-amber-800 font-medium text-sm">
+        <div className="bg-amber-900/20 border border-v-gold/40 rounded-lg p-3 mb-4">
+          <p className="text-v-gold font-medium text-sm">
             {expiringSoon.length} {'documents expiring soon or expired'}
           </p>
           <div className="mt-1 space-y-0.5">
             {expiringSoon.map(d => {
               const days = daysUntilExpiry(d.expires_at);
               return (
-                <p key={d.id} className="text-xs text-amber-700">
+                <p key={d.id} className="text-xs text-v-gold/80">
                   {d.name} — {days < 0 ? <span className="text-red-600 font-medium">expired {formatDate(d.expires_at)}</span> : `expires ${formatDate(d.expires_at)}`}
                 </p>
               );
@@ -315,7 +315,7 @@ export default function DocumentsPage() {
             onClick={() => setFilter(filter === cat.value ? 'all' : cat.value)}
             className={`rounded-lg p-3 text-left transition shadow ${
               filter === cat.value
-                ? 'bg-amber-900/200 text-white ring-2 ring-amber-300'
+                ? 'bg-v-gold text-white ring-2 ring-v-gold/50'
                 : 'bg-v-surface hover:bg-white/5'
             }`}
           >
@@ -337,7 +337,7 @@ export default function DocumentsPage() {
             key={c.value}
             onClick={() => setFilter(c.value)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === c.value ? 'bg-amber-900/200 text-white' : 'bg-white/10 text-white hover:bg-white/20'
+              filter === c.value ? 'bg-v-gold text-white' : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
             {c.label}
@@ -353,7 +353,7 @@ export default function DocumentsPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
           <p className="text-v-text-secondary mb-2">{'No documents yet'}</p>
-          <button onClick={openUploadModal} className="text-amber-600 hover:text-amber-700 font-medium text-sm">
+          <button onClick={openUploadModal} className="text-v-gold hover:text-v-gold/80 font-medium text-sm">
             {'Upload your first document'}
           </button>
         </div>
@@ -365,7 +365,7 @@ export default function DocumentsPage() {
             return (
               <div
                 key={doc.id}
-                className={`bg-v-surface rounded-lg p-4 shadow hover:shadow-md transition-shadow ${isExpiring ? 'border-l-4 border-amber-400' : ''}`}
+                className={`bg-v-surface rounded-lg p-4 shadow hover:shadow-md transition-shadow ${isExpiring ? 'border-l-4 border-v-gold' : ''}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -387,7 +387,7 @@ export default function DocumentsPage() {
                       </p>
                       {doc.notes && <p className="text-xs text-v-text-secondary mt-1 truncate">{doc.notes}</p>}
                       {doc.expires_at && (
-                        <p className={`text-xs mt-1 ${days < 0 ? 'text-red-500' : days <= 30 ? 'text-amber-500' : 'text-v-text-secondary'}`}>
+                        <p className={`text-xs mt-1 ${days < 0 ? 'text-red-500' : days <= 30 ? 'text-v-gold' : 'text-v-text-secondary'}`}>
                           {days < 0 ? 'Expired' : 'Expires in'} {formatDate(doc.expires_at)}
                         </p>
                       )}
@@ -447,17 +447,17 @@ export default function DocumentsPage() {
             <div
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition mb-4 ${
-                uploadFile ? 'border-amber-400 bg-amber-900/20' : 'border-v-border hover:border-gray-400'
+                uploadFile ? 'border-v-gold bg-v-gold/20' : 'border-v-border hover:border-gray-400'
               }`}
             >
               {uploadFile ? (
                 <div>
-                  <svg className="w-8 h-8 text-amber-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-v-gold mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <p className="text-sm font-medium text-v-text-primary">{uploadFile.name}</p>
                   <p className="text-xs text-v-text-secondary">{formatFileSize(uploadFile.size)}</p>
-                  <p className="text-xs text-amber-600 mt-1">{'Click to change file'}</p>
+                  <p className="text-xs text-v-gold mt-1">{'Click to change file'}</p>
                 </div>
               ) : (
                 <div>
@@ -485,7 +485,7 @@ export default function DocumentsPage() {
                   value={uploadName}
                   onChange={e => setUploadName(e.target.value)}
                   placeholder="e.g. Liability Insurance 2026"
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -499,7 +499,7 @@ export default function DocumentsPage() {
                       onClick={() => setUploadCategory(cat.value)}
                       className={`px-2 py-1.5 rounded-lg text-xs font-medium border transition ${
                         uploadCategory === cat.value
-                          ? 'bg-amber-900/200 text-white border-amber-500'
+                          ? 'bg-v-gold text-white border-v-gold'
                           : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
                       }`}
                     >
@@ -515,7 +515,7 @@ export default function DocumentsPage() {
                   type="date"
                   value={uploadExpiry}
                   onChange={e => setUploadExpiry(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -526,7 +526,7 @@ export default function DocumentsPage() {
                   onChange={e => setUploadNotes(e.target.value)}
                   rows={2}
                   placeholder="Policy number, renewal info, etc."
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none resize-none"
                 />
               </div>
             </div>
@@ -538,7 +538,7 @@ export default function DocumentsPage() {
               <button
                 onClick={handleUpload}
                 disabled={!uploadFile || uploading}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 text-sm"
+                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm"
               >
                 {uploading ? 'Uploading...' : 'Upload'}
               </button>
@@ -563,7 +563,7 @@ export default function DocumentsPage() {
                   type="text"
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -577,7 +577,7 @@ export default function DocumentsPage() {
                       onClick={() => setEditCategory(cat.value)}
                       className={`px-2 py-1.5 rounded-lg text-xs font-medium border transition ${
                         editCategory === cat.value
-                          ? 'bg-amber-900/200 text-white border-amber-500'
+                          ? 'bg-v-gold text-white border-v-gold'
                           : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
                       }`}
                     >
@@ -593,7 +593,7 @@ export default function DocumentsPage() {
                   type="date"
                   value={editExpiry}
                   onChange={e => setEditExpiry(e.target.value)}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                 />
               </div>
 
@@ -603,7 +603,7 @@ export default function DocumentsPage() {
                   value={editNotes}
                   onChange={e => setEditNotes(e.target.value)}
                   rows={2}
-                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                  className="w-full border border-v-border rounded-lg px-3 py-2 text-sm bg-v-surface text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none resize-none"
                 />
               </div>
             </div>
@@ -615,7 +615,7 @@ export default function DocumentsPage() {
               <button
                 onClick={saveEdit}
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 text-sm"
+                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm"
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
