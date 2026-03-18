@@ -86,6 +86,9 @@ function SettingsContent() {
     notViewed: { enabled: true, days: 3 },
     viewedNotAccepted: { enabled: true, days: 5 },
     expiryWarning: { enabled: true, days: 2 },
+    includeAvailableDates: true,
+    availabilityConflict: { enabled: true },
+    expiredRecovery: { enabled: true },
   });
 
   // Platform fee pass-through
@@ -2496,7 +2499,7 @@ function SettingsContent() {
           </div>
 
           {/* Expiry Warning */}
-          <div className="py-3">
+          <div className="py-3 border-b border-v-border/50">
             <label className="flex items-center justify-between cursor-pointer">
               <div className="flex-1 mr-4">
                 <p className="text-sm font-medium text-v-text-primary">Expiry warning</p>
@@ -2529,6 +2532,63 @@ function SettingsContent() {
                 <span className="text-xs text-v-text-secondary">days before expiry</span>
               </div>
             )}
+          </div>
+
+          {/* Include Available Dates */}
+          <div className="py-3 border-b border-v-border/50">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-v-text-primary">Include available dates in follow-ups</p>
+                <p className="text-xs text-v-text-secondary">Show your next available dates in follow-up emails to create urgency</p>
+              </div>
+              <div
+                onClick={() => {
+                  setFollowupSettings(prev => ({ ...prev, includeAvailableDates: !prev.includeAvailableDates }));
+                  markDirty('automation');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.includeAvailableDates ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.includeAvailableDates ? 'translate-x-5' : ''}`} />
+              </div>
+            </label>
+          </div>
+
+          {/* Availability Conflict */}
+          <div className="py-3 border-b border-v-border/50">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-v-text-primary">Date availability update</p>
+                <p className="text-xs text-v-text-secondary">Notify customers if their scheduled date becomes unavailable</p>
+              </div>
+              <div
+                onClick={() => {
+                  setFollowupSettings(prev => ({ ...prev, availabilityConflict: { ...prev.availabilityConflict, enabled: !prev.availabilityConflict.enabled } }));
+                  markDirty('automation');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.availabilityConflict?.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.availabilityConflict?.enabled ? 'translate-x-5' : ''}`} />
+              </div>
+            </label>
+          </div>
+
+          {/* Expired Quote Recovery */}
+          <div className="py-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex-1 mr-4">
+                <p className="text-sm font-medium text-v-text-primary">Expired quote recovery</p>
+                <p className="text-xs text-v-text-secondary">Send a recovery email when a quote expires without booking</p>
+              </div>
+              <div
+                onClick={() => {
+                  setFollowupSettings(prev => ({ ...prev, expiredRecovery: { ...prev.expiredRecovery, enabled: !prev.expiredRecovery.enabled } }));
+                  markDirty('automation');
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${followupSettings.expiredRecovery?.enabled ? 'bg-amber-500' : 'bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${followupSettings.expiredRecovery?.enabled ? 'translate-x-5' : ''}`} />
+              </div>
+            </label>
           </div>
         </div>
 
