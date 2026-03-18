@@ -38,6 +38,7 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -108,11 +109,13 @@ export default function InventoryPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError('Name is required'); return; }
-    if (!form.points_cost) { setError('Points cost is required'); return; }
+    if (!form.name.trim()) { setFormError('Name is required'); return; }
+    if (!form.points_cost) { setFormError('Points cost is required'); return; }
 
     setSaving(true);
+    setFormError('');
     setError('');
+    console.log('[Admin Inventory] Form submission fired', { editingId, name: form.name });
     try {
       const payload = {
         name: form.name,
@@ -131,19 +134,48 @@ export default function InventoryPage() {
       const method = editingId ? 'PUT' : 'POST';
       if (editingId) payload.id = editingId;
 
+      console.log('[Admin Inventory] API called', { method, payload });
       const res = await fetch('/api/admin/inventory', { method, headers, body: JSON.stringify(payload) });
+      console.log('[Admin Inventory] Response received', { status: res.status, ok: res.ok });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const msg = errData?.error || `Server error (${res.status})`;
+        console.error('[Admin Inventory] API error:', msg);
+        setFormError(msg);
+        return;
+      }
+
       const data = await res.json();
 
-      if (data.error) { setError(data.error); return; }
+      if (data.error) {
+        console.error('[Admin Inventory] Data error:', data.error);
+        setFormError(data.error);
+        return;
+      }
 
-      setSuccess(editingId ? 'Item updated!' : 'Item created!');
+      console.log('[Admin Inventory] Save success', data.item?.id);
+
+      // Optimistic update: add/update item in local state immediately
+      if (editingId && data.item) {
+        setItems(prev => prev.map(i => i.id === editingId ? { ...i, ...data.item } : i));
+      } else if (data.item) {
+        setItems(prev => [{ ...data.item, redeemed_count: 0 }, ...prev]);
+      }
+
+      const msg = editingId ? 'Item updated!' : 'Product added!';
+      setSuccess(msg);
       setShowForm(false);
       setEditingId(null);
       setForm({ ...EMPTY_FORM });
-      await fetchItems();
+      setFormError('');
+
+      // Background refresh for accurate data
+      fetchItems().catch(() => {});
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message);
+      console.error('[Admin Inventory] Save exception:', err);
+      setFormError(err.message || 'Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -168,6 +200,7 @@ export default function InventoryPage() {
       credit_plan: rewardVal.plan || 'pro',
     });
     setEditingId(item.id);
+    setFormError('');
     setShowForm(true);
   };
 
@@ -239,7 +272,7 @@ export default function InventoryPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-v-text-primary font-heading">Reward Inventory</h1>
           <button
-            onClick={() => { setForm({ ...EMPTY_FORM }); setEditingId(null); setShowForm(true); }}
+            onClick={() => { setForm({ ...EMPTY_FORM }); setEditingId(null); setFormError(''); setShowForm(true); }}
             className="text-v-gold hover:text-v-gold-dim text-sm font-medium border-b border-v-gold/50 hover:border-v-gold transition-colors"
           >
             + Add New Product
@@ -408,6 +441,10 @@ export default function InventoryPage() {
                 </label>
               </div>
             </div>
+
+            {formError && (
+              <div className="mt-4 p-3 bg-red-900/30 border border-red-600/30 rounded-sm text-red-400 text-sm">{formError}</div>
+            )}
 
             <div className="mt-4 flex items-center gap-3">
               <button
