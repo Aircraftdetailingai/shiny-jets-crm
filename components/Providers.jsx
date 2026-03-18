@@ -4,6 +4,7 @@ import ErrorBoundary from './ErrorBoundary';
 import OfflineBanner from './OfflineBanner';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import GlobalSearch from './GlobalSearch';
+import ThemeInit from './ThemeInit';
 import { I18nProvider } from '@/lib/i18n';
 
 export default function Providers({ children }) {
@@ -11,6 +12,7 @@ export default function Providers({ children }) {
     <ErrorBoundary>
       <I18nProvider>
         <ToastProvider>
+          <ThemeInit />
           <OfflineBanner />
           {children}
           <KeyboardShortcuts />
