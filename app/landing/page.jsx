@@ -478,7 +478,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="w-6 h-[1px] bg-v-gold" />
-            <span className="text-[#F5F5F5] text-xs tracking-[0.2em] uppercase font-light">Vector Aviation</span>
+            <span className="text-[#F5F5F5] text-xs tracking-[0.2em] uppercase font-light">&copy; 2026 Vector Aviation Artificial Intelligence LLC</span>
           </div>
           <div className="flex items-center gap-8 text-[10px] tracking-[0.2em] uppercase text-[#8A9BB0]">
             <a href="/login" className="hover:text-v-gold transition-colors">Sign In</a>

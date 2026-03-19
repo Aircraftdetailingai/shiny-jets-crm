@@ -330,12 +330,30 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">21. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">21. Accessibility (ADA Compliance)</h2>
+            <p>
+              Vector Aviation Artificial Intelligence LLC is committed to ensuring digital accessibility
+              for people with disabilities. We continually improve the user experience for everyone and
+              apply the relevant accessibility standards to ensure we provide equal access to all users.
+            </p>
+            <p className="mt-2">
+              We endeavor to conform to Web Content Accessibility Guidelines (WCAG) 2.1 Level AA. If you
+              experience any difficulty accessing any part of the Platform, please contact us at{' '}
+              <a href="mailto:support@vectorav.ai" className="text-v-gold-dim hover:underline">
+                support@vectorav.ai
+              </a>{' '}
+              and we will work with you to provide the information or service you need through an
+              alternative communication method that is accessible to you.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">22. Contact Information</h2>
             <p>
               For questions about these Terms of Service, contact us at:
             </p>
             <p className="mt-2">
-              Vector Aviation Artificial Intelligence<br />
+              Vector Aviation Artificial Intelligence LLC<br />
               Email:{' '}
               <a href="mailto:support@vectorav.ai" className="text-v-gold-dim hover:underline">
                 support@vectorav.ai
