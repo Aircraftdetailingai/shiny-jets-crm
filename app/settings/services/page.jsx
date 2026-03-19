@@ -4,28 +4,24 @@ import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { currencySymbol } from '@/lib/formatPrice';
 
-const HOURS_FIELD_OPTIONS = {
-  ext_wash_hours: 'Exterior Wash Time',
-  int_detail_hours: 'Interior Detail Time',
-  leather_hours: 'Leather Treatment Time',
-  carpet_hours: 'Carpet Cleaning Time',
-  wax_hours: 'Wax Application Time',
-  polish_hours: 'Polish Time',
-  ceramic_hours: 'Ceramic Coating Time',
-  brightwork_hours: 'Brightwork Time',
+const CATEGORY_OPTIONS = {
+  exterior: 'Exterior',
+  interior: 'Interior',
+  package: 'Package',
+  other: 'Other',
 };
 
 const DEFAULT_SERVICES = [
-  { name: 'Maintenance Wash', description: 'Regular exterior wash', hourly_rate: 120, hours_field: 'ext_wash_hours' },
-  { name: 'Decon Wash', description: 'Deep clean with iron remover and clay bar', hourly_rate: 130, hours_field: 'ext_wash_hours' },
-  { name: 'One-Step Polish', description: 'Light polish to remove minor swirls', hourly_rate: 140, hours_field: 'polish_hours' },
-  { name: 'Wax Application', description: 'Protective wax coating', hourly_rate: 100, hours_field: 'wax_hours' },
-  { name: 'Spray Ceramic', description: 'Ceramic spray sealant', hourly_rate: 120, hours_field: 'ceramic_hours' },
-  { name: 'Ceramic Coating', description: 'Professional ceramic coating, 2+ year protection', hourly_rate: 175, hours_field: 'ceramic_hours' },
-  { name: 'Vacuum & Wipe Down', description: 'Interior vacuum and surface wipe', hourly_rate: 100, hours_field: 'int_detail_hours' },
-  { name: 'Carpet Extraction', description: 'Deep carpet and upholstery cleaning', hourly_rate: 110, hours_field: 'carpet_hours' },
-  { name: 'Leather Clean & Condition', description: 'Full leather treatment', hourly_rate: 115, hours_field: 'leather_hours' },
-  { name: 'Polish Brightwork', description: 'Metal and chrome polishing', hourly_rate: 130, hours_field: 'brightwork_hours' },
+  { name: 'Maintenance Wash', description: 'Regular exterior wash', hourly_rate: 120, category: 'exterior' },
+  { name: 'Decon Wash', description: 'Deep clean with iron remover and clay bar', hourly_rate: 130, category: 'exterior' },
+  { name: 'One-Step Polish', description: 'Light polish to remove minor swirls', hourly_rate: 140, category: 'exterior' },
+  { name: 'Wax Application', description: 'Protective wax coating', hourly_rate: 100, category: 'exterior' },
+  { name: 'Spray Ceramic', description: 'Ceramic spray sealant', hourly_rate: 120, category: 'exterior' },
+  { name: 'Ceramic Coating', description: 'Professional ceramic coating, 2+ year protection', hourly_rate: 175, category: 'exterior' },
+  { name: 'Vacuum & Wipe Down', description: 'Interior vacuum and surface wipe', hourly_rate: 100, category: 'interior' },
+  { name: 'Carpet Extraction', description: 'Deep carpet and upholstery cleaning', hourly_rate: 110, category: 'interior' },
+  { name: 'Leather Clean & Condition', description: 'Full leather treatment', hourly_rate: 115, category: 'interior' },
+  { name: 'Polish Brightwork', description: 'Metal and chrome polishing', hourly_rate: 130, category: 'exterior' },
 ];
 
 const DEFAULT_ADDON_FEES = [
@@ -60,7 +56,7 @@ export default function ServicesPage() {
   // Service form
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState(null);
-  const [newService, setNewService] = useState({ name: '', description: '', hourly_rate: '', hours_field: 'ext_wash_hours', default_hours: '', product_cost_per_hour: '', product_notes: '' });
+  const [newService, setNewService] = useState({ name: '', description: '', hourly_rate: '', category: 'other' });
 
   // Package form
   const [showPackageBuilder, setShowPackageBuilder] = useState(false);
@@ -72,8 +68,8 @@ export default function ServicesPage() {
   const [editingAddon, setEditingAddon] = useState(null);
   const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '' });
 
-  // AI estimate state
-  const [aiEstimate, setAiEstimate] = useState(null); // { average_hours, aircraft_count, column }
+  // AI estimate state (Enterprise only)
+  const [aiEstimate, setAiEstimate] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   // Error state
@@ -273,16 +269,13 @@ export default function ServicesPage() {
           name: newService.name,
           description: newService.description,
           hourly_rate: parseFloat(newService.hourly_rate) || 0,
-          hours_field: newService.hours_field || 'ext_wash_hours',
-          default_hours: newService.default_hours ? parseFloat(newService.default_hours) : null,
-          product_cost_per_hour: parseFloat(newService.product_cost_per_hour) || 0,
-          product_notes: newService.product_notes || '',
+          category: newService.category || 'other',
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to add service'); return; }
       setServices([...services, data.service]);
-      setNewService({ name: '', description: '', hourly_rate: '', hours_field: 'ext_wash_hours', default_hours: '', product_cost_per_hour: '', product_notes: '' });
+      setNewService({ name: '', description: '', hourly_rate: '', category: 'other' });
       setShowServiceModal(false);
       setError('');
     } catch (err) {
@@ -304,8 +297,7 @@ export default function ServicesPage() {
           name: editingService.name,
           description: editingService.description,
           hourly_rate: parseFloat(editingService.hourly_rate) || 0,
-          hours_field: editingService.hours_field || 'ext_wash_hours',
-          default_hours: editingService.default_hours ? parseFloat(editingService.default_hours) : null,
+          category: editingService.category || 'other',
           product_cost_per_hour: parseFloat(editingService.product_cost_per_hour) || 0,
           product_notes: editingService.product_notes || '',
         }),
@@ -596,8 +588,7 @@ export default function ServicesPage() {
                         <p className="font-medium">{svc.name}</p>
                         {svc.description && <p className="text-xs text-v-text-secondary">{svc.description}</p>}
                         <p className="text-[10px] text-v-text-secondary">
-                          {HOURS_FIELD_OPTIONS[svc.hours_field] || 'Ext Wash (default)'}
-                          {svc.default_hours > 0 && <span className="ml-1">&#183; {svc.default_hours}h default</span>}
+                          {CATEGORY_OPTIONS[svc.category] || 'Other'}
                           {getServiceLinkCount(svc.id) > 0 && (
                             <span className="ml-2 px-1.5 py-0.5 bg-blue-900/30 text-blue-400 rounded text-[9px] font-medium">
                               {getServiceLinkCount(svc.id)} linked
@@ -803,12 +794,12 @@ export default function ServicesPage() {
           {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-900/40 rounded-lg text-red-400 text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Name'} *</label>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Service Name *</label>
               <input type="text" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })}
                 placeholder="e.g., Full Interior Detail" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" autoFocus />
             </div>
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Description'}</label>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Description <span className="font-normal">(shown to customer)</span></label>
               <textarea value={newService.description} onChange={(e) => setNewService({ ...newService, description: e.target.value })}
                 placeholder="What's included?" rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[60px]" />
             </div>
@@ -822,70 +813,20 @@ export default function ServicesPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">Aircraft Hours Field</label>
-              <select value={newService.hours_field || 'ext_wash_hours'}
-                onChange={(e) => setNewService({ ...newService, hours_field: e.target.value })}
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Category</label>
+              <select value={newService.category || 'other'}
+                onChange={(e) => setNewService({ ...newService, category: e.target.value })}
                 className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2">
-                {Object.entries(HOURS_FIELD_OPTIONS).map(([value, label]) => (
+                {Object.entries(CATEGORY_OPTIONS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
-              <p className="text-xs text-v-text-secondary mt-1">Which aircraft time estimate to use for this service</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">Default Hours</label>
-              <div className="flex gap-2">
-                <input type="number" step="0.5" min="0" value={newService.default_hours || ''} onChange={(e) => setNewService({ ...newService, default_hours: e.target.value })}
-                  placeholder="Auto from aircraft" className="flex-1 border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
-                <button
-                  type="button"
-                  onClick={() => { setAiEstimate(null); fetchAiEstimate(newService.hours_field); }}
-                  disabled={aiLoading || !newService.hours_field}
-                  className="px-3 py-2 text-xs font-medium bg-v-gold/10 border border-v-gold/30 text-v-gold rounded-lg hover:bg-v-gold/20 disabled:opacity-40 whitespace-nowrap"
-                  title={!newService.hours_field ? 'Select an aircraft hours type first' : 'Load average hours from Vector aircraft database'}
-                >
-                  {aiLoading ? '...' : 'Load AI Estimate \u2726'}
-                </button>
-              </div>
-              {aiEstimate && !aiLoading && (
-                <div className="mt-2 p-2 bg-v-gold/10 border border-v-gold/20 rounded-lg flex items-center justify-between">
-                  <span className="text-xs text-v-gold">
-                    \u2726 AI Estimate: <strong>{aiEstimate.average_hours} hrs</strong> <span className="text-v-gold/70">(avg across {aiEstimate.aircraft_count} aircraft)</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setNewService({ ...newService, default_hours: String(aiEstimate.average_hours) })}
-                    className="text-[10px] px-2 py-0.5 bg-v-gold text-v-charcoal rounded font-medium hover:bg-v-gold-dim"
-                  >
-                    Apply
-                  </button>
-                </div>
-              )}
-              <p className="text-xs text-v-text-secondary mt-1">Override aircraft hours with a fixed default. Leave blank to auto-calculate from aircraft data.</p>
-            </div>
-            <div className="border-t pt-4">
-              <p className="text-sm font-medium text-v-text-secondary mb-3">Product Cost Tracking <span className="text-xs text-v-text-secondary font-normal">(internal only)</span></p>
-              <div>
-                <label className="block text-sm font-medium text-v-text-secondary mb-1">Product Cost / Hour</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
-                  <input type="number" step="0.01" value={newService.product_cost_per_hour} onChange={(e) => setNewService({ ...newService, product_cost_per_hour: e.target.value })}
-                    placeholder="0.00" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-12 py-2" />
-                  <span className="absolute right-3 top-2.5 text-v-text-secondary">/hr</span>
-                </div>
-                <p className="text-xs text-v-text-secondary mt-1">Average product/material cost per hour of this service</p>
-              </div>
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-v-text-secondary mb-1">Product Notes</label>
-                <textarea value={newService.product_notes} onChange={(e) => setNewService({ ...newService, product_notes: e.target.value })}
-                  placeholder="e.g., 1oz IronX, 2oz ceramic per hour" rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[40px]" />
-              </div>
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => { setShowServiceModal(false); setAiEstimate(null); }} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
+            <button onClick={() => setShowServiceModal(false)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">Cancel</button>
             <button onClick={addService} disabled={saving || !newService.name || !newService.hourly_rate}
-              className="px-4 py-2 bg-v-gold text-v-charcoal rounded-lg disabled:opacity-50 font-medium">{'Add'}</button>
+              className="px-4 py-2 bg-v-gold text-v-charcoal rounded-lg disabled:opacity-50 font-medium">Save</button>
           </div>
         </Modal>
       )}
@@ -897,12 +838,12 @@ export default function ServicesPage() {
           {error && <div className="mb-4 p-3 bg-red-900/20 border border-red-900/40 rounded-lg text-red-400 text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Name'}</label>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Service Name</label>
               <input type="text" value={editingService.name} onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
                 className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Description'}</label>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Description <span className="font-normal">(shown to customer)</span></label>
               <textarea value={editingService.description || ''} onChange={(e) => setEditingService({ ...editingService, description: e.target.value })}
                 rows={2} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 resize-y min-h-[60px]" />
             </div>
@@ -916,46 +857,14 @@ export default function ServicesPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">Aircraft Hours Field</label>
-              <select value={editingService.hours_field || 'ext_wash_hours'}
-                onChange={(e) => setEditingService({ ...editingService, hours_field: e.target.value })}
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Category</label>
+              <select value={editingService.category || 'other'}
+                onChange={(e) => setEditingService({ ...editingService, category: e.target.value })}
                 className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2">
-                {Object.entries(HOURS_FIELD_OPTIONS).map(([value, label]) => (
+                {Object.entries(CATEGORY_OPTIONS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
-              <p className="text-xs text-v-text-secondary mt-1">Which aircraft time estimate to use for this service</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">Default Hours</label>
-              <div className="flex gap-2">
-                <input type="number" step="0.5" min="0" value={editingService.default_hours || ''} onChange={(e) => setEditingService({ ...editingService, default_hours: e.target.value })}
-                  placeholder="Auto from aircraft" className="flex-1 border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
-                <button
-                  type="button"
-                  onClick={() => { setAiEstimate(null); fetchAiEstimate(editingService.hours_field); }}
-                  disabled={aiLoading || !editingService.hours_field}
-                  className="px-3 py-2 text-xs font-medium bg-v-gold/10 border border-v-gold/30 text-v-gold rounded-lg hover:bg-v-gold/20 disabled:opacity-40 whitespace-nowrap"
-                  title={!editingService.hours_field ? 'Select an aircraft hours type first' : 'Load average hours from Vector aircraft database'}
-                >
-                  {aiLoading ? '...' : 'Load AI Estimate \u2726'}
-                </button>
-              </div>
-              {aiEstimate && !aiLoading && (
-                <div className="mt-2 p-2 bg-v-gold/10 border border-v-gold/20 rounded-lg flex items-center justify-between">
-                  <span className="text-xs text-v-gold">
-                    \u2726 AI Estimate: <strong>{aiEstimate.average_hours} hrs</strong> <span className="text-v-gold/70">(avg across {aiEstimate.aircraft_count} aircraft)</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditingService({ ...editingService, default_hours: String(aiEstimate.average_hours) })}
-                    className="text-[10px] px-2 py-0.5 bg-v-gold text-v-charcoal rounded font-medium hover:bg-v-gold-dim"
-                  >
-                    Apply
-                  </button>
-                </div>
-              )}
-              <p className="text-xs text-v-text-secondary mt-1">Override aircraft hours with a fixed default. Leave blank to auto-calculate from aircraft data.</p>
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-v-text-secondary mb-3">Product Cost Tracking <span className="text-xs text-v-text-secondary font-normal">(internal only)</span></p>
@@ -1080,7 +989,7 @@ export default function ServicesPage() {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => { setEditingService(null); setLinkedProducts([]); setLinkedEquipment([]); setAiEstimate(null); }} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">Cancel</button>
+            <button onClick={() => { setEditingService(null); setLinkedProducts([]); setLinkedEquipment([]); }} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">Cancel</button>
             <button onClick={updateService} disabled={saving} className="px-4 py-2 bg-v-gold text-v-charcoal rounded-lg disabled:opacity-50 font-medium">Save</button>
           </div>
         </Modal>

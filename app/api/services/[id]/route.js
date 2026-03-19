@@ -42,12 +42,13 @@ export async function PUT(request, { params }) {
 
     const { id } = params;
     const body = await request.json();
-    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours } = body;
+    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category } = body;
 
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (hourly_rate !== undefined) updates.hourly_rate = parseFloat(hourly_rate) || 0;
+    if (category !== undefined) updates.category = category;
     if (hours_field !== undefined) updates.hours_field = hours_field;
     if (default_hours !== undefined) updates.default_hours = default_hours === null ? null : parseFloat(default_hours);
     if (product_cost_per_hour !== undefined) updates.product_cost_per_hour = parseFloat(product_cost_per_hour) || 0;
