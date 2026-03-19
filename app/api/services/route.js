@@ -45,9 +45,23 @@ export async function GET(request) {
       .from('services')
       .select('*')
       .eq('detailer_id', user.id)
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: true });
 
     if (error) {
+      // Retry without sort_order if column doesn't exist yet
+      if (error.message?.includes('sort_order')) {
+        const { data: fallback, error: fallbackErr } = await supabase
+          .from('services')
+          .select('*')
+          .eq('detailer_id', user.id)
+          .order('created_at', { ascending: true });
+        if (fallbackErr) {
+          console.error('Failed to fetch services (fallback):', fallbackErr);
+          return Response.json({ error: fallbackErr.message }, { status: 500 });
+        }
+        return Response.json({ services: fallback || [] });
+      }
       console.error('Failed to fetch services:', error);
       return Response.json({ error: error.message }, { status: 500 });
     }
@@ -135,6 +149,17 @@ export async function POST(request) {
     }
     if (product_notes !== undefined) {
       row.product_notes = product_notes || '';
+    }
+
+    // Set sort_order to end of list
+    try {
+      const { count } = await supabase
+        .from('services')
+        .select('id', { count: 'exact', head: true })
+        .eq('detailer_id', user.id);
+      row.sort_order = count || 0;
+    } catch (e) {
+      // sort_order column may not exist yet
     }
 
     const { data: service, error } = await supabase

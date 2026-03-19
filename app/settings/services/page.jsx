@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { currencySymbol } from '@/lib/formatPrice';
@@ -31,6 +31,29 @@ const DEFAULT_ADDON_FEES = [
   { name: 'Rush / Emergency', description: 'Expedited service premium', fee_type: 'percent', amount: 25 },
   { name: 'Travel Fee', description: 'Per-job travel surcharge', fee_type: 'flat', amount: 50 },
 ];
+
+const AIRCRAFT_HOURS_MAP = [
+  { column: 'maintenance_wash_hrs', label: 'Maintenance Wash', keywords: ['wash', 'maintenance', 'exterior wash', 'ramp wash'] },
+  { column: 'one_step_polish_hrs', label: 'One-Step Polish', keywords: ['polish', 'one step', 'machine polish', 'compound'] },
+  { column: 'wax_hrs', label: 'Wax', keywords: ['wax', 'sealant', 'polymer', 'paint sealant'] },
+  { column: 'spray_ceramic_hrs', label: 'Spray Ceramic', keywords: ['spray ceramic', 'ceramic spray', 'sio2'] },
+  { column: 'ceramic_coating_hrs', label: 'Ceramic Coating', keywords: ['ceramic', 'coating', 'nano'] },
+  { column: 'leather_hrs', label: 'Leather', keywords: ['leather', 'condition', 'interior leather'] },
+  { column: 'carpet_hrs', label: 'Carpet', keywords: ['carpet', 'extraction', 'steam'] },
+  { column: 'brightwork_hrs', label: 'Brightwork', keywords: ['brightwork', 'metal polish', 'chrome', 'aluminum'] },
+];
+
+function matchServiceName(name) {
+  const lower = name.toLowerCase();
+  for (const entry of AIRCRAFT_HOURS_MAP) {
+    for (const kw of entry.keywords) {
+      if (lower.includes(kw.toLowerCase())) {
+        return entry;
+      }
+    }
+  }
+  return null;
+}
 
 export default function ServicesPage() {
   const router = useRouter();
@@ -72,12 +95,20 @@ export default function ServicesPage() {
   const [aiEstimate, setAiEstimate] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Service suggestion tips (aircraft hours matching)
+  const [serviceSuggestions, setServiceSuggestions] = useState({});
+
   // Error state
   const [error, setError] = useState('');
 
-  // Drag state
+  // Drag state (for package builder)
   const [draggedService, setDraggedService] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+
+  // Reorder drag state (for service list ordering)
+  const [reorderDragIdx, setReorderDragIdx] = useState(null);
+  const [reorderOverIdx, setReorderOverIdx] = useState(null);
+  const [orderSavedToast, setOrderSavedToast] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -254,6 +285,28 @@ export default function ServicesPage() {
     fetchServiceLinks(svc.id);
   };
 
+  const dismissSuggestion = (serviceId) => {
+    const dismissed = JSON.parse(localStorage.getItem('vector_svc_tips_dismissed') || '[]');
+    if (!dismissed.includes(serviceId)) {
+      dismissed.push(serviceId);
+      localStorage.setItem('vector_svc_tips_dismissed', JSON.stringify(dismissed));
+    }
+    setServiceSuggestions(prev => {
+      const next = { ...prev };
+      delete next[serviceId];
+      return next;
+    });
+  };
+
+  const linkServiceToHours = (serviceId, column) => {
+    const svc = services.find(s => s.id === serviceId);
+    if (svc) {
+      setEditingService({ ...svc, hours_field: column });
+      fetchServiceLinks(svc.id);
+    }
+    dismissSuggestion(serviceId);
+  };
+
   // ---- Service CRUD ----
   const addService = async () => {
     if (!newService.name.trim() || !newService.hourly_rate) return;
@@ -278,6 +331,17 @@ export default function ServicesPage() {
       setNewService({ name: '', description: '', hourly_rate: '', category: 'other' });
       setShowServiceModal(false);
       setError('');
+
+      // Check if service name matches aircraft hours database
+      const dismissed = JSON.parse(localStorage.getItem('vector_svc_tips_dismissed') || '[]');
+      if (!dismissed.includes(data.service.id)) {
+        const match = matchServiceName(data.service.name);
+        if (match) {
+          setServiceSuggestions(prev => ({ ...prev, [data.service.id]: { type: 'partial_match', match } }));
+        } else {
+          setServiceSuggestions(prev => ({ ...prev, [data.service.id]: { type: 'no_match' } }));
+        }
+      }
     } catch (err) {
       setError('Network error. Please try again.');
     } finally {
@@ -298,6 +362,7 @@ export default function ServicesPage() {
           description: editingService.description,
           hourly_rate: parseFloat(editingService.hourly_rate) || 0,
           category: editingService.category || 'other',
+          hours_field: editingService.hours_field || null,
           product_cost_per_hour: parseFloat(editingService.product_cost_per_hour) || 0,
           product_notes: editingService.product_notes || '',
         }),
@@ -528,12 +593,67 @@ export default function ServicesPage() {
     setNewPackage(prev => ({ ...prev, service_ids: prev.service_ids.filter(sid => sid !== id) }));
   };
 
+  // ---- Reorder handlers (service list ordering) ----
+  const handleReorderDragStart = (e, idx) => {
+    setReorderDragIdx(idx);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  };
+
+  const handleReorderDragOver = (e, idx) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setReorderOverIdx(idx);
+  };
+
+  const handleReorderDrop = async (e, dropIdx) => {
+    e.preventDefault();
+    setReorderOverIdx(null);
+    if (reorderDragIdx === null || reorderDragIdx === dropIdx) {
+      setReorderDragIdx(null);
+      return;
+    }
+    const reordered = [...services];
+    const [moved] = reordered.splice(reorderDragIdx, 1);
+    reordered.splice(dropIdx, 0, moved);
+    setServices(reordered);
+    setReorderDragIdx(null);
+
+    // Save new order to backend
+    const token = getToken();
+    try {
+      const res = await fetch('/api/services/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ order: reordered.map(s => s.id) }),
+      });
+      if (res.ok) {
+        setOrderSavedToast(true);
+        setTimeout(() => setOrderSavedToast(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to save order:', err);
+    }
+  };
+
+  const handleReorderDragEnd = () => {
+    setReorderDragIdx(null);
+    setReorderOverIdx(null);
+  };
+
   if (loading) {
     return <LoadingSpinner message="Loading services..." />;
   }
 
   return (
     <div className="page-transition min-h-screen bg-v-charcoal p-4">
+      {/* Order saved toast */}
+      {orderSavedToast && (
+        <div className="fixed top-4 right-4 z-50 bg-green-900/90 border border-green-500/50 text-green-200 px-4 py-2 rounded-lg shadow-lg text-sm animate-pulse">
+          Order saved
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex justify-between items-center mb-6 text-white">
         <div className="flex items-center space-x-4">
@@ -558,7 +678,7 @@ export default function ServicesPage() {
           <div className="p-4 border-b flex justify-between items-center">
             <div>
               <h2 className="text-lg font-semibold">{'Services'}</h2>
-              <p className="text-sm text-v-text-secondary">Drag to packages on the right</p>
+              <p className="text-sm text-v-text-secondary">Drag to reorder or drop onto packages</p>
             </div>
             <div className="flex gap-2">
               {services.length === 0 && (
@@ -578,37 +698,86 @@ export default function ServicesPage() {
                 <button onClick={importDefaults} className="text-v-gold hover:underline">Import suggested services</button>
               </div>
             ) : (
-              <div className="space-y-2">
-                {services.map((svc) => (
-                  <div key={svc.id} draggable onDragStart={(e) => handleDragStart(e, svc)} onDragEnd={handleDragEnd}
-                    className={`flex items-center justify-between p-3 bg-v-charcoal rounded-lg border cursor-grab hover:border-v-gold hover:bg-v-gold/10 transition-all group ${draggedService?.id === svc.id ? 'opacity-50 border-v-gold' : ''}`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-300 group-hover:text-v-gold">&#9776;</span>
-                      <div>
-                        <p className="font-medium">{svc.name}</p>
-                        {svc.description && <p className="text-xs text-v-text-secondary">{svc.description}</p>}
-                        <p className="text-[10px] text-v-text-secondary">
-                          {CATEGORY_OPTIONS[svc.category] || 'Other'}
-                          {getServiceLinkCount(svc.id) > 0 && (
-                            <span className="ml-2 px-1.5 py-0.5 bg-blue-900/30 text-blue-400 rounded text-[9px] font-medium">
-                              {getServiceLinkCount(svc.id)} linked
-                            </span>
+              <div className="space-y-1">
+                {services.map((svc, idx) => (
+                  <Fragment key={svc.id}>
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        handleReorderDragStart(e, idx);
+                        handleDragStart(e, svc);
+                      }}
+                      onDragOver={(e) => handleReorderDragOver(e, idx)}
+                      onDrop={(e) => handleReorderDrop(e, idx)}
+                      onDragEnd={() => {
+                        handleReorderDragEnd();
+                        handleDragEnd();
+                      }}
+                      className={`flex items-center justify-between p-3 bg-v-charcoal rounded-lg border transition-all group cursor-grab ${
+                        reorderDragIdx === idx
+                          ? 'opacity-40 border-v-gold scale-[0.98]'
+                          : reorderOverIdx === idx && reorderDragIdx !== null
+                          ? 'border-v-gold bg-v-gold/10 scale-[1.01]'
+                          : 'hover:border-v-gold hover:bg-v-gold/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-500 group-hover:text-v-gold select-none">&#9776;</span>
+                        <div>
+                          <p className="font-medium">{svc.name}</p>
+                          {svc.description && <p className="text-xs text-v-text-secondary">{svc.description}</p>}
+                          <p className="text-[10px] text-v-text-secondary">
+                            {CATEGORY_OPTIONS[svc.category] || 'Other'}
+                            {getServiceLinkCount(svc.id) > 0 && (
+                              <span className="ml-2 px-1.5 py-0.5 bg-blue-900/30 text-blue-400 rounded text-[9px] font-medium">
+                                {getServiceLinkCount(svc.id)} linked
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-lg font-bold text-v-gold">${svc.hourly_rate || 0}</span>
+                          <span className="text-xs text-v-text-secondary">/hr</span>
+                          {parseFloat(svc.product_cost_per_hour) > 0 && (
+                            <p className="text-[10px] text-v-text-secondary">${svc.product_cost_per_hour} product/hr</p>
                           )}
-                        </p>
+                        </div>
+                        <button onClick={() => openEditService(svc)} className="p-1.5 text-v-text-secondary hover:text-blue-600 hover:bg-blue-900/20 rounded">&#9998;</button>
+                        <button onClick={() => deleteService(svc)} className="p-1.5 text-v-text-secondary hover:text-red-600 hover:bg-red-900/20 rounded">&#128465;</button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <span className="text-lg font-bold text-v-gold">${svc.hourly_rate || 0}</span>
-                        <span className="text-xs text-v-text-secondary">/hr</span>
-                        {parseFloat(svc.product_cost_per_hour) > 0 && (
-                          <p className="text-[10px] text-v-text-secondary">${svc.product_cost_per_hour} product/hr</p>
-                        )}
+                    {serviceSuggestions[svc.id] && (
+                      <div className="ml-8 mr-3 p-3 bg-v-gold/5 border border-v-gold/20 rounded-lg flex items-start gap-3">
+                        <span className="text-v-gold text-sm mt-0.5">&#10022;</span>
+                        <div className="flex-1 text-sm text-v-text-secondary">
+                          {serviceSuggestions[svc.id].type === 'no_match' ? (
+                            <p>
+                              <span className="text-v-gold font-medium">Tip:</span> This service doesn&apos;t match our aircraft hours database. You can manually set default hours, or if this is similar to an existing service type (like Polish or Wax), you can link it in Edit to use aircraft-based hour estimates.
+                            </p>
+                          ) : (
+                            <div>
+                              <p>
+                                <span className="text-v-gold font-medium">We found a possible match:</span> this service looks similar to &ldquo;{serviceSuggestions[svc.id].match.label}&rdquo;. Link it to use aircraft-based hour estimates?
+                              </p>
+                              <div className="flex gap-2 mt-2">
+                                <button onClick={() => linkServiceToHours(svc.id, serviceSuggestions[svc.id].match.column)}
+                                  className="px-3 py-1 text-xs bg-v-gold text-v-charcoal rounded font-medium hover:bg-v-gold-dim">
+                                  Yes, link it
+                                </button>
+                                <button onClick={() => dismissSuggestion(svc.id)}
+                                  className="px-3 py-1 text-xs text-v-text-secondary border border-v-border rounded hover:bg-white/5">
+                                  No thanks
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <button onClick={() => dismissSuggestion(svc.id)} className="text-v-text-secondary hover:text-v-text-primary text-sm shrink-0">&times;</button>
                       </div>
-                      <button onClick={() => openEditService(svc)} className="p-1.5 text-v-text-secondary hover:text-blue-600 hover:bg-blue-900/20 rounded">&#9998;</button>
-                      <button onClick={() => deleteService(svc)} className="p-1.5 text-v-text-secondary hover:text-red-600 hover:bg-red-900/20 rounded">&#128465;</button>
-                    </div>
-                  </div>
+                    )}
+                  </Fragment>
                 ))}
               </div>
             )}
@@ -865,6 +1034,18 @@ export default function ServicesPage() {
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Aircraft Hours Column</label>
+              <select value={editingService.hours_field || ''}
+                onChange={(e) => setEditingService({ ...editingService, hours_field: e.target.value || null })}
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2">
+                <option value="">None (manual hours only)</option>
+                {AIRCRAFT_HOURS_MAP.map(m => (
+                  <option key={m.column} value={m.column}>{m.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-v-text-secondary mt-1">Link to aircraft database for automatic hour estimates</p>
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-v-text-secondary mb-3">Product Cost Tracking <span className="text-xs text-v-text-secondary font-normal">(internal only)</span></p>
