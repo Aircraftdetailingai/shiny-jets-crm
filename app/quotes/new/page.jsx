@@ -320,6 +320,10 @@ function NewQuoteContent() {
     if (field && communityHours[field] && communityHours[field].sample_count >= 3) {
       return { type: 'community', label: `Based on ${communityHours[field].sample_count} completions` };
     }
+    const refHrs = getRefHours(svc);
+    if (refHrs > 0) return { type: 'aircraft', label: 'From aircraft hours database' };
+    const oldHrs = getOldAircraftHours(svc);
+    if (oldHrs > 0) return { type: 'aircraft', label: 'From aircraft data' };
     return { type: 'platform', label: 'Platform default' };
   };
 
@@ -743,6 +747,16 @@ function NewQuoteContent() {
                                 hrs
                                 {(() => {
                                   const source = getHoursSource(svc);
+                                  if (source.type === 'aircraft') {
+                                    return (
+                                      <>
+                                        <span className="text-v-gold ml-0.5 align-middle text-[10px]">✦</span>
+                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-v-charcoal border border-v-border rounded text-xs text-v-text-primary whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity z-50">
+                                          {source.label}
+                                        </span>
+                                      </>
+                                    );
+                                  }
                                   const dotColor = source.type === 'community' ? 'bg-green-400' : source.type === 'personal' ? 'bg-blue-400' : 'bg-gray-400';
                                   return (
                                     <>
@@ -765,6 +779,16 @@ function NewQuoteContent() {
                                 {hours.toFixed(1)} hrs
                                 {(() => {
                                   const source = getHoursSource(svc);
+                                  if (source.type === 'aircraft') {
+                                    return (
+                                      <>
+                                        <span className="text-v-gold ml-0.5 align-middle text-[10px]">✦</span>
+                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-v-charcoal border border-v-border rounded text-xs text-v-text-primary whitespace-nowrap opacity-0 group-hover/tip2:opacity-100 pointer-events-none transition-opacity z-50">
+                                          {source.label}
+                                        </span>
+                                      </>
+                                    );
+                                  }
                                   const dotColor = source.type === 'community' ? 'bg-green-400' : source.type === 'personal' ? 'bg-blue-400' : 'bg-gray-400';
                                   return (
                                     <>
@@ -850,11 +874,12 @@ function NewQuoteContent() {
           {selectedAircraft && selectedServicesList.length > 0 && (
             <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
               <h3 className="text-sm font-light tracking-wider uppercase text-gray-400 mb-3">Access Difficulty</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-v-border/30">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-px bg-v-border/30">
                 {[
                   { label: 'Standard', value: 1.0 },
-                  { label: 'Moderate', value: 1.15 },
-                  { label: 'Difficult', value: 1.3 },
+                  { label: 'Moderate', value: 1.1 },
+                  { label: 'Difficult', value: 1.15 },
+                  { label: 'Very Difficult', value: 1.25 },
                   { label: 'Extreme', value: 1.5 },
                 ].map(opt => (
                   <button
@@ -959,12 +984,24 @@ function NewQuoteContent() {
 
               {/* Line items */}
               <div className="space-y-1 mb-3">
-                {selectedServicesList.map(svc => (
-                  <div key={svc.id} className="flex justify-between text-sm">
-                    <span className="text-gray-300">{svc.name} ({getHoursForService(svc).toFixed(1)}h)</span>
-                    <span>{currencySymbol()}{formatPrice(getServicePrice(svc))}</span>
-                  </div>
-                ))}
+                {selectedServicesList.map(svc => {
+                  const hrs = getHoursForService(svc);
+                  const rate = parseFloat(svc.hourly_rate || 0);
+                  const source = getHoursSource(svc);
+                  return (
+                    <div key={svc.id} className="flex justify-between text-sm">
+                      <span className="text-gray-300">
+                        {svc.name}
+                        {source.type === 'aircraft' && <span className="text-v-gold text-[10px] ml-1">✦</span>}
+                      </span>
+                      <span className="text-gray-400 tabular-nums">
+                        <span className="text-gray-500">{hrs.toFixed(1)}h × {currencySymbol()}{rate.toFixed(0)}</span>
+                        <span className="text-gray-600 mx-1">=</span>
+                        <span className="text-white">{currencySymbol()}{formatPrice(getServicePrice(svc))}</span>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Package discount */}
