@@ -37,12 +37,28 @@ export async function POST(request) {
     return new Response(JSON.stringify({ error: 'Invalid booking_mode' }), { status: 400 });
   }
 
+  const supabase = getSupabase();
+
+  // Server-side tier validation
+  const { data: detailer } = await supabase
+    .from('detailers')
+    .select('plan, is_admin')
+    .eq('id', user.id)
+    .single();
+
+  const plan = detailer?.plan || 'free';
+  const isAdmin = detailer?.is_admin === true;
+  if (booking_mode === 'book_later' && plan === 'free' && !isAdmin) {
+    return new Response(JSON.stringify({ error: 'Book Now, Pay Later requires Pro plan or above' }), { status: 403 });
+  }
+  if (booking_mode === 'deposit' && !['business', 'enterprise'].includes(plan) && !isAdmin) {
+    return new Response(JSON.stringify({ error: 'Deposit to Book requires Business plan or above' }), { status: 403 });
+  }
+
   const updates = { booking_mode };
   if (booking_mode === 'deposit') {
     updates.deposit_percentage = Math.min(90, Math.max(5, parseInt(deposit_percentage) || 25));
   }
-
-  const supabase = getSupabase();
   const { error } = await supabase
     .from('detailers')
     .update(updates)

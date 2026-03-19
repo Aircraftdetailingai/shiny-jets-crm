@@ -40,6 +40,17 @@ export default function InvoicesPage() {
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) { router.push('/login'); return; }
+    // Gate invoices to Pro+ tier
+    try {
+      const stored = localStorage.getItem('vector_user');
+      const u = stored ? JSON.parse(stored) : {};
+      const plan = u.plan || 'free';
+      if (plan === 'free' && !u.is_admin) {
+        alert('Invoicing is available on Pro and above. Upgrade in Settings.');
+        router.push('/quotes');
+        return;
+      }
+    } catch {}
     fetchInvoices(token);
   }, [router]);
 

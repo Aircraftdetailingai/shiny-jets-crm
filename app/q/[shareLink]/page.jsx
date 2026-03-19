@@ -1019,8 +1019,18 @@ export default function QuoteViewPage() {
           )
         ) : (
           <div className="border border-[var(--brand-border-strong,#2A3A50)] p-6 text-center">
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase mb-1">Payment Details to Follow</p>
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-sm">{detailer?.company || 'The detailer'} will contact you with payment arrangements.</p>
+            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase mb-2">Contact {detailer?.company || 'Us'} to Arrange Payment</p>
+            <div className="space-y-2">
+              {detailer?.phone && (
+                <a href={`tel:${detailer.phone}`} className="block text-[var(--brand-primary,#C9A84C)] text-lg font-medium hover:brightness-110">{detailer.phone}</a>
+              )}
+              {detailer?.email && (
+                <a href={`mailto:${detailer.email}`} className="block text-[var(--brand-primary,#C9A84C)] text-sm hover:brightness-110">{detailer.email}</a>
+              )}
+              {!detailer?.phone && !detailer?.email && (
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-sm">{detailer?.company || 'The detailer'} will contact you with payment arrangements.</p>
+              )}
+            </div>
           </div>
         )}
 

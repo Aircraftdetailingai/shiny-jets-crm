@@ -208,14 +208,18 @@ function NewQuoteContent() {
             .then(d => { if (d?.hours) setAircraftHoursRef(d.hours); })
             .catch(() => {});
 
-          // Fetch community hours data
-          const token = localStorage.getItem('vector_token');
-          fetch(`/api/community-hours?make=${encodedMake}&model=${encodedModel}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-            .then(r => r.ok ? r.json() : null)
-            .then(d => { if (d?.hours) setCommunityHours(d.hours); })
-            .catch(() => {});
+          // Fetch community hours data (Enterprise tier only)
+          const storedUser = localStorage.getItem('vector_user');
+          const userPlan = storedUser ? (JSON.parse(storedUser).plan || 'free') : 'free';
+          if (userPlan === 'enterprise' || JSON.parse(storedUser || '{}').is_admin) {
+            const token = localStorage.getItem('vector_token');
+            fetch(`/api/community-hours?make=${encodedMake}&model=${encodedModel}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+              .then(r => r.ok ? r.json() : null)
+              .then(d => { if (d?.hours) setCommunityHours(d.hours); })
+              .catch(() => {});
+          }
         }
 
         setTimeout(() => {
@@ -303,13 +307,15 @@ function NewQuoteContent() {
     return 0;
   };
 
-  // Get hours for a service: manual override > detailer default > community avg > aircraft_hours ref > old aircraft
+  // Get hours for a service: manual override > detailer default > community avg > aircraft_hours ref > old aircraft > 1.0 fallback
   const getHoursForService = (svc) => {
     if (customHours[svc.id] !== undefined) return customHours[svc.id];
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
     const community = getCommunityHours(svc);
     if (community > 0) return community;
-    return getAircraftHours(svc);
+    const aircraft = getAircraftHours(svc);
+    if (aircraft > 0) return aircraft;
+    return 1.0; // Default for custom services not in aircraft database
   };
 
   // Get the source of hours for display
@@ -332,7 +338,9 @@ function NewQuoteContent() {
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
     const community = getCommunityHours(svc);
     if (community > 0) return community;
-    return getAircraftHours(svc);
+    const aircraft = getAircraftHours(svc);
+    if (aircraft > 0) return aircraft;
+    return 1.0;
   };
 
   const handleHoursChange = (svcId, svcName, newHours) => {
