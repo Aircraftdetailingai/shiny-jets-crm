@@ -26,6 +26,8 @@ export default function EquipmentPage() {
     status: 'active',
     product_url: '',
     image_url: '',
+    quantity: 1,
+    minQuantity: '',
   });
   const [saving, setSaving] = useState(false);
   const [scraping, setScraping] = useState(false);
@@ -111,6 +113,8 @@ export default function EquipmentPage() {
         status: item.status || 'active',
         product_url: item.product_url || '',
         image_url: item.image_url || '',
+        quantity: item.quantity || 1,
+        minQuantity: item.min_quantity != null ? item.min_quantity : '',
       });
     } else {
       setEditingItem(null);
@@ -127,6 +131,8 @@ export default function EquipmentPage() {
         status: 'active',
         product_url: '',
         image_url: '',
+        quantity: 1,
+        minQuantity: '',
       });
     }
     setScrapeUrl('');
@@ -202,6 +208,8 @@ export default function EquipmentPage() {
       status: formData.status,
       product_url: formData.product_url || null,
       image_url: formData.image_url || null,
+      quantity: parseInt(formData.quantity) || 1,
+      min_quantity: formData.minQuantity !== '' ? parseInt(formData.minQuantity) : null,
     };
 
     try {
@@ -309,7 +317,7 @@ export default function EquipmentPage() {
 
   // Items needing attention
   const attentionItems = equipment.filter(e =>
-    e.status === 'needs_repair' || e.maintenance_overdue || e.maintenance_due
+    e.status === 'needs_repair' || e.maintenance_overdue || e.maintenance_due || e.low_stock
   );
 
   if (loading) {
@@ -398,6 +406,9 @@ export default function EquipmentPage() {
                       )}
                       {item.maintenance_due && !item.maintenance_overdue && (
                         <p className="text-xs font-medium text-v-gold-dim">{'Maintenance due in'} {maintDays} {'days'}</p>
+                      )}
+                      {item.low_stock && (
+                        <p className="text-xs font-medium text-yellow-500">Low stock: {item.quantity || 0} remaining (min: {item.min_quantity})</p>
                       )}
                       <button
                         onClick={() => handleOpenModal(item)}
@@ -522,6 +533,16 @@ export default function EquipmentPage() {
                               {item.maintenance_due && !item.maintenance_overdue && (
                                 <span className="text-xs px-2 py-0.5 rounded-full bg-v-gold-muted/30 text-v-gold font-medium">
                                   {'Maintenance Soon'}
+                                </span>
+                              )}
+                              {(item.quantity || 1) > 1 && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 font-medium">
+                                  Qty: {item.quantity}
+                                </span>
+                              )}
+                              {item.low_stock && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 font-medium">
+                                  Low Stock
                                 </span>
                               )}
                             </div>
@@ -735,6 +756,35 @@ export default function EquipmentPage() {
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Quantity + Min Quantity */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-v-text-secondary mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
+                  />
+                  <p className="text-xs text-v-text-secondary mt-1">How many of this item do you have?</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-v-text-secondary mb-1">Alert When Below</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.minQuantity}
+                    onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
+                    placeholder="Optional"
+                    className="w-full bg-v-surface border border-v-border rounded-lg px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
+                  />
+                  <p className="text-xs text-v-text-secondary mt-1">Show low stock warning</p>
                 </div>
               </div>
 

@@ -125,12 +125,16 @@ export async function GET(request) {
       warrantyActive = new Date(item.warranty_expiry) > now;
     }
 
+    // Low stock check
+    const lowStock = item.min_quantity != null && (item.quantity || 1) <= item.min_quantity;
+
     return {
       ...item,
       cost_per_job: costPerJob ? Math.round(costPerJob * 100) / 100 : null,
       maintenance_due: maintenanceDue,
       maintenance_overdue: maintenanceOverdue,
       warranty_active: warrantyActive,
+      low_stock: lowStock,
     };
   });
 
@@ -138,8 +142,9 @@ export async function GET(request) {
   const totalInvestment = (equipment || []).reduce((sum, e) => sum + (e.purchase_price || 0), 0);
   const totalJobs = (equipment || []).reduce((sum, e) => sum + (e.jobs_completed || 0), 0);
   const needsAttention = equipmentWithROI.filter(e =>
-    e.status === 'needs_repair' || e.maintenance_overdue || e.maintenance_due
+    e.status === 'needs_repair' || e.maintenance_overdue || e.maintenance_due || e.low_stock
   ).length;
+  const lowStockCount = equipmentWithROI.filter(e => e.low_stock).length;
 
   return Response.json({
     equipment: equipmentWithROI,
@@ -151,6 +156,7 @@ export async function GET(request) {
       avgCostPerJob: totalJobs > 0 ? Math.round((totalInvestment / totalJobs) * 100) / 100 : null,
       needsAttention,
       activeCount: (equipment || []).filter(e => e.status === 'active').length,
+      lowStockCount,
     },
   });
 }
@@ -181,6 +187,8 @@ export async function POST(request) {
     status,
     product_url,
     image_url,
+    quantity,
+    min_quantity,
   } = body;
 
   if (!name) {
@@ -202,6 +210,8 @@ export async function POST(request) {
     status: status || 'active',
     product_url: product_url || null,
     image_url: image_url || null,
+    quantity: parseInt(quantity) || 1,
+    min_quantity: min_quantity != null ? (parseInt(min_quantity) || null) : null,
   };
 
   const { data: item, error } = await retryStrippingColumns(supabase, 'equipment', 'insert', row);
@@ -242,6 +252,8 @@ export async function PUT(request) {
     status,
     product_url,
     image_url,
+    quantity,
+    min_quantity,
   } = body;
 
   if (!id) {
@@ -265,6 +277,8 @@ export async function PUT(request) {
   if (status !== undefined) updates.status = status;
   if (product_url !== undefined) updates.product_url = product_url || null;
   if (image_url !== undefined) updates.image_url = image_url || null;
+  if (quantity !== undefined) updates.quantity = parseInt(quantity) || 1;
+  if (min_quantity !== undefined) updates.min_quantity = min_quantity != null ? (parseInt(min_quantity) || null) : null;
 
   const { data: item, error } = await retryStrippingColumns(
     supabase, 'equipment', 'update', updates, { id, detailer_id: user.id }
