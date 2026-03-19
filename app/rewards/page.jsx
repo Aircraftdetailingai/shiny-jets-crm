@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import { POINTS_PER_DOLLAR, formatPointsAsDollars } from '@/lib/points';
 
 const CATEGORY_LABELS = {
   visibility: 'Visibility',
@@ -120,6 +121,9 @@ export default function RewardsPage() {
             <div>
               <p className="text-xs uppercase tracking-widest text-v-gold mb-1">Available Points</p>
               <p className="text-4xl font-bold text-v-text-primary">{points.available.toLocaleString()}</p>
+              <p className="text-v-gold-dim text-sm mt-1">
+                = {formatPointsAsDollars(points.available)} redemption value
+              </p>
               <p className="text-v-text-secondary text-sm mt-1">
                 {points.lifetime.toLocaleString()} lifetime points earned
               </p>
@@ -189,6 +193,7 @@ export default function RewardsPage() {
                       </div>
                       <div className="text-right ml-4">
                         <p className="text-v-gold font-bold text-lg">{reward.points_cost.toLocaleString()} pts</p>
+                        <p className="text-v-text-secondary text-xs">{formatPointsAsDollars(reward.points_cost)} value</p>
                         {canGet ? (
                           <button
                             onClick={() => setShowConfirm(reward)}
@@ -262,6 +267,9 @@ export default function RewardsPage() {
               Your {tier.charAt(0).toUpperCase() + tier.slice(1)} plan gives you a {multiplier}x multiplier on all points!
             </p>
           )}
+          <p className="mt-3 text-v-text-secondary text-xs">
+            {POINTS_PER_DOLLAR} points = $1.00 redemption value. Points have no cash value.
+          </p>
         </div>
       </div>
 

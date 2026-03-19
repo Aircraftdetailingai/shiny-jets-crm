@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AppShell from '@/components/AppShell';
+import { formatPointsAsDollars } from '@/lib/points';
 
 const ADMIN_NAV = [
   { label: 'Dashboard', href: '/admin' },
@@ -325,6 +326,9 @@ export default function InventoryPage() {
                   className="w-full bg-transparent border-0 border-b border-v-border text-v-text-primary px-0 py-2 focus:border-v-gold focus:ring-0 outline-none transition-colors"
                   placeholder="500"
                 />
+                {form.points_cost && (
+                  <span className="text-xs text-v-text-secondary mt-1 block">= {formatPointsAsDollars(parseInt(form.points_cost) || 0)} value</span>
+                )}
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">Description</label>
@@ -551,7 +555,10 @@ export default function InventoryPage() {
                         <div className="font-medium text-v-text-primary">{item.name}</div>
                         <div className="text-xs text-v-text-secondary truncate max-w-[200px]">{item.description}</div>
                       </td>
-                      <td className="px-4 py-3 font-medium text-v-gold">{item.points_cost?.toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-v-gold">{item.points_cost?.toLocaleString()}</span>
+                        <span className="block text-xs text-v-text-secondary">{formatPointsAsDollars(item.points_cost || 0)}</span>
+                      </td>
                       <td className={`px-4 py-3 ${stockWarning}`}>
                         {item.quantity_available}
                         {item.quantity_available === 0 && <span className="ml-1 text-xs">OUT</span>}

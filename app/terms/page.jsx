@@ -348,7 +348,25 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">22. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">22. Points & Rewards Program</h2>
+            <p>
+              Vector Aviation offers a points-based rewards program (&ldquo;Rewards Program&rdquo;) subject to
+              the following terms:
+            </p>
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>Points are earned through eligible platform activities at a rate of 200 points per $1.00 USD in booked services, plus bonus points for qualifying actions.</li>
+              <li>Points have no cash value and cannot be exchanged for currency, transferred to other users, or sold.</li>
+              <li>200 points equals $1.00 in redemption credit, redeemable exclusively toward items in the Vector Aviation reward catalog.</li>
+              <li>Redemption is available to users on Pro, Business, or Enterprise subscription tiers. Free-tier users accumulate points but cannot redeem until upgrading.</li>
+              <li>Points multipliers are applied based on your subscription tier (Pro 1.5x, Business 2.0x, Enterprise 3.0x).</li>
+              <li>Vector Aviation reserves the right to modify the points conversion rate, reward catalog, or program terms at any time with 30 days&apos; notice.</li>
+              <li>Points balances may be forfeited if an account is terminated for violation of these Terms of Service.</li>
+              <li>All redemptions are final. Redeemed rewards are subject to availability and fulfillment timelines.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">23. Contact Information</h2>
             <p>
               For questions about these Terms of Service, contact us at:
             </p>
