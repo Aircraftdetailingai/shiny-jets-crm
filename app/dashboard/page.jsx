@@ -136,6 +136,7 @@ function DashboardContent() {
   const [recentQuotes, setRecentQuotes] = useState([]);
   const [upcomingJobs, setUpcomingJobs] = useState([]);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [inventoryAlerts, setInventoryAlerts] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -180,12 +181,13 @@ function DashboardContent() {
         body: JSON.stringify({ action: 'DAILY_LOGIN' }),
       }).catch(() => {});
 
-      const [stripeRes, servicesRes, statsRes, quotesRes, upcomingRes] = await Promise.allSettled([
+      const [stripeRes, servicesRes, statsRes, quotesRes, upcomingRes, forecastRes] = await Promise.allSettled([
         fetch('/api/stripe/status', { headers }),
         fetch('/api/services', { headers }),
         fetch('/api/dashboard/stats', { headers }),
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
         fetch('/api/quotes?status=paid,scheduled,in_progress&has_date=true&limit=10&sort=scheduled_date&order=asc', { headers }),
+        fetch('/api/inventory/forecast?days=14', { headers }),
       ]);
 
       if (stripeRes.status === 'fulfilled' && stripeRes.value.ok) {
@@ -212,6 +214,10 @@ function DashboardContent() {
           return d >= now && d <= in7days;
         });
         setUpcomingJobs(upcoming.slice(0, 5));
+      }
+      if (forecastRes.status === 'fulfilled' && forecastRes.value.ok) {
+        const data = await forecastRes.value.json();
+        setInventoryAlerts(data.alerts || []);
       }
     };
 
@@ -343,6 +349,44 @@ function DashboardContent() {
           </>
         )}
 
+        {/* Inventory Reorder Alerts */}
+        {inventoryAlerts.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">Inventory Alerts</p>
+              <a href="/calendar" className="text-[10px] uppercase tracking-[0.15em] text-v-gold hover:text-v-gold-dim transition-colors">View Forecast</a>
+            </div>
+            <div className="space-y-0">
+              {inventoryAlerts.slice(0, 5).map((alert) => (
+                <div key={alert.product_id} className="flex items-center justify-between h-14 border-b border-v-border-subtle">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${alert.status === 'out_of_stock' ? 'bg-v-danger' : 'bg-v-gold'}`} />
+                    <div className="min-w-0">
+                      <span className="text-sm text-v-text-primary truncate block">{alert.product_name}</span>
+                      {alert.first_job_client && (
+                        <span className="text-[10px] text-v-text-secondary/60">
+                          Needed for {alert.first_job_client} {alert.first_job_date ? `on ${new Date(alert.first_job_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                    <span className={`text-xs font-data ${alert.status === 'out_of_stock' ? 'text-v-danger' : 'text-v-gold'}`}>
+                      {alert.status === 'out_of_stock' ? 'OUT OF STOCK' : `ORDER ${alert.deficit}${alert.unit}`}
+                    </span>
+                    {alert.product_url && (
+                      <a href={alert.product_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-v-gold hover:text-v-gold-dim uppercase tracking-wider">
+                        Buy
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 mb-8 border-t border-v-border-subtle" />
+          </>
+        )}
+
         {/* Recent Quotes & Upcoming Jobs */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Recent Quotes */}
@@ -399,6 +443,11 @@ function DashboardContent() {
                         <span className={`text-[10px] uppercase tracking-wider ${isToday ? 'text-v-gold' : 'text-v-text-secondary'}`}>
                           {isToday ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                         </span>
+                        {['in_progress', 'completed', 'scheduled'].includes(job.status) && (
+                          <a href={`/jobs/${job.id}/log-products`} className="text-[10px] text-v-text-secondary hover:text-v-gold uppercase tracking-wider transition-colors">
+                            Log
+                          </a>
+                        )}
                         <span className="text-sm text-v-text-primary font-data min-w-[60px] text-right">{currencySymbol()}{formatPriceWhole(job.total_price)}</span>
                       </div>
                     </div>

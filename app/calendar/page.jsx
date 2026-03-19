@@ -28,6 +28,11 @@ export default function CalendarPage() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
 
+  // Inventory forecast
+  const [forecast, setForecast] = useState(null);
+  const [forecastAlerts, setForecastAlerts] = useState([]);
+  const [showForecast, setShowForecast] = useState(false);
+
   // Unified data
   const [jobs, setJobs] = useState([]);
   const [googleEvents, setGoogleEvents] = useState([]);
@@ -65,7 +70,21 @@ export default function CalendarPage() {
     } catch {}
 
     await fetchCalendarEvents(token);
+    fetchForecast(token);
     setLoading(false);
+  };
+
+  const fetchForecast = async (token) => {
+    try {
+      const res = await fetch('/api/inventory/forecast?days=14', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setForecast(data.forecast || []);
+        setForecastAlerts(data.alerts || []);
+      }
+    } catch {}
   };
 
   const fetchCalendarEvents = async (token) => {
@@ -404,6 +423,70 @@ export default function CalendarPage() {
             </div>
           )}
 
+          {/* Inventory Forecast */}
+          {forecast && forecast.length > 0 && (
+            <div className="bg-v-surface rounded-lg shadow p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-v-text-primary text-sm">Inventory Forecast</h3>
+                <button onClick={() => setShowForecast(!showForecast)} className="text-[10px] text-v-gold hover:text-v-gold-dim">
+                  {showForecast ? 'Hide' : `${forecastAlerts.length > 0 ? `${forecastAlerts.length} alert${forecastAlerts.length > 1 ? 's' : ''}` : 'View'}`}
+                </button>
+              </div>
+              {/* Alert summary */}
+              {forecastAlerts.length > 0 && !showForecast && (
+                <div className="space-y-1">
+                  {forecastAlerts.slice(0, 3).map(a => (
+                    <div key={a.product_id} className="flex items-center gap-1.5 text-[10px]">
+                      <span>{a.status === 'out_of_stock' ? '\u274C' : '\u26A0\uFE0F'}</span>
+                      <span className={a.status === 'out_of_stock' ? 'text-red-400' : 'text-amber-400'}>
+                        {a.product_name} — need {a.deficit}{a.unit}
+                      </span>
+                    </div>
+                  ))}
+                  {forecastAlerts.length > 3 && (
+                    <p className="text-[10px] text-v-text-secondary">+{forecastAlerts.length - 3} more</p>
+                  )}
+                </div>
+              )}
+              {/* Full forecast */}
+              {showForecast && (
+                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                  {forecast.filter(f => f.status !== 'not_needed').map(f => (
+                    <div key={f.product_id} className="flex items-start gap-1.5 text-[10px]">
+                      <span className="flex-shrink-0 mt-0.5">
+                        {f.status === 'out_of_stock' ? '\u274C' : f.status === 'low' ? '\u26A0\uFE0F' : '\u2705'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className={`font-medium ${
+                          f.status === 'out_of_stock' ? 'text-red-400' :
+                          f.status === 'low' ? 'text-amber-400' : 'text-green-400'
+                        }`}>
+                          {f.product_name}
+                        </span>
+                        <span className="text-v-text-secondary ml-1">
+                          need {f.needed}{f.unit}, have {f.have}{f.unit}
+                          {f.deficit > 0 && <span className={f.status === 'out_of_stock' ? ' text-red-400' : ' text-amber-400'}> (ORDER {f.deficit}{f.unit})</span>}
+                          {f.status === 'ok' && ' (OK)'}
+                        </span>
+                        {f.confidence && f.confidence.level !== 'estimated' && (
+                          <span className={`ml-1 ${
+                            f.confidence.color === 'green' ? 'text-green-400' :
+                            f.confidence.color === 'gold' ? 'text-amber-400' : 'text-yellow-400'
+                          }`}>
+                            {'✦'.repeat(f.confidence.stars)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {forecastAlerts.length === 0 && !showForecast && (
+                <p className="text-green-400 text-[10px]">All stocked for the next 14 days</p>
+              )}
+            </div>
+          )}
+
           {/* Legend */}
           <div className="bg-v-surface rounded-lg shadow p-4">
             <h3 className="font-semibold text-v-text-primary mb-2 text-sm">Legend</h3>
@@ -451,6 +534,14 @@ export default function CalendarPage() {
               <button onClick={() => { setScheduleModal(selectedJob); setSelectedJob(null); }} className="flex-1 py-2 border border-v-gold text-v-gold rounded hover:bg-v-gold-muted/20 text-sm">Reschedule</button>
               <a href={`/q/${selectedJob.share_link}`} target="_blank" className="flex-1 py-2 bg-v-gold text-white rounded text-center hover:bg-v-gold-dim text-sm">View Quote</a>
             </div>
+            {['in_progress', 'completed', 'scheduled'].includes(selectedJob.status) && (
+              <a
+                href={`/jobs/${selectedJob.id}/log-products`}
+                className="block w-full mt-2 py-2 text-center border border-v-border rounded hover:bg-white/5 text-v-text-secondary text-sm"
+              >
+                Log Products Used
+              </a>
+            )}
           </div>
         </div>
       )}
