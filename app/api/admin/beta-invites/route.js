@@ -56,8 +56,8 @@ export async function POST(request) {
   if (!['pro', 'business'].includes(plan)) {
     return Response.json({ error: 'Plan must be pro or business' }, { status: 400 });
   }
-  if (![30, 60, 90].includes(Number(duration_days))) {
-    return Response.json({ error: 'Duration must be 30, 60, or 90 days' }, { status: 400 });
+  if (![30, 60, 90, 180, 365].includes(Number(duration_days))) {
+    return Response.json({ error: 'Duration must be 30, 60, 90, 180, or 365 days' }, { status: 400 });
   }
 
   const token = crypto.randomUUID();

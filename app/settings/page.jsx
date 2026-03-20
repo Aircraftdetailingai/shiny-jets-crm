@@ -185,32 +185,12 @@ function SettingsContent() {
     setSaveSuccess(false);
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem('vector_token');
-    const stored = localStorage.getItem('vector_user');
-    if (!token || !stored) {
-      router.push('/login');
-      return;
-    }
-    let u;
-    try { u = JSON.parse(stored); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
+  // Hydrate all settings state from a user object
+  const hydrateFromUser = (u) => {
     setUser(u);
     setProfileName(u.name || '');
     setProfileCompany(u.company || '');
     setProfilePhone(u.phone || '');
-    // Refresh user data from server to get latest plan/permissions
-    fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.user) {
-          setUser(data.user);
-          setProfileName(data.user.name || '');
-          setProfileCompany(data.user.company || '');
-          setProfilePhone(data.user.phone || '');
-          localStorage.setItem('vector_user', JSON.stringify(data.user));
-        }
-      })
-      .catch(() => {});
     setPriceReminder(u.price_reminder_months || 6);
     setQuoteDisplayPref(u.quote_display_preference || 'package');
     setEfficiencyFactor(u.efficiency_factor || 1.0);
@@ -221,36 +201,58 @@ function SettingsContent() {
     setListedInDirectory(u.listed_in_directory || false);
     setCalendlyUrl(u.calendly_url || '');
     setUseCalendlyScheduling(u.use_calendly_scheduling || false);
-      setNotifyQuoteViewed(u.notify_quote_viewed || false);
-      setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
-      setReviewRequestEnabled(u.review_request_enabled !== false);
-      setReviewRequestDelay(u.review_request_delay_days || 1);
-      setGoogleBusinessUrl(u.google_business_url || '');
-      setGoogleReviewsLastSynced(u.google_reviews_last_synced || null);
-      setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
-      setMonthlyReportEnabled(u.notification_settings?.monthlyReportEnabled || false);
-      if (u.notification_settings?.followups) {
-        setFollowupSettings(prev => ({ ...prev, ...u.notification_settings.followups }));
-      }
-      setFollowupDiscountPercent(u.followup_discount_percent || 10);
-      setEmailNotifs({
-        quoteCreated: u.notification_settings?.quoteCreated || false,
-        quoteSent: u.notification_settings?.quoteSent || false,
-        weeklySummary: u.notification_settings?.weeklySummary || false,
-        priceReview: u.notification_settings?.priceReview || false,
-      });
-      setSmsAlerts({
-        quoteViewed: u.notification_settings?.quoteViewed || false,
-        quoteExpiring: u.notification_settings?.quoteExpiring || false,
-      });
-      setSmsClient({
-        quoteDelivery: u.notification_settings?.quoteDelivery || false,
-        followup3: u.notification_settings?.followup3 || false,
-        followup7: u.notification_settings?.followup7 || false,
-        expiration: u.notification_settings?.expiration || false,
-        jobReminderSms: u.notification_settings?.jobReminderSms || false,
-        paymentConfirmSms: u.notification_settings?.paymentConfirmSms || false,
-      });
+    setNotifyQuoteViewed(u.notify_quote_viewed || false);
+    setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
+    setReviewRequestEnabled(u.review_request_enabled !== false);
+    setReviewRequestDelay(u.review_request_delay_days || 1);
+    setGoogleBusinessUrl(u.google_business_url || '');
+    setGoogleReviewsLastSynced(u.google_reviews_last_synced || null);
+    setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
+    setMonthlyReportEnabled(u.notification_settings?.monthlyReportEnabled || false);
+    if (u.notification_settings?.followups) {
+      setFollowupSettings(prev => ({ ...prev, ...u.notification_settings.followups }));
+    }
+    setFollowupDiscountPercent(u.followup_discount_percent || 10);
+    setEmailNotifs({
+      quoteCreated: u.notification_settings?.quoteCreated || false,
+      quoteSent: u.notification_settings?.quoteSent || false,
+      weeklySummary: u.notification_settings?.weeklySummary || false,
+      priceReview: u.notification_settings?.priceReview || false,
+    });
+    setSmsAlerts({
+      quoteViewed: u.notification_settings?.quoteViewed || false,
+      quoteExpiring: u.notification_settings?.quoteExpiring || false,
+    });
+    setSmsClient({
+      quoteDelivery: u.notification_settings?.quoteDelivery || false,
+      followup3: u.notification_settings?.followup3 || false,
+      followup7: u.notification_settings?.followup7 || false,
+      expiration: u.notification_settings?.expiration || false,
+      jobReminderSms: u.notification_settings?.jobReminderSms || false,
+      paymentConfirmSms: u.notification_settings?.paymentConfirmSms || false,
+    });
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('vector_token');
+    const stored = localStorage.getItem('vector_user');
+    if (!token || !stored) {
+      router.push('/login');
+      return;
+    }
+    let u;
+    try { u = JSON.parse(stored); } catch { localStorage.removeItem('vector_user'); router.push('/login'); return; }
+    hydrateFromUser(u);
+    // Refresh user data from server to get latest plan/permissions
+    fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.user) {
+          hydrateFromUser(data.user);
+          localStorage.setItem('vector_user', JSON.stringify(data.user));
+        }
+      })
+      .catch(() => {});
       // Fetch SMS settings for business/enterprise/admin users
       if (u.plan === 'business' || u.plan === 'enterprise' || u.is_admin) {
         fetch('/api/sms/settings', {
@@ -1332,6 +1334,13 @@ function SettingsContent() {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ calendly_url: calendlyUrl || null, use_calendly_scheduling: useCalendlyScheduling }),
+        }).then(() => {
+          try {
+            const u = JSON.parse(localStorage.getItem('vector_user') || '{}');
+            u.calendly_url = calendlyUrl || null;
+            u.use_calendly_scheduling = useCalendlyScheduling;
+            localStorage.setItem('vector_user', JSON.stringify(u));
+          } catch {}
         }));
       }
       if (pendingChanges.has('branding')) {

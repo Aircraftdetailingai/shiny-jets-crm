@@ -48,6 +48,11 @@ function buildUserResponse(data, isAdmin) {
     theme_logo_url: data.theme_logo_url || null,
     booking_mode: data.booking_mode || 'pay_to_book',
     deposit_percentage: data.deposit_percentage || 25,
+    google_business_url: data.google_business_url || null,
+    google_reviews_last_synced: data.google_reviews_last_synced || null,
+    calendly_url: data.calendly_url || null,
+    use_calendly_scheduling: data.use_calendly_scheduling || false,
+    website_url: data.website_url || null,
   };
 }
 
@@ -65,7 +70,7 @@ export async function GET(request) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('detailers')
-    .select('id, email, name, phone, company, plan, status, rates, notification_settings, price_reminder_months, quote_display_preference, efficiency_factor, default_labor_rate, sms_enabled, preferred_currency, country, home_airport, airports_served, listed_in_directory, notify_quote_viewed, cc_fee_mode, pass_fee_to_customer, followup_discount_percent, logo_url, terms_accepted_version, created_at, onboarding_completed, availability, notify_weekly_digest, review_request_enabled, review_request_delay_days, theme_primary, portal_theme, theme_logo_url, booking_mode, deposit_percentage, google_business_url, google_reviews_last_synced')
+    .select('id, email, name, phone, company, plan, status, rates, notification_settings, price_reminder_months, quote_display_preference, efficiency_factor, default_labor_rate, sms_enabled, preferred_currency, country, home_airport, airports_served, listed_in_directory, notify_quote_viewed, cc_fee_mode, pass_fee_to_customer, followup_discount_percent, logo_url, terms_accepted_version, created_at, onboarding_completed, availability, notify_weekly_digest, review_request_enabled, review_request_delay_days, theme_primary, portal_theme, theme_logo_url, booking_mode, deposit_percentage, google_business_url, google_reviews_last_synced, calendly_url, use_calendly_scheduling, website_url')
     .eq('id', user.id)
     .single();
 
