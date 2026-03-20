@@ -276,6 +276,8 @@ function SettingsContent() {
   }, [router]);
 
   const [stripeError, setStripeError] = useState(null);
+  const [chargebackAgreed, setChargebackAgreed] = useState(false);
+  const [chargebackAcceptedAt, setChargebackAcceptedAt] = useState(null);
 
   useEffect(() => {
     const upgrade = params.get('upgrade');
@@ -307,6 +309,10 @@ function SettingsContent() {
       if (res.ok) {
         const data = await res.json();
         setStripeStatus(data);
+        if (data.chargeback_terms_accepted_at) {
+          setChargebackAcceptedAt(data.chargeback_terms_accepted_at);
+          setChargebackAgreed(true);
+        }
       }
     } catch (err) {
       console.log('Failed to check Stripe status:', err);
@@ -441,9 +447,9 @@ function SettingsContent() {
         });
         if (data.theme_colors && data.theme_colors.length > 0) {
           setBrandColors(data.theme_colors);
-          // Generate palettes from first extracted color
+          // Generate palettes from extracted colors
           const primaryColor = data.theme_colors[0];
-          if (primaryColor) setPalettes(generatePalettes(primaryColor));
+          if (primaryColor) setPalettes(generatePalettes(primaryColor, data.theme_colors));
         } else if (data.logo_url) {
           // Logo exists but no colors extracted yet — trigger extraction
           try {
@@ -525,6 +531,7 @@ function SettingsContent() {
           theme_bg: theme.bg,
           theme_surface: theme.surface,
           theme_logo_url: theme.logo_url || null,
+          theme_colors: brandColors.length > 0 ? brandColors : undefined,
         }),
       });
       if (res.ok) {
@@ -808,6 +815,10 @@ function SettingsContent() {
 
   const handleConnectStripe = async () => {
     console.log('handleConnectStripe called');
+    if (!chargebackAgreed && !chargebackAcceptedAt) {
+      setStripeError('You must acknowledge chargeback responsibility before connecting Stripe.');
+      return;
+    }
     setStripeLoading(true);
     setStripeError(null);
     try {
@@ -816,6 +827,16 @@ function SettingsContent() {
       if (!token) {
         setStripeError('Not logged in - please refresh and try again');
         return;
+      }
+      // Save chargeback terms acceptance
+      if (!chargebackAcceptedAt) {
+        const ts = new Date().toISOString();
+        await fetch('/api/user/settings', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chargeback_terms_accepted_at: ts }),
+        }).catch(() => {});
+        setChargebackAcceptedAt(ts);
       }
       console.log('Calling /api/stripe/connect...');
       const res = await fetch('/api/stripe/connect', {
@@ -1319,7 +1340,7 @@ function SettingsContent() {
           await saveTheme({ ...selectedTheme, logo_url: logoUrl });
           // Save portal_theme, disclaimer, and fonts in one call
           const token = localStorage.getItem('vector_token');
-          const extraFields = { portal_theme: portalTheme, disclaimer_text: disclaimerText, website_url: websiteUrl || null, logo_url: logoUrl || null };
+          const extraFields = { portal_theme: portalTheme, disclaimer_text: disclaimerText, website_url: websiteUrl || null, logo_url: logoUrl || null, theme_colors: brandColors.length > 0 ? brandColors : undefined };
           if (pendingFonts) {
             extraFields.font_heading = pendingFonts.heading;
             extraFields.font_subheading = pendingFonts.subheading;
@@ -1599,7 +1620,9 @@ function SettingsContent() {
                       setExtractedFonts(data.fonts);
                     }
                     if (res.ok && data.colors && data.colors.length > 0) {
-                      setBrandColors(prev => [...new Set([...prev, ...data.colors])].slice(0, 10));
+                      const merged = [...new Set([...brandColors, ...data.colors])].slice(0, 10);
+                      setBrandColors(merged);
+                      if (merged[0]) setPalettes(generatePalettes(merged[0], merged));
                     }
                   } catch (err) {
                     console.error('Font extraction failed:', err);
@@ -2156,9 +2179,27 @@ function SettingsContent() {
                 <span className="text-red-400 font-medium">{'Stripe not connected'}</span>
               </div>
               <p className="text-sm text-v-text-secondary mb-3">{'Connect Stripe to receive payments for your quotes.'}</p>
+              {!chargebackAcceptedAt && (
+                <label className="flex items-start gap-3 mb-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={chargebackAgreed}
+                    onChange={(e) => setChargebackAgreed(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded accent-[var(--brand-primary,#C9A84C)]"
+                  />
+                  <span className="text-v-text-secondary text-xs leading-relaxed">
+                    I understand I am solely responsible for all chargebacks and payment disputes with my customers.
+                    Vector Aviation is not liable for any chargeback losses or fees.
+                    I agree to the{' '}
+                    <a href="/terms" target="_blank" rel="noreferrer" className="text-v-gold hover:text-v-gold-dim underline">
+                      Terms of Service
+                    </a>.
+                  </span>
+                </label>
+              )}
               <button
                 onClick={handleConnectStripe}
-                disabled={stripeLoading}
+                disabled={stripeLoading || (!chargebackAgreed && !chargebackAcceptedAt)}
                 className="px-4 py-2 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 disabled:opacity-50"
               >
                 {stripeLoading ? 'Connecting...' : 'Connect Stripe'}
