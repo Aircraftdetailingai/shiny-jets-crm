@@ -112,24 +112,46 @@ export async function POST(request) {
     trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
 
     // Create the detailer account
-    const { data: detailer, error: createErr } = await supabase
-      .from('detailers')
-      .insert({
-        email: normalizedEmail,
-        name: name.trim(),
-        company: company?.trim() || null,
-        country: country || null,
-        password_hash: passwordHash,
-        plan,
-        status: 'active',
-        trial_ends_at: trialEndsAt.toISOString(),
-      })
-      .select()
-      .single();
+    const insertRow = {
+      email: normalizedEmail,
+      name: name.trim(),
+      company: company?.trim() || null,
+      country: country || null,
+      password_hash: passwordHash,
+      plan,
+      status: 'active',
+      trial_ends_at: trialEndsAt.toISOString(),
+    };
 
-    if (createErr) {
-      console.error('Signup error:', createErr);
-      return Response.json({ error: 'Failed to create account' }, { status: 500 });
+    let detailer = null;
+    // Column-stripping retry in case a column doesn't exist yet
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data, error: createErr } = await supabase
+        .from('detailers')
+        .insert(insertRow)
+        .select()
+        .single();
+
+      if (!createErr) {
+        detailer = data;
+        break;
+      }
+
+      const colMatch = createErr.message?.match(/column "([^"]+)".*does not exist/)
+        || createErr.message?.match(/Could not find the '([^']+)' column/);
+      if (colMatch) {
+        console.log(`[signup] Stripping missing column: ${colMatch[1]}`);
+        delete insertRow[colMatch[1]];
+        continue;
+      }
+
+      console.error('[signup] Insert error:', createErr.message, createErr);
+      return Response.json({ error: `Failed to create account: ${createErr.message}` }, { status: 500 });
+    }
+
+    if (!detailer) {
+      console.error('[signup] Failed after column stripping retries');
+      return Response.json({ error: 'Failed to create account after retries' }, { status: 500 });
     }
 
     // Mark invite as used (if we validated one)
@@ -204,7 +226,7 @@ export async function POST(request) {
 
     return Response.json({ token, user });
   } catch (err) {
-    console.error('Signup error:', err);
-    return Response.json({ error: 'Server error' }, { status: 500 });
+    console.error('[signup] Unhandled error:', err);
+    return Response.json({ error: `Server error: ${err.message}` }, { status: 500 });
   }
 }
