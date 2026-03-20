@@ -40,7 +40,7 @@ export async function GET(request) {
     // Fetch detailer's Stripe account ID and mode
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_account_id, stripe_mode')
+      .select('stripe_account_id, stripe_mode, chargeback_terms_accepted_at')
       .eq('id', user.id)
       .single();
 
@@ -71,7 +71,8 @@ export async function GET(request) {
       return new Response(JSON.stringify({
         connected: false,
         status: 'NOT_CONNECTED',
-        message: 'Stripe not connected'
+        message: 'Stripe not connected',
+        chargeback_terms_accepted_at: detailer?.chargeback_terms_accepted_at || null,
       }), { status: 200 });
     }
 
@@ -95,6 +96,7 @@ export async function GET(request) {
       detailsSubmitted: account.details_submitted,
       accountType: account.type,
       email: account.email,
+      chargeback_terms_accepted_at: detailer?.chargeback_terms_accepted_at || null,
     }), { status: 200 });
   } catch (err) {
     console.error('=== Stripe Status Error ===', {

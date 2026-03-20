@@ -1034,6 +1034,15 @@ export default function QuoteViewPage() {
           </div>
         )}
 
+        {/* Payment disclaimer */}
+        {stripeConnected && !isPaid && !isExpired && (
+          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[9px] leading-relaxed mt-4 text-center">
+            Payments are processed securely by Stripe. All payment disputes and refund requests
+            should be directed to {detailer?.company || 'your service provider'}. Vector Aviation
+            is a software platform and is not a party to this transaction.
+          </p>
+        )}
+
         {/* Valid until */}
         <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.15em] uppercase text-center mt-6">
           Valid until {formatDate(quote.valid_until)}

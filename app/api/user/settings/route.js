@@ -11,6 +11,7 @@ function getSupabase() {
 const ALLOWED_FIELDS = [
   'calendly_url',
   'use_calendly_scheduling',
+  'chargeback_terms_accepted_at',
 ];
 
 export async function POST(request) {

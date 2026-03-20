@@ -301,7 +301,7 @@ export default function TermsPage() {
               After 30 days, your data may be permanently deleted.
             </p>
             <p>
-              Sections 5, 6, 7, 8, 11, 12, 13, 15, 16, 17, and 19 survive termination.
+              Sections 5, 6, 7, 8, 11, 12, 13, 15, 16, 17, 19, and 22 survive termination.
             </p>
           </section>
 
@@ -348,7 +348,40 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">22. Points & Rewards Program</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">22. Payment Processing and Chargebacks</h2>
+            <p className="mb-3">
+              <strong>Payment Processing:</strong> All payments are processed by Stripe, Inc. Vector Aviation
+              Artificial Intelligence LLC acts solely as a software platform connecting aircraft detailing
+              businesses with their customers. Vector Aviation is not a party to any transaction between
+              detailers and their customers.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-3">
+              <p className="font-bold text-red-900 mb-2">CHARGEBACK RESPONSIBILITY:</p>
+              <p className="text-red-800 mb-2">
+                Detailers are solely responsible for all chargebacks, disputes, and refunds initiated
+                by their customers. By using Vector CRM, detailers agree to:
+              </p>
+              <ul className="list-disc ml-6 space-y-1 text-red-800">
+                <li>Respond to all Stripe chargeback notifications within the required timeframe</li>
+                <li>Provide evidence to Stripe to contest illegitimate chargebacks</li>
+                <li>Maintain accurate service records and customer communications as evidence</li>
+                <li>Indemnify and hold harmless Vector Aviation Artificial Intelligence LLC from any chargeback losses, fees, or penalties</li>
+              </ul>
+            </div>
+            <p className="mb-3">
+              <strong>Platform Fee Non-Refundable:</strong> Vector Aviation platform fees are non-refundable
+              regardless of chargebacks or disputes between detailers and customers.
+            </p>
+            <p>
+              <strong>Stripe Terms:</strong> Payment processing is subject to Stripe&apos;s{' '}
+              <a href="https://stripe.com/legal" className="text-v-gold-dim hover:underline" target="_blank" rel="noreferrer">
+                Terms of Service
+              </a>.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">23. Points & Rewards Program</h2>
             <p>
               Vector Aviation offers a points-based rewards program (&ldquo;Rewards Program&rdquo;) subject to
               the following terms:
@@ -366,7 +399,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">23. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">24. Contact Information</h2>
             <p>
               For questions about these Terms of Service, contact us at:
             </p>
