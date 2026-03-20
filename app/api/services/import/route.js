@@ -55,20 +55,33 @@ export async function POST(request) {
         hourly_rate: parseFloat(svc.hourly_rate) || 0,
       };
       if (svc.hours_field) row.hours_field = svc.hours_field;
+      if (svc.category) row.category = svc.category;
       return row;
     });
 
-    const { data: insertedServices, error } = await supabase
-      .from('services')
-      .insert(toInsert)
-      .select();
+    // Column-stripping retry
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: insertedServices, error } = await supabase
+        .from('services')
+        .insert(toInsert)
+        .select();
 
-    if (error) {
+      if (!error) {
+        return Response.json({ services: insertedServices || [] }, { status: 201 });
+      }
+
+      const colMatch = error.message?.match(/column "([^"]+)".*does not exist/)
+        || error.message?.match(/Could not find the '([^']+)' column/);
+      if (colMatch) {
+        for (const row of toInsert) { delete row[colMatch[1]]; }
+        continue;
+      }
+
       console.error('Failed to import services:', error);
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({ services: insertedServices || [] }, { status: 201 });
+    return Response.json({ error: 'Failed to import services after retries' }, { status: 500 });
 
   } catch (err) {
     console.error('Services import error:', err);

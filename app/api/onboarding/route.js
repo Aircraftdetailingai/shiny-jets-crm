@@ -167,11 +167,24 @@ export async function POST(request) {
 
       // Create customer record
       const normalizedEmail = email.toLowerCase().trim();
-      await supabase.from('customers').upsert({
-        detailer_id: user.id,
-        email: normalizedEmail,
-        name: customerName || '',
-      }, { onConflict: 'detailer_id,email' });
+
+      // Check if customer exists first
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('detailer_id', user.id)
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        await supabase.from('customers').update({ name: customerName || '' }).eq('id', existingCustomer.id);
+      } else {
+        await supabase.from('customers').insert({
+          detailer_id: user.id,
+          email: normalizedEmail,
+          name: customerName || '',
+        });
+      }
 
       // Get detailer info for email
       const { data: detailer } = await supabase
@@ -199,7 +212,7 @@ export async function POST(request) {
     if (action === 'complete') {
       await supabase
         .from('detailers')
-        .update({ onboarding_complete: true, onboarding_step: 5 })
+        .update({ onboarding_complete: true, onboarding_completed: true, onboarding_step: 5 })
         .eq('id', user.id);
 
       // Award 50 points
@@ -227,7 +240,7 @@ export async function POST(request) {
     if (action === 'skip') {
       await supabase
         .from('detailers')
-        .update({ onboarding_complete: true })
+        .update({ onboarding_complete: true, onboarding_completed: true })
         .eq('id', user.id);
       return Response.json({ success: true });
     }
