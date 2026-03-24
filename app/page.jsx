@@ -481,16 +481,16 @@ export default function LandingPage() {
           <div className="max-w-3xl mx-auto">
             <div className="p-8 rounded-xl bg-white/[0.03] border border-white/5">
               <p className="text-gray-300 leading-relaxed mb-6">
-                I&apos;m Brett Berry, President of the Aircraft Detailers Association, and I&apos;ve been detailing aircraft for over 15 years. I built Vector because I was tired of quoting with spreadsheets and losing track of jobs on whiteboards. Every feature in Vector exists because I needed it in my own business.
+                Vector was built by a professional aircraft detailer with 15+ years of experience in the industry. It exists because we were tired of quoting with spreadsheets and losing track of jobs on whiteboards. Every feature in Vector exists because it was needed in a real detailing business.
               </p>
               <p className="text-gray-300 leading-relaxed mb-6">
-                Vector is currently in beta. I&apos;m looking for the first 50 detailers to join as founding members &mdash; you&apos;ll get locked-in Pro pricing forever, direct access to me for feedback, and a platform that&apos;s being built by someone who actually does this work.
+                Vector is currently in beta. We&apos;re looking for the first 50 detailers to join as founding members &mdash; you&apos;ll get locked-in Pro pricing forever, direct input on the roadmap, and a platform that&apos;s being built by someone who actually does this work.
               </p>
               <div className="flex items-center gap-4">
                 <div>
-                  <p className="text-white font-semibold">Brett Berry</p>
-                  <p className="text-gray-500 text-sm">President, Aircraft Detailers Association</p>
-                  <p className="text-gray-500 text-sm">15+ years in aircraft detailing</p>
+                  <p className="text-white font-semibold">Vector Aviation</p>
+                  <p className="text-gray-500 text-sm">Built by a professional aircraft detailer</p>
+                  <p className="text-gray-500 text-sm">15+ years of aircraft detailing experience</p>
                 </div>
               </div>
             </div>
