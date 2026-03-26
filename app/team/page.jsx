@@ -9,6 +9,8 @@ export default function TeamPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [resending, setResending] = useState(null);
+  const [resendMsg, setResendMsg] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -31,6 +33,30 @@ export default function TeamPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resendInvite = async (memberId, e) => {
+    e.stopPropagation();
+    setResending(memberId);
+    setResendMsg('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ member_id: memberId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send');
+      setResendMsg(`Invite sent`);
+      // Refresh list
+      fetchMembers(token);
+    } catch (err) {
+      setResendMsg(`Failed: ${err.message}`);
+    } finally {
+      setResending(null);
+      setTimeout(() => setResendMsg(''), 3000);
     }
   };
 
@@ -61,6 +87,13 @@ export default function TeamPage() {
           </a>
         </div>
       </header>
+
+      {/* Toast */}
+      {resendMsg && (
+        <div className={`mb-4 px-4 py-2 rounded-lg text-sm ${resendMsg.startsWith('Failed') ? 'bg-red-900/30 text-red-300 border border-red-500/30' : 'bg-green-900/30 text-green-300 border border-green-500/30'}`}>
+          {resendMsg}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
@@ -112,6 +145,7 @@ export default function TeamPage() {
                 <th className="px-4 py-3 font-medium hidden md:table-cell">{'Hours'}</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Total Pay'}</th>
                 <th className="px-4 py-3 font-medium">{'Status'}</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Invite'}</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +157,7 @@ export default function TeamPage() {
                 >
                   <td className="px-4 py-3">
                     <div className="font-medium text-v-text-primary">{member.name}</div>
-                    <div className="text-xs text-v-text-secondary sm:hidden">{member.type}</div>
+                    <div className="text-xs text-v-text-secondary">{member.email || ''}</div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
@@ -150,6 +184,23 @@ export default function TeamPage() {
                       member.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
                     }`} />
                     <span className="ml-2 text-sm text-v-text-secondary hidden sm:inline">{member.status}</span>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    {member.email ? (
+                      member.invite_status === 'accepted' ? (
+                        <span className="text-xs text-green-400">Accepted</span>
+                      ) : (
+                        <button
+                          onClick={(e) => resendInvite(member.id, e)}
+                          disabled={resending === member.id}
+                          className="text-xs px-3 py-1 bg-v-gold/20 text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/30 transition-colors disabled:opacity-50"
+                        >
+                          {resending === member.id ? 'Sending...' : member.invite_sent_at ? 'Resend' : 'Send Invite'}
+                        </button>
+                      )
+                    ) : (
+                      <span className="text-xs text-v-text-secondary">No email</span>
+                    )}
                   </td>
                 </tr>
               ))}

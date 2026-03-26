@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { sendTeamInviteEmail } from '@/lib/email';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +94,9 @@ export async function POST(request) {
     const validRoles = ['owner', 'manager', 'lead_tech', 'employee', 'contractor'];
     const role = validRoles.includes(body.role) ? body.role : body.type;
 
+    // Generate invite token if email provided
+    const inviteToken = body.email ? crypto.randomUUID() : null;
+
     const insertData = {
       detailer_id: user.id,
       name: body.name,
@@ -102,6 +107,8 @@ export async function POST(request) {
       hourly_pay: parseFloat(body.hourly_pay) || 0,
       pin_code: body.pin_code || null,
       status: 'active',
+      invite_token: inviteToken,
+      invite_status: body.email ? 'pending' : 'not_invited',
     };
 
     const { data, error } = await supabase
@@ -115,10 +122,124 @@ export async function POST(request) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
+    // Send invite email if email provided
+    if (body.email && inviteToken) {
+      // Get detailer info for the invite
+      const { data: detailer } = await supabase
+        .from('detailers')
+        .select('name, company')
+        .eq('id', user.id)
+        .single();
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
+      const inviteUrl = `${appUrl}/team/join/${inviteToken}`;
+
+      console.log('[team/invite] Sending invite email to:', body.email, 'invite URL:', inviteUrl);
+
+      try {
+        const result = await sendTeamInviteEmail({
+          to: body.email,
+          inviterName: detailer?.name || detailer?.company || 'Your team leader',
+          company: detailer?.company || detailer?.name || 'the team',
+          role,
+          inviteUrl,
+        });
+
+        if (result?.success !== false) {
+          await supabase.from('team_members').update({
+            invite_sent_at: new Date().toISOString(),
+          }).eq('id', data.id);
+          console.log('[team/invite] Email sent successfully to:', body.email);
+        } else {
+          console.error('[team/invite] Email send failed:', result?.error);
+        }
+      } catch (emailErr) {
+        console.error('[team/invite] Email error:', emailErr.message);
+      }
+    }
+
     return Response.json(data, { status: 201 });
 
   } catch (err) {
     console.error('Team POST error:', err);
     return Response.json({ error: 'Failed to create team member' }, { status: 500 });
+  }
+}
+
+// PATCH - Resend invite email
+export async function PATCH(request) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return Response.json({ error: 'Database not configured' }, { status: 500 });
+    }
+
+    const user = await getAuthUser(request);
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { member_id } = await request.json();
+    if (!member_id) {
+      return Response.json({ error: 'member_id required' }, { status: 400 });
+    }
+
+    // Get team member
+    const { data: member, error: memberErr } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('id', member_id)
+      .eq('detailer_id', user.id)
+      .single();
+
+    if (memberErr || !member) {
+      return Response.json({ error: 'Team member not found' }, { status: 404 });
+    }
+
+    if (!member.email) {
+      return Response.json({ error: 'No email on file for this team member' }, { status: 400 });
+    }
+
+    // Generate new token if none exists
+    let token = member.invite_token;
+    if (!token) {
+      token = crypto.randomUUID();
+      await supabase.from('team_members').update({ invite_token: token }).eq('id', member.id);
+    }
+
+    // Get detailer info
+    const { data: detailer } = await supabase
+      .from('detailers')
+      .select('name, company')
+      .eq('id', user.id)
+      .single();
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
+    const inviteUrl = `${appUrl}/team/join/${token}`;
+
+    const result = await sendTeamInviteEmail({
+      to: member.email,
+      inviterName: detailer?.name || detailer?.company || 'Your team leader',
+      company: detailer?.company || detailer?.name || 'the team',
+      role: member.role,
+      inviteUrl,
+    });
+
+    if (result?.success === false) {
+      return Response.json({ error: result.error || 'Failed to send email' }, { status: 500 });
+    }
+
+    await supabase.from('team_members').update({
+      invite_sent_at: new Date().toISOString(),
+      invite_status: 'pending',
+    }).eq('id', member.id);
+
+    console.log('[team/resend] Invite resent to:', member.email);
+
+    return Response.json({ success: true, message: `Invite sent to ${member.email}` });
+
+  } catch (err) {
+    console.error('Team PATCH error:', err);
+    return Response.json({ error: 'Failed to resend invite' }, { status: 500 });
   }
 }
