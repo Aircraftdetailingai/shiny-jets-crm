@@ -63,21 +63,38 @@ export async function POST(request) {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ to, from: 'Vector <noreply@vectorav.ai>', subject, html }),
+      body: JSON.stringify({ to, from: 'Shiny Jets CRM <noreply@vectorav.ai>', subject, html }),
     });
   }
 
   if (topic === 'orders/paid') {
     const lineItems = payload?.line_items || [];
-    const vectorItem = lineItems.find(item => item.sku && item.sku.startsWith('VECTOR-'));
-    if (!vectorItem) {
-      return new Response('OK', { status: 200 });
+    // Match by SKU (VECTOR- or SJ-CRM- prefix) or by product title
+    const crmItem = lineItems.find(item =>
+      (item.sku && (item.sku.startsWith('VECTOR-') || item.sku.startsWith('SJ-CRM-'))) ||
+      (item.title && item.title.toLowerCase().includes('shiny jets crm'))
+    );
+    if (!crmItem) {
+      // Also try matching by price for Seal Subscriptions recurring charges
+      const priceItem = lineItems.find(item => {
+        const p = parseFloat(item.price);
+        return (p >= 70 && p <= 90) || (p >= 140 && p <= 160) || (p >= 290 && p <= 310);
+      });
+      if (!priceItem) {
+        return new Response('OK', { status: 200 });
+      }
+      // Fall through with price-matched item
+      var matchedItem = priceItem;
+    } else {
+      var matchedItem = crmItem;
     }
-    const planSku = vectorItem.sku;
-    let plan = 'starter';
-    if (planSku.includes('BUSINESS')) plan = 'business';
-    else if (planSku.includes('PRO')) plan = 'pro';
-    else if (planSku.includes('STARTER')) plan = 'starter';
+    const planSku = matchedItem.sku || '';
+    const planTitle = (matchedItem.title || '').toLowerCase();
+    const planPrice = parseFloat(matchedItem.price);
+    let plan = 'pro'; // default to pro
+    if (planSku.includes('BUSINESS') || planTitle.includes('business') || (planPrice >= 140 && planPrice <= 160)) plan = 'business';
+    else if (planSku.includes('ENTERPRISE') || planTitle.includes('enterprise') || (planPrice >= 290 && planPrice <= 310)) plan = 'enterprise';
+    else if (planSku.includes('PRO') || planTitle.includes('pro') || (planPrice >= 70 && planPrice <= 90)) plan = 'pro';
     const email = payload?.customer?.email;
     const name = payload?.customer?.first_name ? `${payload.customer.first_name} ${payload.customer.last_name || ''}`.trim() : 'Customer';
     const phone = payload?.customer?.phone || null;
@@ -192,11 +209,14 @@ export async function POST(request) {
   } else if (topic === 'subscription_contracts/update') {
     const email = payload?.customer?.email;
     const customerId = payload?.customer_id;
-    const newPlanSku = payload?.line_items?.[0]?.sku || '';
-    let newPlan = 'starter';
-    if (newPlanSku.includes('BUSINESS')) newPlan = 'business';
-    else if (newPlanSku.includes('PRO')) newPlan = 'pro';
-    else if (newPlanSku.includes('STARTER')) newPlan = 'starter';
+    const contractItem = payload?.line_items?.[0] || {};
+    const newPlanSku = contractItem.sku || '';
+    const newPlanTitle = (contractItem.title || '').toLowerCase();
+    const newPlanPrice = parseFloat(contractItem.price || 0);
+    let newPlan = 'pro';
+    if (newPlanSku.includes('BUSINESS') || newPlanTitle.includes('business') || (newPlanPrice >= 140 && newPlanPrice <= 160)) newPlan = 'business';
+    else if (newPlanSku.includes('ENTERPRISE') || newPlanTitle.includes('enterprise') || (newPlanPrice >= 290 && newPlanPrice <= 310)) newPlan = 'enterprise';
+    else if (newPlanSku.includes('PRO') || newPlanTitle.includes('pro') || (newPlanPrice >= 70 && newPlanPrice <= 90)) newPlan = 'pro';
     const { data: detailer } = await supabase
       .from('detailers')
       .select()
