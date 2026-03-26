@@ -90,6 +90,39 @@ a {
 
 input, textarea, select {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color: var(--v-text-primary, #F5F5F5);
+  background-color: var(--v-surface, #1A2236);
+  border-color: var(--v-border, #2A3A50);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--v-text-secondary, #8A9BB0) !important;
+  opacity: 0.7;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--v-gold, #007CB1) !important;
+  outline: none;
+}
+
+/* Ensure customer-facing pages (white bg) have dark text inputs */
+.theme-light input,
+.theme-light textarea,
+.theme-light select {
+  color: #0F1117;
+  background-color: #FFFFFF;
+  border-color: #D1D5DB;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+.theme-light input:focus,
+.theme-light textarea:focus,
+.theme-light select:focus {
+  border-color: var(--v-gold, #007CB1) !important;
 }
 
 /* ========== PAGE TRANSITIONS ========== */
@@ -130,7 +163,7 @@ input, textarea, select {
 }
 
 .card-hover:hover {
-  border-color: rgba(201, 168, 76, 0.2);
+  border-color: rgba(0, 124, 177, 0.2);
   background-color: rgba(255, 255, 255, 0.01);
 }
 
@@ -269,8 +302,8 @@ input, textarea, select {
 
 .modal-glow {
   box-shadow:
-    inset 0 1px 0 0 rgba(201, 168, 76, 0.08),
-    inset 0 0 40px rgba(201, 168, 76, 0.03),
+    inset 0 1px 0 0 rgba(0, 124, 177, 0.08),
+    inset 0 0 40px rgba(0, 124, 177, 0.03),
     0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
@@ -303,11 +336,11 @@ body > div[style*="position: fixed"]:last-of-type {
 /* ========== REACT-GRID-LAYOUT OVERRIDES ========== */
 
 .react-grid-item.react-grid-placeholder {
-  background: rgba(201, 168, 76, 0.15) !important;
-  border: 1px dashed rgba(201, 168, 76, 0.4) !important;
+  background: rgba(0, 124, 177, 0.15) !important;
+  border: 1px dashed rgba(0, 124, 177, 0.4) !important;
   border-radius: 0.75rem;
 }
 
 .react-grid-item > .react-resizable-handle::after {
-  border-color: rgba(201, 168, 76, 0.4) !important;
+  border-color: rgba(0, 124, 177, 0.4) !important;
 }

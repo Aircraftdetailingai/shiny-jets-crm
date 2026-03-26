@@ -68,7 +68,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
               type="text"
               value={form.company_name}
               onChange={(e) => setForm(p => ({ ...p, company_name: e.target.value }))}
-              placeholder="e.g. Vector Aviation"
+              placeholder="e.g. Shiny Jets Aviation"
               className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />
           </div>
