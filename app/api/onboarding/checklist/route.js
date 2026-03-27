@@ -108,7 +108,7 @@ export async function POST(request) {
 
     const { error } = await supabase
       .from('detailers')
-      .update({ onboarding_completed: true })
+      .update({ onboarding_completed: true, onboarding_complete: true })
       .eq('id', user.id);
 
     // Column-stripping retry if onboarding_completed doesn't exist yet

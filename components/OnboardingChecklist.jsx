@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 const DISMISS_KEY = 'vector_checklist_dismissed';
-const DISMISS_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function OnboardingChecklist({ user }) {
   const router = useRouter();
@@ -16,21 +15,32 @@ export default function OnboardingChecklist({ user }) {
   useEffect(() => {
     if (!user) return;
 
-    // Hidden if permanently completed
-    if (user.onboarding_completed) return;
-
-    // Hidden if account age > 7 days
-    if (user.created_at) {
-      const accountAge = Date.now() - new Date(user.created_at).getTime();
-      if (accountAge > 7 * 24 * 60 * 60 * 1000) return;
-    }
-
-    // Hidden if dismissed less than 24h ago (or permanently)
+    // Check localStorage first for instant hide
     const dismissedAt = localStorage.getItem(DISMISS_KEY);
     if (dismissedAt === 'permanent') return;
-    if (dismissedAt && Date.now() - parseInt(dismissedAt, 10) < DISMISS_DURATION) return;
 
-    // Fetch checklist status
+    // Check if user object says completed (from /api/user/me refresh)
+    if (user.onboarding_completed === true) {
+      localStorage.setItem(DISMISS_KEY, 'permanent');
+      return;
+    }
+
+    // Check if account is older than 30 days — never show
+    if (user.created_at) {
+      const accountAge = Date.now() - new Date(user.created_at).getTime();
+      if (accountAge > 30 * 24 * 60 * 60 * 1000) {
+        localStorage.setItem(DISMISS_KEY, 'permanent');
+        return;
+      }
+    }
+
+    // Check if temporarily dismissed (skip for now — 24h)
+    if (dismissedAt && dismissedAt !== 'permanent') {
+      const elapsed = Date.now() - parseInt(dismissedAt, 10);
+      if (elapsed < 24 * 60 * 60 * 1000) return;
+    }
+
+    // Verify with the server before showing
     const token = localStorage.getItem('vector_token');
     if (!token) return;
 
@@ -40,6 +50,11 @@ export default function OnboardingChecklist({ user }) {
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!data) return;
+        // If all steps complete or server says completed, permanently dismiss
+        if (data.allComplete) {
+          permanentDismiss();
+          return;
+        }
         setSteps(data.steps);
         setCompletedCount(data.completedCount);
         setLoading(false);
@@ -48,39 +63,38 @@ export default function OnboardingChecklist({ user }) {
       .catch(() => {});
   }, [user]);
 
+  // Also react to user prop changes (when /api/user/me refreshes)
+  useEffect(() => {
+    if (user?.onboarding_completed === true && visible) {
+      localStorage.setItem(DISMISS_KEY, 'permanent');
+      setVisible(false);
+    }
+  }, [user?.onboarding_completed]);
+
+  const permanentDismiss = async () => {
+    localStorage.setItem(DISMISS_KEY, 'permanent');
+    setVisible(false);
+    const token = localStorage.getItem('vector_token');
+    if (token) {
+      await fetch('/api/onboarding/checklist', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+      // Update localStorage user object
+      try {
+        const stored = JSON.parse(localStorage.getItem('vector_user') || '{}');
+        stored.onboarding_completed = true;
+        localStorage.setItem('vector_user', JSON.stringify(stored));
+      } catch {}
+    }
+  };
+
   const handleSkip = () => {
     localStorage.setItem(DISMISS_KEY, Date.now().toString());
     setVisible(false);
   };
 
-  const handleDontShowAgain = async () => {
-    // Set localStorage immediately so it's instant
-    localStorage.setItem(DISMISS_KEY, 'permanent');
-    setVisible(false);
-    // Persist to DB
-    const token = localStorage.getItem('vector_token');
-    if (token) {
-      await fetch('/api/onboarding/checklist', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
-    }
-  };
-
-  const handleGetStarted = async () => {
-    localStorage.setItem(DISMISS_KEY, 'permanent');
-    setVisible(false);
-    const token = localStorage.getItem('vector_token');
-    if (token) {
-      await fetch('/api/onboarding/checklist', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
-    }
-  };
-
   const handleOverlayClick = (e) => {
-    // Click on backdrop (outside modal) = skip for now
     if (modalRef.current && !modalRef.current.contains(e.target)) {
       handleSkip();
     }
@@ -96,9 +110,9 @@ export default function OnboardingChecklist({ user }) {
       onClick={handleOverlayClick}
     >
       <div ref={modalRef} className="bg-v-surface border border-v-border rounded-sm modal-glow max-w-lg w-full max-h-[90vh] overflow-y-auto relative">
-        {/* X close button */}
+        {/* X close button — permanently dismisses */}
         <button
-          onClick={handleSkip}
+          onClick={permanentDismiss}
           className="absolute top-4 right-4 text-v-text-secondary hover:text-v-text-primary transition-colors z-10"
           aria-label="Close"
         >
@@ -139,7 +153,6 @@ export default function OnboardingChecklist({ user }) {
                   : 'border-v-border bg-v-charcoal/50'
               }`}
             >
-              {/* Step indicator */}
               <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-medium ${
                 step.complete
                   ? 'bg-v-gold text-v-charcoal'
@@ -153,16 +166,12 @@ export default function OnboardingChecklist({ user }) {
                   i + 1
                 )}
               </div>
-
-              {/* Step content */}
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium ${step.complete ? 'text-v-gold' : 'text-v-text-primary'}`}>
                   {step.title}
                 </p>
                 <p className="text-xs text-v-text-secondary">{step.description}</p>
               </div>
-
-              {/* CTA */}
               {step.complete ? (
                 <span className="text-xs text-v-gold font-medium shrink-0 px-2 py-1 rounded bg-v-gold/10">Done</span>
               ) : (
@@ -181,7 +190,7 @@ export default function OnboardingChecklist({ user }) {
         <div className="p-6 pt-5 flex flex-col gap-2">
           {allComplete ? (
             <button
-              onClick={handleGetStarted}
+              onClick={permanentDismiss}
               className="w-full py-3 rounded bg-v-gold text-v-charcoal font-medium hover:bg-v-gold-dim transition-colors"
             >
               Get Started
@@ -195,7 +204,7 @@ export default function OnboardingChecklist({ user }) {
                 Skip for now
               </button>
               <button
-                onClick={handleDontShowAgain}
+                onClick={permanentDismiss}
                 className="w-full py-2 text-xs text-v-text-secondary hover:text-v-text-primary transition-colors"
               >
                 Don&apos;t show again
