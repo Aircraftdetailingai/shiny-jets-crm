@@ -9,20 +9,41 @@ const AREAS = [
   { key: 'windows', label: 'Windows', icon: '\u{1FA9F}' },
   { key: 'seats', label: 'Seats', icon: '\u{1FA91}' },
   { key: 'carpets', label: 'Carpets', icon: '\u{1F9F9}' },
+  { key: 'deice_boots', label: 'De-ice Boots', icon: '\u2744' },
 ];
 
-const LEVELS = [
-  { key: 'maintenance', label: 'Maintenance', desc: 'Regular upkeep, good condition', color: '#007CB1' },
-  { key: 'restoration', label: 'Restoration', desc: 'Needs work, visible wear', color: '#EAB308' },
-  { key: 'protection', label: 'Protection', desc: 'Seal and protect after cleaning', color: '#22C55E' },
-];
+const LEVELS_BY_AREA = {
+  paint:       ['maintenance', 'restoration', 'protection'],
+  brightwork:  ['maintenance', 'restoration', 'protection'],
+  windows:     ['maintenance', 'restoration', 'protection'],
+  seats:       ['maintenance', 'restoration', 'protection'],
+  carpets:     ['maintenance', 'restoration'], // no protection for carpets
+  deice_boots: ['maintenance', 'restoration', 'protection'],
+};
+
+const LEVEL_INFO = {
+  maintenance: { label: 'Maintenance', desc: 'Regular upkeep, good condition', color: '#007CB1' },
+  restoration: { label: 'Restoration', desc: 'Needs work, visible wear', color: '#EAB308' },
+  protection:  { label: 'Protection', desc: 'Seal and protect after cleaning', color: '#22C55E' },
+};
 
 const SERVICE_MAP = {
-  paint:       { maintenance: ['Maintenance Wash', 'Decon Wash'], restoration: ['One-Step Polish', 'Two-Step Polish', 'Paint Correction'], protection: ['Wax', 'Spray Ceramic', 'Ceramic Coating'] },
-  brightwork:  { maintenance: ['Brightwork Polish'], restoration: ['Metal Restoration', 'Exhaust Stain Removal'], protection: ['Brightwork Sealant'] },
-  windows:     { maintenance: ['Window Cleaning'], restoration: ['Acrylic Scratch Removal', 'Optical Polish'], protection: ['Acrylic Window Coating'] },
-  seats:       { maintenance: ['Leather Clean & Condition'], restoration: ['Leather Restoration', 'Dye Treatment'], protection: ['Leather Protectant'] },
-  carpets:     { maintenance: ['Vacuum & Wipe Down'], restoration: ['Carpet Extraction', 'Stain Treatment'], protection: ['Fabric Guard'] },
+  paint:       { maintenance: ['Exterior Wash'], restoration: ['Compounding', 'Polishing', 'Orange Peel Removal'], protection: ['Wax', 'Ceramic Coating', 'Paint Sealant'] },
+  brightwork:  { maintenance: ['Brightwork Cleaning', 'Bug Removal', 'Wipe Down'], restoration: ['Brightwork Polish'], protection: ['Brightwork Sealant'] },
+  windows:     { maintenance: ['Window Cleaning (Glass Only)'], restoration: ['Window Polish', 'Window Compound', 'Wet Sand (Acrylic Only)'], protection: ['Approved Window Coating (Acrylic Only)'] },
+  seats:       { maintenance: ['Vacuum', 'Wipe Down', 'Seatbelt Dressing'], restoration: [], protection: ['Leather Conditioning'] }, // restoration filled dynamically based on seat type
+  carpets:     { maintenance: ['Vacuum'], restoration: ['Carpet Extraction', 'Encapsulation', 'Carpet Shampoo'], protection: [] },
+  deice_boots: { maintenance: ['De-ice Boot Cleaning', 'Boot Inspection'], restoration: ['Boot Treatment', 'Boot Reconditioning'], protection: ['Boot Protectant'] },
+};
+
+const SEATS_RESTORATION = {
+  leather: ['Leather Clean & Condition'],
+  fabric: ['Fabric Extraction/Steam'],
+};
+
+const DISCLAIMERS = {
+  windows_restoration: 'Window restoration on pressurized aircraft requires coordination with a licensed A&P mechanic. Detailer will advise upon inspection.',
+  windows_protection: 'Window coatings are for acrylic windows only. Glass windshields require manufacturer-approved products.',
 };
 
 export default function QuoteRequestFlow({ detailerId, detailerName, detailerLogo, embedded = false }) {
@@ -43,8 +64,9 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const [currentAreaIdx, setCurrentAreaIdx] = useState(0);
   const [showRecommendation, setShowRecommendation] = useState(false);
   const [areasConfirmed, setAreasConfirmed] = useState(false);
-  const [quickSelect, setQuickSelect] = useState(null); // null | 'quick_turn' | 'maint_wash' | 'detail'
+  const [quickSelect, setQuickSelect] = useState(null);
   const [washAddons, setWashAddons] = useState([]);
+  const [seatType, setSeatType] = useState(null); // 'leather' | 'fabric'
 
   const [data, setData] = useState({
     manufacturer: '', model: '', model_full: '',
@@ -91,11 +113,30 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     const services = [];
     for (const area of selectedAreas) {
       const level = areaLevels[area];
-      if (level && SERVICE_MAP[area]?.[level]) {
-        services.push(...SERVICE_MAP[area][level]);
+      if (!level || !SERVICE_MAP[area]) continue;
+      const mapped = SERVICE_MAP[area][level] || [];
+      services.push(...mapped);
+      // Seats: add type-specific restoration services
+      if (area === 'seats' && (level === 'restoration' || level === 'protection') && seatType) {
+        services.push(...(SEATS_RESTORATION[seatType] || []));
+      }
+      // Protection auto-includes restoration prep
+      if (level === 'protection' && SERVICE_MAP[area].restoration) {
+        const restorationServices = SERVICE_MAP[area].restoration;
+        for (const s of restorationServices) {
+          if (!services.includes(s)) services.push(s);
+        }
       }
     }
-    return services;
+    return [...new Set(services)];
+  };
+
+  // Get applicable disclaimers
+  const getDisclaimers = () => {
+    const disclaimers = [];
+    if (areaLevels.windows === 'restoration') disclaimers.push(DISCLAIMERS.windows_restoration);
+    if (areaLevels.windows === 'protection') disclaimers.push(DISCLAIMERS.windows_protection);
+    return disclaimers;
   };
 
   const handleSubmit = async () => {
@@ -383,32 +424,63 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           </div>
         )}
 
+        {/* SCREEN B: Seat type question (if seats selected and restoration/protection chosen) */}
+        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !showRecommendation && currentArea === 'seats' && !seatType && areaLevels[currentArea] && (areaLevels[currentArea] === 'restoration' || areaLevels[currentArea] === 'protection') && (
+          <div className="flex-1 flex flex-col">
+            <h2 className="text-xl font-light text-white mb-2">Are your seats leather or fabric?</h2>
+            <p className="text-white/40 text-xs mb-6">This determines the right cleaning method</p>
+            <div className="space-y-3">
+              <button onClick={() => { setSeatType('leather'); if (currentAreaIdx < selectedAreas.length - 1) setCurrentAreaIdx(i => i + 1); else setShowRecommendation(true); }}
+                className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
+                <p className="text-white font-medium text-sm">Leather</p>
+              </button>
+              <button onClick={() => { setSeatType('fabric'); if (currentAreaIdx < selectedAreas.length - 1) setCurrentAreaIdx(i => i + 1); else setShowRecommendation(true); }}
+                className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
+                <p className="text-white font-medium text-sm">Fabric</p>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* SCREEN B: Level for each area, one at a time */}
-        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !showRecommendation && currentArea && !areaLevels[currentArea] && (
+        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !showRecommendation && currentArea && !areaLevels[currentArea] && !(currentArea === 'seats' && !seatType && areaLevels[currentArea]) && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-xl font-light text-white mb-2">What does <span className="text-[#007CB1]">{currentAreaLabel}</span> need?</h2>
             <p className="text-white/40 text-xs mb-6">Area {currentAreaIdx + 1} of {selectedAreas.length}</p>
             <div className="space-y-3">
-              {LEVELS.map(level => (
-                <button key={level.key} onClick={() => {
-                  const updated = { ...areaLevels, [currentArea]: level.key };
-                  setAreaLevels(updated);
-                  if (currentAreaIdx < selectedAreas.length - 1) {
-                    setCurrentAreaIdx(i => i + 1);
-                  } else {
-                    setShowRecommendation(true);
-                  }
-                }}
-                  className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: level.color }} />
-                    <div>
-                      <p className="text-white font-medium text-sm">{level.label}</p>
-                      <p className="text-white/40 text-xs mt-0.5">{level.desc}</p>
+              {(LEVELS_BY_AREA[currentArea] || ['maintenance', 'restoration', 'protection']).map(levelKey => {
+                const level = LEVEL_INFO[levelKey];
+                const isProtectionLocked = levelKey === 'protection' && !areaLevels[currentArea];
+                return (
+                  <button key={levelKey} onClick={() => {
+                    let updated = { ...areaLevels, [currentArea]: levelKey };
+                    // Protection requires restoration — auto-add restoration
+                    if (levelKey === 'protection') {
+                      updated[currentArea] = 'protection';
+                      // We'll note this in the recommendation
+                    }
+                    setAreaLevels(updated);
+                    // If seats and restoration/protection, ask seat type
+                    if (currentArea === 'seats' && (levelKey === 'restoration' || levelKey === 'protection') && !seatType) {
+                      return; // Stay on this step — seat type question will show
+                    }
+                    if (currentAreaIdx < selectedAreas.length - 1) {
+                      setCurrentAreaIdx(i => i + 1);
+                    } else {
+                      setShowRecommendation(true);
+                    }
+                  }}
+                    className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: level.color }} />
+                      <div>
+                        <p className="text-white font-medium text-sm">{level.label}</p>
+                        <p className="text-white/40 text-xs mt-0.5">{level.desc}</p>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -431,9 +503,17 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
             <div className="space-y-3 mt-4 flex-1 overflow-y-auto">
               {selectedAreas.map(area => {
                 const level = areaLevels[area];
-                const services = SERVICE_MAP[area]?.[level] || [];
+                let services = [...(SERVICE_MAP[area]?.[level] || [])];
+                // Add seat-type-specific services
+                if (area === 'seats' && (level === 'restoration' || level === 'protection') && seatType) {
+                  services.push(...(SEATS_RESTORATION[seatType] || []));
+                }
+                // Protection includes restoration prep
+                if (level === 'protection' && SERVICE_MAP[area]?.restoration) {
+                  for (const s of SERVICE_MAP[area].restoration) { if (!services.includes(s)) services.push(s); }
+                }
                 const areaInfo = AREAS.find(a => a.key === area);
-                const levelInfo = LEVELS.find(l => l.key === level);
+                const levelInfo = LEVEL_INFO[level];
                 return (
                   <div key={area} className="bg-white/5 border border-white/10 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
@@ -441,6 +521,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                       <span className="text-white text-sm font-medium">{areaInfo?.label}</span>
                       <div className="w-2 h-2 rounded-full ml-auto" style={{ backgroundColor: levelInfo?.color }} />
                       <span className="text-white/40 text-xs">{levelInfo?.label}</span>
+                      {level === 'protection' && <span className="text-white/30 text-[10px]">+ prep</span>}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {services.map(s => (
@@ -450,13 +531,21 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                   </div>
                 );
               })}
+              {getDisclaimers().length > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-2">
+                  {getDisclaimers().map((d, i) => (
+                    <p key={i} className="text-yellow-300/80 text-[11px] leading-relaxed">{i > 0 && <br />}{d}</p>
+                  ))}
+                </div>
+              )}
+              <p className="text-white/30 text-[10px] text-center pt-2">Final service steps determined after inspection and photo documentation</p>
             </div>
             <div className="pt-6 space-y-3">
               <Btn onClick={() => {
                 set('recommended_services', getRecommendedServices());
                 setStep(5);
               }}>This looks right</Btn>
-              <Btn onClick={() => { setShowRecommendation(false); setAreasConfirmed(false); setAreaLevels({}); setCurrentAreaIdx(0); }} secondary>
+              <Btn onClick={() => { setShowRecommendation(false); setAreasConfirmed(false); setAreaLevels({}); setCurrentAreaIdx(0); setSeatType(null); }} secondary>
                 I want to change something
               </Btn>
             </div>
@@ -475,6 +564,13 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                 data.service_text || getRecommendedServices().join(', ') || 'To be discussed'
               } />
             </div>
+            {getDisclaimers().length > 0 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-4">
+                {getDisclaimers().map((d, i) => (
+                  <p key={i} className="text-yellow-300/80 text-[11px] leading-relaxed">{i > 0 && <br />}{d}</p>
+                ))}
+              </div>
+            )}
             <div className="mt-auto pt-6">
               <Btn onClick={goNext}>Looks good — continue</Btn>
             </div>
