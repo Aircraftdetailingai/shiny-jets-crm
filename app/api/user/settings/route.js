@@ -12,6 +12,8 @@ const ALLOWED_FIELDS = [
   'calendly_url',
   'use_calendly_scheduling',
   'chargeback_terms_accepted_at',
+  'stripe_publishable_key',
+  'stripe_secret_key',
 ];
 
 export async function POST(request) {

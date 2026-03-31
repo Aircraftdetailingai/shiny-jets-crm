@@ -37,12 +37,24 @@ export async function GET(request) {
   const supabase = getSupabase();
 
   try {
-    // Fetch detailer's Stripe account ID and mode
+    // Fetch detailer's Stripe account ID, mode, and API keys
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_account_id, stripe_mode, chargeback_terms_accepted_at')
+      .select('stripe_account_id, stripe_mode, chargeback_terms_accepted_at, stripe_publishable_key, stripe_secret_key')
       .eq('id', user.id)
       .single();
+
+    // Check if detailer has their own Stripe API keys saved
+    const hasKeys = !!(detailer?.stripe_publishable_key && detailer?.stripe_secret_key);
+    if (hasKeys) {
+      return new Response(JSON.stringify({
+        connected: true,
+        hasKeys: true,
+        status: 'ACTIVE',
+        message: 'Stripe API keys configured',
+        chargeback_terms_accepted_at: detailer?.chargeback_terms_accepted_at || null,
+      }), { status: 200 });
+    }
 
     const mode = detailer?.stripe_mode || 'test';
 

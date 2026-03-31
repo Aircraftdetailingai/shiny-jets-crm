@@ -51,6 +51,11 @@ function SettingsContent() {
   const [stripeMode, setStripeMode] = useState('test');
   const [stripeModeLoading, setStripeModeLoading] = useState(false);
   const [stripeModeError, setStripeModeError] = useState(null);
+  const [stripePk, setStripePk] = useState('');
+  const [stripeSk, setStripeSk] = useState('');
+  const [stripeKeySaving, setStripeKeySaving] = useState(false);
+  const [stripeKeyError, setStripeKeyError] = useState(null);
+  const [stripeKeySuccess, setStripeKeySuccess] = useState(false);
   const [currency, setCurrency] = useState('USD');
   const [currencies, setCurrencies] = useState([]);
   const [currencyLoading, setCurrencyLoading] = useState(false);
@@ -311,7 +316,9 @@ function SettingsContent() {
       });
       if (res.ok) {
         const data = await res.json();
-        setStripeStatus(data);
+        // Check if detailer has their own API keys saved
+        const hasKeys = data.hasKeys || data.has_stripe_keys;
+        setStripeStatus({ ...data, hasKeys });
         if (data.chargeback_terms_accepted_at) {
           setChargebackAcceptedAt(data.chargeback_terms_accepted_at);
           setChargebackAgreed(true);
@@ -813,61 +820,6 @@ function SettingsContent() {
       }
     } catch (err) {
       console.error('Failed to save language:', err);
-    }
-  };
-
-  const handleConnectStripe = async () => {
-    console.log('handleConnectStripe called');
-    if (!chargebackAgreed && !chargebackAcceptedAt) {
-      setStripeError('You must acknowledge chargeback responsibility before connecting Stripe.');
-      return;
-    }
-    setStripeLoading(true);
-    setStripeError(null);
-    try {
-      const token = localStorage.getItem('vector_token');
-      console.log('Token exists:', !!token);
-      if (!token) {
-        setStripeError('Not logged in - please refresh and try again');
-        return;
-      }
-      // Save chargeback terms acceptance
-      if (!chargebackAcceptedAt) {
-        const ts = new Date().toISOString();
-        await fetch('/api/user/settings', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chargeback_terms_accepted_at: ts }),
-        }).catch(() => {});
-        setChargebackAcceptedAt(ts);
-      }
-      console.log('Calling /api/stripe/connect...');
-      const res = await fetch('/api/stripe/connect', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      console.log('Response status:', res.status);
-      const data = await res.json();
-      console.log('Stripe connect response:', data);
-      if (data.url) {
-        console.log('Redirecting to:', data.url);
-        window.location.href = data.url;
-      } else if (data.error) {
-        const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error;
-        console.error('Stripe error:', errorMsg);
-        setStripeError(errorMsg);
-      } else {
-        console.error('No URL in response:', data);
-        setStripeError('No redirect URL received - check console for details');
-      }
-    } catch (err) {
-      console.error('Failed to connect Stripe:', err);
-      setStripeError(`Network error: ${err.message}`);
-    } finally {
-      setStripeLoading(false);
     }
   };
 
@@ -2027,98 +1979,107 @@ function SettingsContent() {
           )}
         </div>
 
-        {/* Stripe Connect */}
+        {/* Stripe API Keys */}
         <div className="pb-6 mb-2">
-          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">{'Stripe Payments'}</h3>
-          {stripeError && (
-            <div className="mb-3 p-3 bg-red-900/30 border border-red-600/30 rounded text-red-400 text-sm">
-              {stripeError}
-              <button onClick={() => setStripeError(null)} className="ml-2 text-red-400 hover:text-red-300">&times;</button>
-            </div>
-          )}
-          {stripeStatus.connected && stripeStatus.status === 'ACTIVE' ? (
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Stripe Payments</h3>
+
+          {stripeStatus.connected && stripeStatus.hasKeys ? (
             <div>
-              <div className="flex items-center mb-2">
-                <span className="text-green-500 mr-2">&#10003;</span>
-                <span className="text-green-400 font-medium">{'Active'}</span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-green-500">&#10003;</span>
+                <span className="text-green-400 font-medium text-sm">Stripe Connected</span>
               </div>
-              {stripeStatus.bankAccount && (
-                <p className="text-sm text-v-text-secondary mb-2">Account: {stripeStatus.bankAccount}</p>
-              )}
-              <p className="text-sm text-v-text-secondary mb-3">{'Active - You can receive payments'}</p>
-              <a
-                href="https://dashboard.stripe.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-v-gold text-sm underline"
-              >
-                {'Manage in Stripe Dashboard'}
-              </a>
-            </div>
-          ) : stripeStatus.connected && stripeStatus.status === 'PENDING' ? (
-            <div>
-              <div className="flex items-center mb-2">
-                <span className="text-v-gold mr-2">&#9888;</span>
-                <span className="text-v-gold font-medium">{'Pending Verification'}</span>
+              <p className="text-v-text-secondary text-xs mb-3">Your Stripe API keys are saved. Customers can pay quotes directly.</p>
+              <div className="flex gap-3">
+                <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="text-v-gold text-xs underline">
+                  Manage in Stripe Dashboard
+                </a>
+                <button onClick={() => { setStripeStatus({ connected: false, hasKeys: false }); setStripePk(''); setStripeSk(''); }} className="text-red-400 text-xs underline">
+                  Update Keys
+                </button>
               </div>
-              <p className="text-sm text-v-text-secondary mb-3">{'Your Stripe account is being reviewed. This usually takes 1-2 business days.'}</p>
-              <button
-                onClick={handleConnectStripe}
-                disabled={stripeLoading}
-                className="px-4 py-2 rounded bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50"
-              >
-                {stripeLoading ? 'Loading...' : 'Complete Setup'}
-              </button>
-            </div>
-          ) : stripeStatus.status === 'INCOMPLETE' ? (
-            <div>
-              <div className="bg-red-900/30 border border-red-600/30 rounded-sm p-3 mb-3">
-                <div className="flex items-center mb-1">
-                  <span className="text-red-400 mr-2">&#9888;</span>
-                  <span className="text-red-400 font-medium">{'Stripe disconnected - payments disabled'}</span>
-                </div>
-                <p className="text-sm text-red-400">{'Your Stripe account needs attention. Online payments are currently disabled on your quotes.'}</p>
-              </div>
-              <button
-                onClick={handleConnectStripe}
-                disabled={stripeLoading}
-                className="w-full px-4 py-2 rounded bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600/30 disabled:opacity-50 font-medium"
-              >
-                {stripeLoading ? 'Connecting...' : 'Reconnect Stripe'}
-              </button>
             </div>
           ) : (
             <div>
-              <div className="flex items-center mb-2">
-                <span className="text-red-400 mr-2">&#10007;</span>
-                <span className="text-red-400 font-medium">{'Stripe not connected'}</span>
-              </div>
-              <p className="text-sm text-v-text-secondary mb-3">{'Connect Stripe to receive payments for your quotes.'}</p>
-              {!chargebackAcceptedAt && (
-                <label className="flex items-start gap-3 mb-4 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={chargebackAgreed}
-                    onChange={(e) => setChargebackAgreed(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded accent-[var(--brand-primary,#007CB1)]"
-                  />
-                  <span className="text-v-text-secondary text-xs leading-relaxed">
-                    I understand I am solely responsible for all chargebacks and payment disputes with my customers.
-                    Shiny Jets CRM is not liable for any chargeback losses or fees.
-                    I agree to the{' '}
-                    <a href="/terms" target="_blank" rel="noreferrer" className="text-v-gold hover:text-v-gold-dim underline">
-                      Terms of Service
-                    </a>.
-                  </span>
-                </label>
+              <p className="text-v-text-secondary text-sm mb-4">
+                Enter your Stripe API keys to accept payments from customers.
+              </p>
+              <p className="text-v-text-secondary text-xs mb-4">
+                Find these in your{' '}
+                <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className="text-v-gold underline">
+                  Stripe Dashboard &rarr; Developers &rarr; API Keys
+                </a>
+              </p>
+
+              {stripeKeyError && (
+                <div className="mb-3 p-2 bg-red-900/20 border border-red-500/30 text-red-400 text-xs rounded">
+                  {stripeKeyError}
+                </div>
               )}
-              <button
-                onClick={handleConnectStripe}
-                disabled={stripeLoading || (!chargebackAgreed && !chargebackAcceptedAt)}
-                className="px-4 py-2 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {stripeLoading ? 'Connecting...' : 'Connect Stripe'}
-              </button>
+              {stripeKeySuccess && (
+                <div className="mb-3 p-2 bg-green-900/20 border border-green-500/30 text-green-400 text-xs rounded">
+                  Stripe keys saved successfully!
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-v-text-secondary mb-1">Publishable Key</label>
+                  <input
+                    type="text"
+                    value={stripePk}
+                    onChange={(e) => setStripePk(e.target.value)}
+                    placeholder="pk_live_..."
+                    className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-sm font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-v-text-secondary mb-1">Secret Key</label>
+                  <input
+                    type="password"
+                    value={stripeSk}
+                    onChange={(e) => setStripeSk(e.target.value)}
+                    placeholder="sk_live_..."
+                    className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-sm font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!stripePk.startsWith('pk_') || !stripeSk.startsWith('sk_')) {
+                      setStripeKeyError('Keys must start with pk_ and sk_');
+                      return;
+                    }
+                    setStripeKeySaving(true);
+                    setStripeKeyError(null);
+                    setStripeKeySuccess(false);
+                    try {
+                      const token = localStorage.getItem('vector_token');
+                      const res = await fetch('/api/user/settings', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stripe_publishable_key: stripePk.trim(), stripe_secret_key: stripeSk.trim() }),
+                      });
+                      if (res.ok) {
+                        setStripeKeySuccess(true);
+                        setStripeStatus({ connected: true, hasKeys: true, status: 'ACTIVE' });
+                        setStripePk('');
+                        setStripeSk('');
+                      } else {
+                        const d = await res.json();
+                        setStripeKeyError(d.error || 'Failed to save');
+                      }
+                    } catch (err) {
+                      setStripeKeyError('Network error: ' + err.message);
+                    } finally {
+                      setStripeKeySaving(false);
+                    }
+                  }}
+                  disabled={stripeKeySaving || !stripePk || !stripeSk}
+                  className="w-full py-2.5 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {stripeKeySaving ? 'Saving...' : 'Save Stripe Keys'}
+                </button>
+              </div>
             </div>
           )}
         </div>
