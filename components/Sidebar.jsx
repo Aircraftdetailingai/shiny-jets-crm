@@ -136,10 +136,30 @@ export default function Sidebar() {
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Clear all app data from localStorage
     localStorage.removeItem('vector_token');
     localStorage.removeItem('vector_user');
-    router.push('/login');
+    localStorage.removeItem('stripe_banner_dismissed');
+    // Clear any Supabase auth keys
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.startsWith('supabase.auth')) {
+        localStorage.removeItem(key);
+      }
+    });
+    // Clear cookies
+    document.cookie.split(';').forEach(c => {
+      const name = c.split('=')[0].trim();
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    });
+    // Sign out from Supabase if available
+    try {
+      const { getSupabaseBrowser } = await import('@/lib/supabase-browser');
+      const supabase = getSupabaseBrowser();
+      if (supabase) await supabase.auth.signOut({ scope: 'global' });
+    } catch {}
+    // Hard redirect to prevent auto-login
+    window.location.href = '/login?logged_out=true';
   };
 
   const isActive = (href) => {

@@ -17,9 +17,12 @@ function LoginContent() {
   const [pendingRedirect, setPendingRedirect] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('vector_token');
-    const user = localStorage.getItem('vector_user');
-    if (token && user) { router.push('/dashboard'); return; }
+    // Skip auto-login if user just logged out
+    if (params.get('logged_out') !== 'true') {
+      const token = localStorage.getItem('vector_token');
+      const user = localStorage.getItem('vector_user');
+      if (token && user) { router.push('/dashboard'); return; }
+    }
 
     const errParam = params.get('error');
     const errMessage = params.get('message');

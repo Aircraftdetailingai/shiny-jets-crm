@@ -18,23 +18,27 @@ export async function POST(request) {
     const supabase = getSupabase();
     const now = new Date().toISOString();
 
-    let updates = {
-      terms_accepted_version: TERMS_VERSION,
-      agreed_to_terms_at: now,
-    };
-
+    // Try with both columns first
     const { error } = await supabase
       .from('detailers')
-      .update(updates)
+      .update({
+        terms_accepted_version: TERMS_VERSION,
+        agreed_to_terms_at: now,
+      })
       .eq('id', user.id);
 
-    // Column-stripping retry
-    if (error && error.message?.includes('column')) {
-      delete updates.terms_accepted_version;
-      await supabase
+    if (error) {
+      console.error('Terms accept error (first attempt):', error.message);
+      // Retry with just the version column (the critical one)
+      const { error: retryError } = await supabase
         .from('detailers')
-        .update(updates)
+        .update({ terms_accepted_version: TERMS_VERSION })
         .eq('id', user.id);
+
+      if (retryError) {
+        console.error('Terms accept error (retry):', retryError.message);
+        return Response.json({ error: retryError.message }, { status: 500 });
+      }
     }
 
     return Response.json({ success: true, terms_version: TERMS_VERSION });

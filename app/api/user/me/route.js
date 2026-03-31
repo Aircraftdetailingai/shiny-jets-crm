@@ -43,7 +43,7 @@ function buildUserResponse(data, isAdmin) {
     notify_weekly_digest: data.notify_weekly_digest !== false,
     review_request_enabled: data.review_request_enabled !== false,
     review_request_delay_days: data.review_request_delay_days || 1,
-    theme_primary: data.theme_primary || '#C9A84C',
+    theme_primary: data.theme_primary || '#007CB1',
     portal_theme: data.portal_theme || 'dark',
     theme_logo_url: data.theme_logo_url || null,
     booking_mode: data.booking_mode || 'pay_to_book',
