@@ -30,7 +30,7 @@ function fmtShortDate(d) {
 const c = {
   navy: '#0f172a',
   blue: '#1e3a5f',
-  gold: '#C9A84C',
+  gold: '#007CB1',
   goldLight: '#f5ecd5',
   white: '#ffffff',
   gray50: '#f8fafc',

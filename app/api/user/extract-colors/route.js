@@ -43,7 +43,7 @@ export async function POST(request) {
     const finalColors = brandColors.length > 0 ? brandColors.slice(0, 5) : rawColors.slice(0, 5);
 
     // Generate 3 palette combos from the most vibrant extracted colors
-    const primaryHex = finalColors[0] || '#C9A84C';
+    const primaryHex = finalColors[0] || '#007CB1';
     const palettes = generatePalettes(primaryHex, finalColors);
 
     // Save to DB

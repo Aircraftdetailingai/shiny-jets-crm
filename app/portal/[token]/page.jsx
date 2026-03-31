@@ -70,14 +70,14 @@ function SetupForm({ token, stripeCustomerId, onSuccess, onCancel }) {
         <button
           type="submit"
           disabled={!stripe || processing}
-          className="flex-1 py-3 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+          className="flex-1 py-3 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
         >
           {processing ? 'Saving...' : 'Save Card'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+          className="px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
         >
           Cancel
         </button>
@@ -101,10 +101,10 @@ const STATUS_LABELS = {
 
 const STATUS_COLORS = {
   draft: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-text-secondary,#8A9BB0)]',
-  sent: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-primary,#C9A84C)]',
-  viewed: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-primary,#C9A84C)]',
-  paid: 'bg-v-gold/10 text-[var(--brand-primary,#C9A84C)]',
-  approved: 'bg-v-gold/10 text-[var(--brand-primary,#C9A84C)]',
+  sent: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-primary,#007CB1)]',
+  viewed: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-primary,#007CB1)]',
+  paid: 'bg-v-gold/10 text-[var(--brand-primary,#007CB1)]',
+  approved: 'bg-v-gold/10 text-[var(--brand-primary,#007CB1)]',
   scheduled: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-text-secondary,#8A9BB0)]',
   in_progress: 'bg-[var(--brand-border,#1A2236)] text-[var(--brand-text-secondary,#8A9BB0)]',
   completed: 'bg-emerald-500/10 text-emerald-400',
@@ -204,7 +204,7 @@ export default function PortalPage() {
     if (!detailer) return;
     const s = document.documentElement.style;
     const isLight = detailer.portal_theme === 'light';
-    s.setProperty('--brand-primary', detailer.theme_primary || '#C9A84C');
+    s.setProperty('--brand-primary', detailer.theme_primary || '#007CB1');
     s.setProperty('--brand-accent', detailer.theme_accent || '#0D1B2A');
     s.setProperty('--brand-bg', isLight ? '#FFFFFF' : (detailer.theme_bg || '#0A0E17'));
     s.setProperty('--brand-surface', isLight ? '#F3F4F6' : (detailer.theme_surface || '#111827'));
@@ -421,7 +421,7 @@ export default function PortalPage() {
     return (
       <div className="min-h-screen bg-[var(--brand-bg,#0A0E17)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[var(--brand-primary,#C9A84C)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-8 h-8 border-2 border-[var(--brand-primary,#007CB1)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-widest uppercase">{T('loadingQuote')}</p>
         </div>
       </div>
@@ -432,7 +432,7 @@ export default function PortalPage() {
     return (
       <div className="min-h-screen bg-[var(--brand-bg,#0A0E17)] flex items-center justify-center p-4">
         <div className="bg-[var(--brand-surface,#111827)] rounded-[4px] p-10 max-w-[640px] w-full text-center">
-          <div className="w-12 h-[1px] bg-[var(--brand-primary,#C9A84C)] mx-auto mb-6" />
+          <div className="w-12 h-[1px] bg-[var(--brand-primary,#007CB1)] mx-auto mb-6" />
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.2em] uppercase mb-3">Error</p>
           <h2 className="font-heading text-xl font-light text-[var(--brand-text,#F5F5F5)] mb-2" style={brandFontHeading ? { fontFamily: brandFontHeading } : undefined}>{T('quoteNotFound')}</h2>
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{T('linkExpiredOrInvalid')}</p>
@@ -480,7 +480,7 @@ export default function PortalPage() {
               <div className="relative">
                 <button
                   onClick={() => setLangMenuOpen(prev => !prev)}
-                  className="flex items-center gap-1 px-2 py-1 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                   title={T('language')}
                 >
                   <span className="text-xs">&#127760;</span>
@@ -493,7 +493,7 @@ export default function PortalPage() {
                         key={l.code}
                         onClick={() => changeLanguage(l.code)}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          lang === l.code ? 'bg-v-gold/10 text-[var(--brand-primary,#C9A84C)]' : 'text-[var(--brand-text-secondary,#8A9BB0)] hover:bg-[var(--brand-border,#1A2236)] hover:text-[var(--brand-text,#F5F5F5)]'
+                          lang === l.code ? 'bg-v-gold/10 text-[var(--brand-primary,#007CB1)]' : 'text-[var(--brand-text-secondary,#8A9BB0)] hover:bg-[var(--brand-border,#1A2236)] hover:text-[var(--brand-text,#F5F5F5)]'
                         }`}
                       >
                         {l.label}
@@ -521,7 +521,7 @@ export default function PortalPage() {
               key={tabItem.key}
               onClick={() => setTab(tabItem.key)}
               className={`px-4 py-3 text-xs tracking-[0.15em] uppercase font-medium border-b-2 transition-colors ${
-                tab === tabItem.key ? 'border-[var(--brand-primary,#C9A84C)] text-[var(--brand-primary,#C9A84C)]' : 'border-transparent text-[var(--brand-text-secondary,#8A9BB0)] hover:text-[var(--brand-text,#F5F5F5)]'
+                tab === tabItem.key ? 'border-[var(--brand-primary,#007CB1)] text-[var(--brand-primary,#007CB1)]' : 'border-transparent text-[var(--brand-text-secondary,#8A9BB0)] hover:text-[var(--brand-text,#F5F5F5)]'
               }`}
             >
               {tabItem.label}
@@ -544,7 +544,7 @@ export default function PortalPage() {
                   return (
                     <>
                       <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Total</p>
-                      <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light mb-1">{sym}{formatPrice(basePrice + ccFee)}</p>
+                      <p className="text-[var(--brand-primary,#007CB1)] text-[2.5rem] font-light mb-1">{sym}{formatPrice(basePrice + ccFee)}</p>
                       {ccFee > 0 && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs mb-1">Includes {sym}{formatPrice(ccFee)} processing fee</p>}
                     </>
                   );
@@ -563,7 +563,7 @@ export default function PortalPage() {
                     <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Terms & Conditions</p>
                     {detailer.terms_pdf_url ? (
                       <a href={detailer.terms_pdf_url} target="_blank" rel="noopener noreferrer"
-                        className="text-[var(--brand-primary,#C9A84C)] text-sm hover:text-[#D4B85A] transition-colors">
+                        className="text-[var(--brand-primary,#007CB1)] text-sm hover:text-[#D4B85A] transition-colors">
                         View Terms & Conditions (PDF)
                       </a>
                     ) : (
@@ -594,7 +594,7 @@ export default function PortalPage() {
                       onChange={(e) => setAgreedToTerms(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-5 h-5 border border-[var(--brand-border-strong,#2A3A50)] peer-checked:border-[var(--brand-primary,#C9A84C)] peer-checked:bg-[var(--brand-primary,#C9A84C)] transition-colors flex items-center justify-center">
+                    <div className="w-5 h-5 border border-[var(--brand-border-strong,#2A3A50)] peer-checked:border-[var(--brand-primary,#007CB1)] peer-checked:bg-[var(--brand-primary,#007CB1)] transition-colors flex items-center justify-center">
                       {agreedToTerms && <span className="text-[var(--brand-btn-text,#0A0E17)] text-xs font-bold">&#10003;</span>}
                     </div>
                   </div>
@@ -606,7 +606,7 @@ export default function PortalPage() {
                 {/* Buttons */}
                 {invoiceAccepted ? (
                   <div className="border border-[var(--brand-border-strong,#2A3A50)] p-4">
-                    <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase mb-1">Invoice Requested</p>
+                    <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase mb-1">Invoice Requested</p>
                     <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{detailer?.company || 'The detailer'} will send you an invoice.</p>
                   </div>
                 ) : detailer?.cc_fee_mode === 'customer_choice' ? (
@@ -614,14 +614,14 @@ export default function PortalPage() {
                     <button
                       onClick={handlePayment}
                       disabled={paymentLoading || !agreedToTerms}
-                      className="w-full py-4 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+                      className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                     >
                       {paymentLoading ? T('processing') : 'Accept & Pay by Card'}
                     </button>
                     <button
                       onClick={handleRequestInvoice}
                       disabled={invoiceRequesting || !agreedToTerms}
-                      className="w-full py-4 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] disabled:opacity-40 transition-colors"
+                      className="w-full py-4 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] disabled:opacity-40 transition-colors"
                     >
                       {invoiceRequesting ? 'Submitting...' : 'Request Invoice'}
                     </button>
@@ -633,7 +633,7 @@ export default function PortalPage() {
                   <button
                     onClick={handlePayment}
                     disabled={paymentLoading || !agreedToTerms}
-                    className="w-full py-4 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+                    className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                   >
                     {paymentLoading ? T('processing') : T('approveAndPay')}
                   </button>
@@ -645,14 +645,14 @@ export default function PortalPage() {
             {hasComparableQuotes && (
               <a
                 href={`/compare/${token}`}
-                className="block border border-[var(--brand-border-strong,#2A3A50)] p-5 hover:border-[var(--brand-primary,#C9A84C)] transition-colors group"
+                className="block border border-[var(--brand-border-strong,#2A3A50)] p-5 hover:border-[var(--brand-primary,#007CB1)] transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{T('compareQuotes')}</p>
+                    <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium group-hover:text-[var(--brand-primary,#007CB1)] transition-colors">{T('compareQuotes')}</p>
                     <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs">{comparableQuotes.length + 1} {T('optionsAvailable')} &middot; {T('seeSideBySide')}</p>
                   </div>
-                  <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xl group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">&#8250;</span>
+                  <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xl group-hover:text-[var(--brand-primary,#007CB1)] transition-colors">&#8250;</span>
                 </div>
               </a>
             )}
@@ -660,8 +660,8 @@ export default function PortalPage() {
             {/* Paid confirmation */}
             {isPaid && (
               <div className="border border-[var(--brand-border-strong,#2A3A50)] p-8 text-center">
-                <p className="text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.3em] uppercase mb-4">Confirmed</p>
-                <p className="text-[var(--brand-primary,#C9A84C)] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
+                <p className="text-[var(--brand-primary,#007CB1)] text-[10px] tracking-[0.3em] uppercase mb-4">Confirmed</p>
+                <p className="text-[var(--brand-primary,#007CB1)] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
                 {quote.paid_at && (
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs mt-2">
                     {new Date(quote.paid_at).toLocaleDateString(lang === 'en' ? 'en-US' : lang, { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -724,12 +724,12 @@ export default function PortalPage() {
               {/* Total */}
               <div className="border-t border-[var(--brand-border-strong,#2A3A50)] pt-6 mt-4 text-center">
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">{T('total')}</p>
-                <p className="text-[var(--brand-primary,#C9A84C)] text-[2rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
+                <p className="text-[var(--brand-primary,#007CB1)] text-[2rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
               </div>
 
               {/* Notes */}
               {quote.notes && (
-                <div className="mt-6 border-l-2 border-[var(--brand-primary,#C9A84C)]/40 pl-4">
+                <div className="mt-6 border-l-2 border-[var(--brand-primary,#007CB1)]/40 pl-4">
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm leading-relaxed">{quote.notes}</p>
                 </div>
               )}
@@ -741,9 +741,9 @@ export default function PortalPage() {
                 href={`/api/quotes/${quote.id}/pdf?token=${token}`}
                 target="_blank"
                 rel="noreferrer"
-                className="block border border-[var(--brand-border-strong,#2A3A50)] p-4 text-center hover:border-[var(--brand-primary,#C9A84C)] transition-colors group"
+                className="block border border-[var(--brand-border-strong,#2A3A50)] p-4 text-center hover:border-[var(--brand-primary,#007CB1)] transition-colors group"
               >
-                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.15em] uppercase group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{T('downloadQuotePdf')}</p>
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.15em] uppercase group-hover:text-[var(--brand-primary,#007CB1)] transition-colors">{T('downloadQuotePdf')}</p>
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] mt-1">{T('printSavePdf')}</p>
               </a>
             )}
@@ -754,15 +754,15 @@ export default function PortalPage() {
                 <button
                   onClick={handleRebook}
                   disabled={rebookLoading}
-                  className="border border-[var(--brand-border-strong,#2A3A50)] p-5 text-center hover:border-[var(--brand-primary,#C9A84C)] disabled:opacity-50 transition-colors group"
+                  className="border border-[var(--brand-border-strong,#2A3A50)] p-5 text-center hover:border-[var(--brand-primary,#007CB1)] disabled:opacity-50 transition-colors group"
                 >
-                  <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{rebookLoading ? T('requesting') : T('bookAgain')}</p>
+                  <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium group-hover:text-[var(--brand-primary,#007CB1)] transition-colors">{rebookLoading ? T('requesting') : T('bookAgain')}</p>
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-[10px] tracking-[0.1em] uppercase mt-1">{T('sameService')}</p>
                 </button>
               )}
               {rebookSuccess && (
                 <div className="border border-[var(--brand-border-strong,#2A3A50)] p-5 text-center">
-                  <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase">{T('requestSent')}</p>
+                  <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase">{T('requestSent')}</p>
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs mt-1">{T('willSendNewQuote', { company: companyName })}</p>
                 </div>
               )}
@@ -771,9 +771,9 @@ export default function PortalPage() {
                   href={`/api/portal/invoice?id=${quote.id}&token=${token}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="border border-[var(--brand-border-strong,#2A3A50)] p-5 text-center hover:border-[var(--brand-primary,#C9A84C)] transition-colors group block"
+                  className="border border-[var(--brand-border-strong,#2A3A50)] p-5 text-center hover:border-[var(--brand-primary,#007CB1)] transition-colors group block"
                 >
-                  <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium group-hover:text-[var(--brand-primary,#C9A84C)] transition-colors">{T('downloadReceipt')}</p>
+                  <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium group-hover:text-[var(--brand-primary,#007CB1)] transition-colors">{T('downloadReceipt')}</p>
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-[10px] tracking-[0.1em] uppercase mt-1">{T('printPdf')}</p>
                 </a>
               )}
@@ -784,12 +784,12 @@ export default function PortalPage() {
               <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-4">{T('contact')} {companyName}</p>
               <div className="flex flex-wrap gap-4">
                 {detailer?.email && (
-                  <a href={`mailto:${detailer.email}`} className="text-[var(--brand-primary,#C9A84C)] text-sm hover:text-[#D4B85A] transition-colors">
+                  <a href={`mailto:${detailer.email}`} className="text-[var(--brand-primary,#007CB1)] text-sm hover:text-[#D4B85A] transition-colors">
                     {detailer.email}
                   </a>
                 )}
                 {detailer?.phone && (
-                  <a href={`tel:${detailer.phone}`} className="text-[var(--brand-primary,#C9A84C)] text-sm hover:text-[#D4B85A] transition-colors">
+                  <a href={`tel:${detailer.phone}`} className="text-[var(--brand-primary,#007CB1)] text-sm hover:text-[#D4B85A] transition-colors">
                     {detailer.phone}
                   </a>
                 )}
@@ -808,7 +808,7 @@ export default function PortalPage() {
                   setFleetForm({ tail_number: '', make: '', model: '', home_airport: '', nickname: '' });
                   setFleetModal({ mode: 'add' });
                 }}
-                className="px-4 py-2 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-xs tracking-[0.2em] uppercase font-medium hover:brightness-110 transition-colors"
+                className="px-4 py-2 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-xs tracking-[0.2em] uppercase font-medium hover:brightness-110 transition-colors"
               >
                 Add Aircraft
               </button>
@@ -816,7 +816,7 @@ export default function PortalPage() {
 
             {fleetLoading ? (
               <div className="text-center py-10">
-                <div className="w-6 h-6 border-2 border-[var(--brand-primary,#C9A84C)] border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="w-6 h-6 border-2 border-[var(--brand-primary,#007CB1)] border-t-transparent rounded-full animate-spin mx-auto" />
               </div>
             ) : fleet.length === 0 ? (
               <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-10 text-center">
@@ -847,7 +847,7 @@ export default function PortalPage() {
                             });
                             setFleetModal({ mode: 'edit', aircraft: ac });
                           }}
-                          className="text-[var(--brand-text-secondary,#8A9BB0)] hover:text-[var(--brand-primary,#C9A84C)] text-xs tracking-[0.15em] uppercase transition-colors"
+                          className="text-[var(--brand-text-secondary,#8A9BB0)] hover:text-[var(--brand-primary,#007CB1)] text-xs tracking-[0.15em] uppercase transition-colors"
                         >
                           Edit
                         </button>
@@ -865,7 +865,7 @@ export default function PortalPage() {
                         setRequestResult(null);
                         setRequestModal(ac);
                       }}
-                      className="w-full py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                      className="w-full py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                     >
                       Request Service
                     </button>
@@ -887,7 +887,7 @@ export default function PortalPage() {
                       <input
                         value={fleetForm.tail_number}
                         onChange={e => setFleetForm(f => ({ ...f, tail_number: e.target.value }))}
-                        className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm font-mono focus:border-[var(--brand-primary,#C9A84C)] outline-none"
+                        className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm font-mono focus:border-[var(--brand-primary,#007CB1)] outline-none"
                         placeholder="N12345"
                       />
                     </div>
@@ -897,7 +897,7 @@ export default function PortalPage() {
                         <input
                           value={fleetForm.make}
                           onChange={e => setFleetForm(f => ({ ...f, make: e.target.value }))}
-                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#C9A84C)] outline-none"
+                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#007CB1)] outline-none"
                           placeholder="Gulfstream"
                         />
                       </div>
@@ -906,7 +906,7 @@ export default function PortalPage() {
                         <input
                           value={fleetForm.model}
                           onChange={e => setFleetForm(f => ({ ...f, model: e.target.value }))}
-                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#C9A84C)] outline-none"
+                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#007CB1)] outline-none"
                           placeholder="G650"
                         />
                       </div>
@@ -917,7 +917,7 @@ export default function PortalPage() {
                         <input
                           value={fleetForm.home_airport}
                           onChange={e => setFleetForm(f => ({ ...f, home_airport: e.target.value }))}
-                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm font-mono focus:border-[var(--brand-primary,#C9A84C)] outline-none"
+                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm font-mono focus:border-[var(--brand-primary,#007CB1)] outline-none"
                           placeholder="KTEB"
                           maxLength={4}
                         />
@@ -927,7 +927,7 @@ export default function PortalPage() {
                         <input
                           value={fleetForm.nickname}
                           onChange={e => setFleetForm(f => ({ ...f, nickname: e.target.value }))}
-                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#C9A84C)] outline-none"
+                          className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#007CB1)] outline-none"
                           placeholder="The Boss"
                         />
                       </div>
@@ -937,13 +937,13 @@ export default function PortalPage() {
                     <button
                       onClick={saveFleetAircraft}
                       disabled={!fleetForm.tail_number || fleetSaving}
-                      className="flex-1 py-3 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+                      className="flex-1 py-3 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                     >
                       {fleetSaving ? 'Saving...' : fleetModal.mode === 'edit' ? 'Update' : 'Add Aircraft'}
                     </button>
                     <button
                       onClick={() => setFleetModal(null)}
-                      className="px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                      className="px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                     >
                       Cancel
                     </button>
@@ -963,7 +963,7 @@ export default function PortalPage() {
 
                   {requestResult ? (
                     <div className="text-center py-4">
-                      <p className="text-[var(--brand-primary,#C9A84C)] text-sm tracking-[0.15em] uppercase mb-2">Request Submitted</p>
+                      <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase mb-2">Request Submitted</p>
                       <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
                         {requestResult.routed_to === 'detailer'
                           ? `Your request has been sent to ${requestResult.detailer_name}. They'll contact you with a quote.`
@@ -971,7 +971,7 @@ export default function PortalPage() {
                       </p>
                       <button
                         onClick={() => setRequestModal(null)}
-                        className="mt-6 px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                        className="mt-6 px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                       >
                         Done
                       </button>
@@ -998,7 +998,7 @@ export default function PortalPage() {
                                     }}
                                     className="sr-only peer"
                                   />
-                                  <div className="w-4 h-4 border border-[var(--brand-border-strong,#2A3A50)] peer-checked:border-[var(--brand-primary,#C9A84C)] peer-checked:bg-[var(--brand-primary,#C9A84C)] transition-colors flex items-center justify-center">
+                                  <div className="w-4 h-4 border border-[var(--brand-border-strong,#2A3A50)] peer-checked:border-[var(--brand-primary,#007CB1)] peer-checked:bg-[var(--brand-primary,#007CB1)] transition-colors flex items-center justify-center">
                                     {requestForm.services.includes(svc) && <span className="text-[var(--brand-bg,#0A0E17)] text-[10px] font-bold">&#10003;</span>}
                                   </div>
                                 </div>
@@ -1013,7 +1013,7 @@ export default function PortalPage() {
                             type="date"
                             value={requestForm.preferred_date}
                             onChange={e => setRequestForm(f => ({ ...f, preferred_date: e.target.value }))}
-                            className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#C9A84C)] outline-none"
+                            className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#007CB1)] outline-none"
                           />
                         </div>
                         <div>
@@ -1022,7 +1022,7 @@ export default function PortalPage() {
                             value={requestForm.notes}
                             onChange={e => setRequestForm(f => ({ ...f, notes: e.target.value }))}
                             rows={3}
-                            className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#C9A84C)] outline-none resize-none"
+                            className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm focus:border-[var(--brand-primary,#007CB1)] outline-none resize-none"
                             placeholder="Any special instructions..."
                           />
                         </div>
@@ -1031,13 +1031,13 @@ export default function PortalPage() {
                         <button
                           onClick={submitServiceRequest}
                           disabled={requestForm.services.length === 0 || requestSaving}
-                          className="flex-1 py-3 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+                          className="flex-1 py-3 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                         >
                           {requestSaving ? 'Submitting...' : 'Submit Request'}
                         </button>
                         <button
                           onClick={() => setRequestModal(null)}
-                          className="px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                          className="px-6 py-3 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                         >
                           Cancel
                         </button>
@@ -1059,7 +1059,7 @@ export default function PortalPage() {
                 <button
                   onClick={startAddPaymentMethod}
                   disabled={addingPM}
-                  className="px-4 py-2 bg-[var(--brand-primary,#C9A84C)] text-[var(--brand-bg,#0A0E17)] text-xs tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+                  className="px-4 py-2 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-bg,#0A0E17)] text-xs tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
                 >
                   {addingPM ? 'Loading...' : 'Add Card'}
                 </button>
@@ -1076,7 +1076,7 @@ export default function PortalPage() {
                     appearance: {
                       theme: 'night',
                       variables: {
-                        colorPrimary: '#C9A84C',
+                        colorPrimary: '#007CB1',
                         colorBackground: '#0A0E17',
                         colorText: '#F5F5F5',
                         colorDanger: '#ef4444',
@@ -1100,7 +1100,7 @@ export default function PortalPage() {
 
             {pmLoading ? (
               <div className="text-center py-10">
-                <div className="w-6 h-6 border-2 border-[var(--brand-primary,#C9A84C)] border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="w-6 h-6 border-2 border-[var(--brand-primary,#007CB1)] border-t-transparent rounded-full animate-spin mx-auto" />
               </div>
             ) : paymentMethods.length === 0 && !setupClientSecret ? (
               <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-10 text-center">
@@ -1120,7 +1120,7 @@ export default function PortalPage() {
                           <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-mono">
                             •••• {pm.last4}
                             {pm.is_default && (
-                              <span className="ml-2 text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.1em] uppercase font-medium">Default</span>
+                              <span className="ml-2 text-[var(--brand-primary,#007CB1)] text-[10px] tracking-[0.1em] uppercase font-medium">Default</span>
                             )}
                           </p>
                           {pm.exp_month && pm.exp_year && (
@@ -1132,7 +1132,7 @@ export default function PortalPage() {
                         {!pm.is_default && (
                           <button
                             onClick={() => setDefaultPM(pm.id)}
-                            className="text-[var(--brand-text-secondary,#8A9BB0)] hover:text-[var(--brand-primary,#C9A84C)] text-xs tracking-[0.15em] uppercase transition-colors"
+                            className="text-[var(--brand-text-secondary,#8A9BB0)] hover:text-[var(--brand-primary,#007CB1)] text-xs tracking-[0.15em] uppercase transition-colors"
                           >
                             Set Default
                           </button>
@@ -1158,7 +1158,7 @@ export default function PortalPage() {
             {/* Customer stats */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-5 text-center">
-                <p className="text-[var(--brand-primary,#C9A84C)] text-2xl font-light">{history.length + 1}</p>
+                <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-light">{history.length + 1}</p>
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.15em] uppercase mt-1">{T('totalQuotes')}</p>
               </div>
               <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-5 text-center">
@@ -1166,7 +1166,7 @@ export default function PortalPage() {
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.15em] uppercase mt-1">{T('completed')}</p>
               </div>
               <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-5 text-center">
-                <p className="text-[var(--brand-primary,#C9A84C)] text-2xl font-light">{sym}{formatPrice(totalSpent)}</p>
+                <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-light">{sym}{formatPrice(totalSpent)}</p>
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.15em] uppercase mt-1">{T('totalSpent')}</p>
               </div>
             </div>
@@ -1181,7 +1181,7 @@ export default function PortalPage() {
                   <a
                     key={h.id}
                     href={`/portal/${h.share_link}`}
-                    className="block bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-5 hover:border-[var(--brand-primary,#C9A84C)] transition-colors"
+                    className="block bg-[var(--brand-surface,#111827)] border border-[var(--brand-border,#1A2236)] p-5 hover:border-[var(--brand-primary,#007CB1)] transition-colors"
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -1219,13 +1219,13 @@ export default function PortalPage() {
                   <div className="text-right flex items-center gap-4">
                     <div>
                       <p className="text-[var(--brand-text,#F5F5F5)] font-medium">{sym}{formatPrice(quote.total_price)}</p>
-                      <span className="text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.1em] uppercase">{T('paid')}</span>
+                      <span className="text-[var(--brand-primary,#007CB1)] text-[10px] tracking-[0.1em] uppercase">{T('paid')}</span>
                     </div>
                     <a
                       href={`/api/portal/invoice?id=${quote.id}&token=${token}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                      className="px-4 py-2 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                     >
                       PDF
                     </a>
@@ -1246,13 +1246,13 @@ export default function PortalPage() {
                   <div className="text-right flex items-center gap-4">
                     <div>
                       <p className="text-[var(--brand-text,#F5F5F5)] font-medium">{sym}{formatPrice(h.total_price)}</p>
-                      <span className="text-[var(--brand-primary,#C9A84C)] text-[10px] tracking-[0.1em] uppercase">{STATUS_LABELS[h.status]}</span>
+                      <span className="text-[var(--brand-primary,#007CB1)] text-[10px] tracking-[0.1em] uppercase">{STATUS_LABELS[h.status]}</span>
                     </div>
                     <a
                       href={`/api/portal/invoice?id=${h.id}&token=${token}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#C9A84C)] hover:text-[var(--brand-primary,#C9A84C)] transition-colors"
+                      className="px-4 py-2 border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-xs tracking-[0.15em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
                     >
                       PDF
                     </a>
@@ -1271,7 +1271,7 @@ export default function PortalPage() {
 
         {/* Footer */}
         <div className="text-center mt-10 pb-8">
-          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase">Powered by <a href="https://shinyjets.com" className="hover:text-[var(--brand-primary,#C9A84C)] transition-colors">Shiny Jets</a></p>
+          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase">Powered by <a href="https://shinyjets.com" className="hover:text-[var(--brand-primary,#007CB1)] transition-colors">Shiny Jets</a></p>
         </div>
       </div>
     </div>

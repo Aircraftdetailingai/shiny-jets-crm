@@ -57,7 +57,7 @@ function buildEmailHtml(email, token) {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%;">
         <!-- Header -->
         <tr><td style="background: linear-gradient(135deg, #0F1117 0%, #1a2332 100%); padding: 32px 40px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin:0; color: #C9A84C; font-size: 24px; font-weight: 300; letter-spacing: 0.3em;">VECTOR</h1>
+          <h1 style="margin:0; color: #007CB1; font-size: 24px; font-weight: 300; letter-spacing: 0.3em;">VECTOR</h1>
           <p style="margin: 8px 0 0; color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;">Aviation CRM</p>
         </td></tr>
         <!-- Body -->
@@ -71,12 +71,12 @@ function buildEmailHtml(email, token) {
           </p>
 
           <!-- Invite Details Card -->
-          <div style="background: #faf8f3; border-left: 4px solid #C9A84C; padding: 20px 24px; margin: 0 0 28px; border-radius: 0 8px 8px 0;">
+          <div style="background: #faf8f3; border-left: 4px solid #007CB1; padding: 20px 24px; margin: 0 0 28px; border-radius: 0 8px 8px 0;">
             <p style="margin: 0 0 12px; font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 0.1em;">Your Invitation</p>
             <table cellpadding="0" cellspacing="0" style="width: 100%;">
               <tr><td style="padding: 4px 0; font-size: 15px; color: #333;"><strong>Plan:</strong></td><td style="padding: 4px 0; font-size: 15px; color: #333;">Pro</td></tr>
               <tr><td style="padding: 4px 0; font-size: 15px; color: #333;"><strong>Duration:</strong></td><td style="padding: 4px 0; font-size: 15px; color: #333;">180 days (6 months)</td></tr>
-              <tr><td style="padding: 4px 0; font-size: 15px; color: #333;"><strong>Cost:</strong></td><td style="padding: 4px 0; font-size: 15px; color: #C9A84C; font-weight: 600;">$0</td></tr>
+              <tr><td style="padding: 4px 0; font-size: 15px; color: #333;"><strong>Cost:</strong></td><td style="padding: 4px 0; font-size: 15px; color: #007CB1; font-weight: 600;">$0</td></tr>
             </table>
           </div>
 
@@ -93,7 +93,7 @@ function buildEmailHtml(email, token) {
 
           <!-- CTA -->
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${signupUrl}" style="display: inline-block; background: #C9A84C; color: #0F1117; text-decoration: none; padding: 16px 48px; border-radius: 4px; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">
+            <a href="${signupUrl}" style="display: inline-block; background: #007CB1; color: #0F1117; text-decoration: none; padding: 16px 48px; border-radius: 4px; font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">
               Accept Your Invitation
             </a>
           </div>

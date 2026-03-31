@@ -41,7 +41,7 @@ export async function GET(request) {
       country: data?.country || '',
       home_airport: data?.home_airport || '',
       logo_url: data?.logo_url || null,
-      theme_primary: data?.theme_primary || '#C9A84C',
+      theme_primary: data?.theme_primary || '#007CB1',
       theme_colors: data?.theme_colors || [],
       portal_theme: data?.portal_theme || 'dark',
       service_count: serviceCount || 0,

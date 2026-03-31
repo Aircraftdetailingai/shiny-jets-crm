@@ -157,7 +157,7 @@ function SettingsContent() {
   const [logoUrl, setLogoUrl] = useState(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [themePresets, setThemePresets] = useState([]);
-  const [selectedTheme, setSelectedTheme] = useState({ primary: '#C9A84C', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null });
+  const [selectedTheme, setSelectedTheme] = useState({ primary: '#007CB1', accent: '#0D1B2A', bg: '#0A0E17', surface: '#111827', logo_url: null });
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeSuccess, setThemeSuccess] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -433,7 +433,7 @@ function SettingsContent() {
         const data = await res.json();
         setLogoUrl(data.logo_url || null);
         setSelectedTheme({
-          primary: data.theme_primary || '#C9A84C',
+          primary: data.theme_primary || '#007CB1',
           accent: data.theme_accent || '#0D1B2A',
           bg: data.theme_bg || '#0A0E17',
           surface: data.theme_surface || '#111827',
@@ -444,7 +444,7 @@ function SettingsContent() {
         setDisclaimerText(data.disclaimer_text || '');
         // Reconstruct palette from saved theme
         setSelectedPalette({
-          primary: data.theme_primary || '#C9A84C',
+          primary: data.theme_primary || '#007CB1',
           secondary: data.theme_accent || '#0D1B2A',
           neutral: data.theme_bg || '#0A0E17',
         });
@@ -1370,11 +1370,11 @@ function SettingsContent() {
       await Promise.all(promises);
       // Apply full theme including dark/light mode across entire CRM
       if (pendingChanges.has('branding')) {
-        applyFullTheme(portalTheme, selectedTheme?.primary || '#C9A84C');
+        applyFullTheme(portalTheme, selectedTheme?.primary || '#007CB1');
         try {
           const u = JSON.parse(localStorage.getItem('vector_user') || '{}');
           u.portal_theme = portalTheme;
-          u.theme_primary = selectedTheme?.primary || '#C9A84C';
+          u.theme_primary = selectedTheme?.primary || '#007CB1';
           localStorage.setItem('vector_user', JSON.stringify(u));
         } catch {}
       }
@@ -1782,7 +1782,7 @@ function SettingsContent() {
             {/* Palette Strips */}
             <div className="space-y-2">
               {/* Default palette */}
-              {[{ name: 'Classic', primary: '#C9A84C', secondary: '#0D1B2A', neutral: '#0A0E17' }, ...palettes].map((pal, i) => {
+              {[{ name: 'Classic', primary: '#007CB1', secondary: '#0D1B2A', neutral: '#0A0E17' }, ...palettes].map((pal, i) => {
                 const isActive = selectedPalette?.primary === pal.primary && selectedPalette?.secondary === pal.secondary && selectedPalette?.neutral === pal.neutral;
                 return (
                   <button
@@ -1927,7 +1927,7 @@ function SettingsContent() {
               <p className="text-[9px] uppercase tracking-widest mb-3" style={{ color: portalTheme === 'light' ? '#6B7280' : '#8A9BB0' }}>Quote preview</p>
               <div className="flex items-center gap-3 mb-3">
                 {logoUrl && <img src={logoUrl} alt="Logo" className="h-6 object-contain" />}
-                <div className="h-3 rounded w-24" style={{ background: selectedTheme.primary || '#C9A84C' }} />
+                <div className="h-3 rounded w-24" style={{ background: selectedTheme.primary || '#007CB1' }} />
               </div>
               <div className="space-y-1.5 mb-3">
                 <div className="h-2 rounded w-full" style={{ background: portalTheme === 'light' ? '#E5E7EB' : (selectedTheme.surface || '#111827') }} />
@@ -1935,12 +1935,12 @@ function SettingsContent() {
                 <div className="h-2 rounded w-1/2" style={{ background: portalTheme === 'light' ? '#E5E7EB' : (selectedTheme.surface || '#111827') }} />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium" style={{ color: selectedTheme.primary || '#C9A84C' }}>$4,250.00</span>
+                <span className="text-sm font-medium" style={{ color: selectedTheme.primary || '#007CB1' }}>$4,250.00</span>
                 <div className="flex gap-2">
-                  <span className="px-3 py-1 rounded text-[10px] font-medium" style={{ background: selectedTheme.primary || '#C9A84C', color: portalTheme === 'light' ? '#FFFFFF' : (selectedTheme.bg || '#0A0E17') }}>
+                  <span className="px-3 py-1 rounded text-[10px] font-medium" style={{ background: selectedTheme.primary || '#007CB1', color: portalTheme === 'light' ? '#FFFFFF' : (selectedTheme.bg || '#0A0E17') }}>
                     Accept Quote
                   </span>
-                  <span className="px-3 py-1 rounded text-[10px] border" style={{ borderColor: selectedTheme.primary || '#C9A84C', color: selectedTheme.primary || '#C9A84C' }}>
+                  <span className="px-3 py-1 rounded text-[10px] border" style={{ borderColor: selectedTheme.primary || '#007CB1', color: selectedTheme.primary || '#007CB1' }}>
                     Download PDF
                   </span>
                 </div>
@@ -2100,7 +2100,7 @@ function SettingsContent() {
                     type="checkbox"
                     checked={chargebackAgreed}
                     onChange={(e) => setChargebackAgreed(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded accent-[var(--brand-primary,#C9A84C)]"
+                    className="mt-0.5 w-4 h-4 rounded accent-[var(--brand-primary,#007CB1)]"
                   />
                   <span className="text-v-text-secondary text-xs leading-relaxed">
                     I understand I am solely responsible for all chargebacks and payment disputes with my customers.

@@ -24,11 +24,11 @@ export default function AverageTicket({ data }) {
             <AreaChart data={recent} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="avgTicketGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#007CB1" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#007CB1" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <Area type="monotone" dataKey="avgValue" stroke="#C9A84C" fill="url(#avgTicketGrad)" strokeWidth={1.5} dot={false} />
+              <Area type="monotone" dataKey="avgValue" stroke="#007CB1" fill="url(#avgTicketGrad)" strokeWidth={1.5} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

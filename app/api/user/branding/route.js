@@ -29,7 +29,7 @@ export async function GET(request) {
 
     return Response.json({
       logo_url: data?.logo_url || null,
-      theme_primary: data?.theme_primary || '#C9A84C',
+      theme_primary: data?.theme_primary || '#007CB1',
       theme_accent: data?.theme_accent || '#0D1B2A',
       theme_bg: data?.theme_bg || '#0A0E17',
       theme_surface: data?.theme_surface || '#111827',

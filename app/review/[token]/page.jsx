@@ -23,7 +23,7 @@ export default function ReviewPage() {
   useEffect(() => {
     if (!detailer) return;
     const s = document.documentElement.style;
-    s.setProperty('--brand-primary', detailer.theme_primary || '#C9A84C');
+    s.setProperty('--brand-primary', detailer.theme_primary || '#007CB1');
     s.setProperty('--brand-accent', detailer.theme_accent || '#0D1B2A');
     s.setProperty('--brand-bg', detailer.theme_bg || '#0A0E17');
     s.setProperty('--brand-surface', detailer.theme_surface || '#111827');
@@ -93,7 +93,7 @@ export default function ReviewPage() {
   };
 
   const starLabels = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
-  const brandPrimary = detailer?.theme_primary || '#C9A84C';
+  const brandPrimary = detailer?.theme_primary || '#007CB1';
   const brandBg = detailer?.theme_bg || '#0A0E17';
   const brandSurface = detailer?.theme_surface || '#111827';
   const fontHeading = detailer?.font_heading || 'Playfair Display, serif';

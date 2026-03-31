@@ -107,7 +107,7 @@ export default function AuthCallbackPage() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0D1B2A', color: 'white', flexDirection: 'column' }}>
-      {!error && <div style={{ width: 32, height: 32, border: '2px solid #C9A84C', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 16 }} />}
+      {!error && <div style={{ width: 32, height: 32, border: '2px solid #007CB1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 16 }} />}
       <p style={{ fontSize: 14, color: error ? '#f87171' : '#9ca3af' }}>
         {error || status}
       </p>

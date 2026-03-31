@@ -150,7 +150,7 @@ export const DEFAULT_LAYOUTS = {
 };
 
 export const CHART_THEME = {
-  gold: '#C9A84C',
+  gold: '#007CB1',
   goldDim: '#A68A3E',
   surface: '#1A2236',
   charcoal: '#0F1117',

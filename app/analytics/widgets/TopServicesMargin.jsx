@@ -22,7 +22,7 @@ export default function TopServicesMargin({ data }) {
                   className="h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${(svc.revenue / maxRev) * 100}%`,
-                    background: 'linear-gradient(90deg, #C9A84C, #A68A3E)',
+                    background: 'linear-gradient(90deg, #007CB1, #A68A3E)',
                   }}
                 />
               </div>

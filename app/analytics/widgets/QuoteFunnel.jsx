@@ -31,7 +31,7 @@ export default function QuoteFunnel({ data }) {
                   className="w-full rounded-sm transition-all duration-500"
                   style={{
                     height: `${Math.max(pct, 8)}%`,
-                    background: `linear-gradient(135deg, #C9A84C ${100 - i * 20}%, #A68A3E)`,
+                    background: `linear-gradient(135deg, #007CB1 ${100 - i * 20}%, #A68A3E)`,
                     opacity: 1 - i * 0.12,
                   }}
                 />

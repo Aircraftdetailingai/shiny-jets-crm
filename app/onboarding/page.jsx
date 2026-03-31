@@ -92,7 +92,7 @@ export default function OnboardingPage() {
   // Screen 3: Branding
   const [extractedColors, setExtractedColors] = useState([]);
   const [extractedPalettes, setExtractedPalettes] = useState([]);
-  const [selectedColor, setSelectedColor] = useState('#C9A84C');
+  const [selectedColor, setSelectedColor] = useState('#007CB1');
   const [portalTheme, setPortalTheme] = useState('dark');
 
   // Screen 4: Invite a Fellow Detailer
@@ -126,7 +126,7 @@ export default function OnboardingPage() {
         if (data.country) setCountry(data.country);
         if (data.home_airport) setHomeAirport(data.home_airport);
         if (data.logo_url) setLogoUrl(data.logo_url);
-        if (data.theme_primary && data.theme_primary !== '#C9A84C') setSelectedColor(data.theme_primary);
+        if (data.theme_primary && data.theme_primary !== '#007CB1') setSelectedColor(data.theme_primary);
         if (data.theme_colors?.length > 0) {
           setExtractedColors(data.theme_colors);
           setExtractedPalettes(generatePalettes(data.theme_colors[0], data.theme_colors));
@@ -646,13 +646,13 @@ export default function OnboardingPage() {
                         }`} style={{ background: hex }} />
                       </button>
                     ))}
-                    <button onClick={() => setSelectedColor('#C9A84C')} title="Default gold"
+                    <button onClick={() => setSelectedColor('#007CB1')} title="Default gold"
                       className="group relative ml-1">
                       <div className={`w-7 h-7 rounded-full border-2 transition-all ${
-                        selectedColor === '#C9A84C'
+                        selectedColor === '#007CB1'
                           ? 'border-white scale-110 shadow-[0_0_6px_rgba(201,168,76,0.4)]'
                           : 'border-v-border/50 hover:border-v-text-secondary/50 hover:scale-105'
-                      }`} style={{ background: '#C9A84C' }} />
+                      }`} style={{ background: '#007CB1' }} />
                     </button>
                   </div>
                 </div>
@@ -695,10 +695,10 @@ export default function OnboardingPage() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-v-text-secondary mb-2">Accent Color</label>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <button onClick={() => setSelectedColor('#C9A84C')} className="group flex flex-col items-center gap-1" title="Default">
+                    <button onClick={() => setSelectedColor('#007CB1')} className="group flex flex-col items-center gap-1" title="Default">
                       <div className={`w-10 h-10 rounded-full border-2 transition-all ${
-                        selectedColor === '#C9A84C' ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]' : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
-                      }`} style={{ background: '#C9A84C' }} />
+                        selectedColor === '#007CB1' ? 'border-white scale-110 shadow-[0_0_8px_rgba(201,168,76,0.5)]' : 'border-transparent hover:border-v-text-secondary/50 hover:scale-105'
+                      }`} style={{ background: '#007CB1' }} />
                       <span className="text-[9px] text-v-text-secondary/60">Default</span>
                     </button>
                     <p className="text-xs text-v-text-secondary/40 italic">Upload a logo to generate brand palettes</p>
@@ -881,7 +881,7 @@ export default function OnboardingPage() {
                 {[
                   { label: 'Business profile', done: !!company },
                   { label: `${chosenCount} service${chosenCount !== 1 ? 's' : ''} configured`, done: chosenCount > 0 },
-                  { label: 'Branding customized', done: selectedColor !== '#C9A84C' || !!logoUrl },
+                  { label: 'Branding customized', done: selectedColor !== '#007CB1' || !!logoUrl },
                   { label: referralSent ? 'Detailer invited' : 'Referral skipped', done: referralSent },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">

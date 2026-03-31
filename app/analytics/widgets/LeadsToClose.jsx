@@ -15,7 +15,7 @@ export default function LeadsToClose({ data }) {
             <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(138,155,176,0.1)" strokeWidth="6" />
             <circle
               cx="50" cy="50" r="42" fill="none"
-              stroke="#C9A84C" strokeWidth="6" strokeLinecap="round"
+              stroke="#007CB1" strokeWidth="6" strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={dashOffset}
               className="transition-all duration-1000"
