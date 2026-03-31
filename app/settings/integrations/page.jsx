@@ -143,20 +143,28 @@ function IntegrationsContent() {
   };
 
   const handleIcsImport = async () => {
-    if (!icsUrl.trim()) return;
+    const url = icsUrl.trim();
+    if (!url) return;
+    // Validate the URL looks like an iCal feed
+    if (!url.includes('.ics') && !url.includes('ical') && !url.includes('/basic')) {
+      setGcalError("This doesn't look like an iCal URL. In Google Calendar, go to Settings \u2192 your calendar \u2192 scroll to \"Secret address in iCal format\" and copy the URL ending in .ics");
+      return;
+    }
     setIcsImporting(true); setIcsResult(null); setGcalError(null);
     try {
       const res = await fetch('/api/google-calendar/ics-import', {
         method: 'POST', headers: getHeaders(),
-        body: JSON.stringify({ icsUrl: icsUrl.trim() }),
+        body: JSON.stringify({ icsUrl: url }),
       });
       const data = await res.json();
       if (data.success) {
         setIcsResult(data);
-        setGcalStatus(prev => ({ ...prev, connected: true, method: 'ics', icsUrl: icsUrl.trim(), icsLastSync: new Date().toISOString() }));
+        setGcalStatus(prev => ({ ...prev, connected: true, method: 'ics', icsUrl: url, icsLastSync: new Date().toISOString() }));
         toastSuccess(`Imported ${data.relevantEvents} events, blocked ${data.blockedDatesAdded} dates`);
-      } else toastError(data.error || 'Import failed');
-    } catch (err) { toastError(`Import failed: ${err.message}`); }
+      } else {
+        setGcalError(data.error || 'Import failed');
+      }
+    } catch (err) { setGcalError(`Import failed: ${err.message}`); }
     finally { setIcsImporting(false); }
   };
 
@@ -372,18 +380,19 @@ function IntegrationsContent() {
 
                 <div>
                   <p className="text-[10px] text-v-text-secondary mb-2">
-                    Google Calendar &rarr; &#8942; &rarr; Settings &rarr; &ldquo;Secret address in iCal format&rdquo;
+                    Google Calendar &rarr; Settings &rarr; your calendar &rarr; &ldquo;Secret address in iCal format&rdquo;
                   </p>
                   <div className="flex gap-2">
-                    <input type="url" value={icsUrl} onChange={e => setIcsUrl(e.target.value)}
-                      placeholder="Paste iCal URL..."
+                    <input type="url" value={icsUrl} onChange={e => { setIcsUrl(e.target.value); setGcalError(null); }}
+                      placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
                       className="flex-1 px-2 py-2 bg-v-surface border border-v-border text-v-text-primary text-xs focus:border-v-gold outline-none placeholder:text-v-text-secondary/50" />
                     <button onClick={handleIcsImport} disabled={icsImporting || !icsUrl.trim()}
-                      className="px-3 py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
+                      className="px-3 py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors whitespace-nowrap">
                       {icsImporting ? '...' : 'Connect'}
                     </button>
                   </div>
                   {icsResult && <p className="text-xs text-green-400 mt-2">{icsResult.relevantEvents} events imported</p>}
+                  <p className="text-[10px] text-v-text-secondary/60 mt-2">URL should end in .ics — not the regular calendar view URL</p>
                 </div>
               </div>
             )}
@@ -497,41 +506,26 @@ function IntegrationsContent() {
                   <p className="text-xs text-v-text-secondary">Import customers</p>
                 </div>
               </div>
-              {qbConnected ? (
-                <span className="text-xs text-green-400 border border-green-400/30 px-2 py-0.5 uppercase tracking-wider">Connected</span>
-              ) : (
-                <span className="text-xs text-v-text-secondary border border-v-border px-2 py-0.5 uppercase tracking-wider">Not Connected</span>
-              )}
+              <span className="text-xs text-v-text-secondary border border-v-border px-2 py-0.5 uppercase tracking-wider">CSV Import</span>
             </div>
 
-            {qbError && (
-              <div className="mb-3 p-2 bg-red-900/20 border border-red-500/30 text-red-400 text-xs flex items-center justify-between">
-                <span>{qbError}</span>
-                <button onClick={() => setQbError(null)} className="ml-2 font-bold">&times;</button>
-              </div>
-            )}
-
-            {qbConnected ? (
-              <div>
-                {qbStatus.connected_at && <p className="text-xs text-v-text-secondary mb-3">Connected {new Date(qbStatus.connected_at).toLocaleDateString()}</p>}
-                <button onClick={handleImportCustomers} disabled={importing}
-                  className="w-full py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
-                  {importing ? 'Importing...' : 'Import Customers'}
-                </button>
-                {importResult && (
-                  <p className="text-xs text-green-400 mt-2">Imported {importResult.imported}, updated {importResult.updated}</p>
-                )}
-                <button onClick={handleDisconnectQB} className="mt-3 text-xs text-red-400 hover:text-red-300 underline">Disconnect</button>
-              </div>
-            ) : (
-              <div>
-                <p className="text-xs text-v-text-secondary mb-3">Import your existing customer list from QuickBooks.</p>
-                <button onClick={handleConnectQB} disabled={qbConnecting}
-                  className="px-4 py-2 border border-green-500/50 text-green-400 text-xs font-semibold uppercase tracking-widest hover:bg-green-500 hover:text-white disabled:opacity-50 transition-colors">
-                  {qbConnecting ? 'Connecting...' : 'Connect QuickBooks'}
-                </button>
-              </div>
-            )}
+            <div>
+              <p className="text-xs text-v-text-secondary mb-3">
+                Import your QuickBooks customer list via CSV export.
+              </p>
+              <p className="text-[10px] text-v-text-secondary mb-3">
+                In QuickBooks: Sales &rarr; Customers &rarr; Export to Excel &rarr; Save as CSV
+              </p>
+              <a
+                href="/settings/import"
+                className="inline-block w-full py-2 text-center bg-v-surface border border-v-border text-v-text-primary text-xs font-semibold uppercase tracking-widest hover:bg-white/5 transition-colors"
+              >
+                Import CSV Data
+              </a>
+              <p className="text-[10px] text-v-text-secondary mt-3">
+                Direct QuickBooks sync coming soon.
+              </p>
+            </div>
           </div>
         </div>
       </div>
