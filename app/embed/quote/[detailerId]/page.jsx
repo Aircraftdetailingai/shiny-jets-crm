@@ -305,7 +305,7 @@ export default function EmbedQuotePage() {
 
       {/* Powered by */}
       <div className="text-center mt-4 text-xs text-gray-400">
-        Powered by <a href="https://vectorav.ai" target="_blank" className="text-gray-500 hover:underline">Vector</a>
+        Powered by <a href="https://shinyjets.com" target="_blank" className="text-gray-500 hover:underline">Shiny Jets</a>
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ function LoginContent() {
     if (errParam === 'auth_failed') setError('Authentication failed. Please try again.');
     else if (errParam === 'no_email') setError('Could not retrieve email from your account.');
     else if (errParam === 'account_creation_failed') setError('Failed to create account. Please try email signup.');
+    else if (errParam === 'oauth_error') setError(params.get('message') || 'OAuth sign-in failed. Please try again.');
     else if (errParam === 'server_error') setError('Server error. Please try again.');
   }, [router, params]);
 

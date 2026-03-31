@@ -88,7 +88,8 @@ export default function AuthCallbackPage() {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       console.error('[auth/callback] oauth-complete failed:', data.error);
-      router.replace('/login?error=account_creation_failed');
+      const errMsg = encodeURIComponent(data.error || 'Account creation failed');
+      router.replace(`/login?error=oauth_error&message=${errMsg}`);
       return;
     }
 

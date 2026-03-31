@@ -3,7 +3,9 @@ import Stripe from 'stripe';
 
 export const dynamic = 'force-dynamic';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY?.trim());
+let _stripe;
+function getStripe() { return _stripe ??= new Stripe(process.env.STRIPE_SECRET_KEY?.trim()); }
+const stripe = new Proxy({}, { get: (_, prop) => getStripe()[prop] });
 
 // GET - List stored payment methods
 export async function GET(request) {

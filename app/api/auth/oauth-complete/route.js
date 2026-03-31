@@ -70,12 +70,36 @@ export async function POST(request) {
         .single();
 
       if (createError) {
-        console.error('[oauth-complete] Create error:', createError.message);
-        return Response.json({ error: 'Failed to create account' }, { status: 500 });
-      }
+        console.error('[oauth-complete] Create error:', createError.message, createError.code);
 
-      console.log('[oauth-complete] Created detailer:', newDetailer.id);
-      detailer = newDetailer;
+        // Handle unique constraint violation — account exists but lookup missed it (race condition)
+        if (createError.code === '23505') {
+          const { data: retryLookup } = await supabase
+            .from('detailers')
+            .select('*')
+            .eq('email', email.toLowerCase().trim())
+            .maybeSingle();
+
+          if (retryLookup) {
+            console.log('[oauth-complete] Found existing on retry:', retryLookup.id);
+            detailer = retryLookup;
+            isNewUser = false;
+            if (!retryLookup.oauth_provider) {
+              await supabase.from('detailers').update({
+                oauth_provider: provider,
+                oauth_id: oauth_id,
+              }).eq('id', retryLookup.id);
+            }
+          } else {
+            return Response.json({ error: `Account exists but lookup failed: ${createError.message}` }, { status: 500 });
+          }
+        } else {
+          return Response.json({ error: `Failed to create account: ${createError.message}` }, { status: 500 });
+        }
+      } else {
+        console.log('[oauth-complete] Created detailer:', newDetailer.id);
+        detailer = newDetailer;
+      }
     }
 
     // Issue JWT

@@ -4,7 +4,9 @@ import { calculateCcFee } from '@/lib/cc-fee';
 
 export const dynamic = 'force-dynamic';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY?.trim());
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY?.trim());
+}
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
@@ -114,7 +116,7 @@ export async function POST(request) {
     const appUrl = 'https://crm.shinyjets.com';
 
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [

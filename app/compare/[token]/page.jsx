@@ -518,7 +518,7 @@ export default function CompareQuotesPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 pb-8">
-          <p className="text-xs text-gray-400">Powered by <a href="https://vectorav.ai" className="underline">Vector</a></p>
+          <p className="text-xs text-gray-400">Powered by <a href="https://shinyjets.com" className="underline">Shiny Jets</a></p>
         </div>
       </div>
     </div>

@@ -81,7 +81,7 @@ export default function InstallPrompt() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#0f172a] flex items-center justify-center flex-shrink-0">
             <span className="text-white text-lg">&#9992;</span>
           </div>
-          <h3 className="font-bold text-gray-900">Install Vector App</h3>
+          <h3 className="font-bold text-gray-900">Install Shiny Jets CRM</h3>
         </div>
         <button
           onClick={handleDismiss}
