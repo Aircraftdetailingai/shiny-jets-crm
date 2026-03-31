@@ -313,7 +313,7 @@ function DashboardContent() {
               { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This Month' },
             ].map((kpi) => (
               <div key={kpi.label} className="min-w-0">
-                <p className={`text-[2.5rem] leading-none font-extralight font-data tracking-wide ${kpi.danger ? 'text-v-danger' : 'text-v-gold'}`}>
+                <p className={`text-2xl sm:text-[2.5rem] leading-none font-extralight font-data tracking-wide ${kpi.danger ? 'text-v-danger' : 'text-v-gold'}`}>
                   {kpi.value}
                 </p>
                 <div className="w-full h-px bg-v-gold/40 mt-3 mb-2" />

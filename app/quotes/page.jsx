@@ -420,10 +420,10 @@ export default function QuotesPage() {
           </div>
 
           {/* Search + Filter */}
-          <div className="px-6 pb-3 flex items-center gap-6 overflow-x-auto">
+          <div className="px-4 sm:px-6 pb-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 overflow-x-auto">
             <div className="relative flex-shrink-0">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-v-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-sm pl-9 pr-4 py-1.5 w-56 focus:outline-none focus:border-v-gold/40 transition-colors" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-base sm:text-sm pl-9 pr-4 py-1.5 w-full sm:w-56 focus:outline-none focus:border-v-gold/40 transition-colors" />
             </div>
             <div className="flex items-center gap-5">
               {['all', 'active', 'paid', 'completed', 'expired'].map((f) => (
@@ -465,8 +465,33 @@ export default function QuotesPage() {
           ))}
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Mobile Card Layout */}
+        <div className="sm:hidden px-4 space-y-2">
+          {filteredQuotes.length === 0 ? (
+            <div className="py-12 text-center text-v-text-secondary text-sm">{search ? 'No quotes match your search' : 'No quotes yet'}</div>
+          ) : filteredQuotes.map((q) => {
+            const status = getStatus(q);
+            return (
+              <div key={q.id} onClick={() => { if (q.share_link) window.open(`/q/${q.share_link}`, '_blank'); }}
+                className="bg-white/[0.02] border border-[#1A2236] p-4 cursor-pointer active:bg-white/[0.04]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-white text-sm font-medium truncate mr-2">{getDisplayName(q)}</span>
+                  <span className={`shrink-0 px-2 py-0.5 text-[10px] uppercase tracking-wider ${status === 'paid' ? 'border border-green-500/30 text-green-400' : status === 'sent' ? 'border border-v-gold/30 text-v-gold' : status === 'viewed' ? 'border border-purple-400/30 text-purple-400' : status === 'expired' ? 'border border-gray-500/30 text-gray-400' : 'border border-v-border text-v-text-secondary'}`}>
+                    {status}
+                  </span>
+                </div>
+                <p className="text-v-text-secondary text-xs truncate">{getAircraftLabel(q)}{q.tail_number ? ` · ${q.tail_number}` : ''}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(q.total_price)}</span>
+                  <span className="text-v-text-secondary text-xs">{q.created_at ? new Date(q.created_at).toLocaleDateString() : ''}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden sm:block overflow-x-auto">
           <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
             <div className="flex items-center justify-center">
               <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer" onClick={(e) => e.stopPropagation()} />

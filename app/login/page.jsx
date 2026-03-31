@@ -143,7 +143,7 @@ function LoginContent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+                className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
                 placeholder="you@company.com"
                 required
               />
@@ -154,7 +154,7 @@ function LoginContent() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+                className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
                 placeholder="Enter your password"
                 required
               />

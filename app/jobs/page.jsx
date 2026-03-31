@@ -160,7 +160,29 @@ export default function JobsPage() {
           </div>
         ) : (
           /* Jobs Table */
-          <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+          <>
+          {/* Mobile Card Layout */}
+          <div className="sm:hidden space-y-2">
+            {filteredJobs.map((job) => (
+              <div key={job.id} onClick={() => { if (job.share_link) window.open(`/q/${job.share_link}`, '_blank'); }}
+                className="bg-v-surface border border-v-border p-4 cursor-pointer active:bg-white/[0.04]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-white text-sm font-medium truncate mr-2">{job.customer_company || job.client_name || '—'}</span>
+                  <span className={`shrink-0 px-2 py-0.5 text-[10px] uppercase tracking-wider ${statusColors[job.status] || 'border border-gray-500/30 text-gray-400'}`}>
+                    {statusLabels[job.status] || job.status}
+                  </span>
+                </div>
+                <p className="text-v-text-secondary text-xs truncate">{getAircraftLabel(job)}{job.tail_number ? ` · ${job.tail_number}` : ''}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(job.total_price)}</span>
+                  <span className="text-v-text-secondary text-xs">{formatDate(job.scheduled_date)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block bg-v-surface border border-v-border rounded-sm overflow-x-auto">
             {/* Table Header */}
             <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
               <div className="grid grid-cols-[1fr_1fr_1.2fr_120px_100px_120px] min-w-[800px] px-6 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
@@ -212,6 +234,7 @@ export default function JobsPage() {
               {filteredJobs.length} of {jobs.length} jobs{filter !== 'all' && ' (filtered)'}
             </div>
           </div>
+          </>
         )}
       </div>
     </AppShell>
