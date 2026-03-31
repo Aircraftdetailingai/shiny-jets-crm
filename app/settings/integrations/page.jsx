@@ -115,12 +115,18 @@ function IntegrationsContent() {
   const handleConnectGCal = async () => {
     setGcalConnecting(true); setGcalError(null);
     try {
-      const res = await fetch('/api/google-calendar/auth', { method: 'POST', headers: getHeaders() });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else if (data.configured === false) setGcalError('Google Calendar OAuth is being set up. Use the iCal URL option below for now.');
-      else if (data.error) setGcalError(data.error);
-    } catch (err) { setGcalError(`Network error: ${err.message}`); }
+      const { getSupabaseBrowser } = await import('@/lib/supabase-browser');
+      const supabase = getSupabaseBrowser();
+      if (!supabase) { setGcalError('Auth service unavailable'); return; }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+          redirectTo: `${window.location.origin}/auth/google-calendar-callback`,
+        },
+      });
+      if (error) setGcalError(error.message);
+    } catch (err) { setGcalError(`Error: ${err.message}`); }
     finally { setGcalConnecting(false); }
   };
 
@@ -336,7 +342,8 @@ function IntegrationsContent() {
             {/* OAuth Connected */}
             {oauthConnected && (
               <div className="flex-1">
-                <p className="text-xs text-v-text-secondary mb-1">Connected {gcalStatus.connected_at && new Date(gcalStatus.connected_at).toLocaleDateString()}</p>
+                {gcalStatus.google_email && <p className="text-xs text-green-400 mb-1">Connected as {gcalStatus.google_email}</p>}
+                <p className="text-xs text-v-text-secondary mb-1">{!gcalStatus.google_email ? 'Connected ' : ''}{gcalStatus.connected_at && new Date(gcalStatus.connected_at).toLocaleDateString()}</p>
                 {gcalStatus.last_sync_at && <p className="text-xs text-v-text-secondary mb-3">Last synced {new Date(gcalStatus.last_sync_at).toLocaleString()}</p>}
                 <button onClick={handleSyncGCal} disabled={gcalSyncing}
                   className="w-full py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors">

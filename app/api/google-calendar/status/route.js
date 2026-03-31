@@ -21,7 +21,7 @@ export async function GET(request) {
   try {
     const { data: conn } = await supabase
       .from('google_calendar_connections')
-      .select('connected_at, last_sync_at, sync_enabled, push_enabled, calendar_id')
+      .select('connected_at, last_sync_at, sync_enabled, push_enabled, calendar_id, google_email, calendars')
       .eq('detailer_id', user.id)
       .single();
     if (conn) {
@@ -55,6 +55,8 @@ export async function GET(request) {
       sync_enabled: oauthData.sync_enabled,
       push_enabled: oauthData.push_enabled,
       calendar_id: oauthData.calendar_id,
+      google_email: oauthData.google_email,
+      calendars: oauthData.calendars,
       icsUrl,
       icsLastSync,
     });
