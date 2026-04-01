@@ -234,6 +234,9 @@ function NewQuoteContent() {
                 }
                 if (!match) match = models.find(m => q.split(/\s+/).every(w => `${m.manufacturer} ${m.model}`.toLowerCase().includes(w)));
                 if (match) {
+                  // Set manufacturer dropdown first — this triggers model list to reload
+                  setSelectedManufacturer(match.manufacturer);
+                  // Then fetch full aircraft data and select it
                   fetch(`/api/aircraft/${match.id}`, { headers })
                     .then(r => r.ok ? r.json() : null)
                     .then(data => { if (data?.aircraft) setSelectedAircraft(data.aircraft); })
