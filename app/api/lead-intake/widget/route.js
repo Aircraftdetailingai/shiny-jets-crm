@@ -66,7 +66,7 @@ export async function GET(request) {
     // Get detailer info
     const { data: detailer, error: detailerError } = await supabase
       .from('detailers')
-      .select('id, company, logo_url')
+      .select('id, company, logo_url, plan')
       .eq('id', detailerId)
       .single();
 
@@ -104,6 +104,7 @@ export async function GET(request) {
         id: detailer.id,
         name: detailer.company,
         logo: detailer.logo_url,
+        plan: detailer.plan || 'free',
       },
       questions: formattedQuestions,
       faqs: faqData?.faqs || [],

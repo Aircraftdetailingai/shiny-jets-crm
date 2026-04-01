@@ -39,6 +39,7 @@ export default function QuoteRequestPage() {
       detailerId={detailerId}
       detailerName={detailer?.name}
       detailerLogo={detailer?.logo}
+      detailerPlan={detailer?.plan || 'free'}
     />
   );
 }

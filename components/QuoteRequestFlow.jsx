@@ -91,7 +91,7 @@ const DISCLAIMERS = {
   windows_protection: 'Window coatings are for acrylic windows only. Glass windshields require manufacturer-approved products.',
 };
 
-export default function QuoteRequestFlow({ detailerId, detailerName, detailerLogo, embedded = false }) {
+export default function QuoteRequestFlow({ detailerId, detailerName, detailerLogo, detailerPlan = 'free', embedded = false }) {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -199,6 +199,40 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     return disclaimers;
   };
 
+  const handleSubmitWithContact = async (name, email, phone) => {
+    setSubmitting(true);
+    setError('');
+    const recommended = getRecommendedServices();
+    try {
+      const res = await fetch('/api/lead-intake/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          detailer_id: detailerId,
+          name, email, phone,
+          aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`,
+          tail_number: data.tail_number,
+          airport: data.airport,
+          services_requested: data.service_text || recommended.join(', '),
+          notes: selectedAreas.length > 0
+            ? `Areas: ${selectedAreas.map(a => `${a} (${areaConditions[a]?.label || 'unset'})`).join(', ')}`
+            : '',
+          source: embedded ? 'embed_widget' : 'quote_request_page',
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to submit');
+      }
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message);
+      setStep(6);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     setError('');
@@ -242,19 +276,28 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     </div>
   );
 
+  const isEnterprise = detailerPlan === 'enterprise';
+
   const Header = () => (
-    <div className="flex items-center justify-between px-4 pt-4">
-      {step > 1 && !submitted ? (
-        <button onClick={goBack} className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-        </button>
-      ) : <div className="w-10" />}
-      {detailerLogo ? (
-        <img src={detailerLogo} alt={detailerName} className="h-8 object-contain" />
-      ) : (
-        <span className="text-white/80 text-sm font-medium">{detailerName || 'Get a Quote'}</span>
+    <div className="px-4 pt-4">
+      <div className="flex items-center justify-between">
+        {step > 1 && !submitted ? (
+          <button onClick={goBack} className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+        ) : <div className="w-10" />}
+        <div className="text-center">
+          {detailerLogo ? (
+            <img src={detailerLogo} alt={detailerName} className="h-8 object-contain mx-auto" />
+          ) : (
+            <span className="text-white/80 text-sm font-medium">{detailerName || 'Get a Quote'}</span>
+          )}
+        </div>
+        <div className="w-10" />
+      </div>
+      {!isEnterprise && (
+        <p className="text-center text-white/20 text-[9px] mt-1">Powered by Shiny Jets CRM</p>
       )}
-      <div className="w-10" />
     </div>
   );
 
@@ -690,20 +733,16 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
 
         {/* STEP 6: Contact Info */}
         {step === 6 && (
-          <div className="flex-1 flex flex-col">
-            <h2 className="text-xl font-light text-white mb-2">Last step — how do we reach you?</h2>
-            <p className="text-white/40 text-xs mb-6">We&apos;ll send your quote to this email</p>
-            <div className="space-y-4">
-              <Input value={data.name} onChange={v => set('name', v)} placeholder="Full Name" autoComplete="name" autoFocus />
-              <Input value={data.email} onChange={v => set('email', v)} placeholder="Email" type="email" autoComplete="email" />
-              <Input value={data.phone} onChange={v => set('phone', v)} placeholder="Phone (optional)" type="tel" autoComplete="tel" />
-            </div>
-            <div className="mt-auto pt-6">
-              <Btn onClick={() => { setStep(7); handleSubmit(); }} disabled={!data.name.trim() || !data.email.trim()}>
-                Submit Request
-              </Btn>
-            </div>
-          </div>
+          <ContactStep
+            onSubmit={(name, email, phone) => {
+              set('name', name);
+              set('email', email);
+              set('phone', phone);
+              setStep(7);
+              // Submit with the values directly since state may not be updated yet
+              handleSubmitWithContact(name, email, phone);
+            }}
+          />
         )}
 
         {/* STEP 7: Submitting */}
@@ -748,6 +787,38 @@ function AreaSelector({ selectedAreas, onToggle, onSelectAll, onContinue }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// Separate component to prevent parent re-renders from stealing focus
+function ContactStep({ onSubmit }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+
+  return (
+    <div className="flex-1 flex flex-col">
+      <h2 className="text-xl font-light text-white mb-2">Last step — how do we reach you?</h2>
+      <p className="text-white/40 text-xs mb-6">We&apos;ll send your quote to this email</p>
+      <div className="space-y-4">
+        <input type="text" value={name} onChange={e => setName(e.target.value)}
+          placeholder="Full Name" autoComplete="name"
+          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+          placeholder="Email" autoComplete="email"
+          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
+        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+          placeholder="Phone (optional)" autoComplete="tel"
+          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
+      </div>
+      <div className="mt-auto pt-6">
+        <button onClick={() => onSubmit(name, email, phone)}
+          disabled={!name.trim() || !email.trim()}
+          className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
+          Submit Request
+        </button>
+      </div>
     </div>
   );
 }

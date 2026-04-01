@@ -28,7 +28,7 @@ export default function EmbedQuotePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0D1B2A] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0D1B2A] flex flex-col items-center justify-center">
         <p className="text-white/60 text-sm">Detailer not found</p>
         <p className="text-white/30 text-xs mt-2">Powered by <a href="https://shinyjets.com" className="underline">Shiny Jets</a></p>
       </div>
@@ -40,6 +40,7 @@ export default function EmbedQuotePage() {
       detailerId={detailerId}
       detailerName={detailer?.name}
       detailerLogo={detailer?.logo}
+      detailerPlan={detailer?.plan || 'free'}
       embedded
     />
   );
