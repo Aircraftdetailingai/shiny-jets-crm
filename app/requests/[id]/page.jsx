@@ -86,6 +86,9 @@ export default function RequestDetailPage() {
       aircraft: lead.aircraft_model || '',
       tail: lead.tail_number || '',
       airport: lead.airport || '',
+      service: lead.services_requested || '',
+      notes: lead.notes || '',
+      photos: lead.photo_urls || [],
       timestamp: Date.now(),
     }));
     window.location.href = '/quotes/new';

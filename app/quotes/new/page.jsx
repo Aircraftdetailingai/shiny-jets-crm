@@ -63,6 +63,7 @@ function NewQuoteContent() {
   const [proposedTime, setProposedTime] = useState('08:00');
   const [bufferMinutes, setBufferMinutes] = useState(60);
   const [excludeWeekends, setExcludeWeekends] = useState(true);
+  const [leadContext, setLeadContext] = useState(null); // { service, notes, photos, aircraft, tail, airport }
   const [customProductRatios, setCustomProductRatios] = useState(null);
   const [serviceProductLinks, setServiceProductLinks] = useState([]);
   const [serviceEquipmentLinks, setServiceEquipmentLinks] = useState([]);
@@ -200,6 +201,18 @@ function NewQuoteContent() {
           }
           if (prefill.airport) setAirport(prefill.airport);
           if (prefill.tail) setTailNumber(prefill.tail);
+
+          // Store lead context for reference panel
+          if (prefill.notes || prefill.service || prefill.photos?.length) {
+            setLeadContext({
+              service: prefill.service,
+              notes: prefill.notes,
+              photos: prefill.photos || [],
+              aircraft: prefill.aircraft,
+              tail: prefill.tail,
+              airport: prefill.airport,
+            });
+          }
 
           // Fuzzy match aircraft
           if (prefill.aircraft) {
@@ -385,7 +398,7 @@ function NewQuoteContent() {
     if (refHrs > 0) return { type: 'aircraft', label: 'From aircraft hours database' };
     const oldHrs = getOldAircraftHours(svc);
     if (oldHrs > 0) return { type: 'aircraft', label: 'From aircraft data' };
-    return { type: 'platform', label: 'Platform default' };
+    return { type: 'platform', label: 'Estimated' };
   };
 
   // Get the "starting" hours (before manual override) for comparison
@@ -649,6 +662,33 @@ function NewQuoteContent() {
           ))}
         </div>
       </div>
+
+      {/* Customer Request Context (from lead) */}
+      {leadContext && (
+        <details open className="max-w-3xl mx-auto bg-v-gold/5 border border-v-gold/20 rounded p-4 mb-5">
+          <summary className="text-xs uppercase tracking-wider text-v-gold cursor-pointer font-medium">Customer Request</summary>
+          <div className="mt-3 space-y-2 text-sm">
+            {leadContext.aircraft && (
+              <p className="text-v-text-secondary">
+                <span className="text-v-text-secondary/60">Aircraft:</span> {leadContext.aircraft}
+                {leadContext.tail ? ` \u2014 ${leadContext.tail}` : ''}
+                {leadContext.airport ? ` at ${leadContext.airport}` : ''}
+              </p>
+            )}
+            {leadContext.service && <p className="text-v-text-secondary"><span className="text-v-text-secondary/60">Service:</span> {leadContext.service}</p>}
+            {leadContext.notes && leadContext.notes.split('\n').filter(Boolean).map((line, i) => (
+              <p key={i} className="text-v-text-secondary text-xs">{line}</p>
+            ))}
+            {leadContext.photos?.length > 0 && (
+              <div className="flex gap-2 mt-2 overflow-x-auto">
+                {leadContext.photos.slice(0, 6).map((p, i) => (
+                  <img key={i} src={typeof p === 'string' ? p : p.url} alt="" className="w-16 h-16 object-cover rounded border border-white/10 shrink-0" />
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      )}
 
       {/* Services Configuration Prompt */}
       {user && availableServices.length === 0 && (
@@ -1105,22 +1145,6 @@ function NewQuoteContent() {
             );
           })()}
 
-          {/* 8. Aircraft Details Accordion */}
-          {selectedAircraft && (
-            <details className="bg-v-surface border border-v-border/40 p-5 mb-5">
-              <summary className="font-semibold text-sm cursor-pointer text-v-text-secondary">Aircraft Details</summary>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-v-text-secondary">
-                <div><span className="text-gray-400">Type:</span> {selectedAircraft.category}</div>
-                <div><span className="text-gray-400">Model:</span> {selectedAircraft.manufacturer} {selectedAircraft.model}</div>
-                {selectedAircraft.surface_area_sqft && <div><span className="text-gray-400">Surface:</span> {selectedAircraft.surface_area_sqft} sq ft</div>}
-                {Object.entries(HOURS_FIELD_OPTIONS).map(([field, label]) =>
-                  selectedAircraft[field] ? (
-                    <div key={field}><span className="text-gray-400">{label}:</span> {selectedAircraft[field]}h</div>
-                  ) : null
-                )}
-              </div>
-            </details>
-          )}
 
           {/* 8. Quote Summary */}
           {selectedAircraft && selectedServicesList.length > 0 && (
