@@ -161,13 +161,29 @@ export async function POST(request) {
 
       const { lead_id, status } = body;
 
+      const updateData = { status };
+      try { updateData.updated_at = new Date().toISOString(); } catch {}
+
       const { data: lead, error } = await supabase
         .from('intake_leads')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', lead_id)
         .eq('detailer_id', user.id)
         .select()
         .single();
+
+      // Retry without updated_at if column doesn't exist
+      if (error && error.message?.includes('column')) {
+        const { data: retry, error: retryErr } = await supabase
+          .from('intake_leads')
+          .update({ status })
+          .eq('id', lead_id)
+          .eq('detailer_id', user.id)
+          .select()
+          .single();
+        if (retryErr) return Response.json({ error: retryErr.message }, { status: 500 });
+        return Response.json({ success: true, lead: retry });
+      }
 
       if (error) {
         return Response.json({ error: error.message }, { status: 500 });
