@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const TOTAL_STEPS = 7;
 
@@ -367,17 +367,14 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           </div>
         )}
 
-        {/* STEP 2: Tail Number */}
+        {/* STEP 2: Tail Number with FAA Lookup */}
         {step === 2 && (
-          <div className="flex-1 flex flex-col">
-            <h2 className="text-xl font-light text-white mb-2">What&apos;s your tail number?</h2>
-            <p className="text-white/40 text-xs mb-6">Optional — helps us look up your aircraft</p>
-            <Input value={data.tail_number} onChange={v => set('tail_number', v.toUpperCase())} placeholder="N12345" autoCapitalize="characters" autoFocus />
-            <div className="mt-auto pt-6 space-y-3">
-              <Btn onClick={goNext}>Next</Btn>
-              {!data.tail_number && <Btn onClick={goNext} secondary>Skip</Btn>}
-            </div>
-          </div>
+          <TailNumberStep
+            value={data.tail_number}
+            onChange={v => set('tail_number', v)}
+            onAircraftFound={(mfr, mdl) => { set('manufacturer', mfr); set('model', mdl); set('model_full', `${mfr} ${mdl}`); }}
+            onNext={goNext}
+          />
         )}
 
         {/* STEP 3: Airport */}
@@ -764,6 +761,82 @@ function ContactStep({ onSubmit }) {
           className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
           Submit Request
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Tail number step with FAA registry autofill
+function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
+  const [tail, setTail] = useState(value || '');
+  const [looking, setLooking] = useState(false);
+  const [found, setFound] = useState(null);
+  const timerRef = useRef(null);
+
+  const handleChange = (v) => {
+    const upper = v.toUpperCase();
+    setTail(upper);
+    onChange(upper);
+    setFound(null);
+    clearTimeout(timerRef.current);
+    const nNum = upper.replace(/^N/, '');
+    if (nNum.length >= 2) {
+      timerRef.current = setTimeout(() => lookupTail(upper), 800);
+    }
+  };
+
+  const lookupTail = async (t) => {
+    setLooking(true);
+    try {
+      const res = await fetch(`/api/aircraft/registry/${encodeURIComponent(t)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.found && data.manufacturer) setFound(data);
+      }
+    } catch {}
+    setLooking(false);
+  };
+
+  const applyFound = () => {
+    if (found?.manufacturer && found?.model) onAircraftFound(found.manufacturer, found.model);
+    onNext();
+  };
+
+  return (
+    <div className="flex-1 flex flex-col">
+      <h2 className="text-xl font-light text-white mb-2">What&apos;s your tail number?</h2>
+      <p className="text-white/40 text-xs mb-6">Optional — we&apos;ll look up your aircraft automatically</p>
+      <input type="text" value={tail} onChange={e => handleChange(e.target.value)}
+        placeholder="N12345" autoCapitalize="characters" autoFocus
+        className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
+
+      {looking && (
+        <div className="flex items-center gap-2 mt-3">
+          <div className="w-4 h-4 border-2 border-[#007CB1] border-t-transparent rounded-full animate-spin" />
+          <p className="text-white/40 text-xs">Looking up registration...</p>
+        </div>
+      )}
+
+      {found && (
+        <div className="mt-3 bg-[#007CB1]/10 border border-[#007CB1]/30 rounded-lg p-4">
+          <p className="text-white text-sm font-medium">{found.manufacturer} {found.model}</p>
+          {found.year && <p className="text-white/50 text-xs mt-0.5">{found.year}{found.registrant_name ? ` \u2014 ${found.registrant_name}` : ''}</p>}
+          <button onClick={applyFound}
+            className="mt-3 w-full py-3 rounded-lg bg-[#007CB1] text-white text-sm font-semibold hover:bg-[#006a9e] transition-colors">
+            Yes, this is my aircraft
+          </button>
+        </div>
+      )}
+
+      <div className="mt-auto pt-6 space-y-3">
+        {!found && <button onClick={onNext}
+          className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] transition-all">
+          Next
+        </button>}
+        {!tail && <button onClick={onNext}
+          className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-white/10 text-white border border-white/20 hover:bg-white/15 min-h-[48px] transition-all">
+          Skip
+        </button>}
       </div>
     </div>
   );
