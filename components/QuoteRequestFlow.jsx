@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 const AREAS = [
   { key: 'paint', label: 'Paint' },
@@ -265,7 +265,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
       setSubmitted(true);
     } catch (err) {
       setError(err.message);
-      setStep(7);
+      setStep(6);
     } finally {
       setSubmitting(false);
       setUploading(false);
@@ -731,69 +731,8 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           </div>
         )}
 
-        {/* STEP 5: Summary — customer's own words */}
+        {/* STEP 5: Photo Upload */}
         {step === 5 && (
-          <div className="flex-1 flex flex-col">
-            <h2 className="text-xl font-light text-white mb-6">Here&apos;s what you&apos;ve requested</h2>
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-3 bg-white/5 rounded-lg p-5 border border-white/10">
-                <SummaryRow label="Aircraft" value={data.model_full || `${data.manufacturer} ${data.model}`} />
-                <SummaryRow label="Tail Number" value={data.tail_number || 'Not provided'} />
-                <SummaryRow label="Airport" value={data.airport} />
-
-                {data.service_text && <SummaryRow label="Request" value={data.service_text} />}
-
-                {selectedAreas.length > 0 && (
-                  <div>
-                    <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">Areas needing attention</p>
-                    <div className="space-y-2">
-                      {selectedAreas.map(area => {
-                        const cond = areaConditions[area];
-                        const areaInfo = AREAS.find(a => a.key === area);
-                        const seatLabel = area === 'seats' && seatType ? ` (${seatType})` : '';
-                        return (
-                          <div key={area} className="flex items-start gap-2">
-                            <span className="text-white/30 mt-0.5">-</span>
-                            <p className="text-white text-sm">
-                              <span className="text-white/60">{areaInfo?.label}{seatLabel}:</span>{' '}
-                              {cond?.label || 'Not assessed'}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {Object.values(protectionSelections).flat().length > 0 && (
-                  <div>
-                    <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">Protection requested</p>
-                    <p className="text-white text-sm">
-                      {Object.entries(protectionSelections).flatMap(([area, keys]) =>
-                        keys.map(k => PROTECTION_OPTIONS[area]?.find(p => p.key === k)?.label).filter(Boolean)
-                      ).join(', ')}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {getDisclaimers().length > 0 && (
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-3">
-                  {getDisclaimers().map((d, i) => (
-                    <p key={i} className="text-yellow-300/80 text-[11px] leading-relaxed">{i > 0 && <br />}{d}</p>
-                  ))}
-                </div>
-              )}
-              <p className="text-white/30 text-[10px] text-center mt-3">Final scope determined by detailer after inspection and photo documentation</p>
-            </div>
-            <div className="pt-6">
-              <Btn onClick={goNext}>Looks good — continue</Btn>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 6: Photo Upload */}
-        {step === 6 && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-xl font-light text-white mb-2">Would you like to add photos?</h2>
             <p className="text-white/40 text-xs mb-6">Photos help us give you a more accurate quote</p>
@@ -834,21 +773,21 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           </div>
         )}
 
-        {/* STEP 7: Contact Info */}
-        {step === 7 && (
+        {/* STEP 6: Contact Info */}
+        {step === 6 && (
           <ContactStep
             onSubmit={(name, email, phone) => {
               set('name', name);
               set('email', email);
               set('phone', phone);
-              setStep(8);
+              setStep(7);
               handleSubmitWithContact(name, email, phone);
             }}
           />
         )}
 
-        {/* STEP 8: Submitting */}
-        {step === 8 && !submitted && (
+        {/* STEP 7: Submitting */}
+        {step === 7 && !submitted && (
           <div className="flex-1 flex flex-col items-center justify-center">
             <div className="w-10 h-10 border-2 border-[#007CB1] border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-white/60 text-sm">{uploading ? 'Uploading photos...' : 'Submitting your request...'}</p>
@@ -925,11 +864,3 @@ function ContactStep({ onSubmit }) {
   );
 }
 
-function SummaryRow({ label, value }) {
-  return (
-    <div>
-      <p className="text-white/40 text-[10px] uppercase tracking-wider">{label}</p>
-      <p className="text-white text-sm mt-0.5">{value}</p>
-    </div>
-  );
-}
