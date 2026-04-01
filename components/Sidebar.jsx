@@ -18,6 +18,7 @@ const NAV_GROUPS = [
   {
     label: 'Work',
     items: [
+      { href: '/requests', label: 'Requests', icon: RequestsIcon, badge: true },
       { href: '/quotes', label: 'Quotes', icon: QuotesIcon },
       { href: '/jobs', label: 'Jobs', icon: JobsIcon },
       { href: '/calendar', label: 'Schedule', icon: CalendarIcon },
@@ -85,6 +86,9 @@ function ProductsIcon() {
 function TeamIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m6 5.197V20" /></svg>;
 }
+function RequestsIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v8.25m0 0l-3-3m3 3l3-3" /></svg>;
+}
 function EquipmentIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M11.42 15.17l-5.6 5.6a2.12 2.12 0 01-3-3l5.6-5.6m2.83 2.83l3.18-3.18a2.12 2.12 0 000-3L14.3 5.7a2.12 2.12 0 00-3 0L8.12 8.88m3.3 6.29l-3.3-3.3" /><path d="M19.07 4.93a2 2 0 010 2.83l-1.42 1.42" /></svg>;
 }
@@ -100,6 +104,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {
     try {
@@ -132,6 +137,12 @@ export default function Sidebar() {
             setUser(prev => ({ ...prev, theme_primary: primary, portal_theme: mode, theme_logo_url: u.theme_logo_url }));
           } catch {}
         })
+        .catch(() => {});
+
+      // Fetch new request count
+      fetch('/api/lead-intake/leads?status=new', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.leads) setRequestCount(data.leads.length); })
         .catch(() => {});
     }
   }, []);
@@ -212,6 +223,9 @@ export default function Sidebar() {
                   {active && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
                   <Icon />
                   <span>{item.label}</span>
+                  {item.badge && requestCount > 0 && (
+                    <span className="ml-auto bg-v-gold text-v-charcoal text-[9px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{requestCount}</span>
+                  )}
                 </a>
               );
             })}
