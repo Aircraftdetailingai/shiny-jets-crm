@@ -168,7 +168,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     return selectedAreas.filter(a => areaConditions[a]?.tier === 'restoration' && PROTECTION_OPTIONS[a]?.length > 0);
   };
 
-  const handleSubmitWithContact = async (name, email, phone) => {
+  const handleSubmitWithContact = async (name, email, phone, smsOptIn = false) => {
     setSubmitting(true);
     setError('');
     try {
@@ -222,6 +222,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
             protectionNotes ? `Protection requested: ${protectionNotes}` : '',
           ].filter(Boolean).join('\n'),
           photo_urls: photoUrls,
+          sms_opted_in: smsOptIn,
           source: embedded ? 'embed_widget' : 'quote_request_page',
         }),
       });
@@ -675,12 +676,12 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         {/* STEP 6: Contact Info */}
         {step === 6 && (
           <ContactStep
-            onSubmit={(name, email, phone) => {
+            onSubmit={(name, email, phone, smsOptIn) => {
               set('name', name);
               set('email', email);
               set('phone', phone);
               setStep(7);
-              handleSubmitWithContact(name, email, phone);
+              handleSubmitWithContact(name, email, phone, smsOptIn);
             }}
           />
         )}
@@ -732,32 +733,56 @@ function AreaSelector({ selectedAreas, onToggle, onSelectAll, onContinue }) {
 }
 
 // Separate component to prevent parent re-renders from stealing focus
+// Uncontrolled inputs — bypasses React re-render focus issues on iOS Safari
 function ContactStep({ onSubmit }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const nameRef = useRef(null);
+  const emailRef = useRef(null);
+  const phoneRef = useRef(null);
+  const smsRef = useRef(null);
+  const [canSubmit, setCanSubmit] = useState(false);
+
+  const checkValid = () => {
+    const n = nameRef.current?.value?.trim();
+    const e = emailRef.current?.value?.trim();
+    setCanSubmit(!!(n && e));
+  };
+
+  const handleSubmit = () => {
+    const name = nameRef.current?.value?.trim() || '';
+    const email = emailRef.current?.value?.trim() || '';
+    const phone = phoneRef.current?.value?.trim() || '';
+    const smsOptIn = smsRef.current?.checked || false;
+    if (name && email) onSubmit(name, email, phone, smsOptIn);
+  };
+
+  const inputClass = 'w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors';
 
   return (
     <div className="flex-1 flex flex-col">
       <h2 className="text-xl font-light text-white mb-2">Last step — how do we reach you?</h2>
       <p className="text-white/40 text-xs mb-6">We&apos;ll send your quote to this email</p>
       <div className="space-y-4">
-        <input type="text" value={name} onChange={e => setName(e.target.value)}
-          placeholder="Full Name" autoComplete="name"
-          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-          placeholder="Email" autoComplete="email"
-          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
-        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-          placeholder="Phone (optional)" autoComplete="tel"
-          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
+        <input ref={nameRef} type="text" defaultValue="" autoComplete="name" placeholder="Full Name"
+          onInput={checkValid} onBlur={checkValid}
+          style={{ fontSize: '16px' }} className={inputClass} />
+        <input ref={emailRef} type="email" defaultValue="" autoComplete="email" placeholder="Email Address"
+          onInput={checkValid} onBlur={checkValid}
+          style={{ fontSize: '16px' }} className={inputClass} />
+        <input ref={phoneRef} type="tel" defaultValue="" autoComplete="tel" placeholder="Phone Number (optional)"
+          style={{ fontSize: '16px' }} className={inputClass} />
       </div>
-      <p className="text-white/30 text-[10px] leading-relaxed mt-6 mb-3">
+
+      <label className="flex items-center gap-3 mt-5 cursor-pointer">
+        <input ref={smsRef} type="checkbox" defaultChecked={false}
+          className="w-4 h-4 rounded accent-[#007CB1]" />
+        <span className="text-white/50 text-xs">Send me a text when my quote is ready</span>
+      </label>
+
+      <p className="text-white/20 text-[10px] leading-relaxed mt-5 mb-3">
         By submitting this request I understand that final scope and pricing will be determined by the detailer after inspection. Additional steps may be required based on actual surface condition.
       </p>
       <div>
-        <button onClick={() => onSubmit(name, email, phone)}
-          disabled={!name.trim() || !email.trim()}
+        <button onClick={handleSubmit} disabled={!canSubmit}
           className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
           Submit Request
         </button>
