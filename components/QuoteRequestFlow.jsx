@@ -107,7 +107,6 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const [selectedAreas, setSelectedAreas] = useState([]);
   const [areaConditions, setAreaConditions] = useState({}); // { paint: { key, label, services, tier }, ... }
   const [currentAreaIdx, setCurrentAreaIdx] = useState(0);
-  const [showRecommendation, setShowRecommendation] = useState(false);
   const [showProtectionOffer, setShowProtectionOffer] = useState(false);
   const [protectionSelections, setProtectionSelections] = useState({});
   const [areasConfirmed, setAreasConfirmed] = useState(false);
@@ -121,7 +120,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const [data, setData] = useState({
     manufacturer: '', model: '', model_full: '',
     tail_number: '', airport: '',
-    service_text: '', recommended_services: [],
+    service_text: '',
     name: '', email: '', phone: '',
   });
 
@@ -130,7 +129,6 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const goNext = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
   const goBack = () => {
     if (step === 4) {
-      if (showRecommendation) { setShowRecommendation(false); if (hasRestorationAreas()) setShowProtectionOffer(true); else setShowProtectionOffer(false); return; }
       if (showProtectionOffer) { setShowProtectionOffer(false); return; }
       if (askingSeatType) { setAskingSeatType(false); return; }
       if (areasConfirmed && Object.keys(areaConditions).length > 0) { setAreaConditions({}); return; }
@@ -160,28 +158,6 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
       .finally(() => setLoadingModels(false));
   }, [data.manufacturer]);
 
-  // Build recommended services from condition selections
-  const getRecommendedServices = () => {
-    const services = [];
-    for (const area of selectedAreas) {
-      const cond = areaConditions[area];
-      if (!cond) continue;
-      services.push(...(cond.services || []));
-      // Seat-type-specific services
-      if (area === 'seats' && cond.needsSeatType && seatType && SEAT_TYPE_SERVICES[seatType]) {
-        services.push(...(SEAT_TYPE_SERVICES[seatType][cond.key] || []));
-      }
-    }
-    // Add protection selections
-    for (const [area, opts] of Object.entries(protectionSelections)) {
-      for (const opt of opts) {
-        const pOpt = PROTECTION_OPTIONS[area]?.find(p => p.key === opt);
-        if (pOpt) services.push(pOpt.label);
-      }
-    }
-    return [...new Set(services)];
-  };
-
   // Check if any area has restoration tier (for protection offer)
   const hasRestorationAreas = () => {
     return selectedAreas.some(a => areaConditions[a]?.tier === 'restoration');
@@ -192,20 +168,9 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     return selectedAreas.filter(a => areaConditions[a]?.tier === 'restoration' && PROTECTION_OPTIONS[a]?.length > 0);
   };
 
-  // Get applicable disclaimers
-  const getDisclaimers = () => {
-    const disclaimers = [];
-    const winCond = areaConditions.windows;
-    if (winCond && winCond.tier === 'restoration') disclaimers.push(DISCLAIMERS.windows_restoration);
-    if (protectionSelections.windows?.length > 0) disclaimers.push(DISCLAIMERS.windows_protection);
-    return disclaimers;
-  };
-
   const handleSubmitWithContact = async (name, email, phone) => {
     setSubmitting(true);
     setError('');
-    const recommended = getRecommendedServices();
-
     try {
       // Upload photos if any
       let photoUrls = [];
@@ -228,12 +193,14 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         setUploading(false);
       }
 
-      // Build plain-language notes
+      // Build plain-language description — customer's exact words
+      const serviceType = quickSelect === 'quick_turn' ? 'Quick Turn' : quickSelect === 'maint_wash' ? 'Maintenance Wash' : 'Detailing';
+
       const areaNotes = selectedAreas.map(a => {
         const cond = areaConditions[a];
         const areaInfo = AREAS.find(ar => ar.key === a);
         const seatLabel = a === 'seats' && seatType ? ` (${seatType})` : '';
-        return `${areaInfo?.label}${seatLabel}: ${cond?.label || 'Not assessed'}`;
+        return `${areaInfo?.label}${seatLabel} \u2014 ${cond?.label || 'Not assessed'}`;
       }).join('\n');
 
       const protectionNotes = Object.entries(protectionSelections).flatMap(([area, keys]) =>
@@ -249,10 +216,10 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`,
           tail_number: data.tail_number,
           airport: data.airport,
-          services_requested: data.service_text || recommended.join(', '),
+          services_requested: data.service_text || serviceType,
           notes: [
             areaNotes,
-            protectionNotes ? `Protection: ${protectionNotes}` : '',
+            protectionNotes ? `Protection requested: ${protectionNotes}` : '',
           ].filter(Boolean).join('\n'),
           photo_urls: photoUrls,
           source: embedded ? 'embed_widget' : 'quote_request_page',
@@ -269,41 +236,6 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     } finally {
       setSubmitting(false);
       setUploading(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setError('');
-    const recommended = getRecommendedServices();
-    try {
-      const res = await fetch('/api/lead-intake/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          detailer_id: detailerId,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`,
-          tail_number: data.tail_number,
-          airport: data.airport,
-          services_requested: data.service_text || recommended.join(', '),
-          notes: selectedAreas.length > 0
-            ? `Areas: ${selectedAreas.map(a => `${a} (${areaLevels[a] || 'unset'})`).join(', ')}`
-            : '',
-          source: embedded ? 'embed_widget' : 'quote_request_page',
-        }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || 'Failed to submit');
-      }
-      setSubmitted(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -570,10 +502,10 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         )}
 
         {/* Combined condition screen — all areas on one page */}
-        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !askingSeatType && !showProtectionOffer && !showRecommendation && (
+        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !askingSeatType && !showProtectionOffer && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-xl font-light text-white mb-1">How does each area look?</h2>
-            <p className="text-white/40 text-xs mb-5">This helps us recommend the right services</p>
+            <p className="text-white/40 text-xs mb-5">This helps us understand your needs</p>
             <div className="flex-1 overflow-y-auto space-y-4 -mx-1 px-1">
               {selectedAreas.map(area => {
                 const q = CONDITION_QUESTIONS[area];
@@ -618,7 +550,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                 }
                 // Check for protection offer
                 if (hasRestorationAreas()) setShowProtectionOffer(true);
-                else setShowRecommendation(true);
+                else setStep(5);
               }} disabled={selectedAreas.some(a => !areaConditions[a])}>
                 Next
               </Btn>
@@ -637,7 +569,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                   setSeatType(type);
                   setAskingSeatType(false);
                   if (hasRestorationAreas()) setShowProtectionOffer(true);
-                  else setShowRecommendation(true);
+                  else setStep(5);
                 }}
                   className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
                   <p className="text-white font-medium text-sm capitalize">{type === 'mixed' ? 'Mix of both' : type}</p>
@@ -648,7 +580,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         )}
 
         {/* Protection offer — only after restoration areas */}
-        {step === 4 && showProtectionOffer && !showRecommendation && (
+        {step === 4 && showProtectionOffer && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-xl font-light text-white mb-2">Would you like to add protection?</h2>
             <p className="text-white/40 text-xs mb-6">Recommended after restoration work</p>
@@ -683,49 +615,8 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
               })}
             </div>
             <div className="pt-6 space-y-3">
-              <Btn onClick={() => setShowRecommendation(true)}>
+              <Btn onClick={() => setStep(5)}>
                 {Object.values(protectionSelections).flat().length > 0 ? 'Continue with protection' : 'Skip protection'}
-              </Btn>
-            </div>
-          </div>
-        )}
-
-        {/* Recommendation screen */}
-        {step === 4 && showRecommendation && (
-          <div className="flex-1 flex flex-col">
-            <h2 className="text-xl font-light text-white mb-2">
-              Based on your {data.model_full || data.model}, here&apos;s what we recommend
-            </h2>
-            <div className="space-y-3 mt-4 flex-1 overflow-y-auto">
-              {selectedAreas.map(area => {
-                const cond = areaConditions[area];
-                if (!cond) return null;
-                const areaInfo = AREAS.find(a => a.key === area);
-                const seatLabel = area === 'seats' && seatType ? ` (${seatType})` : '';
-                return (
-                  <div key={area} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                    <p className="text-white text-sm">
-                      <span className="text-white/60">{areaInfo?.label}{seatLabel}:</span>{' '}{cond.label}
-                    </p>
-                  </div>
-                );
-              })}
-              {getDisclaimers().length > 0 && (
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                  {getDisclaimers().map((d, i) => (
-                    <p key={i} className="text-yellow-300/80 text-[11px] leading-relaxed">{i > 0 && <br />}{d}</p>
-                  ))}
-                </div>
-              )}
-              <p className="text-white/30 text-[10px] text-center pt-2">Final scope determined by detailer after inspection and photo documentation</p>
-            </div>
-            <div className="pt-6 space-y-3">
-              <Btn onClick={() => {
-                set('recommended_services', getRecommendedServices());
-                setStep(5);
-              }}>This looks right</Btn>
-              <Btn onClick={() => { setShowRecommendation(false); setShowProtectionOffer(false); setAreasConfirmed(false); setAreaConditions({}); setProtectionSelections({}); setCurrentAreaIdx(0); setSeatType(null); }} secondary>
-                I want to change something
               </Btn>
             </div>
           </div>
@@ -764,9 +655,20 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
               <p className="text-white/30 text-[10px] mt-1">Up to 10 photos</p>
             </label>
 
+            {photos.length > 0 && (
+              <label className="flex items-start gap-2 mt-4 cursor-pointer">
+                <input type="checkbox" id="photo-terms" className="mt-0.5 w-4 h-4 rounded accent-[#007CB1]" />
+                <span className="text-white/40 text-[10px] leading-relaxed">
+                  By uploading photos I agree they may be used for anonymous surface condition analytics and detailing research. Photos are never shared publicly or linked to my identity.
+                </span>
+              </label>
+            )}
+
             <div className="mt-auto pt-4 space-y-3">
               {photos.length > 0 && (
-                <Btn onClick={goNext}>Continue with {photos.length} photo{photos.length !== 1 ? 's' : ''}</Btn>
+                <Btn onClick={() => { if (!document.getElementById('photo-terms')?.checked) { document.getElementById('photo-terms')?.focus(); return; } goNext(); }}>
+                  Continue with {photos.length} photo{photos.length !== 1 ? 's' : ''}
+                </Btn>
               )}
               <Btn onClick={goNext} secondary>{photos.length > 0 ? 'Skip photos' : 'Skip for now'}</Btn>
             </div>
@@ -853,7 +755,10 @@ function ContactStep({ onSubmit }) {
           placeholder="Phone (optional)" autoComplete="tel"
           className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
       </div>
-      <div className="mt-auto pt-6">
+      <p className="text-white/30 text-[10px] leading-relaxed mt-6 mb-3">
+        By submitting this request I understand that final scope and pricing will be determined by the detailer after inspection. Additional steps may be required based on actual surface condition.
+      </p>
+      <div>
         <button onClick={() => onSubmit(name, email, phone)}
           disabled={!name.trim() || !email.trim()}
           className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
