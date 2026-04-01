@@ -659,7 +659,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
               <label className="flex items-start gap-2 mt-4 cursor-pointer">
                 <input type="checkbox" id="photo-terms" className="mt-0.5 w-4 h-4 rounded accent-[#007CB1]" />
                 <span className="text-white/40 text-[10px] leading-relaxed">
-                  By uploading photos I agree they may be used for anonymous surface condition analytics and detailing research. Photos are never shared publicly or linked to my identity.
+                  Photos you upload are used exclusively for anonymous aircraft surface condition research to help extend the life of aircraft finishes. Photos are never shared publicly or linked to your identity. Shiny Jets CRM is held harmless from any use of uploaded photos as outlined in our Terms of Service.
                 </span>
               </label>
             )}
