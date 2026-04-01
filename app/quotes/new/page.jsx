@@ -183,72 +183,56 @@ function NewQuoteContent() {
         .catch(() => {});
     }
 
-    // Pre-fill from lead/request URL params
-    // Read directly from window.location to avoid Next.js searchParams timing issues
-    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : searchParams;
-    const leadName = urlParams.get('name');
-    const leadEmail = urlParams.get('email');
-    const leadPhone = urlParams.get('phone');
-    const leadAircraft = urlParams.get('aircraft');
-    const leadTail = urlParams.get('tail');
-    const leadAirport = urlParams.get('airport');
-
-    if (leadName || leadEmail) {
-      setPreselectedCustomer({
-        name: leadName || '',
-        email: leadEmail || '',
-        phone: leadPhone || '',
-        company_name: '',
-      });
-    }
-    if (leadAirport) setAirport(leadAirport);
-    if (leadTail) setTailNumber(leadTail);
-
-    // Try to match aircraft from database — fuzzy match
-    if (leadAircraft) {
-      fetch('/api/aircraft/models', { headers })
-        .then(r => r.ok ? r.json() : { models: [] })
-        .then(d => {
-          const models = d.models || [];
-          const q = leadAircraft.toLowerCase().trim();
-
-          // Try exact full match first
-          let match = models.find(m => `${m.manufacturer} ${m.model}`.toLowerCase() === q);
-
-          // Try model-only match
-          if (!match) match = models.find(m => m.model.toLowerCase() === q);
-
-          // Try partial: split lead aircraft into words and match manufacturer + model
-          if (!match) {
-            const parts = q.split(/\s+/);
-            if (parts.length >= 2) {
-              const mfr = parts[0];
-              const mdl = parts.slice(1).join(' ');
-              match = models.find(m =>
-                m.manufacturer.toLowerCase().includes(mfr) && m.model.toLowerCase().includes(mdl)
-              );
-              // Try just model part against all
-              if (!match) match = models.find(m => m.model.toLowerCase().includes(mdl));
-            }
-          }
-
-          // Try substring match on any word
-          if (!match) {
-            match = models.find(m => {
-              const full = `${m.manufacturer} ${m.model}`.toLowerCase();
-              return q.split(/\s+/).every(w => full.includes(w));
+    // Pre-fill from lead request (stored in localStorage)
+    try {
+      const stored = localStorage.getItem('quote_prefill');
+      if (stored) {
+        const prefill = JSON.parse(stored);
+        // Only use if less than 5 minutes old
+        if (Date.now() - (prefill.timestamp || 0) < 300000) {
+          if (prefill.name || prefill.email) {
+            setPreselectedCustomer({
+              name: prefill.name || '',
+              email: prefill.email || '',
+              phone: prefill.phone || '',
+              company_name: '',
             });
           }
+          if (prefill.airport) setAirport(prefill.airport);
+          if (prefill.tail) setTailNumber(prefill.tail);
 
-          if (match) {
-            fetch(`/api/aircraft/${match.id}`, { headers })
-              .then(r => r.ok ? r.json() : null)
-              .then(data => { if (data?.aircraft) setSelectedAircraft(data.aircraft); })
+          // Fuzzy match aircraft
+          if (prefill.aircraft) {
+            fetch('/api/aircraft/models', { headers })
+              .then(r => r.ok ? r.json() : { models: [] })
+              .then(d => {
+                const models = d.models || [];
+                const q = prefill.aircraft.toLowerCase().trim();
+                let match = models.find(m => `${m.manufacturer} ${m.model}`.toLowerCase() === q);
+                if (!match) match = models.find(m => m.model.toLowerCase() === q);
+                if (!match) {
+                  const parts = q.split(/\s+/);
+                  if (parts.length >= 2) {
+                    const mfr = parts[0];
+                    const mdl = parts.slice(1).join(' ');
+                    match = models.find(m => m.manufacturer.toLowerCase().includes(mfr) && m.model.toLowerCase().includes(mdl));
+                    if (!match) match = models.find(m => m.model.toLowerCase().includes(mdl));
+                  }
+                }
+                if (!match) match = models.find(m => q.split(/\s+/).every(w => `${m.manufacturer} ${m.model}`.toLowerCase().includes(w)));
+                if (match) {
+                  fetch(`/api/aircraft/${match.id}`, { headers })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(data => { if (data?.aircraft) setSelectedAircraft(data.aircraft); })
+                    .catch(() => {});
+                }
+              })
               .catch(() => {});
           }
-        })
-        .catch(() => {});
-    }
+        }
+        localStorage.removeItem('quote_prefill');
+      }
+    } catch {}
   }, [router]);
 
   const handleSelectAircraft = async (aircraft) => {

@@ -77,7 +77,19 @@ export default function RequestDetailPage() {
   const style = STATUS_STYLES[lead.status] || STATUS_STYLES.new;
   const notes = (lead.notes || '').split('\n').filter(Boolean);
   const photos = lead.photo_urls || [];
-  const quoteUrl = `/quotes/new?lead=${lead.id}&name=${encodeURIComponent(lead.name || '')}&email=${encodeURIComponent(lead.email || '')}&phone=${encodeURIComponent(lead.phone || '')}&aircraft=${encodeURIComponent(lead.aircraft_model || '')}&tail=${encodeURIComponent(lead.tail_number || '')}&airport=${encodeURIComponent(lead.airport || '')}`;
+  const handleCreateQuote = () => {
+    localStorage.setItem('quote_prefill', JSON.stringify({
+      leadId: lead.id,
+      name: lead.name || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      aircraft: lead.aircraft_model || '',
+      tail: lead.tail_number || '',
+      airport: lead.airport || '',
+      timestamp: Date.now(),
+    }));
+    window.location.href = '/quotes/new';
+  };
 
   return (
     <AppShell title="Request Detail">
@@ -142,17 +154,18 @@ export default function RequestDetailPage() {
 
         {/* Service Request */}
         <div className="bg-white/[0.03] border border-v-border-subtle rounded-lg p-5 mb-4">
-          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3">Service Request</p>
+          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3">Service</p>
           {lead.services_requested && (
-            <p className="text-white text-sm mb-3">{lead.services_requested}</p>
+            <p className="text-white text-sm">{lead.services_requested}</p>
           )}
-          {notes.length > 0 && (
-            <div className="space-y-1.5 mt-2">
-              {notes.map((note, i) => (
-                <p key={i} className="text-v-text-secondary text-sm">{note}</p>
-              ))}
-            </div>
-          )}
+          {notes.length > 0 && (() => {
+            // Extract just area names (before the dash), skip condition descriptions
+            const areas = notes.map(n => n.split('\u2014')[0]?.split(' — ')[0]?.trim()).filter(Boolean);
+            const uniqueAreas = [...new Set(areas)].filter(a => a.length < 30);
+            return uniqueAreas.length > 0 ? (
+              <p className="text-v-text-secondary text-xs mt-2">Areas: {uniqueAreas.join(', ')}</p>
+            ) : null;
+          })()}
         </div>
 
         {/* Photos */}
@@ -172,10 +185,10 @@ export default function RequestDetailPage() {
 
         {/* Actions */}
         <div className="space-y-3 mt-8">
-          <a href={quoteUrl}
-            className="block w-full py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
+          <button onClick={handleCreateQuote}
+            className="w-full py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
             Create Quote
-          </a>
+          </button>
 
           <div className="flex gap-3">
             <button onClick={async () => {
