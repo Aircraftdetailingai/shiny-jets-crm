@@ -10,9 +10,10 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const detailerId = formData.get('detailer_id');
+    const leadId = formData.get('lead_id');
     const photoCount = parseInt(formData.get('photo_count') || '0');
 
-    if (!detailerId || photoCount === 0) {
+    if ((!detailerId && !leadId) || photoCount === 0) {
       return Response.json({ error: 'No photos to upload' }, { status: 400 });
     }
 
@@ -27,7 +28,8 @@ export async function POST(request) {
       if (!file || !(file instanceof File)) continue;
 
       const ext = file.name.split('.').pop() || 'jpg';
-      const path = `quote_requests/${detailerId}/${timestamp}/photo_${i}.${ext}`;
+      const folder = leadId || detailerId || 'unknown';
+      const path = `quote_requests/${folder}/${timestamp}/photo_${i}.${ext}`;
 
       const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -45,6 +47,13 @@ export async function POST(request) {
 
       const { data: urlData } = supabase.storage.from('uploads').getPublicUrl(path);
       urls.push({ url: urlData?.publicUrl || path, caption });
+    }
+
+    // If lead_id provided, save photo URLs to the lead record
+    if (leadId && urls.length > 0) {
+      const { data: lead } = await supabase.from('intake_leads').select('photo_urls').eq('id', leadId).single();
+      const existing = lead?.photo_urls || [];
+      await supabase.from('intake_leads').update({ photo_urls: [...existing, ...urls] }).eq('id', leadId);
     }
 
     return Response.json({ success: true, urls, uploaded: urls.length });

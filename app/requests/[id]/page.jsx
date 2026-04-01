@@ -18,6 +18,10 @@ export default function RequestDetailPage() {
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dismissing, setDismissing] = useState(false);
+  const [showDecline, setShowDecline] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [declining, setDeclining] = useState(false);
+  const [requestingPhotos, setRequestingPhotos] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -167,16 +171,77 @@ export default function RequestDetailPage() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3 mt-8">
-          <a href={quoteUrl}
-            className="flex-1 py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
+        <div className="space-y-3 mt-8">
+          <button onClick={() => {
+            sessionStorage.setItem('lead_data', JSON.stringify(lead));
+            window.location.href = quoteUrl;
+          }}
+            className="w-full py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
             Create Quote
-          </a>
+          </button>
+
+          <div className="flex gap-3">
+            <button onClick={async () => {
+              setRequestingPhotos(true);
+              const token = localStorage.getItem('vector_token');
+              try {
+                await fetch('/api/lead-intake/request-photos', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ lead_id: id }),
+                });
+                setLead(prev => ({ ...prev, status: 'awaiting_photos' }));
+              } catch {}
+              setRequestingPhotos(false);
+            }} disabled={requestingPhotos}
+              className="flex-1 py-3 text-xs uppercase tracking-wider text-v-gold border border-v-gold/30 hover:bg-v-gold/5 rounded-lg transition-colors disabled:opacity-50">
+              {requestingPhotos ? 'Sending...' : 'Request Photos'}
+            </button>
+
+            <button onClick={() => setShowDecline(true)}
+              className="flex-1 py-3 text-xs uppercase tracking-wider text-v-text-secondary border border-v-border hover:bg-white/5 rounded-lg transition-colors">
+              Decline
+            </button>
+          </div>
+
           <button onClick={handleDismiss} disabled={dismissing}
-            className="px-6 py-4 text-sm uppercase tracking-wider text-v-text-secondary border border-v-border hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50">
-            {dismissing ? '...' : 'Dismiss'}
+            className="w-full py-2 text-[10px] uppercase tracking-wider text-v-text-secondary/50 hover:text-v-text-secondary transition-colors">
+            {dismissing ? '...' : 'Dismiss Request'}
           </button>
         </div>
+
+        {/* Decline Modal */}
+        {showDecline && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-v-surface border border-v-border rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-white font-medium mb-3">Decline Request</h3>
+              <p className="text-v-text-secondary text-xs mb-4">The customer will receive a polite notification.</p>
+              <textarea value={declineReason} onChange={e => setDeclineReason(e.target.value)}
+                placeholder="Reason (optional) — e.g. outside service area, fully booked"
+                rows={3}
+                className="w-full bg-white/10 border border-white/20 text-white rounded px-3 py-2 text-sm placeholder-white/30 outline-none focus:border-v-gold/50 resize-none mb-4" />
+              <div className="flex gap-3">
+                <button onClick={async () => {
+                  setDeclining(true);
+                  const token = localStorage.getItem('vector_token');
+                  await fetch('/api/lead-intake/decline', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lead_id: id, reason: declineReason }),
+                  }).catch(() => {});
+                  router.push('/requests');
+                }} disabled={declining}
+                  className="flex-1 py-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-xs uppercase tracking-wider hover:bg-red-500/30 disabled:opacity-50">
+                  {declining ? 'Sending...' : 'Decline & Notify'}
+                </button>
+                <button onClick={() => setShowDecline(false)}
+                  className="flex-1 py-3 border border-v-border text-v-text-secondary rounded text-xs uppercase tracking-wider hover:bg-white/5">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );
