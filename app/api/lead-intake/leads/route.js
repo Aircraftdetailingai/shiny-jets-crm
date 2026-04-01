@@ -39,6 +39,10 @@ export async function GET(request) {
       .eq('detailer_id', user.id)
       .order('created_at', { ascending: false });
 
+    const id = searchParams.get('id');
+    if (id) {
+      query = query.eq('id', id);
+    }
     if (status) {
       query = query.eq('status', status);
     }

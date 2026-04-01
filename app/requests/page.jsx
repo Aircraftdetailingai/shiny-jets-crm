@@ -71,36 +71,32 @@ export default function RequestsPage() {
             {filtered.map(lead => {
               const style = STATUS_STYLES[lead.status] || STATUS_STYLES.new;
               return (
-                <div key={lead.id}
-                  className="bg-white/[0.02] border border-v-border-subtle rounded-lg px-5 py-4 flex items-center justify-between hover:bg-white/[0.04] transition-colors">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <p className="text-white text-sm font-medium truncate">{lead.name || lead.customer_name || 'Customer'}</p>
-                      <span className={`shrink-0 px-2 py-0.5 text-[9px] uppercase tracking-wider rounded ${style.bg} ${style.text} border ${style.border}`}>
-                        {style.label}
-                      </span>
+                <a key={lead.id} href={`/requests/${lead.id}`}
+                  className="block bg-white/[0.02] border border-v-border-subtle rounded-lg px-5 py-4 hover:bg-white/[0.04] transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <p className="text-white text-sm font-medium truncate">{lead.name || lead.customer_name || 'Customer'}</p>
+                        <span className={`shrink-0 px-2 py-0.5 text-[9px] uppercase tracking-wider rounded ${style.bg} ${style.text} border ${style.border}`}>
+                          {style.label}
+                        </span>
+                      </div>
+                      <p className="text-v-text-secondary text-xs truncate">
+                        {lead.aircraft_model || 'Aircraft not specified'}
+                        {lead.tail_number ? ` \u00B7 ${lead.tail_number}` : ''}
+                        {lead.airport ? ` \u00B7 ${lead.airport}` : ''}
+                      </p>
+                      <p className="text-v-text-secondary/60 text-xs mt-1 truncate">
+                        {lead.services_requested || ''}
+                        {lead.notes ? ` \u2014 ${lead.notes.split('\n')[0]}` : ''}
+                      </p>
                     </div>
-                    <p className="text-v-text-secondary text-xs truncate">
-                      {lead.aircraft_model || 'Aircraft not specified'}
-                      {lead.tail_number ? ` \u00B7 ${lead.tail_number}` : ''}
-                      {lead.airport ? ` \u00B7 ${lead.airport}` : ''}
-                    </p>
-                    <p className="text-v-text-secondary/60 text-xs mt-1 truncate">
-                      {lead.services_requested || ''}
-                      {lead.notes ? ` \u2014 ${lead.notes.split('\n')[0]}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 ml-4 shrink-0">
-                    <div className="text-right">
+                    <div className="flex items-center gap-3 ml-4 shrink-0">
                       <p className="text-v-text-secondary text-[10px]">{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : ''}</p>
-                      {lead.email && <p className="text-v-text-secondary/60 text-[10px]">{lead.email}</p>}
+                      <span className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded">View</span>
                     </div>
-                    <a href={`/quotes/new?lead=${lead.id}&name=${encodeURIComponent(lead.name || '')}&email=${encodeURIComponent(lead.email || '')}&phone=${encodeURIComponent(lead.phone || '')}&aircraft=${encodeURIComponent(lead.aircraft_model || '')}&tail=${encodeURIComponent(lead.tail_number || '')}&airport=${encodeURIComponent(lead.airport || '')}`}
-                      className="px-4 py-2 text-[10px] uppercase tracking-wider text-v-charcoal bg-v-gold hover:bg-v-gold-dim transition-colors rounded text-center whitespace-nowrap">
-                      Create Quote
-                    </a>
                   </div>
-                </div>
+                </a>
               );
             })}
           </div>
