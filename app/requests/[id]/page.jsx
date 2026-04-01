@@ -172,13 +172,10 @@ export default function RequestDetailPage() {
 
         {/* Actions */}
         <div className="space-y-3 mt-8">
-          <button onClick={() => {
-            sessionStorage.setItem('lead_data', JSON.stringify(lead));
-            window.location.href = quoteUrl;
-          }}
-            className="w-full py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
+          <a href={quoteUrl}
+            className="block w-full py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
             Create Quote
-          </button>
+          </a>
 
           <div className="flex gap-3">
             <button onClick={async () => {

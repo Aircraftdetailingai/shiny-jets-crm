@@ -13,8 +13,8 @@ export async function POST(request) {
 
   const supabase = getSupabase();
 
-  // Update lead status back to viewed (photos received)
-  await supabase.from('intake_leads').update({ status: 'viewed' }).eq('id', lead_id);
+  // Update lead status back to new (green badge — photos received, ready to quote)
+  await supabase.from('intake_leads').update({ status: 'new' }).eq('id', lead_id);
 
   // Notify detailer
   const { data: lead } = await supabase.from('intake_leads').select('detailer_id, name, aircraft_model').eq('id', lead_id).single();

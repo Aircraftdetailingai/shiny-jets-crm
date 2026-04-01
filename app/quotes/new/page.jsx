@@ -178,6 +178,45 @@ function NewQuoteContent() {
         })
         .catch(() => {});
     }
+
+    // Pre-fill from lead/request URL params
+    const leadName = searchParams.get('name');
+    const leadEmail = searchParams.get('email');
+    const leadPhone = searchParams.get('phone');
+    const leadAircraft = searchParams.get('aircraft');
+    const leadTail = searchParams.get('tail');
+    const leadAirport = searchParams.get('airport');
+
+    if (leadName || leadEmail) {
+      setPreselectedCustomer(prev => prev || {
+        name: leadName || '',
+        email: leadEmail || '',
+        phone: leadPhone || '',
+        company_name: '',
+      });
+    }
+    if (leadAirport) setAirport(leadAirport);
+    if (leadTail) setTailNumber(leadTail);
+
+    // Try to match aircraft from database
+    if (leadAircraft) {
+      fetch('/api/aircraft/models', { headers })
+        .then(r => r.ok ? r.json() : { models: [] })
+        .then(d => {
+          const models = d.models || [];
+          const match = models.find(m => {
+            const full = `${m.manufacturer} ${m.model}`.toLowerCase();
+            return full === leadAircraft.toLowerCase() || m.model.toLowerCase() === leadAircraft.toLowerCase();
+          });
+          if (match) {
+            fetch(`/api/aircraft/${match.id}`, { headers })
+              .then(r => r.ok ? r.json() : null)
+              .then(data => { if (data?.aircraft) setSelectedAircraft(data.aircraft); })
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
   }, [router]);
 
   const handleSelectAircraft = async (aircraft) => {
