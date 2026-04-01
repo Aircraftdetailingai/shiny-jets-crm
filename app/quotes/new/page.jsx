@@ -12,12 +12,14 @@ const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super
 
 const HOURS_FIELD_OPTIONS = {
   ext_wash_hours: 'Exterior Wash',
+  decon_hours: 'Decon Wash',
   int_detail_hours: 'Interior Detail',
   leather_hours: 'Leather Treatment',
   carpet_hours: 'Carpet Cleaning',
   wax_hours: 'Wax Application',
   polish_hours: 'Polish',
   ceramic_hours: 'Ceramic Coating',
+  spray_ceramic_hours: 'Spray Ceramic',
   brightwork_hours: 'Brightwork',
 };
 
