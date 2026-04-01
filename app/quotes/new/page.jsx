@@ -198,16 +198,42 @@ function NewQuoteContent() {
     if (leadAirport) setAirport(leadAirport);
     if (leadTail) setTailNumber(leadTail);
 
-    // Try to match aircraft from database
+    // Try to match aircraft from database — fuzzy match
     if (leadAircraft) {
       fetch('/api/aircraft/models', { headers })
         .then(r => r.ok ? r.json() : { models: [] })
         .then(d => {
           const models = d.models || [];
-          const match = models.find(m => {
-            const full = `${m.manufacturer} ${m.model}`.toLowerCase();
-            return full === leadAircraft.toLowerCase() || m.model.toLowerCase() === leadAircraft.toLowerCase();
-          });
+          const q = leadAircraft.toLowerCase().trim();
+
+          // Try exact full match first
+          let match = models.find(m => `${m.manufacturer} ${m.model}`.toLowerCase() === q);
+
+          // Try model-only match
+          if (!match) match = models.find(m => m.model.toLowerCase() === q);
+
+          // Try partial: split lead aircraft into words and match manufacturer + model
+          if (!match) {
+            const parts = q.split(/\s+/);
+            if (parts.length >= 2) {
+              const mfr = parts[0];
+              const mdl = parts.slice(1).join(' ');
+              match = models.find(m =>
+                m.manufacturer.toLowerCase().includes(mfr) && m.model.toLowerCase().includes(mdl)
+              );
+              // Try just model part against all
+              if (!match) match = models.find(m => m.model.toLowerCase().includes(mdl));
+            }
+          }
+
+          // Try substring match on any word
+          if (!match) {
+            match = models.find(m => {
+              const full = `${m.manufacturer} ${m.model}`.toLowerCase();
+              return q.split(/\s+/).every(w => full.includes(w));
+            });
+          }
+
           if (match) {
             fetch(`/api/aircraft/${match.id}`, { headers })
               .then(r => r.ok ? r.json() : null)
