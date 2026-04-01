@@ -787,13 +787,19 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
 
   const lookupTail = async (t) => {
     setLooking(true);
+    setFound(null);
     try {
       const res = await fetch(`/api/aircraft/registry/${encodeURIComponent(t)}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.found && data.manufacturer) setFound(data);
+        if (data.found && data.manufacturer) {
+          setFound(data);
+        }
+        // If not found (scrubbed tail, foreign reg, etc): silently do nothing
       }
-    } catch {}
+    } catch {
+      // Network error: silently continue, customer can proceed manually
+    }
     setLooking(false);
   };
 
@@ -809,6 +815,10 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
       <input type="text" value={tail} onChange={e => handleChange(e.target.value)}
         placeholder="N12345" autoCapitalize="characters" autoFocus
         className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors" />
+
+      <p className="text-white/20 text-[10px] leading-relaxed mt-3">
+        Your tail number is used only to look up aircraft specifications for your quote. We do not track flight activity, share location data, or store flight information. All data is used exclusively for detailing service purposes.
+      </p>
 
       {looking && (
         <div className="flex items-center gap-2 mt-3">
