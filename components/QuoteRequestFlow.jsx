@@ -576,19 +576,14 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
             </label>
 
             {photos.length > 0 && (
-              <label className="flex items-start gap-2 mt-4 cursor-pointer">
-                <input type="checkbox" id="photo-terms" className="mt-0.5 w-4 h-4 rounded accent-[#007CB1]" />
-                <span className="text-white/40 text-[10px] leading-relaxed">
-                  Photos you upload are used exclusively for anonymous aircraft surface condition research to help extend the life of aircraft finishes. Photos are never shared publicly or linked to your identity. Shiny Jets CRM is held harmless from any use of uploaded photos as outlined in our Terms of Service.
-                </span>
-              </label>
+              <p className="text-white/20 text-[10px] leading-relaxed mt-4">
+                Photos are used for documentation and anonymous surface condition research only. Never shared publicly or linked to your identity.
+              </p>
             )}
 
             <div className="mt-auto pt-4 space-y-3">
               {photos.length > 0 && (
-                <Btn onClick={() => { if (!document.getElementById('photo-terms')?.checked) { document.getElementById('photo-terms')?.focus(); return; } goNext(); }}>
-                  Continue with {photos.length} photo{photos.length !== 1 ? 's' : ''}
-                </Btn>
+                <Btn onClick={goNext}>Continue with {photos.length} photo{photos.length !== 1 ? 's' : ''}</Btn>
               )}
               <Btn onClick={goNext} secondary>{photos.length > 0 ? 'Skip photos' : 'Skip for now'}</Btn>
             </div>
@@ -661,12 +656,14 @@ function ContactStep({ onSubmit }) {
   const emailRef = useRef(null);
   const phoneRef = useRef(null);
   const smsRef = useRef(null);
+  const termsRef = useRef(null);
   const [canSubmit, setCanSubmit] = useState(false);
 
   const checkValid = () => {
     const n = nameRef.current?.value?.trim();
     const e = emailRef.current?.value?.trim();
-    setCanSubmit(!!(n && e));
+    const t = termsRef.current?.checked;
+    setCanSubmit(!!(n && e && t));
   };
 
   const handleSubmit = () => {
@@ -674,7 +671,7 @@ function ContactStep({ onSubmit }) {
     const email = emailRef.current?.value?.trim() || '';
     const phone = phoneRef.current?.value?.trim() || '';
     const smsOptIn = smsRef.current?.checked || false;
-    if (name && email) onSubmit(name, email, phone, smsOptIn);
+    if (name && email && termsRef.current?.checked) onSubmit(name, email, phone, smsOptIn);
   };
 
   const inputClass = 'w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors';
@@ -700,10 +697,20 @@ function ContactStep({ onSubmit }) {
         <span className="text-white/50 text-xs">Send me a text when my quote is ready</span>
       </label>
 
-      <p className="text-white/20 text-[10px] leading-relaxed mt-5 mb-3">
-        By submitting this request I understand that final scope and pricing will be determined by the detailer after inspection. Additional steps may be required based on actual surface condition.
-      </p>
-      <div>
+      <label className="flex items-start gap-3 mt-4 cursor-pointer">
+        <input ref={termsRef} type="checkbox" defaultChecked={false}
+          onChange={checkValid}
+          className="mt-0.5 w-4 h-4 rounded accent-[#007CB1] flex-shrink-0" />
+        <span className="text-white/50 text-xs">
+          I have read and agree to the{' '}
+          <a href="/legal/quote-terms" target="_blank" rel="noreferrer"
+            className="text-[#007CB1] underline" onClick={e => e.stopPropagation()}>
+            Terms of Service
+          </a>
+        </span>
+      </label>
+
+      <div className="mt-4">
         <button onClick={handleSubmit} disabled={!canSubmit}
           className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
           Submit Request
