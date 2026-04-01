@@ -128,11 +128,11 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const goNext = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
   const goBack = () => {
     if (step === 4) {
+      if (showRecommendation) { setShowRecommendation(false); if (hasRestorationAreas()) setShowProtectionOffer(true); else setShowProtectionOffer(false); return; }
       if (showProtectionOffer) { setShowProtectionOffer(false); return; }
-      if (showRecommendation) { setShowRecommendation(false); setShowProtectionOffer(false); return; }
-      if (askingSeatType) { setAskingSeatType(false); const n = { ...areaConditions }; delete n.seats; setAreaConditions(n); return; }
-      if (areasConfirmed && currentAreaIdx > 0) { setCurrentAreaIdx(i => i - 1); const n = { ...areaConditions }; delete n[selectedAreas[currentAreaIdx - 1]]; setAreaConditions(n); return; }
-      if (areasConfirmed) { setAreasConfirmed(false); setAreaConditions({}); setCurrentAreaIdx(0); return; }
+      if (askingSeatType) { setAskingSeatType(false); return; }
+      if (areasConfirmed && Object.keys(areaConditions).length > 0) { setAreaConditions({}); return; }
+      if (areasConfirmed) { setAreasConfirmed(false); setAreaConditions({}); return; }
       if (quickSelect === 'maint_wash') { setQuickSelect(null); setWashAddons([]); return; }
       if (quickSelect === 'detail') { setQuickSelect(null); setSelectedAreas([]); return; }
       if (quickSelect) { setQuickSelect(null); return; }
@@ -487,40 +487,64 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           </div>
         )}
 
-        {/* Condition question for current area */}
-        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !askingSeatType && !showRecommendation && !showProtectionOffer && currentArea && !areaConditions[currentArea] && (
+        {/* Combined condition screen — all areas on one page */}
+        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && !askingSeatType && !showProtectionOffer && !showRecommendation && (
           <div className="flex-1 flex flex-col">
-            <h2 className="text-xl font-light text-white mb-2">{CONDITION_QUESTIONS[currentArea]?.question}</h2>
-            <p className="text-white/40 text-xs mb-6">Area {currentAreaIdx + 1} of {selectedAreas.length}</p>
-            <div className="space-y-3">
-              {(CONDITION_QUESTIONS[currentArea]?.options || []).map(opt => (
-                <button key={opt.key} onClick={() => {
-                  setAreaConditions(prev => ({ ...prev, [currentArea]: opt }));
-                  // If seats need type question
-                  if (currentArea === 'seats' && opt.needsSeatType) {
-                    setAskingSeatType(true);
-                    return;
-                  }
-                  // Advance to next area or recommendation
-                  if (currentAreaIdx < selectedAreas.length - 1) {
-                    setCurrentAreaIdx(i => i + 1);
-                  } else {
-                    // Check if we should offer protection
-                    const allConds = { ...areaConditions, [currentArea]: opt };
-                    const hasRestoration = selectedAreas.some(a => allConds[a]?.tier === 'restoration');
-                    if (hasRestoration) setShowProtectionOffer(true);
-                    else setShowRecommendation(true);
-                  }
-                }}
-                  className="w-full p-4 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
-                  <p className="text-white/90 text-sm">{opt.label}</p>
-                </button>
-              ))}
+            <h2 className="text-xl font-light text-white mb-1">How does each area look?</h2>
+            <p className="text-white/40 text-xs mb-5">This helps us recommend the right services</p>
+            <div className="flex-1 overflow-y-auto space-y-4 -mx-1 px-1">
+              {selectedAreas.map(area => {
+                const q = CONDITION_QUESTIONS[area];
+                if (!q) return null;
+                const selected = areaConditions[area]?.key;
+                const areaInfo = AREAS.find(a => a.key === area);
+                const simplified = [
+                  { label: 'Good', matchKey: q.options[0]?.key },
+                  { label: 'Some issues', matchKey: q.options[1]?.key },
+                  { label: 'Needs work', matchKey: q.options[2]?.key },
+                  { label: 'Not sure', matchKey: q.options[3]?.key },
+                ];
+                return (
+                  <div key={area} className="bg-white/[0.03] border border-white/10 rounded-lg p-4">
+                    <p className="text-white text-sm font-medium mb-2">{areaInfo?.label}</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {simplified.map((btn, idx) => {
+                        const opt = q.options[idx];
+                        if (!opt) return null;
+                        const isSelected = selected === opt.key;
+                        return (
+                          <button key={btn.matchKey} onClick={() => setAreaConditions(prev => ({ ...prev, [area]: opt }))}
+                            className={`py-2.5 px-1 rounded text-[11px] font-medium text-center transition-all leading-tight ${
+                              isSelected ? 'bg-[#007CB1] text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                            }`}>
+                            {btn.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="pt-5">
+              <Btn onClick={() => {
+                // Check if seats needs follow-up
+                const seatCond = areaConditions.seats;
+                if (selectedAreas.includes('seats') && seatCond?.needsSeatType && !seatType) {
+                  setAskingSeatType(true);
+                  return;
+                }
+                // Check for protection offer
+                if (hasRestorationAreas()) setShowProtectionOffer(true);
+                else setShowRecommendation(true);
+              }} disabled={selectedAreas.some(a => !areaConditions[a])}>
+                Next
+              </Btn>
             </div>
           </div>
         )}
 
-        {/* Seat type question */}
+        {/* Seat type question (conditional follow-up) */}
         {step === 4 && askingSeatType && (
           <div className="flex-1 flex flex-col">
             <h2 className="text-xl font-light text-white mb-2">Are your seats leather or fabric?</h2>
@@ -530,13 +554,8 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                 <button key={type} onClick={() => {
                   setSeatType(type);
                   setAskingSeatType(false);
-                  if (currentAreaIdx < selectedAreas.length - 1) {
-                    setCurrentAreaIdx(i => i + 1);
-                  } else {
-                    const hasRestoration = selectedAreas.some(a => (areaConditions[a] || (a === 'seats' ? areaConditions.seats : null))?.tier === 'restoration');
-                    if (hasRestoration) setShowProtectionOffer(true);
-                    else setShowRecommendation(true);
-                  }
+                  if (hasRestorationAreas()) setShowProtectionOffer(true);
+                  else setShowRecommendation(true);
                 }}
                   className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-white/30 transition-all active:bg-white/10">
                   <p className="text-white font-medium text-sm capitalize">{type === 'mixed' ? 'Mix of both' : type}</p>
@@ -545,18 +564,6 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
             </div>
           </div>
         )}
-
-        {/* Auto-advance past already-answered areas */}
-        {step === 4 && serviceMode === 'options' && quickSelect === 'detail' && areasConfirmed && currentArea && areaConditions[currentArea] && !askingSeatType && !showRecommendation && !showProtectionOffer && (() => {
-          const nextUnanswered = selectedAreas.findIndex((a, i) => i > currentAreaIdx && !areaConditions[a]);
-          if (nextUnanswered !== -1) { setTimeout(() => setCurrentAreaIdx(nextUnanswered), 0); }
-          else {
-            const hasRestoration = selectedAreas.some(a => areaConditions[a]?.tier === 'restoration');
-            if (hasRestoration && !showProtectionOffer) setTimeout(() => setShowProtectionOffer(true), 0);
-            else setTimeout(() => setShowRecommendation(true), 0);
-          }
-          return null;
-        })()}
 
         {/* Protection offer — only after restoration areas */}
         {step === 4 && showProtectionOffer && !showRecommendation && (
