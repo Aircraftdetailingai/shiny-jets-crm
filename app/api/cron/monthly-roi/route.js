@@ -170,7 +170,7 @@ export async function GET(request) {
         `;
 
         await getResend().emails.send({
-          from: 'Vector <noreply@vectorav.ai>',
+          from: 'Shiny Jets CRM <noreply@vectorav.ai>',
           to: detailer.email,
           subject: `Your Shiny Jets Month in Review - ${monthName}`,
           html: emailHtml,

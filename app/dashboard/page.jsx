@@ -103,6 +103,7 @@ function DashboardContent() {
   const [upcomingJobs, setUpcomingJobs] = useState([]);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [inventoryAlerts, setInventoryAlerts] = useState([]);
+  const [quoteRequests, setQuoteRequests] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -152,12 +153,13 @@ function DashboardContent() {
         body: JSON.stringify({ action: 'DAILY_LOGIN' }),
       }).catch(() => {});
 
-      const [servicesRes, statsRes, quotesRes, upcomingRes, forecastRes] = await Promise.allSettled([
+      const [servicesRes, statsRes, quotesRes, upcomingRes, forecastRes, requestsRes] = await Promise.allSettled([
         fetch('/api/services', { headers }),
         fetch('/api/dashboard/stats', { headers }),
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
         fetch('/api/quotes?status=paid,scheduled,in_progress&has_date=true&limit=10&sort=scheduled_date&order=asc', { headers }),
         fetch('/api/inventory/forecast?days=14', { headers }),
+        fetch('/api/lead-intake/leads?status=new', { headers }),
       ]);
 
       if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
@@ -183,6 +185,10 @@ function DashboardContent() {
       if (forecastRes.status === 'fulfilled' && forecastRes.value.ok) {
         const data = await forecastRes.value.json();
         setInventoryAlerts(data.alerts || []);
+      }
+      if (requestsRes.status === 'fulfilled' && requestsRes.value.ok) {
+        const data = await requestsRes.value.json();
+        setQuoteRequests(data.leads || []);
       }
     };
 
@@ -317,6 +323,35 @@ function DashboardContent() {
             </div>
             <div className="mt-8 mb-8 border-t border-v-border-subtle" />
           </>
+        )}
+
+        {/* New Quote Requests */}
+        {quoteRequests.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-center gap-3 mb-4">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">New Quote Requests</p>
+              <span className="bg-v-gold text-v-charcoal text-[10px] font-bold px-2 py-0.5 rounded-full">{quoteRequests.length}</span>
+            </div>
+            <div className="space-y-2">
+              {quoteRequests.map((req) => (
+                <div key={req.id} className="bg-white/[0.02] border border-v-border-subtle rounded-lg px-4 py-3 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-white text-sm truncate">{req.name || req.customer_name || 'Customer'}</p>
+                    <p className="text-v-text-secondary text-xs truncate">
+                      {req.aircraft_model || 'Aircraft'}{req.airport ? ` \u00B7 ${req.airport}` : ''}{req.services_requested ? ` \u00B7 ${req.services_requested}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 ml-3 shrink-0">
+                    <span className="text-v-text-secondary text-[10px]">{req.created_at ? new Date(req.created_at).toLocaleDateString() : ''}</span>
+                    <a href={`/quotes/new?lead=${req.id}&name=${encodeURIComponent(req.name || '')}&email=${encodeURIComponent(req.email || '')}&aircraft=${encodeURIComponent(req.aircraft_model || '')}&tail=${encodeURIComponent(req.tail_number || '')}&airport=${encodeURIComponent(req.airport || '')}`}
+                      className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 hover:bg-v-gold/5 transition-colors rounded">
+                      Quote
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Recent Quotes & Upcoming Jobs */}

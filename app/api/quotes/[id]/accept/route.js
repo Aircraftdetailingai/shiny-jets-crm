@@ -89,7 +89,7 @@ export async function POST(request, { params }) {
     if (detailer?.email) {
       try {
         const resend = new Resend(process.env.RESEND_API_KEY);
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'Vector <noreply@vectorav.ai>';
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@vectorav.ai>';
         const aircraftDisplay = quote.aircraft_model || quote.aircraft_type || 'aircraft detail';
         const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(quote.total_price || 0);
 

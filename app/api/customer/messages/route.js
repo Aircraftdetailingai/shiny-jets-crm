@@ -136,7 +136,7 @@ export async function POST(request) {
     // Notify detailer via email
     if (process.env.RESEND_API_KEY && detailer.email) {
       await getResend().emails.send({
-        from: 'Vector <noreply@vectorav.ai>',
+        from: 'Shiny Jets CRM <noreply@vectorav.ai>',
         to: detailer.email,
         subject: `New message from ${customer.name || customer.email}`,
         html: `

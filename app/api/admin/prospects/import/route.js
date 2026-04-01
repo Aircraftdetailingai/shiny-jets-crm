@@ -64,7 +64,7 @@ export async function POST(request) {
     const FAA_URL = 'https://opendata.arcgis.com/api/v3/datasets/e747ab91a11045e8b3f8a3efd093d3b5_0/downloads/data?format=csv&spatialRefId=4326';
 
     const response = await fetch(FAA_URL, {
-      headers: { 'User-Agent': 'Vector Aviation CRM' },
+      headers: { 'User-Agent': 'Shiny Jets CRM' },
     });
 
     if (!response.ok) {

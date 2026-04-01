@@ -20,7 +20,7 @@ function getSupabase() {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Vector <noreply@vectorav.ai>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@vectorav.ai>';
 
 function resetEmailHtml(resetLink) {
   return `

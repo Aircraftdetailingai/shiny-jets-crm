@@ -737,10 +737,11 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
       const res = await fetch(`/api/aircraft/registry/${encodeURIComponent(t)}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.found && data.manufacturer) {
+        // Only show if we got a real manufacturer AND model (not "Serial Number" or empty)
+        const badModel = !data.model || data.model === 'Serial Number' || data.model.length < 2;
+        if (data.found && data.manufacturer && !badModel) {
           setFound(data);
         }
-        // If not found (scrubbed tail, foreign reg, etc): silently do nothing
       }
     } catch {
       // Network error: silently continue, customer can proceed manually

@@ -81,7 +81,7 @@ export async function POST(request) {
       // Get detailer info
       const { data: detailer } = await supabase
         .from('detailers')
-        .select('id, email, company_name')
+        .select('id, email, company')
         .eq('id', detailer_id)
         .single();
 
@@ -116,7 +116,7 @@ export async function POST(request) {
           .join('');
 
         await getResend().emails.send({
-          from: 'Vector <noreply@vectorav.ai>',
+          from: 'Shiny Jets CRM <noreply@vectorav.ai>',
           to: detailer.email,
           subject: `New Lead: ${customer_name || 'Website Visitor'}`,
           html: `
