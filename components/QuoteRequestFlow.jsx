@@ -143,7 +143,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   }, [data.manufacturer]);
 
 
-  const handleSubmitWithContact = async (name, email, phone, smsOptIn = false) => {
+  const handleSubmitWithContact = async (name, email, phone) => {
     setSubmitting(true);
     setError('');
     try {
@@ -190,7 +190,6 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           services_requested: data.service_text || serviceType,
           notes: areaNotes || '',
           photo_urls: photoUrls,
-          sms_opted_in: smsOptIn,
           source: embedded ? 'embed_widget' : 'quote_request_page',
         }),
       });
@@ -593,12 +592,12 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         {/* STEP 6: Contact Info */}
         {step === 6 && (
           <ContactStep
-            onSubmit={(name, email, phone, smsOptIn) => {
+            onSubmit={(name, email, phone) => {
               set('name', name);
               set('email', email);
               set('phone', phone);
               setStep(7);
-              handleSubmitWithContact(name, email, phone, smsOptIn);
+              handleSubmitWithContact(name, email, phone);
             }}
           />
         )}
@@ -655,7 +654,6 @@ function ContactStep({ onSubmit }) {
   const nameRef = useRef(null);
   const emailRef = useRef(null);
   const phoneRef = useRef(null);
-  const smsRef = useRef(null);
   const termsRef = useRef(null);
   const [canSubmit, setCanSubmit] = useState(false);
 
@@ -670,8 +668,7 @@ function ContactStep({ onSubmit }) {
     const name = nameRef.current?.value?.trim() || '';
     const email = emailRef.current?.value?.trim() || '';
     const phone = phoneRef.current?.value?.trim() || '';
-    const smsOptIn = smsRef.current?.checked || false;
-    if (name && email && termsRef.current?.checked) onSubmit(name, email, phone, smsOptIn);
+    if (name && email && termsRef.current?.checked) onSubmit(name, email, phone);
   };
 
   const inputClass = 'w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors';
@@ -691,13 +688,7 @@ function ContactStep({ onSubmit }) {
           style={{ fontSize: '16px' }} className={inputClass} />
       </div>
 
-      <label className="flex items-center gap-3 mt-5 cursor-pointer">
-        <input ref={smsRef} type="checkbox" defaultChecked={false}
-          className="w-4 h-4 rounded accent-[#007CB1]" />
-        <span className="text-white/50 text-xs">Send me a text when my quote is ready</span>
-      </label>
-
-      <label className="flex items-start gap-3 mt-4 cursor-pointer">
+      <label className="flex items-start gap-3 mt-5 cursor-pointer">
         <input ref={termsRef} type="checkbox" defaultChecked={false}
           onChange={checkValid}
           className="mt-0.5 w-4 h-4 rounded accent-[#007CB1] flex-shrink-0" />
