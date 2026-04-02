@@ -104,6 +104,7 @@ function DashboardContent() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [inventoryAlerts, setInventoryAlerts] = useState([]);
   const [quoteRequests, setQuoteRequests] = useState([]);
+  const [followUps, setFollowUps] = useState({ needsReview: [], recentCompleted: [], recurring: [] });
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -153,13 +154,14 @@ function DashboardContent() {
         body: JSON.stringify({ action: 'DAILY_LOGIN' }),
       }).catch(() => {});
 
-      const [servicesRes, statsRes, quotesRes, upcomingRes, forecastRes, requestsRes] = await Promise.allSettled([
+      const [servicesRes, statsRes, quotesRes, upcomingRes, forecastRes, requestsRes, followUpsRes] = await Promise.allSettled([
         fetch('/api/services', { headers }),
         fetch('/api/dashboard/stats', { headers }),
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
         fetch('/api/quotes?status=paid,scheduled,in_progress&has_date=true&limit=10&sort=scheduled_date&order=asc', { headers }),
         fetch('/api/inventory/forecast?days=14', { headers }),
         fetch('/api/lead-intake/leads?status=new', { headers }),
+        fetch('/api/dashboard/follow-ups', { headers }),
       ]);
 
       if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
@@ -189,6 +191,9 @@ function DashboardContent() {
       if (requestsRes.status === 'fulfilled' && requestsRes.value.ok) {
         const data = await requestsRes.value.json();
         setQuoteRequests(data.leads || []);
+      }
+      if (followUpsRes.status === 'fulfilled' && followUpsRes.value.ok) {
+        setFollowUps(await followUpsRes.value.json());
       }
     };
 
@@ -407,6 +412,84 @@ function DashboardContent() {
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ━━━ 5. FOLLOW-UPS DUE ━━━ */}
+        {followUps.needsReview.length > 0 && (
+          <div className="mt-10">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary mb-4">Follow-ups Due</p>
+            <div className="space-y-2">
+              {followUps.needsReview.slice(0, 5).map(job => {
+                const daysAgo = Math.floor((Date.now() - new Date(job.completed_at).getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={job.id} className="flex items-center justify-between py-2.5 border-b border-v-border-subtle/50">
+                    <div className="min-w-0">
+                      <p className="text-white text-sm truncate">{job.client_name || 'Customer'}</p>
+                      <p className="text-v-text-secondary text-xs truncate">{job.aircraft_model || ''} — completed {daysAgo}d ago</p>
+                    </div>
+                    <button onClick={async () => {
+                      const token = localStorage.getItem('vector_token');
+                      await fetch(`/api/quotes/${job.id}/request-review`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+                      setFollowUps(prev => ({ ...prev, needsReview: prev.needsReview.filter(j => j.id !== job.id) }));
+                    }}
+                      className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 hover:bg-v-gold/5 rounded shrink-0 ml-3 transition-colors">
+                      Send Review
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ━━━ 6. RECURRING SERVICES DUE ━━━ */}
+        {followUps.recurring.length > 0 && (
+          <div className="mt-10">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary mb-4">Recurring Services Due</p>
+            <div className="space-y-2">
+              {followUps.recurring.slice(0, 5).map(rec => {
+                const daysUntil = Math.max(0, Math.ceil((new Date(rec.next_due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                const customerName = rec.customers?.name || rec.customers?.company_name || '';
+                return (
+                  <a key={rec.id} href={rec.customer_id ? `/customers/${rec.customer_id}` : '#'}
+                    className="block bg-white/[0.02] border border-v-border-subtle rounded-lg px-4 py-3 hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-white text-sm truncate">{rec.service_name} due in {daysUntil} day{daysUntil !== 1 ? 's' : ''}</p>
+                        <p className="text-v-text-secondary text-xs truncate">{rec.tail_number || ''}{customerName ? ` \u00B7 ${customerName}` : ''}</p>
+                      </div>
+                      <span className={`text-[10px] uppercase tracking-wider shrink-0 ml-3 ${daysUntil <= 7 ? 'text-v-gold' : 'text-v-text-secondary'}`}>
+                        {daysUntil <= 7 ? 'Soon' : `${daysUntil}d`}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ━━━ 7. RECENT COMPLETIONS ━━━ */}
+        {followUps.recentCompleted.length > 0 && (
+          <div className="mt-10">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary mb-4">Recent Completions</p>
+            {followUps.recentCompleted.slice(0, 5).map(job => {
+              const daysAgo = Math.floor((Date.now() - new Date(job.completed_at).getTime()) / (1000 * 60 * 60 * 24));
+              const opened = !!job.customer_opened_at;
+              return (
+                <div key={job.id} className="flex items-center justify-between h-12 border-b border-v-border-subtle/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-v-text-primary truncate">{job.aircraft_model || 'Aircraft'}</p>
+                    <p className="text-xs text-v-text-secondary/60 truncate">{job.client_name || ''} — {daysAgo}d ago</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-3 shrink-0">
+                    <div className={`w-1.5 h-1.5 rounded-full ${opened ? 'bg-green-500' : 'bg-gray-500'}`} />
+                    <span className="text-[10px] text-v-text-secondary">{opened ? 'Opened' : 'Not opened'}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
