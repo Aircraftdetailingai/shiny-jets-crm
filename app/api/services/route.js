@@ -4,6 +4,22 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
+// Auto-detect which aircraft hours column to use based on service name
+function autoDetectHoursField(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('decon')) return 'decon_hours';
+  if (n.includes('polish') && !n.includes('bright')) return 'polish_hours';
+  if (n.includes('wax')) return 'wax_hours';
+  if (n.includes('leather') || n.includes('seat')) return 'leather_hours';
+  if (n.includes('carpet') || n.includes('extract') || n.includes('upholster')) return 'carpet_hours';
+  if (n.includes('spray ceramic') || n.includes('spray coat')) return 'spray_ceramic_hours';
+  if (n.includes('ceramic') || n.includes('coating')) return 'ceramic_hours';
+  if (n.includes('bright') || n.includes('chrome')) return 'brightwork_hours';
+  if (n.includes('interior') || n.includes('vacuum') || n.includes('wipe') || n.includes('cabin')) return 'int_detail_hours';
+  if (n.includes('wash') || n.includes('exterior') || n.includes('rinse')) return 'ext_wash_hours';
+  return null;
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -137,9 +153,10 @@ export async function POST(request) {
     if (category) {
       row.category = category;
     }
-    // Add hours_field if provided (column may not exist yet in DB - that's OK)
-    if (hours_field) {
-      row.hours_field = hours_field;
+    // Add hours_field — use provided value or auto-detect from service name
+    const resolvedField = hours_field || autoDetectHoursField(name);
+    if (resolvedField) {
+      row.hours_field = resolvedField;
     }
     if (default_hours !== undefined && default_hours !== null) {
       row.default_hours = parseFloat(default_hours) || null;
