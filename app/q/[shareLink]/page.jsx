@@ -697,6 +697,18 @@ export default function QuoteViewPage() {
             Download PDF
           </a>
 
+          {/* Create Account Prompt (guest → account) */}
+          {isPaid && !localStorage.getItem('customer_token') && (
+            <div className="bg-white/5 border border-[var(--brand-border,#1A2236)] rounded-lg p-4 mb-4">
+              <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium mb-1">Save your aircraft on file</p>
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs mb-3">Create an account to view job history, recommendations, and book again faster.</p>
+              <a href={`/customer/login?email=${encodeURIComponent(quote.client_email || '')}&from=quote`}
+                className="block w-full py-3 text-center text-xs uppercase tracking-wider bg-[var(--brand-primary,#007CB1)] text-white rounded hover:opacity-90 transition-opacity">
+                Create Account
+              </a>
+            </div>
+          )}
+
           {/* Tips */}
           {!tipsSent ? (
             <button

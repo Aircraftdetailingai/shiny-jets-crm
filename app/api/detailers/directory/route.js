@@ -22,7 +22,7 @@ export async function GET(request) {
 
   let query = supabase
     .from('detailers')
-    .select('id, name, company, country, home_airport, preferred_currency, plan')
+    .select('id, name, company, country, home_airport, preferred_currency, plan, stripe_account_id, stripe_publishable_key, has_online_booking')
     .eq('listed_in_directory', true)
     .eq('status', 'active')
     .in('plan', ['pro', 'business', 'enterprise']);
@@ -86,6 +86,15 @@ export async function GET(request) {
       };
     });
   }
+
+  // Add online booking badge based on Stripe connection
+  enriched = enriched.map(d => ({
+    ...d,
+    online_booking: !!(d.stripe_account_id || d.stripe_publishable_key || d.has_online_booking),
+    // Remove sensitive fields from response
+    stripe_account_id: undefined,
+    stripe_publishable_key: undefined,
+  }));
 
   return Response.json({ detailers: enriched });
 }

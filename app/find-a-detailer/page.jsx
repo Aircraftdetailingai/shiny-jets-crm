@@ -138,9 +138,16 @@ export default function FindADetailerPage() {
                         {d.plan}
                       </span>
                     </div>
-                    <a href={`/detailer/${d.id}`} className="text-lg font-semibold text-white mb-1 block hover:text-v-gold transition-colors">
-                      {d.company || d.name}
-                    </a>
+                    <div className="flex items-center gap-2 mb-1">
+                      <a href={`/detailer/${d.id}`} className="text-lg font-semibold text-white hover:text-v-gold transition-colors">
+                        {d.company || d.name}
+                      </a>
+                      {d.online_booking ? (
+                        <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">Online Booking</span>
+                      ) : (
+                        <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/5 text-white/40 border border-white/10">Request Quote</span>
+                      )}
+                    </div>
                     {(d.combined_avg_rating || d.avg_rating) && (
                       <div className="flex items-center gap-1.5 mb-3 flex-wrap">
                         <div className="flex gap-0.5">
