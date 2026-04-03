@@ -67,6 +67,28 @@ export default function FindADetailerPage() {
       </nav>
 
       {/* Hero */}
+      {/* JSON-LD for directory */}
+      {!loading && detailers.length > 0 && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Aircraft Detailers Directory',
+          description: 'Professional aircraft detailing companies',
+          numberOfItems: detailers.length,
+          itemListElement: detailers.slice(0, 20).map((d, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            item: {
+              '@type': 'LocalBusiness',
+              name: d.company || d.name,
+              '@id': `https://crm.shinyjets.com/detailer/${d.id}`,
+              ...(d.online_booking ? { potentialAction: { '@type': 'ReserveAction', name: 'Book Online' } } : {}),
+              ...(d.combined_avg_rating ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: d.combined_avg_rating, reviewCount: d.combined_review_count } } : {}),
+            },
+          })),
+        }) }} />
+      )}
+
       <section className="pt-32 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="font-heading text-4xl sm:text-5xl font-bold text-white mb-4">

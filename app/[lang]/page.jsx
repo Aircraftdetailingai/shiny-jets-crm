@@ -20,8 +20,8 @@ export async function generateMetadata({ params }) {
     description: t.hero.sub,
     alternates: {
       languages: Object.fromEntries([
-        ['en', 'https://vectorav.ai'],
-        ...VALID_LANGS.map(l => [l, `https://vectorav.ai/${l}`]),
+        ['en', 'https://shinyjets.com'],
+        ...VALID_LANGS.map(l => [l, `https://shinyjets.com/${l}`]),
       ]),
     },
     other: {

@@ -137,7 +137,7 @@ export async function POST(request) {
       ).join('');
 
       await getResend().emails.send({
-        from: 'Shiny Jets CRM <noreply@vectorav.ai>',
+        from: 'Shiny Jets CRM <noreply@shinyjets.com>',
         to: quote.client_email,
         subject: `Additional Services Requested - ${quote.detailers?.company_name}`,
         html: `
@@ -262,7 +262,7 @@ export async function PUT(request) {
     // Notify detailer
     if (process.env.RESEND_API_KEY && changeOrder.quotes?.detailers?.email) {
       await getResend().emails.send({
-        from: 'Shiny Jets CRM <noreply@vectorav.ai>',
+        from: 'Shiny Jets CRM <noreply@shinyjets.com>',
         to: changeOrder.quotes.detailers.email,
         subject: `Change Order ${newStatus === 'approved' ? 'Approved' : 'Declined'} - ${changeOrder.quotes.client_name || 'Customer'}`,
         html: `

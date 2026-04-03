@@ -336,7 +336,7 @@
       </div>
 
       <div id="vector-widget-powered">
-        Powered by <a href="https://vectorav.ai" target="_blank">Vector</a>
+        Powered by <a href="https://shinyjets.com" target="_blank">Shiny Jets</a>
       </div>
     </div>
   `;

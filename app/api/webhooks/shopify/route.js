@@ -63,7 +63,7 @@ export async function POST(request) {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ to, from: 'Shiny Jets CRM <noreply@vectorav.ai>', subject, html }),
+      body: JSON.stringify({ to, from: 'Shiny Jets CRM <noreply@shinyjets.com>', subject, html }),
     });
   }
 

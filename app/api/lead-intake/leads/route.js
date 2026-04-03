@@ -120,7 +120,7 @@ export async function POST(request) {
           .join('');
 
         await getResend().emails.send({
-          from: 'Shiny Jets CRM <noreply@vectorav.ai>',
+          from: 'Shiny Jets CRM <noreply@shinyjets.com>',
           to: detailer.email,
           subject: `New Lead: ${customer_name || 'Website Visitor'}`,
           html: `
@@ -279,7 +279,7 @@ export async function POST(request) {
         if (detailer?.email && process.env.RESEND_API_KEY) {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
           await getResend().emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@vectorav.ai>',
+            from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
             to: detailer.email,
             subject: `New Quote Request: ${name || 'Customer'} - ${aircraft_model || 'Aircraft'}`,
             html: `

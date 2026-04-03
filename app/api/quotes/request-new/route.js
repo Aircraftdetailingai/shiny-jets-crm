@@ -74,7 +74,7 @@ export async function POST(request) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: 'Shiny Jets CRM <noreply@vectorav.ai>',
+            from: 'Shiny Jets CRM <noreply@shinyjets.com>',
             to: detailer.email,
             subject: 'Customer Requested Updated Quote',
             text: `A customer has requested an updated quote!\n\nCustomer: ${originalQuote.client_name || 'Unknown'}\nAircraft: ${originalQuote.aircraft_model || originalQuote.aircraft_type}\nOriginal Price: $${originalQuote.total_price}\n\nThe original quote expired on ${new Date(originalQuote.valid_until).toLocaleDateString()}.\n\nLog in to Shiny Jets CRM to send them an updated quote.`

@@ -16,7 +16,7 @@ function getResend() {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
   return _resend;
 }
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@vectorav.ai>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
 
 function buildCampaignHtml(campaign, detailer, unsubscribeUrl) {
@@ -55,7 +55,7 @@ function buildCampaignHtml(campaign, detailer, unsubscribeUrl) {
     ` : ''}
   </div>
   <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-    <p style="margin: 0;">Powered by <a href="https://vectorav.ai" style="color: #9ca3af; text-decoration: underline;">Vector</a> - Aircraft Detailing Software</p>
+    <p style="margin: 0;">Powered by Shiny Jets CRM</p>
     <p style="margin: 8px 0 0 0;"><a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a></p>
   </div>
 </body></html>`;

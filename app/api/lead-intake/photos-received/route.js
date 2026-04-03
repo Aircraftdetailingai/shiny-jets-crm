@@ -26,7 +26,7 @@ export async function POST(request) {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@vectorav.ai>',
+      from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
       to: detailer.email,
       subject: `Photos received from ${lead.name || 'customer'}`,
       html: `
