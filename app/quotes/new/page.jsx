@@ -65,6 +65,8 @@ function NewQuoteContent() {
   const [proposedTime, setProposedTime] = useState('08:00');
   const [bufferMinutes, setBufferMinutes] = useState(60);
   const [excludeWeekends, setExcludeWeekends] = useState(true);
+  const [calendarSuggestion, setCalendarSuggestion] = useState(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [leadContext, setLeadContext] = useState(null); // { service, notes, photos, aircraft, tail, airport }
   const [pendingAircraftMatch, setPendingAircraftMatch] = useState(null); // { manufacturer, model, id }
   const [customProductRatios, setCustomProductRatios] = useState(null);
@@ -275,6 +277,41 @@ function NewQuoteContent() {
       }
     } catch {}
   }, [router]);
+
+  // Auto-suggest date from Google Calendar when services change
+  useEffect(() => {
+    if (!selectedAircraft || Object.keys(selectedServices).length === 0) return;
+    if (proposedDate) return; // don't override manual selection
+
+    const token = localStorage.getItem('vector_token');
+    if (!token) return;
+
+    // Calculate total hours from selected services
+    const svcList = availableServices.filter(s => selectedServices[s.id]);
+    if (svcList.length === 0) return;
+
+    let hours = 0;
+    svcList.forEach(svc => {
+      const h = parseFloat(customHours[svc.id] ?? svc.default_hours ?? 0) || (selectedAircraft[svc.hours_field] ? parseFloat(selectedAircraft[svc.hours_field]) : 1);
+      hours += h;
+    });
+    if (hours <= 0) hours = 4;
+
+    setCalendarLoading(true);
+    fetch(`/api/google-calendar/free-busy?duration=${hours}&excludeWeekends=${excludeWeekends}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.suggested) {
+          setCalendarSuggestion(data.suggested);
+          setProposedDate(data.suggested.date);
+          setProposedTime(data.suggested.time);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCalendarLoading(false));
+  }, [selectedAircraft?.id, Object.keys(selectedServices).length]);
 
   const handleSelectAircraft = async (aircraft) => {
     try {
@@ -1139,7 +1176,13 @@ function NewQuoteContent() {
 
             return (
               <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-                <h3 className="text-sm font-light tracking-wider uppercase text-gray-400 mb-4">Proposed Schedule</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-light tracking-wider uppercase text-gray-400">Proposed Schedule</h3>
+                  {calendarLoading && <span className="text-[10px] text-v-gold animate-pulse">Checking calendar...</span>}
+                  {calendarSuggestion && !calendarLoading && (
+                    <span className="text-[10px] text-green-400">Auto-suggested from calendar</span>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
