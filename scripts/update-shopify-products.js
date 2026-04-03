@@ -4,7 +4,7 @@
  * Run: SHOPIFY_ACCESS_TOKEN=shpat_xxx node scripts/update-shopify-products.js
  */
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE_URL || 'https://shinyjets.com';
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE_URL || 'https://619shinyjets.myshopify.com';
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 if (!TOKEN) {
@@ -95,10 +95,15 @@ const PRODUCTS = [
 <li>Unlimited team members</li>
 <li>White label branding (your logo, your colors)</li>
 <li>Custom intake questions per job type</li>
+<li>FlightAware API integration — automatic flight hour tracking per aircraft</li>
+<li>Fuel receipt upload portal (pilot or aircraft owner submits receipts via their customer account)</li>
+<li>Pre/post ceramic coating fuel burn comparison</li>
+<li>Automated ROI reporting for aircraft owners</li>
+<li>Anomaly detection on fuel burn data</li>
 <li>Priority support</li>
 <li>Dedicated onboarding</li>
 </ul>`,
-    variants: [{ sku: 'SJ-CRM-ENTERPRISE', price: '299.00' }],
+    variants: [{ sku: 'SJ-CRM-ENTERPRISE', price: '899.00' }],
   },
 ];
 
