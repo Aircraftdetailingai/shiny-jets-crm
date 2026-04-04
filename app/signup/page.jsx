@@ -9,6 +9,7 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite');
   const refCode = searchParams.get('ref');
+  const planParam = searchParams.get('plan');
 
   const [loading, setLoading] = useState(true);
   const [inviteOnly, setInviteOnly] = useState(true);
@@ -84,6 +85,7 @@ function SignupForm() {
           name: form.name.trim(),
           company: form.company.trim() || null,
           country: form.country || null,
+          plan: planParam || 'free',
           invite_token: inviteToken || null,
           referral_code: refCode || localStorage.getItem('vector_referral_code') || null,
         }),

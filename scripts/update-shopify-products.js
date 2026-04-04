@@ -7,9 +7,11 @@
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE_URL || 'shinyjets.myshopify.com';
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
+// Also check SHOPIFY_API_SECRET for combined auth
+const API_SECRET = process.env.SHOPIFY_API_SECRET || '79ebbb4c545f31d7bc98066c5290da5a';
+
 if (!TOKEN) {
   console.error('Missing SHOPIFY_ACCESS_TOKEN env var');
-  console.error('Get it from: Shopify Admin → Settings → Apps → Develop apps → Create app → Admin API');
   process.exit(1);
 }
 

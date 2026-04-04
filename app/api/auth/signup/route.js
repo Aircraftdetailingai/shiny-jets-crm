@@ -42,7 +42,7 @@ export async function POST(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Server error' }, { status: 500 });
 
-    const { email, password, name, company, country, invite_token, referral_code } = await request.json();
+    const { email, password, name, company, country, invite_token, referral_code, plan: requestedPlan } = await request.json();
 
     const inviteOnly = await isInviteOnly(supabase);
 
@@ -71,7 +71,9 @@ export async function POST(request) {
       return Response.json({ error: 'An account with this email already exists. Please log in instead.' }, { status: 409 });
     }
 
-    let plan = 'free';
+    let plan = requestedPlan || 'free';
+    // Only allow free plan on direct signup — paid plans require Shopify subscription
+    if (!['free'].includes(plan)) plan = 'free';
     let trialDays = 14; // Default trial for open signup
     let invite = null;
 
@@ -229,6 +231,24 @@ export async function POST(request) {
       status: detailer.status,
       is_admin: false,
     };
+
+    // Send welcome email
+    try {
+      const { Resend } = await import('resend');
+      const { welcomeTemplate } = await import('@/lib/email-templates');
+      if (process.env.RESEND_API_KEY) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const { html, text } = welcomeTemplate({ detailer: { name: name, email: normalizedEmail } });
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
+          to: normalizedEmail,
+          subject: 'Welcome to Shiny Jets CRM',
+          html, text,
+        });
+      }
+    } catch (emailErr) {
+      console.error('Welcome email failed:', emailErr);
+    }
 
     return Response.json({ token, user });
   } catch (err) {
