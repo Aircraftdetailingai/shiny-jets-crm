@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { hashPassword, createToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { welcomeTemplate } from '@/lib/email-templates';
 
 export const dynamic = 'force-dynamic';
 
@@ -170,11 +171,10 @@ export async function POST(request) {
         .eq('id', invite.id);
     }
 
-    // Update prospect if one exists for this email
-    await supabase
-      .from('prospects')
-      .update({ status: 'signed_up' })
-      .eq('email', normalizedEmail);
+    // Update prospect if one exists for this email (non-critical)
+    try {
+      await supabase.from('prospects').update({ status: 'signed_up' }).eq('email', normalizedEmail);
+    } catch {}
 
     // Process referral code if provided
     if (referral_code) {
@@ -232,27 +232,29 @@ export async function POST(request) {
       is_admin: false,
     };
 
-    // Send welcome email
-    try {
-      const { Resend } = await import('resend');
-      const { welcomeTemplate } = await import('@/lib/email-templates');
-      if (process.env.RESEND_API_KEY) {
+    // Send welcome email (non-blocking — don't fail signup if email fails)
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const { Resend } = require('resend');
         const resend = new Resend(process.env.RESEND_API_KEY);
-        const { html, text } = welcomeTemplate({ detailer: { name: name, email: normalizedEmail } });
+        const tmpl = welcomeTemplate({ detailer: { name, email: normalizedEmail } });
         await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
           to: normalizedEmail,
-          subject: 'Welcome to Shiny Jets CRM',
-          html, text,
+          subject: tmpl.subject,
+          html: tmpl.html,
+          text: tmpl.text,
         });
+        console.log('[signup] Welcome email sent to:', normalizedEmail);
+      } catch (emailErr) {
+        console.error('[signup] Welcome email failed:', emailErr.message);
       }
-    } catch (emailErr) {
-      console.error('Welcome email failed:', emailErr);
     }
 
     return Response.json({ token, user });
   } catch (err) {
-    console.error('[signup] Unhandled error:', err);
+    console.error('[signup] Unhandled error:', err.message);
+    console.error('[signup] Stack:', err.stack);
     return Response.json({ error: `Server error: ${err.message}` }, { status: 500 });
   }
 }
