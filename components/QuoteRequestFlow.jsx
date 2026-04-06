@@ -45,7 +45,10 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   // Custom questions = intake questions minus the ones already hardcoded in the UI
   const customQuestions = (intakeQuestions || []).filter(q => !DEFAULT_Q_IDS.includes(q.id));
   const hasCustomQ = customQuestions.length > 0;
-  const INTAKE_STEP = 6;                         // between Photos(5) and Contact
+  // Steps: 1-4 hardcoded, 5=photos, then optionally intake, then contact, then submit
+  // When no custom Qs: 5→6(contact)→7(submit)
+  // When custom Qs:    5→6(intake)→7(contact)→8(submit)
+  const INTAKE_STEP = hasCustomQ ? 6 : -1;       // -1 = doesn't exist
   const CONTACT_STEP = hasCustomQ ? 7 : 6;
   const SUBMIT_STEP = CONTACT_STEP + 1;
   const TOTAL_STEPS = CONTACT_STEP;              // progress dots count
@@ -68,19 +71,13 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
 
   const set = (field, value) => setData(prev => ({ ...prev, [field]: value }));
 
-  const goNext = () => setStep(s => {
-    const next = s + 1;
-    // Skip intake step if no custom questions
-    if (next === INTAKE_STEP && !hasCustomQ) return next + 1;
-    return Math.min(next, SUBMIT_STEP);
-  });
+  const goNext = () => setStep(s => Math.min(s + 1, SUBMIT_STEP));
   const goBack = () => {
     if (step === CONTACT_STEP) {
-      // Going back from contact: skip intake step if empty
       setStep(hasCustomQ ? INTAKE_STEP : 5);
       return;
     }
-    if (step === INTAKE_STEP) { setStep(5); return; }
+    if (hasCustomQ && step === INTAKE_STEP) { setStep(5); return; }
     if (step === 4) {
       if (paintGoal !== null && selectedServices.length > 0) { setPaintGoal(null); return; }
       if (quickSelect === 'maint_wash') { setQuickSelect(null); setWashAddons([]); setFreeTextNote(''); return; }
@@ -155,25 +152,27 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         freeTextNote ? `Note: ${freeTextNote}` : '',
       ].filter(Boolean).join('\n');
 
+      const payload = {
+        detailer_id: detailerId,
+        name, email, phone,
+        company: data.company || null,
+        aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`,
+        tail_number: data.tail_number,
+        airport: data.airport,
+        services_requested: data.service_text || serviceType,
+        notes: areaNotes || '',
+        photo_urls: photoUrls,
+        intake_responses: Object.keys(intakeResponses).length > 0 ? intakeResponses : null,
+        source: embedded ? 'embed_widget' : 'quote_request_page',
+      };
       const res = await fetch('/api/lead-intake/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          detailer_id: detailerId,
-          name, email, phone,
-          company: data.company || null,
-          aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`,
-          tail_number: data.tail_number,
-          airport: data.airport,
-          services_requested: data.service_text || serviceType,
-          notes: areaNotes || '',
-          photo_urls: photoUrls,
-          intake_responses: Object.keys(intakeResponses).length > 0 ? intakeResponses : null,
-          source: embedded ? 'embed_widget' : 'quote_request_page',
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
+        console.error('Quote request submission failed:', res.status, d);
         throw new Error(d.error || 'Failed to submit');
       }
       setSubmitted(true);
