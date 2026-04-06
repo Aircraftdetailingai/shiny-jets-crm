@@ -274,38 +274,84 @@ export async function POST(request) {
         return Response.json({ error: error.message }, { status: 500 });
       }
 
-      // Notify detailer via email (non-blocking — don't hold up the response)
+      // Send emails (non-blocking — don't hold up the response)
       if (process.env.RESEND_API_KEY) {
-        supabase.from('detailers').select('email, company').eq('id', detailer_id).single()
+        supabase.from('detailers').select('email, company, phone').eq('id', detailer_id).single()
           .then(({ data: detailer }) => {
-            if (!detailer?.email) return;
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vectorav.ai';
-            return getResend().emails.send({
-              from: process.env.RESEND_FROM_EMAIL || 'Vector Aviation <noreply@vectorav.ai>',
-              to: detailer.email,
-              subject: `New Quote Request: ${name || 'Customer'} - ${aircraft_model || 'Aircraft'}`,
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-                  <h2 style="color: #007CB1;">New Quote Request</h2>
-                  <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                    <p><strong>Customer:</strong> ${name || 'Not provided'}</p>
-                    <p><strong>Email:</strong> ${email || 'Not provided'}</p>
-                    <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
-                    <p><strong>Aircraft:</strong> ${aircraft_model || 'Not specified'}</p>
-                    ${tail_number ? `<p><strong>Tail:</strong> ${tail_number}</p>` : ''}
-                    ${airport ? `<p><strong>Airport:</strong> ${airport}</p>` : ''}
-                    <p><strong>Service:</strong> ${services_requested || 'Not specified'}</p>
-                    ${notes ? `<p><strong>Notes:</strong><br/>${notes.replace(/\n/g, '<br/>')}</p>` : ''}
-                    ${photo_urls?.length ? `<p><strong>Photos:</strong> ${photo_urls.length} uploaded</p>` : ''}
+            const companyName = detailer?.company || 'Your Aircraft Detailer';
+            const detailerEmail = detailer?.email;
+            const detailerPhone = detailer?.phone;
+
+            const emails = [];
+
+            // 1. Notify detailer
+            if (detailerEmail) {
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vectorav.ai';
+              emails.push(getResend().emails.send({
+                from: process.env.RESEND_FROM_EMAIL || 'Vector Aviation <noreply@vectorav.ai>',
+                to: detailerEmail,
+                subject: `New Quote Request: ${name || 'Customer'} - ${aircraft_model || 'Aircraft'}`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #007CB1;">New Quote Request</h2>
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                      <p><strong>Customer:</strong> ${name || 'Not provided'}</p>
+                      <p><strong>Email:</strong> ${email || 'Not provided'}</p>
+                      <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
+                      <p><strong>Aircraft:</strong> ${aircraft_model || 'Not specified'}</p>
+                      ${tail_number ? `<p><strong>Tail:</strong> ${tail_number}</p>` : ''}
+                      ${airport ? `<p><strong>Airport:</strong> ${airport}</p>` : ''}
+                      <p><strong>Service:</strong> ${services_requested || 'Not specified'}</p>
+                      ${notes ? `<p><strong>Notes:</strong><br/>${notes.replace(/\n/g, '<br/>')}</p>` : ''}
+                      ${photo_urls?.length ? `<p><strong>Photos:</strong> ${photo_urls.length} uploaded</p>` : ''}
+                    </div>
+                    <a href="${appUrl}/dashboard?tab=leads" style="display: inline-block; padding: 12px 24px; background: #007CB1; color: white; text-decoration: none; border-radius: 8px; margin-top: 15px;">
+                      View Lead &amp; Create Quote
+                    </a>
                   </div>
-                  <a href="${appUrl}/dashboard?tab=leads" style="display: inline-block; padding: 12px 24px; background: #007CB1; color: white; text-decoration: none; border-radius: 8px; margin-top: 15px;">
-                    View Lead & Create Quote
-                  </a>
-                </div>
-              `,
-            });
+                `,
+              }));
+            }
+
+            // 2. Send customer confirmation
+            if (email) {
+              const firstName = (name || '').split(' ')[0] || 'there';
+              const aircraftDesc = aircraft_model || tail_number || 'your aircraft';
+              emails.push(getResend().emails.send({
+                from: `${companyName} via Shiny Jets CRM <noreply@shinyjets.com>`,
+                replyTo: detailerEmail || undefined,
+                to: email,
+                subject: "We got your request — here's what happens next",
+                html: `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f7f7f7;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:520px;margin:0 auto;padding:32px 20px;">
+  <div style="background:#ffffff;border-radius:12px;padding:36px 28px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    <h1 style="font-size:20px;color:#1a1a1a;margin:0 0 20px 0;font-weight:600;">We got your request</h1>
+    <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 16px 0;">Hi ${firstName},</p>
+    <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 16px 0;">Thanks for reaching out. We received your detailing request for <strong>${aircraftDesc}</strong> and we're on it.</p>
+    <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 8px 0;font-weight:600;">Here's what happens next:</p>
+    <ul style="font-size:15px;color:#333;line-height:1.8;margin:0 0 20px 0;padding-left:20px;">
+      <li>We'll review your request and put together a detailed quote</li>
+      <li>You'll receive your quote by email with a link to review, approve, and pay online</li>
+      <li>Once approved we'll reach out to confirm your schedule</li>
+    </ul>
+    <p style="font-size:15px;color:#333;line-height:1.6;margin:0 0 24px 0;">If you have any questions in the meantime, just reply to this email.</p>
+    <div style="border-top:1px solid #eee;padding-top:20px;margin-top:8px;">
+      <p style="font-size:15px;color:#1a1a1a;margin:0 0 4px 0;font-weight:600;">${companyName}</p>
+      ${detailerPhone ? `<p style="font-size:14px;color:#555;margin:0 0 2px 0;">${detailerPhone}</p>` : ''}
+      ${detailerEmail ? `<p style="font-size:14px;color:#555;margin:0;">${detailerEmail}</p>` : ''}
+    </div>
+  </div>
+</div>
+</body></html>`,
+              }));
+            }
+
+            return Promise.all(emails);
           })
-          .catch(err => console.error('Lead notification email failed:', err));
+          .catch(err => console.error('Lead emails failed:', err));
       }
 
       return Response.json({ success: true, lead });
