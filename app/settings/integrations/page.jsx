@@ -18,7 +18,7 @@ function IntegrationsContent() {
   const [calendlyDirty, setCalendlyDirty] = useState(false);
 
   // Google Calendar state
-  const [gcalStatus, setGcalStatus] = useState({ connected: false, configured: false, method: null });
+  const [gcalStatus, setGcalStatus] = useState(null); // null = loading, object = loaded
   const [gcalConnecting, setGcalConnecting] = useState(false);
   const [gcalError, setGcalError] = useState(null);
   const [gcalSyncing, setGcalSyncing] = useState(false);
@@ -49,8 +49,17 @@ function IntegrationsContent() {
 
   useEffect(() => {
     const gcalParam = params.get('gcal');
-    if (gcalParam === 'success') { toastSuccess('Google Calendar connected!'); checkGCalStatus(); }
-    else if (gcalParam === 'error') setGcalError(params.get('message') || 'Failed to connect Google Calendar');
+    if (gcalParam === 'success') {
+      toastSuccess('Google Calendar connected successfully');
+      // Small delay to ensure DB write from OAuth callback has settled
+      setTimeout(() => checkGCalStatus(), 500);
+      // Clean URL without reload
+      const url = new URL(window.location);
+      url.searchParams.delete('gcal');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    } else if (gcalParam === 'error') {
+      setGcalError(params.get('message') || 'Failed to connect Google Calendar');
+    }
     const qbParam = params.get('quickbooks');
     if (qbParam === 'success') { toastSuccess('QuickBooks connected!'); checkQBStatus(); }
     else if (qbParam === 'error') setQbError(params.get('message') || 'Failed to connect QuickBooks');
@@ -241,9 +250,10 @@ function IntegrationsContent() {
 
   if (loading) return <LoadingSpinner message="Loading integrations..." />;
 
-  const icsConnected = gcalStatus.method === 'ics' && gcalStatus.icsUrl;
-  const oauthConnected = gcalStatus.method === 'oauth' && gcalStatus.connected;
-  const gcalNeedsReconnect = oauthConnected && gcalStatus.needsReconnect;
+  const gcalLoading = gcalStatus === null;
+  const icsConnected = gcalStatus?.method === 'ics' && gcalStatus?.icsUrl;
+  const oauthConnected = gcalStatus?.method === 'oauth' && gcalStatus?.connected;
+  const gcalNeedsReconnect = oauthConnected && gcalStatus?.needsReconnect;
   const gcalConnected = (icsConnected || oauthConnected) && !gcalNeedsReconnect;
   const calendlyConnected = !!calendlyUrl && calendlyUrl.includes('calendly.com');
   const stripeConnected = (stripeStatus.connected && stripeStatus.status === 'ACTIVE') || stripeStatus.hasKeys;
@@ -328,7 +338,9 @@ function IntegrationsContent() {
                   <p className="text-xs text-v-text-secondary">Sync events as blocked dates</p>
                 </div>
               </div>
-              {gcalNeedsReconnect ? (
+              {gcalLoading ? (
+                <span className="text-xs text-v-text-secondary border border-v-border px-2 py-0.5 uppercase tracking-wider">Checking...</span>
+              ) : gcalNeedsReconnect ? (
                 <span className="text-xs text-yellow-400 border border-yellow-400/30 px-2 py-0.5 uppercase tracking-wider">Reconnect Required</span>
               ) : gcalConnected ? (
                 <span className="text-xs text-green-400 border border-green-400/30 px-2 py-0.5 uppercase tracking-wider">Connected</span>
@@ -389,7 +401,7 @@ function IntegrationsContent() {
             )}
 
             {/* Not Connected */}
-            {!gcalConnected && !gcalNeedsReconnect && (
+            {!gcalLoading && !gcalConnected && !gcalNeedsReconnect && (
               <div className="flex-1 space-y-3">
                 {/* Google OAuth button */}
                 <button onClick={handleConnectGCal} disabled={gcalConnecting}
