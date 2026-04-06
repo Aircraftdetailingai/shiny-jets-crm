@@ -34,46 +34,39 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' },
 };
 
-// ─── Build default flow from detailer services ───
+// ─── Build default flow — two-path branching ───
 function buildDefaultFlow(services) {
-  const hasExterior = services.some(s =>
-    /exterior|wash|ceramic|polish|wax|decon|brightwork/i.test(s.name)
-  );
+  const svcNames = services.map(s => s.name);
+  const branchStyle = { type: 'smoothstep', animated: true, style: { stroke: '#60a5fa', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#60a5fa' } };
 
   const nodes = [
-    { id: 'start-1', type: 'start', position: { x: 300, y: 0 }, data: { label: 'Customer starts here' }, deletable: false },
-    { id: 'svc-1', type: 'serviceSelect', position: { x: 270, y: 160 }, data: { label: 'What services do you need?', required: true, serviceNames: services.map(s => s.name) } },
+    { id: 'start-1', type: 'start', position: { x: 400, y: 0 }, data: { label: 'Customer starts here' }, deletable: false },
+    { id: 'q-situation', type: 'question', position: { x: 350, y: 160 }, data: { label: 'What best describes your situation?', answerType: 'single_select', allowBranching: true, required: true, options: ['I know what I want', 'Help me figure it out'] } },
+    // Path A: I know what I want
+    { id: 'svc-1', type: 'serviceSelect', position: { x: 100, y: 360 }, data: { label: 'What services do you need?', required: true, serviceNames: svcNames } },
+    { id: 'q-notes-a', type: 'question', position: { x: 100, y: 540 }, data: { label: 'Any specific instructions?', answerType: 'long_text', required: false, placeholder: 'Special requests, access details, timing...' } },
+    { id: 'q-photos-a', type: 'question', position: { x: 100, y: 720 }, data: { label: 'Upload photos of your aircraft', answerType: 'photo_upload', required: false } },
+    { id: 'end-a', type: 'end', position: { x: 130, y: 900 }, data: { label: 'Submit request' } },
+    // Path B: Help me figure it out
+    { id: 'q-surfaces', type: 'question', position: { x: 600, y: 360 }, data: { label: 'What surfaces need attention?', answerType: 'multi_select', required: true, options: ['Exterior', 'Interior', 'Both'] } },
+    { id: 'q-paint-goal', type: 'question', position: { x: 600, y: 540 }, data: { label: 'What is your goal for the paint?', answerType: 'single_select', required: true, options: ['Maximum gloss & protection', 'Clean and protected', 'Just clean'] } },
+    { id: 'q-notes-b', type: 'question', position: { x: 600, y: 720 }, data: { label: 'Any specific instructions?', answerType: 'long_text', required: false, placeholder: 'Special requests, access details, timing...' } },
+    { id: 'q-photos-b', type: 'question', position: { x: 600, y: 900 }, data: { label: 'Upload photos of your aircraft', answerType: 'photo_upload', required: false } },
+    { id: 'end-b', type: 'end', position: { x: 630, y: 1080 }, data: { label: 'Submit request' } },
   ];
 
   const edges = [
-    { id: 'e-start-svc', source: 'start-1', target: 'svc-1', ...defaultEdgeOptions },
+    { id: 'e-start-situation', source: 'start-1', target: 'q-situation', ...defaultEdgeOptions },
+    { id: 'e-situation-svc', source: 'q-situation', sourceHandle: 'opt-0', target: 'svc-1', ...branchStyle, label: 'I know what I want', labelStyle: { fill: '#60a5fa', fontSize: 10 } },
+    { id: 'e-svc-notes-a', source: 'svc-1', target: 'q-notes-a', ...defaultEdgeOptions },
+    { id: 'e-notes-a-photos-a', source: 'q-notes-a', target: 'q-photos-a', ...defaultEdgeOptions },
+    { id: 'e-photos-a-end-a', source: 'q-photos-a', target: 'end-a', ...defaultEdgeOptions },
+    { id: 'e-situation-surfaces', source: 'q-situation', sourceHandle: 'opt-1', target: 'q-surfaces', ...branchStyle, label: 'Help me figure it out', labelStyle: { fill: '#60a5fa', fontSize: 10 } },
+    { id: 'e-surfaces-paint', source: 'q-surfaces', target: 'q-paint-goal', ...defaultEdgeOptions },
+    { id: 'e-paint-notes-b', source: 'q-paint-goal', target: 'q-notes-b', ...defaultEdgeOptions },
+    { id: 'e-notes-b-photos-b', source: 'q-notes-b', target: 'q-photos-b', ...defaultEdgeOptions },
+    { id: 'e-photos-b-end-b', source: 'q-photos-b', target: 'end-b', ...defaultEdgeOptions },
   ];
-
-  if (hasExterior) {
-    nodes.push(
-      { id: 'cond-1', type: 'condition', position: { x: 270, y: 340 }, data: { label: 'Includes exterior service?', sourceNodeId: 'svc-1', field: 'services', value: 'exterior' } },
-      { id: 'q-paint', type: 'question', position: { x: 60, y: 520 }, data: { label: 'What is your goal for the paint?', answerType: 'single_select', options: ['Maximum gloss & protection', 'Clean and protected', 'Just clean'] } },
-      { id: 'q-notes', type: 'question', position: { x: 480, y: 520 }, data: { label: 'Any additional notes?', answerType: 'long_text', placeholder: 'Special instructions...' } },
-      { id: 'end-1', type: 'end', position: { x: 100, y: 700 }, data: { label: 'Submit request' } },
-      { id: 'end-2', type: 'end', position: { x: 520, y: 700 }, data: { label: 'Submit request' } },
-    );
-    edges.push(
-      { id: 'e-svc-cond', source: 'svc-1', target: 'cond-1', ...defaultEdgeOptions },
-      { id: 'e-cond-yes', source: 'cond-1', sourceHandle: 'yes', target: 'q-paint', type: 'smoothstep', style: { stroke: '#4ade80', strokeWidth: 2 }, label: 'Yes', labelStyle: { fill: '#4ade80', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4ade80' } },
-      { id: 'e-cond-no', source: 'cond-1', sourceHandle: 'no', target: 'q-notes', type: 'smoothstep', style: { stroke: '#f87171', strokeWidth: 2 }, label: 'No', labelStyle: { fill: '#f87171', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#f87171' } },
-      { id: 'e-paint-end', source: 'q-paint', target: 'end-1', ...defaultEdgeOptions },
-      { id: 'e-notes-end', source: 'q-notes', target: 'end-2', ...defaultEdgeOptions },
-    );
-  } else {
-    nodes.push(
-      { id: 'q-notes', type: 'question', position: { x: 270, y: 340 }, data: { label: 'Any additional notes?', answerType: 'long_text', placeholder: 'Special instructions...' } },
-      { id: 'end-1', type: 'end', position: { x: 300, y: 520 }, data: { label: 'Submit request' } },
-    );
-    edges.push(
-      { id: 'e-svc-notes', source: 'svc-1', target: 'q-notes', ...defaultEdgeOptions },
-      { id: 'e-notes-end', source: 'q-notes', target: 'end-1', ...defaultEdgeOptions },
-    );
-  }
 
   return { nodes, edges };
 }
@@ -371,6 +364,7 @@ function FlowBuilderInner() {
           <SidePanel
             node={editingNode}
             nodes={nodes}
+            services={services}
             onUpdate={updateNodeData}
             onClose={() => setEditingNode(null)}
           />

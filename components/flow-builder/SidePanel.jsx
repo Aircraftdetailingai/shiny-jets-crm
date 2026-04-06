@@ -12,7 +12,7 @@ const ANSWER_TYPES = [
   { key: 'date', label: 'Date', desc: 'Date picker' },
 ];
 
-export default function SidePanel({ node, nodes, onUpdate, onClose }) {
+export default function SidePanel({ node, nodes, services = [], onUpdate, onClose }) {
   const [localData, setLocalData] = useState({});
 
   useEffect(() => {
@@ -209,6 +209,36 @@ export default function SidePanel({ node, nodes, onUpdate, onClose }) {
               </div>
             )}
           </>
+        )}
+
+        {/* Service list (serviceSelect nodes) */}
+        {nodeType === 'serviceSelect' && services.length > 0 && (
+          <div>
+            <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Services</label>
+            <div className="space-y-1">
+              {services.map((svc) => {
+                const name = typeof svc === 'string' ? svc : svc.name;
+                const included = (localData.serviceNames || []).includes(name);
+                return (
+                  <label key={name} className="flex items-center gap-2 p-2 bg-v-charcoal rounded border border-v-border cursor-pointer hover:border-v-border-subtle">
+                    <input
+                      type="checkbox"
+                      checked={included}
+                      onChange={() => {
+                        const current = localData.serviceNames || [];
+                        const updated = included
+                          ? current.filter(n => n !== name)
+                          : [...current, name];
+                        update({ serviceNames: updated });
+                      }}
+                      className="w-3.5 h-3.5 rounded accent-[var(--v-gold)]"
+                    />
+                    <span className="text-white text-xs">{name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Required toggle */}
