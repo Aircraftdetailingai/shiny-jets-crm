@@ -40,8 +40,9 @@ function buildDefaultFlow(services) {
   const branchStyle = { type: 'smoothstep', animated: true, style: { stroke: '#60a5fa', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#60a5fa' } };
 
   const nodes = [
-    { id: 'start-1', type: 'start', position: { x: 400, y: 0 }, data: { label: 'Customer starts here' }, deletable: false },
-    { id: 'q-situation', type: 'question', position: { x: 350, y: 160 }, data: { label: 'What best describes your situation?', answerType: 'single_select', allowBranching: true, required: true, options: ['I know what I want', 'Help me figure it out'] } },
+    { id: 'start-1', type: 'start', position: { x: 400, y: 0 }, data: { label: 'Customer starts here' }, deletable: false, draggable: false },
+    { id: 'aircraft-info', type: 'aircraftInfo', position: { x: 370, y: 160 }, data: { label: 'Aircraft Info (always first)' }, deletable: false, draggable: false },
+    { id: 'q-situation', type: 'question', position: { x: 350, y: 360 }, data: { label: 'What best describes your situation?', answerType: 'single_select', allowBranching: true, required: true, options: ['I know what I want', 'Help me figure it out'] } },
     // Path A: I know what I want
     { id: 'svc-1', type: 'serviceSelect', position: { x: 100, y: 360 }, data: { label: 'What services do you need?', required: true, serviceNames: svcNames } },
     { id: 'q-notes-a', type: 'question', position: { x: 100, y: 540 }, data: { label: 'Any specific instructions?', answerType: 'long_text', required: false, placeholder: 'Special requests, access details, timing...' } },
@@ -56,7 +57,8 @@ function buildDefaultFlow(services) {
   ];
 
   const edges = [
-    { id: 'e-start-situation', source: 'start-1', target: 'q-situation', ...defaultEdgeOptions },
+    { id: 'e-start-aircraft', source: 'start-1', target: 'aircraft-info', ...defaultEdgeOptions },
+    { id: 'e-aircraft-situation', source: 'aircraft-info', target: 'q-situation', ...defaultEdgeOptions },
     { id: 'e-situation-svc', source: 'q-situation', sourceHandle: 'opt-0', target: 'svc-1', ...branchStyle, label: 'I know what I want', labelStyle: { fill: '#60a5fa', fontSize: 10 } },
     { id: 'e-svc-notes-a', source: 'svc-1', target: 'q-notes-a', ...defaultEdgeOptions },
     { id: 'e-notes-a-photos-a', source: 'q-notes-a', target: 'q-photos-a', ...defaultEdgeOptions },
@@ -122,8 +124,32 @@ function FlowBuilderInner() {
         const flowData = flowRes.ok ? await flowRes.json() : {};
 
         if (flowData.flow_nodes?.length > 0 && flowData.flow_edges) {
-          setNodes(flowData.flow_nodes);
-          setEdges(flowData.flow_edges);
+          // Ensure locked aircraft-info node exists in saved flows
+          let loadedNodes = flowData.flow_nodes;
+          let loadedEdges = flowData.flow_edges;
+          if (!loadedNodes.find(n => n.type === 'aircraftInfo')) {
+            const startNode = loadedNodes.find(n => n.type === 'start');
+            const startEdge = loadedEdges.find(e => e.source === startNode?.id);
+            const firstTarget = startEdge?.target;
+            const aiNode = { id: 'aircraft-info', type: 'aircraftInfo', position: { x: (startNode?.position?.x || 400) - 30, y: (startNode?.position?.y || 0) + 160 }, data: { label: 'Aircraft Info (always first)' }, deletable: false, draggable: false };
+            loadedNodes = [loadedNodes[0], aiNode, ...loadedNodes.slice(1)];
+            // Rewire: start → aircraft-info → first target
+            if (startEdge && firstTarget) {
+              loadedEdges = loadedEdges.filter(e => e.id !== startEdge.id);
+              loadedEdges = [
+                { id: 'e-start-aircraft', source: startNode.id, target: 'aircraft-info', ...defaultEdgeOptions },
+                { id: 'e-aircraft-first', source: 'aircraft-info', target: firstTarget, ...defaultEdgeOptions },
+                ...loadedEdges,
+              ];
+            }
+          }
+          // Ensure locked nodes have correct flags
+          loadedNodes = loadedNodes.map(n => {
+            if (n.type === 'start' || n.type === 'aircraftInfo') return { ...n, deletable: false, draggable: false };
+            return n;
+          });
+          setNodes(loadedNodes);
+          setEdges(loadedEdges);
         } else {
           const def = buildDefaultFlow(svcList);
           setNodes(def.nodes);
@@ -146,7 +172,7 @@ function FlowBuilderInner() {
   const onNodesChange = useCallback((changes) => setNodes(nds => applyNodeChanges(changes, nds)), []);
   const onEdgesChange = useCallback((changes) => setEdges(eds => applyEdgeChanges(changes, eds)), []);
   const onConnect = useCallback((conn) => setEdges(eds => addEdge({ ...conn, ...defaultEdgeOptions, id: `e-${Date.now()}` }, eds)), []);
-  const onNodeClick = useCallback((_, node) => { if (node.type !== 'start') setEditingNode(node); }, []);
+  const onNodeClick = useCallback((_, node) => { if (node.type !== 'start' && node.type !== 'aircraftInfo') setEditingNode(node); }, []);
 
   // ─── Drag from toolbar ───
   const onDragOver = useCallback((e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }, []);
@@ -176,13 +202,14 @@ function FlowBuilderInner() {
   }, [reactFlowInstance, services]);
 
   // ─── Attach callbacks to nodes ───
+  const LOCKED_TYPES = ['start', 'aircraftInfo'];
   const nodesWithCallbacks = useMemo(() =>
     nodes.map(node => ({
       ...node,
       data: {
         ...node.data,
-        onEdit: node.type !== 'start' ? () => setEditingNode(node) : undefined,
-        onDelete: node.type !== 'start' ? () => {
+        onEdit: !LOCKED_TYPES.includes(node.type) ? () => setEditingNode(node) : undefined,
+        onDelete: !LOCKED_TYPES.includes(node.type) ? () => {
           setNodes(nds => nds.filter(n => n.id !== node.id));
           setEdges(eds => eds.filter(e => e.source !== node.id && e.target !== node.id));
           if (editingNode?.id === node.id) setEditingNode(null);
@@ -219,7 +246,7 @@ function FlowBuilderInner() {
       headers,
       body: JSON.stringify({ flow_nodes: cleanNodes, flow_edges: edges }),
     });
-    if (res.ok) showToast('Flow saved');
+    if (res.ok) showToast('Flow saved successfully');
     else {
       const d = await res.json().catch(() => ({}));
       showToast(d.error || 'Failed to save');
@@ -322,6 +349,17 @@ function FlowBuilderInner() {
 
       {/* ─── Canvas ─── */}
       <div className="flex-1 relative" ref={reactFlowWrapper}>
+        {/* Top toolbar with Save button */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-lg transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-8H7v8M7 3v5h8"/>
+            </svg>
+            {saving ? 'Saving...' : 'Save Flow'}
+          </button>
+        </div>
         <ReactFlow
           nodes={nodesWithCallbacks}
           edges={edges}

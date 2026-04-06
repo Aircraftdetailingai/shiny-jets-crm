@@ -198,6 +198,25 @@ export const ConditionNode = memo(({ data, selected }) => (
 ));
 ConditionNode.displayName = 'ConditionNode';
 
+// ─── AIRCRAFT INFO NODE (locked — always first) ───
+export const AircraftInfoNode = memo(({ data }) => (
+  <div className="rounded-xl border-2 border-white/20 bg-[#111318] shadow-lg w-[260px] opacity-80">
+    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-white/10">
+      <svg className="w-3.5 h-3.5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
+      </svg>
+      <span className="text-[10px] uppercase tracking-wider text-white/50 font-medium">Aircraft Info (always first)</span>
+    </div>
+    <FlowHandle type="target" position={Position.Top} color="#fff" />
+    <div className="px-4 py-3">
+      <p className="text-white/60 text-xs leading-relaxed">Tail number, Make, Model, Airport</p>
+      <p className="text-white/30 text-[9px] mt-1">Hardcoded — not editable in the flow builder</p>
+    </div>
+    <FlowHandle type="source" position={Position.Bottom} color="#fff" />
+  </div>
+));
+AircraftInfoNode.displayName = 'AircraftInfoNode';
+
 // ─── END NODE ───
 export const EndNode = memo(({ data, selected }) => (
   <div className={`rounded-xl border-2 shadow-lg w-[220px] transition-colors ${selected ? 'border-green-400' : 'border-green-500/30'} bg-[#0a1a0f]`}>
@@ -222,6 +241,7 @@ EndNode.displayName = 'EndNode';
 
 export const nodeTypes = {
   start: StartNode,
+  aircraftInfo: AircraftInfoNode,
   question: QuestionNode,
   serviceSelect: ServiceSelectNode,
   condition: ConditionNode,
