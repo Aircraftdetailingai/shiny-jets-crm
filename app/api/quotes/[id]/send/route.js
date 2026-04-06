@@ -58,6 +58,40 @@ export async function POST(request, { params }) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
   }
 
+  // Quota enforcement for free plan — block sending if limit reached
+  if (quote.status === 'draft') {
+    const { data: detailer } = await supabase
+      .from('detailers')
+      .select('plan')
+      .eq('id', user.id)
+      .single();
+
+    const plan = detailer?.plan || 'free';
+    const { getTier } = await import('@/lib/pricing-tiers');
+    const tierConfig = getTier(plan);
+
+    if (tierConfig.quotesPerMonth !== Infinity) {
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from('quotes')
+        .select('id', { count: 'exact', head: true })
+        .eq('detailer_id', user.id)
+        .neq('status', 'draft')
+        .gte('created_at', firstOfMonth);
+
+      const quotesThisMonth = count || 0;
+      if (quotesThisMonth >= tierConfig.quotesPerMonth) {
+        return new Response(JSON.stringify({
+          error: 'Monthly quote limit reached. Upgrade to Pro for unlimited quotes.',
+          upgrade: true,
+          quotesUsed: quotesThisMonth,
+          quotesLimit: tierConfig.quotesPerMonth,
+        }), { status: 403 });
+      }
+    }
+  }
+
   // Upsert customer record (graceful - skip if table doesn't exist)
   let resolvedCustomerId = customerId || null;
   if (clientEmail) {

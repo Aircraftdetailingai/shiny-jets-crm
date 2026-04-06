@@ -551,10 +551,10 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
             {/* Quote Limit Upgrade Prompt */}
             {quoteLimitHit && (
               <div className="bg-v-gold/10 border border-v-gold/30 rounded-lg p-4 mb-4">
-                <p className="font-semibold text-v-gold mb-1">{'Quote limit reached this month'}</p>
+                <p className="font-semibold text-v-gold mb-1">Quote limit reached this month</p>
                 <p className="text-sm text-v-gold/80 mb-3">
-                  You&apos;ve used {quoteLimitHit.quotesUsed} of {quoteLimitHit.quotesLimit} free quotes this month.
-                  {'Upgrade for Unlimited'}.
+                  You&apos;ve used {quoteLimitHit.quotesUsed}/{quoteLimitHit.quotesLimit} free quotes this month.
+                  Upgrade to Pro for unlimited quotes.
                 </p>
                 <div className="flex flex-col gap-2">
                   <button

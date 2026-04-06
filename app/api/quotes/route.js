@@ -114,37 +114,36 @@ export async function POST(request) {
     // --- Server-side quota enforcement ---
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('plan, quotes_this_month, quote_reset_date')
+      .select('plan')
       .eq('id', user.id)
       .single();
 
     const plan = detailer?.plan || 'free';
-    let quotesThisMonth = detailer?.quotes_this_month || 0;
-    const resetDate = detailer?.quote_reset_date ? new Date(detailer.quote_reset_date) : null;
-    const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    // Auto-reset if quote_reset_date is before this month
-    if (!resetDate || resetDate < firstOfMonth) {
-      quotesThisMonth = 0;
-      await supabase
-        .from('detailers')
-        .update({ quotes_this_month: 0, quote_reset_date: firstOfMonth.toISOString().slice(0, 10) })
-        .eq('id', user.id);
-    }
-
-    // Import canCreateQuote
     const { canCreateQuote, getTier } = await import('@/lib/pricing-tiers');
     const tierConfig = getTier(plan);
 
-    if (!canCreateQuote(plan, quotesThisMonth)) {
-      return Response.json({
-        error: 'Quote limit reached',
-        upgrade: true,
-        quotesUsed: quotesThisMonth,
-        quotesLimit: tierConfig.quotesPerMonth,
-        message: `You've used all ${tierConfig.quotesPerMonth} free quotes this month. Upgrade to Pro for unlimited quotes.`,
-      }, { status: 403 });
+    if (tierConfig.quotesPerMonth !== Infinity) {
+      // Count non-draft quotes this calendar month
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from('quotes')
+        .select('id', { count: 'exact', head: true })
+        .eq('detailer_id', user.id)
+        .neq('status', 'draft')
+        .gte('created_at', firstOfMonth);
+
+      const quotesThisMonth = count || 0;
+
+      if (!canCreateQuote(plan, quotesThisMonth)) {
+        return Response.json({
+          error: 'Monthly quote limit reached. Upgrade to Pro for unlimited quotes.',
+          upgrade: true,
+          quotesUsed: quotesThisMonth,
+          quotesLimit: tierConfig.quotesPerMonth,
+          message: `You've used ${quotesThisMonth}/${tierConfig.quotesPerMonth} free quotes this month. Upgrade to Pro for unlimited quotes.`,
+        }, { status: 403 });
+      }
     }
     // --- End quota enforcement ---
 
@@ -313,12 +312,6 @@ export async function POST(request) {
       console.error('Quote create final error:', JSON.stringify(error));
       return Response.json({ error: 'An unexpected error occurred while creating your quote. Please try again.' }, { status: 500 });
     }
-
-    // Increment quotes_this_month on successful creation
-    await supabase
-      .from('detailers')
-      .update({ quotes_this_month: quotesThisMonth + 1 })
-      .eq('id', user.id);
 
     return Response.json(data, { status: 201 });
 

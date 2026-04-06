@@ -78,6 +78,7 @@ function NewQuoteContent() {
   const [aircraftHoursRef, setAircraftHoursRef] = useState(null);
   const [communityHours, setCommunityHours] = useState({});
   const [ccFeeMode, setCcFeeMode] = useState('absorb');
+  const [quota, setQuota] = useState(null); // { plan, used, limit, unlimited }
 
   // Fetch manufacturers on mount
   useEffect(() => {
@@ -175,7 +176,7 @@ function NewQuoteContent() {
     const headers = { Authorization: `Bearer ${token}` };
 
     const fetchData = async () => {
-      const [servicesRes, packagesRes, minFeeRes, addonsRes, productRatiosRes, svcProdRes, svcEquipRes, ccFeeRes] = await Promise.allSettled([
+      const [servicesRes, packagesRes, minFeeRes, addonsRes, productRatiosRes, svcProdRes, svcEquipRes, ccFeeRes, quotaRes] = await Promise.allSettled([
         fetch('/api/services', { headers }),
         fetch('/api/packages', { headers }),
         fetch('/api/user/minimum-fee', { headers }),
@@ -184,6 +185,7 @@ function NewQuoteContent() {
         fetch('/api/services/products', { headers }),
         fetch('/api/services/equipment', { headers }),
         fetch('/api/user/cc-fee', { headers }),
+        fetch('/api/quotes/quota', { headers }),
       ]);
 
       if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
@@ -218,6 +220,9 @@ function NewQuoteContent() {
       if (ccFeeRes.status === 'fulfilled' && ccFeeRes.value.ok) {
         const data = await ccFeeRes.value.json();
         setCcFeeMode(data.cc_fee_mode || 'absorb');
+      }
+      if (quotaRes.status === 'fulfilled' && quotaRes.value.ok) {
+        setQuota(await quotaRes.value.json());
       }
     };
 
@@ -712,6 +717,48 @@ function NewQuoteContent() {
           <a href="/settings" className="text-gray-400 hover:text-white transition-colors">Settings</a>
         </div>
       </header>
+
+      {/* Quote Quota Indicator (free plan only) */}
+      {quota && !quota.unlimited && (
+        <div className="max-w-3xl mx-auto mb-4">
+          <div className={`flex items-center justify-between p-3 rounded-lg border ${
+            quota.used >= quota.limit ? 'bg-red-500/10 border-red-500/30' :
+            quota.used >= quota.limit - 1 ? 'bg-yellow-500/10 border-yellow-500/30' :
+            'bg-v-surface border-v-border'
+          }`}>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <span className={`text-xs font-medium ${
+                quota.used >= quota.limit ? 'text-red-400' :
+                quota.used >= quota.limit - 1 ? 'text-yellow-400' :
+                'text-v-text-secondary'
+              }`}>
+                {quota.used}/{quota.limit} quotes used this month
+              </span>
+              <div className="flex-1 max-w-[120px] h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    quota.used >= quota.limit ? 'bg-red-400' :
+                    quota.used >= quota.limit - 1 ? 'bg-yellow-400' :
+                    'bg-v-gold'
+                  }`}
+                  style={{ width: `${Math.min(100, (quota.used / quota.limit) * 100)}%` }}
+                />
+              </div>
+            </div>
+            {quota.used >= quota.limit && (
+              <a href="https://shinyjets.com/products/aircraft-detailing-crm-pro" target="_blank" rel="noreferrer"
+                className="text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim ml-3 shrink-0">
+                Upgrade to Pro
+              </a>
+            )}
+          </div>
+          {quota.used >= quota.limit && (
+            <p className="text-red-400/80 text-xs mt-2">
+              You&apos;ve used {quota.used}/{quota.limit} free quotes this month. Upgrade to Pro for unlimited quotes.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Step Indicator */}
       <div className="max-w-3xl mx-auto mb-6">
