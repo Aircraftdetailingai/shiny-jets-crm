@@ -43,7 +43,9 @@ export async function GET(request) {
         // Get valid access token (refreshes if expired)
         const tokenData = await getValidAccessToken(conn.detailer_id);
         if (!tokenData) {
+          console.warn(`[gcal-sync] Skipping ${conn.detailer_id}: token expired or missing refresh_token — user must reconnect`);
           results.skipped++;
+          results.errors.push(`${conn.detailer_id}: skipped — expired token, no refresh_token`);
           continue;
         }
 

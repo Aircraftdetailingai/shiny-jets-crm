@@ -238,7 +238,8 @@ function IntegrationsContent() {
 
   const icsConnected = gcalStatus.method === 'ics' && gcalStatus.icsUrl;
   const oauthConnected = gcalStatus.method === 'oauth' && gcalStatus.connected;
-  const gcalConnected = icsConnected || oauthConnected;
+  const gcalNeedsReconnect = oauthConnected && gcalStatus.needsReconnect;
+  const gcalConnected = (icsConnected || oauthConnected) && !gcalNeedsReconnect;
   const calendlyConnected = !!calendlyUrl && calendlyUrl.includes('calendly.com');
   const stripeConnected = (stripeStatus.connected && stripeStatus.status === 'ACTIVE') || stripeStatus.hasKeys;
   const qbConnected = qbStatus.connected && qbStatus.status === 'ACTIVE';
@@ -322,7 +323,9 @@ function IntegrationsContent() {
                   <p className="text-xs text-v-text-secondary">Sync events as blocked dates</p>
                 </div>
               </div>
-              {gcalConnected ? (
+              {gcalNeedsReconnect ? (
+                <span className="text-xs text-yellow-400 border border-yellow-400/30 px-2 py-0.5 uppercase tracking-wider">Reconnect Required</span>
+              ) : gcalConnected ? (
                 <span className="text-xs text-green-400 border border-green-400/30 px-2 py-0.5 uppercase tracking-wider">Connected</span>
               ) : (
                 <span className="text-xs text-v-text-secondary border border-v-border px-2 py-0.5 uppercase tracking-wider">Not Connected</span>
@@ -336,8 +339,23 @@ function IntegrationsContent() {
               </div>
             )}
 
-            {/* OAuth Connected */}
-            {oauthConnected && (
+            {/* OAuth — Needs Reconnect */}
+            {gcalNeedsReconnect && (
+              <div className="flex-1">
+                {gcalStatus.google_email && <p className="text-xs text-yellow-400 mb-1">Previously connected as {gcalStatus.google_email}</p>}
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-3">
+                  <p className="text-xs text-yellow-300">Your calendar connection needs to be refreshed. Click reconnect to restore auto-scheduling.</p>
+                </div>
+                <button onClick={handleConnectGCal} disabled={gcalConnecting}
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-yellow-500 text-black text-xs font-semibold uppercase tracking-widest hover:bg-yellow-400 disabled:opacity-50 transition-colors">
+                  {gcalConnecting ? 'Connecting...' : 'Reconnect Google Calendar'}
+                </button>
+                <button onClick={handleDisconnectGCal} className="mt-3 text-xs text-v-text-secondary hover:text-red-400 underline">Disconnect instead</button>
+              </div>
+            )}
+
+            {/* OAuth Connected (healthy) */}
+            {oauthConnected && !gcalNeedsReconnect && (
               <div className="flex-1">
                 {gcalStatus.google_email && <p className="text-xs text-green-400 mb-1">Connected as {gcalStatus.google_email}</p>}
                 <p className="text-xs text-v-text-secondary mb-1">{!gcalStatus.google_email ? 'Connected ' : ''}{gcalStatus.connected_at && new Date(gcalStatus.connected_at).toLocaleDateString()}</p>

@@ -18,15 +18,20 @@ export async function GET(request) {
   // Check OAuth connection
   let oauthConnected = false;
   let oauthData = null;
+  let needsReconnect = false;
   try {
     const { data: conn } = await supabase
       .from('google_calendar_connections')
-      .select('connected_at, last_sync_at, sync_enabled, push_enabled, calendar_id, google_email, calendars')
+      .select('connected_at, last_sync_at, sync_enabled, push_enabled, calendar_id, google_email, calendars, refresh_token, token_expires_at')
       .eq('detailer_id', user.id)
       .single();
     if (conn) {
       oauthConnected = true;
       oauthData = conn;
+      // Check if token is expired and has no refresh token
+      const hasRefreshToken = !!conn.refresh_token;
+      const tokenExpired = conn.token_expires_at ? new Date(conn.token_expires_at) < new Date() : true;
+      needsReconnect = !hasRefreshToken || (tokenExpired && !hasRefreshToken);
     }
   } catch {}
 
@@ -48,6 +53,7 @@ export async function GET(request) {
   if (oauthConnected) {
     return Response.json({
       connected: true,
+      needsReconnect,
       method: 'oauth',
       configured,
       connected_at: oauthData.connected_at,
