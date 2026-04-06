@@ -57,7 +57,7 @@ const DEFAULT_CATEGORIES = [
       { name: 'Vacuum & Wipe Down', hours: 1.5, rate: 75, description: 'Vacuum all carpets, wipe down hard surfaces' },
       { name: 'Carpet Extraction', hours: 2, rate: 85, description: 'Deep clean and extract carpets' },
       { name: 'Leather Clean & Condition', hours: 1.5, rate: 85, description: 'Clean and condition all leather surfaces' },
-      { name: 'Windows', hours: 0.5, rate: 75, description: 'Clean all interior windows and glass' },
+      { name: 'Transparencies', hours: 0.5, rate: 75, description: 'Clean all transparencies (windows, windshield, lenses)' },
     ],
   },
   {

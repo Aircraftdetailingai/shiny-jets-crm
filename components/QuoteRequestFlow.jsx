@@ -4,20 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 // Default question IDs already handled by hardcoded steps
 const DEFAULT_Q_IDS = ['q_tail', 'q_services', 'q_paint_goal', 'q_notes', 'q_photos'];
 
-// Service picker options for Detailing path
-const SERVICE_OPTIONS = [
-  { key: 'ext_wash', label: 'Exterior Wash & Detail', group: 'exterior' },
-  { key: 'polish', label: 'Paint Polish / One-Step', group: 'exterior' },
-  { key: 'ceramic', label: 'Ceramic Coating', group: 'exterior' },
-  { key: 'spray_ceramic', label: 'Spray Ceramic', group: 'exterior' },
-  { key: 'wax', label: 'Wax', group: 'exterior' },
-  { key: 'decon', label: 'Decon Wash', group: 'exterior' },
-  { key: 'brightwork', label: 'Brightwork / Chrome Polish', group: 'exterior' },
-  { key: 'interior', label: 'Interior Detail', group: 'interior' },
-  { key: 'leather', label: 'Leather Clean & Condition', group: 'interior' },
-  { key: 'carpet', label: 'Carpet Extraction', group: 'interior' },
-  { key: 'windows', label: 'Windows', group: 'exterior' },
-];
+// No hardcoded services — fetched live from /api/services?detailer_id=
 
 const PAINT_GOALS = [
   { key: 'max_gloss', label: 'Maximum gloss & protection' },
@@ -32,6 +19,9 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [serviceMode, setServiceMode] = useState(null);
+
+  // Detailer's services (fetched live)
+  const [detailerServices, setDetailerServices] = useState([]);
 
   // Aircraft
   const [manufacturers, setManufacturers] = useState([]);
@@ -99,6 +89,15 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
       .catch(() => {});
   }, [detailerId]);
 
+  // Fetch detailer's configured services
+  useEffect(() => {
+    if (!detailerId) return;
+    fetch(`/api/services?detailer_id=${detailerId}`)
+      .then(r => r.ok ? r.json() : { services: [] })
+      .then(d => setDetailerServices(d.services || []))
+      .catch(() => {});
+  }, [detailerId]);
+
   useEffect(() => {
     fetch('/api/aircraft/manufacturers')
       .then(r => r.ok ? r.json() : { manufacturers: [] })
@@ -144,10 +143,9 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
 
       // Build submission data
       const serviceType = quickSelect === 'quick_turn' ? 'Quick Turn' : quickSelect === 'maint_wash' ? 'Maintenance Wash' : 'Detailing';
-      const serviceLabels = selectedServices.map(k => SERVICE_OPTIONS.find(s => s.key === k)?.label).filter(Boolean);
       const paintGoalLabel = paintGoal ? PAINT_GOALS.find(p => p.key === paintGoal)?.label : '';
       const areaNotes = [
-        serviceLabels.length > 0 ? `Services: ${serviceLabels.join(', ')}` : '',
+        selectedServices.length > 0 ? `Services: ${selectedServices.join(', ')}` : '',
         paintGoalLabel ? `Paint goal: ${paintGoalLabel}` : '',
         freeTextNote ? `Note: ${freeTextNote}` : '',
       ].filter(Boolean).join('\n');
@@ -430,35 +428,42 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           <div className="flex-1 flex flex-col">
             <h2 className="text-xl font-light text-white mb-2">What services do you need?</h2>
             <p className="text-white/40 text-xs mb-5">Select all that apply</p>
-            <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-2 content-start">
-              {SERVICE_OPTIONS.map(svc => {
-                const sel = selectedServices.includes(svc.key);
-                return (
-                  <button key={svc.key} onClick={() => setSelectedServices(prev => sel ? prev.filter(k => k !== svc.key) : [...prev, svc.key])}
-                    className={`p-3 rounded-lg border text-left text-xs transition-all ${
-                      sel ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
-                    }`}>
-                    {svc.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="pt-5">
-              <Btn onClick={() => {
-                // If any exterior/paint service selected, ask paint goal
-                const hasExterior = selectedServices.some(k => ['ext_wash', 'polish', 'ceramic', 'spray_ceramic', 'wax', 'decon'].includes(k));
-                if (hasExterior) {
-                  // Show paint goal screen (stays on step 4 with paintGoal state)
-                  setPaintGoal('pending');
-                } else {
-                  const labels = selectedServices.map(k => SERVICE_OPTIONS.find(s => s.key === k)?.label).filter(Boolean);
-                  set('service_text', labels.join(', '));
-                  setStep(5);
-                }
-              }} disabled={selectedServices.length === 0}>
-                Next ({selectedServices.length} selected)
-              </Btn>
-            </div>
+            {detailerServices.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-white/50 text-sm text-center">No services available — contact us to discuss your needs</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-2 content-start">
+                  {detailerServices.map(svc => {
+                    const sel = selectedServices.includes(svc.name);
+                    return (
+                      <button key={svc.id || svc.name} onClick={() => setSelectedServices(prev => sel ? prev.filter(n => n !== svc.name) : [...prev, svc.name])}
+                        className={`p-3 rounded-lg border text-left text-xs transition-all ${
+                          sel ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
+                        }`}>
+                        {svc.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="pt-5">
+                  <Btn onClick={() => {
+                    // If any exterior/paint service selected, ask paint goal
+                    const exteriorKeywords = /decon|polish|wax|ceramic|coating|wash|exterior|brightwork|maintenance/i;
+                    const hasExterior = selectedServices.some(name => exteriorKeywords.test(name));
+                    if (hasExterior) {
+                      setPaintGoal('pending');
+                    } else {
+                      set('service_text', selectedServices.join(', '));
+                      setStep(5);
+                    }
+                  }} disabled={selectedServices.length === 0}>
+                    Next ({selectedServices.length} selected)
+                  </Btn>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -471,8 +476,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
               {PAINT_GOALS.map(goal => (
                 <button key={goal.key} onClick={() => {
                   setPaintGoal(goal.key);
-                  const labels = selectedServices.map(k => SERVICE_OPTIONS.find(s => s.key === k)?.label).filter(Boolean);
-                  set('service_text', [...labels, `Paint goal: ${goal.label}`].join(', '));
+                  set('service_text', [...selectedServices, `Paint goal: ${goal.label}`].join(', '));
                   setStep(5);
                 }}
                   className="w-full p-5 rounded-lg border border-white/15 bg-white/5 text-left hover:border-[#007CB1] transition-all active:bg-[#007CB1]/10">

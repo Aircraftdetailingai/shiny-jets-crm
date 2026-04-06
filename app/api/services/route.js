@@ -46,6 +46,23 @@ async function getUser(request) {
 // GET - Get all services for a detailer
 export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const publicDetailerId = searchParams.get('detailer_id');
+
+    // Public access for customer-facing pages (quote request form)
+    if (publicDetailerId) {
+      const supabase = getSupabase();
+      if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name, category')
+        .eq('detailer_id', publicDetailerId)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
+      if (error) return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ services: data || [] });
+    }
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });

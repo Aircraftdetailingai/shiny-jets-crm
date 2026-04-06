@@ -6,7 +6,7 @@ const SURFACE_TAGS = [
   { key: 'exterior', label: 'Exterior' },
   { key: 'interior', label: 'Interior' },
   { key: 'brightwork', label: 'Brightwork' },
-  { key: 'windows', label: 'Windows' },
+  { key: 'windows', label: 'Transparencies' },
   { key: 'paint', label: 'Paint' },
   { key: 'leather', label: 'Leather' },
   { key: 'carpet', label: 'Carpet' },
