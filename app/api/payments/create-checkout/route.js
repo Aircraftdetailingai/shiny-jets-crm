@@ -102,6 +102,12 @@ export async function POST(request) {
     const feeRate = FEES[plan] || FEES.free;
     const applicationFee = Math.round(baseAmount * feeRate);
 
+    // Store fee on the quote record
+    await supabase.from('quotes').update({
+      platform_fee_rate: feeRate,
+      platform_fee_amount: applicationFee / 100, // store in dollars
+    }).eq('id', quoteId);
+
     // When pass-through is enabled, add service fee to the total charged to customer
     let totalAmount = passFee ? baseAmount + applicationFee : baseAmount;
 

@@ -550,6 +550,12 @@ function NewQuoteContent() {
   const ccFeeAmount = ccFeeMode === 'pass' ? calculateCcFee(totalPrice) : 0;
   const grandTotal = totalPrice + ccFeeAmount;
 
+  // Platform fee based on detailer's plan
+  const PLATFORM_FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
+  const platformFeeRate = PLATFORM_FEES[user?.plan || 'free'] || 0;
+  const platformFeeAmount = Math.round(totalPrice * platformFeeRate * 100) / 100;
+  const netToDetailer = totalPrice - platformFeeAmount;
+
   const lineItems = selectedServicesList.map(svc => ({
     service_id: svc.id,
     description: svc.name,
@@ -1322,6 +1328,20 @@ function NewQuoteContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Customer Pays</span>
                     <span className="text-v-text-primary font-medium">{currencySymbol()}{grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Platform Fee + Net to Detailer */}
+              {platformFeeRate > 0 && totalPrice > 0 && (
+                <div className="mt-2 pt-2 border-t border-white/10">
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Platform fee ({(platformFeeRate * 100).toFixed(0)}%)</span>
+                    <span>-{currencySymbol()}{platformFeeAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">You receive</span>
+                    <span className="text-green-400 font-medium">{currencySymbol()}{netToDetailer.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               )}
