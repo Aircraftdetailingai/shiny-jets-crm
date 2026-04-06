@@ -1,24 +1,25 @@
+import { env } from '@/lib/env';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || null;
-  const envRedirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || null;
-  const clientId = process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.slice(0, 20)}...` : null;
-  const hasSecret = !!process.env.GOOGLE_CLIENT_SECRET;
-  const origin = request.headers.get('origin') || null;
   const host = request.headers.get('host') || null;
 
-  const derivedRedirectUri = envRedirectUri || (appUrl ? `${appUrl}/api/google-calendar/callback` : null);
+  const redirectUri = env.GOOGLE_CALENDAR_REDIRECT_URI || `${env.NEXT_PUBLIC_APP_URL}/api/google-calendar/callback`;
 
   return Response.json({
-    NEXT_PUBLIC_APP_URL: appUrl,
-    GOOGLE_CALENDAR_REDIRECT_URI_env: envRedirectUri,
-    GOOGLE_CLIENT_ID_prefix: clientId,
-    GOOGLE_CLIENT_SECRET_set: hasSecret,
-    request_origin: origin,
+    NEXT_PUBLIC_APP_URL: env.NEXT_PUBLIC_APP_URL || null,
+    GOOGLE_CALENDAR_REDIRECT_URI: env.GOOGLE_CALENDAR_REDIRECT_URI || null,
+    GOOGLE_CLIENT_ID_prefix: env.GOOGLE_CLIENT_ID ? `${env.GOOGLE_CLIENT_ID.slice(0, 20)}...` : null,
+    GOOGLE_CLIENT_SECRET_set: !!env.GOOGLE_CLIENT_SECRET,
     request_host: host,
-    derived_redirect_uri: derivedRedirectUri,
+    derived_redirect_uri: redirectUri,
     expected: 'https://crm.shinyjets.com/api/google-calendar/callback',
-    match: derivedRedirectUri === 'https://crm.shinyjets.com/api/google-calendar/callback',
+    match: redirectUri === 'https://crm.shinyjets.com/api/google-calendar/callback',
+    raw_lengths: {
+      GOOGLE_CALENDAR_REDIRECT_URI: (process.env.GOOGLE_CALENDAR_REDIRECT_URI || '').length,
+      trimmed: env.GOOGLE_CALENDAR_REDIRECT_URI.length,
+      diff: (process.env.GOOGLE_CALENDAR_REDIRECT_URI || '').length - env.GOOGLE_CALENDAR_REDIRECT_URI.length,
+    },
   });
 }

@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
+import { env } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
 }
 
 export async function GET(request) {
@@ -43,17 +44,19 @@ export async function GET(request) {
   }
 
   try {
-    // The redirect_uri MUST exactly match the one used in the auth request (trim whitespace from env vars)
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || url.origin).trim();
-    const redirectUri = (process.env.GOOGLE_CALENDAR_REDIRECT_URI || `${appUrl}/api/google-calendar/callback`).trim();
+    const appUrl = env.NEXT_PUBLIC_APP_URL || url.origin;
+    const redirectUri = env.GOOGLE_CALENDAR_REDIRECT_URI || `${appUrl}/api/google-calendar/callback`;
+
+    console.log('[gcal-callback] redirect_uri:', JSON.stringify(redirectUri));
+    console.log('[gcal-callback] client_id:', JSON.stringify(env.GOOGLE_CLIENT_ID));
 
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         code,
-        client_id: process.env.GOOGLE_CLIENT_ID?.trim(),
-        client_secret: process.env.GOOGLE_CLIENT_SECRET?.trim(),
+        client_id: env.GOOGLE_CLIENT_ID,
+        client_secret: env.GOOGLE_CLIENT_SECRET,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
@@ -61,7 +64,7 @@ export async function GET(request) {
 
     if (!tokenRes.ok) {
       const err = await tokenRes.json().catch(() => ({}));
-      console.error('[gcal-callback] Token exchange failed:', err);
+      console.error('[gcal-callback] Token exchange failed:', JSON.stringify(err));
       throw new Error(err.error_description || err.error || 'Token exchange failed');
     }
 
@@ -71,7 +74,6 @@ export async function GET(request) {
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + (tokens.expires_in || 3600));
 
-    // Store connection in database
     const supabase = getSupabase();
     const { error: dbError } = await supabase
       .from('google_calendar_connections')
