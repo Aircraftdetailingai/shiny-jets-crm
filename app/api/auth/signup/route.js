@@ -181,7 +181,7 @@ export async function POST(request) {
       try {
         const { data: referrer } = await supabase
           .from('detailers')
-          .select('id')
+          .select('id, name, email, referral_count')
           .eq('referral_code', referral_code.toUpperCase())
           .single();
 
@@ -194,13 +194,36 @@ export async function POST(request) {
           await supabase
             .from('referrals')
             .insert({
-              referrer_id: referrer.id,
-              referred_id: detailer.id,
+              referrer_detailer_id: referrer.id,
+              referred_detailer_id: detailer.id,
+              referred_email: normalizedEmail,
               referral_code: referral_code.toUpperCase(),
-              status: 'pending',
-              referrer_reward: '1_month_pro',
-              referred_reward: '500_points',
+              reward_months: 1,
             });
+
+          // Increment referrer's referral count
+          const newCount = (referrer.referral_count || 0) + 1;
+          await supabase.from('detailers').update({ referral_count: newCount }).eq('id', referrer.id);
+
+          // Send referral congratulations email to referrer
+          if (referrer.email && process.env.RESEND_API_KEY) {
+            try {
+              const { Resend } = require('resend');
+              const resend = new Resend(process.env.RESEND_API_KEY);
+              await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
+                to: referrer.email,
+                subject: 'You referred a new detailer!',
+                html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#007CB1;">You referred a new detailer!</h2>
+                  <p><strong>${name.trim()}</strong> just joined Shiny Jets CRM using your referral code.</p>
+                  <p>You now have <strong>${newCount}</strong> referral${newCount !== 1 ? 's' : ''}.</p>
+                  <p style="margin-top:20px;"><a href="https://crm.shinyjets.com/dashboard" style="background:#007CB1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Dashboard</a></p>
+                  <p style="color:#999;font-size:12px;margin-top:24px;">Shiny Jets CRM</p>
+                </div>`,
+              });
+            } catch {}
+          }
         }
       } catch (refErr) {
         console.log('Referral processing failed (non-critical):', refErr.message);
@@ -249,6 +272,32 @@ export async function POST(request) {
       } catch (emailErr) {
         console.error('[signup] Welcome email failed:', emailErr.message);
       }
+    }
+
+    // Send admin notification email (non-blocking)
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const signupDate = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' });
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
+        to: 'brett@shinyjets.com',
+        subject: `New Detailer Signup — ${name.trim()} (${normalizedEmail})`,
+        html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+          <h2 style="color:#007CB1;">New Detailer Signup</h2>
+          <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:15px 0;">
+            <p><strong>Name:</strong> ${name.trim()}</p>
+            <p><strong>Email:</strong> ${normalizedEmail}</p>
+            <p><strong>Company:</strong> ${company?.trim() || 'Not provided'}</p>
+            <p><strong>Plan:</strong> ${plan}</p>
+            <p><strong>Date:</strong> ${signupDate} ET</p>
+            <p><strong>Referral Code:</strong> ${referral_code || 'None'}</p>
+          </div>
+          <a href="https://crm.shinyjets.com/admin/detailers" style="display:inline-block;padding:12px 24px;background:#007CB1;color:white;text-decoration:none;border-radius:8px;margin-top:15px;">View in Admin</a>
+        </div>`,
+      });
+    } catch (adminErr) {
+      console.error('[signup] Admin notification failed:', adminErr.message);
     }
 
     return Response.json({ token, user });

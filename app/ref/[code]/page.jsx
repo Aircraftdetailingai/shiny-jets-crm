@@ -84,7 +84,7 @@ export default function ReferralLandingPage() {
         </p>
 
         <a
-          href="/login"
+          href={`/signup?ref=${params.code}&plan=free`}
           className="block w-full py-3 bg-gradient-to-r from-v-gold to-v-gold-dim text-white font-semibold rounded-xl text-lg hover:opacity-90 transition-opacity mb-3"
         >
           Get Started Free
