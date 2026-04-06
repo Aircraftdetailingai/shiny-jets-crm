@@ -40,7 +40,7 @@ export async function POST(request, { params }) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await params;
   const { clientName, clientPhone, clientEmail, clientCompany, customerId, airport } = await request.json();
 
   // Fetch the quote
