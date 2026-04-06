@@ -106,10 +106,15 @@ function IntegrationsContent() {
       const res = await fetch('/api/google-calendar/status', { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
+        console.log('[gcal] status response:', JSON.stringify(data));
         setGcalStatus(data);
         if (data.icsUrl) setIcsUrl(data.icsUrl);
+      } else {
+        console.error('[gcal] status fetch failed:', res.status);
       }
-    } catch {}
+    } catch (err) {
+      console.error('[gcal] status fetch error:', err);
+    }
   };
 
   const handleConnectGCal = async () => {
@@ -384,7 +389,7 @@ function IntegrationsContent() {
             )}
 
             {/* Not Connected */}
-            {!gcalConnected && (
+            {!gcalConnected && !gcalNeedsReconnect && (
               <div className="flex-1 space-y-3">
                 {/* Google OAuth button */}
                 <button onClick={handleConnectGCal} disabled={gcalConnecting}

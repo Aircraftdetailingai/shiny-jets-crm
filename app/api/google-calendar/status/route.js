@@ -28,12 +28,13 @@ export async function GET(request) {
     if (conn) {
       oauthConnected = true;
       oauthData = conn;
-      // Check if token is expired and has no refresh token
       const hasRefreshToken = !!conn.refresh_token;
       const tokenExpired = conn.token_expires_at ? new Date(conn.token_expires_at) < new Date() : true;
       needsReconnect = !hasRefreshToken || (tokenExpired && !hasRefreshToken);
     }
-  } catch {}
+  } catch (err) {
+    console.error('[gcal-status] OAuth check error:', err?.message || err);
+  }
 
   // Check ICS sync status from detailer availability
   let icsUrl = null;
