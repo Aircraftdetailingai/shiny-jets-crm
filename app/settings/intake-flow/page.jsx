@@ -1,303 +1,320 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { QUESTION_TYPES, DEFAULT_QUESTIONS } from '@/lib/default-intake-flow';
+import ReactFlow, {
+  addEdge,
+  applyNodeChanges,
+  applyEdgeChanges,
+  Background,
+  Controls,
+  MiniMap,
+  MarkerType,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import { nodeTypes } from '@/components/flow-builder/nodes';
+import SidePanel from '@/components/flow-builder/SidePanel';
+import FlowPreview from '@/components/flow-builder/FlowPreview';
+
+// ─── Default flow (nodes + edges) ───
+function buildDefaultFlow(services) {
+  const serviceNames = services.length > 0
+    ? services.map(s => s.name)
+    : ['Exterior Wash', 'Interior Detail', 'Ceramic Coating'];
+
+  const nodes = [
+    { id: 'start-1', type: 'start', position: { x: 250, y: 0 }, data: { label: 'Customer starts here' }, deletable: false },
+    { id: 'svc-1', type: 'serviceSelect', position: { x: 230, y: 140 }, data: { label: 'What services do you need?', required: true } },
+    { id: 'cond-1', type: 'condition', position: { x: 230, y: 310 }, data: { label: 'Ceramic selected?', sourceNodeId: 'svc-1', field: 'services', value: 'Ceramic' } },
+    { id: 'q-paint', type: 'question', position: { x: 60, y: 500 }, data: { label: 'What is your goal for the paint?', answerType: 'single_select', options: ['Maximum gloss & protection', 'Clean and protected', 'Just clean'] } },
+    { id: 'q-notes', type: 'question', position: { x: 400, y: 500 }, data: { label: 'Any additional notes?', answerType: 'long_text', placeholder: 'Special instructions...' } },
+    { id: 'end-1', type: 'end', position: { x: 100, y: 700 }, data: { label: 'Submit request' } },
+    { id: 'end-2', type: 'end', position: { x: 440, y: 700 }, data: { label: 'Submit request' } },
+  ];
+
+  const edges = [
+    { id: 'e-start-svc', source: 'start-1', target: 'svc-1', type: 'smoothstep', animated: true, style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
+    { id: 'e-svc-cond', source: 'svc-1', target: 'cond-1', type: 'smoothstep', animated: true, style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
+    { id: 'e-cond-yes', source: 'cond-1', sourceHandle: 'yes', target: 'q-paint', type: 'smoothstep', style: { stroke: '#4ade80', strokeWidth: 2 }, label: 'Yes', labelStyle: { fill: '#4ade80', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4ade80' } },
+    { id: 'e-cond-no', source: 'cond-1', sourceHandle: 'no', target: 'q-notes', type: 'smoothstep', style: { stroke: '#f87171', strokeWidth: 2 }, label: 'No', labelStyle: { fill: '#f87171', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#f87171' } },
+    { id: 'e-paint-end', source: 'q-paint', target: 'end-1', type: 'smoothstep', style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
+    { id: 'e-notes-end', source: 'q-notes', target: 'end-2', type: 'smoothstep', style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
+  ];
+
+  return { nodes, edges };
+}
+
+const defaultEdgeOptions = {
+  type: 'smoothstep',
+  animated: true,
+  style: { stroke: '#4a5568', strokeWidth: 2 },
+  markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' },
+};
 
 export default function IntakeFlowBuilder() {
   const router = useRouter();
-  const [questions, setQuestions] = useState([]);
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [services, setServices] = useState([]);
+  const [editingNode, setEditingNode] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [showAddType, setShowAddType] = useState(false);
-  const [plan, setPlan] = useState('free');
   const [toast, setToast] = useState('');
-  const [dragIdx, setDragIdx] = useState(null);
+  const idCounter = useRef(1);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('vector_token') : null;
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const headers = useMemo(() => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }), [token]);
 
+  // ─── Load services + existing flow ───
   useEffect(() => {
     if (!token) { router.push('/login'); return; }
-    const user = JSON.parse(localStorage.getItem('vector_user') || '{}');
-    setPlan(user.plan || 'free');
 
-    fetch('/api/intake-flow', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : { questions: DEFAULT_QUESTIONS })
-      .then(d => setQuestions(d.questions || DEFAULT_QUESTIONS))
-      .catch(() => setQuestions(DEFAULT_QUESTIONS))
-      .finally(() => setLoading(false));
+    const loadData = async () => {
+      try {
+        // Fetch services
+        const svcRes = await fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } });
+        const svcData = svcRes.ok ? await svcRes.json() : { services: [] };
+        const svcList = svcData.services || svcData || [];
+        setServices(Array.isArray(svcList) ? svcList : []);
+
+        // Fetch existing flow
+        const flowRes = await fetch('/api/intake-flow', { headers: { Authorization: `Bearer ${token}` } });
+        const flowData = flowRes.ok ? await flowRes.json() : {};
+
+        if (flowData.flow_nodes && flowData.flow_edges) {
+          // Saved node-based flow
+          setNodes(flowData.flow_nodes);
+          setEdges(flowData.flow_edges);
+        } else {
+          // No saved flow or old format — use default
+          const def = buildDefaultFlow(Array.isArray(svcList) ? svcList : []);
+          setNodes(def.nodes);
+          setEdges(def.edges);
+        }
+      } catch {
+        const def = buildDefaultFlow([]);
+        setNodes(def.nodes);
+        setEdges(def.edges);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
-
-  const canEdit = plan !== 'free';
-  const canAdd = ['business', 'enterprise'].includes(plan);
-  const canConditional = plan === 'enterprise';
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
+  // ─── React Flow callbacks ───
+  const onNodesChange = useCallback((changes) => {
+    setNodes(nds => applyNodeChanges(changes, nds));
+  }, []);
+
+  const onEdgesChange = useCallback((changes) => {
+    setEdges(eds => applyEdgeChanges(changes, eds));
+  }, []);
+
+  const onConnect = useCallback((connection) => {
+    setEdges(eds => addEdge({ ...connection, ...defaultEdgeOptions, id: `e-${Date.now()}` }, eds));
+  }, []);
+
+  const onNodeClick = useCallback((_, node) => {
+    if (node.type !== 'start') {
+      setEditingNode(node);
+    }
+  }, []);
+
+  // ─── Attach callbacks to node data ───
+  const nodesWithCallbacks = useMemo(() => {
+    return nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onEdit: node.type !== 'start' ? () => setEditingNode(node) : undefined,
+        onDelete: (node.type !== 'start') ? () => {
+          setNodes(nds => nds.filter(n => n.id !== node.id));
+          setEdges(eds => eds.filter(e => e.source !== node.id && e.target !== node.id));
+          if (editingNode?.id === node.id) setEditingNode(null);
+        } : undefined,
+      },
+    }));
+  }, [nodes, editingNode]);
+
+  // ─── Update node data from side panel ───
+  const updateNodeData = useCallback((nodeId, newData) => {
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n));
+    setEditingNode(prev => prev?.id === nodeId ? { ...prev, data: { ...prev.data, ...newData } } : prev);
+  }, []);
+
+  // ─── Add nodes ───
+  const addNode = useCallback((type) => {
+    const id = `${type}-${Date.now()}`;
+    const centerX = 250;
+    // Place new node below existing ones
+    const maxY = nodes.reduce((max, n) => Math.max(max, n.position.y), 0);
+    const y = maxY + 180;
+
+    const nodeConfig = {
+      question: { label: 'New question', answerType: 'text' },
+      condition: { label: 'New condition', sourceNodeId: '', field: '', value: '' },
+      serviceSelect: { label: 'Select services', required: true },
+      end: { label: 'Submit request' },
+    };
+
+    const newNode = {
+      id,
+      type,
+      position: { x: centerX, y },
+      data: nodeConfig[type] || {},
+    };
+
+    setNodes(nds => [...nds, newNode]);
+    if (type !== 'end') setEditingNode(newNode);
+  }, [nodes]);
+
+  // ─── Save ───
   const handleSave = async () => {
     setSaving(true);
-    const res = await fetch('/api/intake-flow', { method: 'POST', headers, body: JSON.stringify({ questions }) });
+    // Strip callbacks from node data before saving
+    const cleanNodes = nodes.map(({ data, ...rest }) => {
+      const { onEdit, onDelete, ...cleanData } = data;
+      return { ...rest, data: cleanData };
+    });
+
+    const res = await fetch('/api/intake-flow', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ flow_nodes: cleanNodes, flow_edges: edges }),
+    });
     if (res.ok) showToast('Flow saved');
-    else { const d = await res.json(); showToast(d.error || 'Failed to save'); }
+    else {
+      const d = await res.json().catch(() => ({}));
+      showToast(d.error || 'Failed to save');
+    }
     setSaving(false);
   };
 
+  // ─── Reset ───
   const handleReset = async () => {
     await fetch('/api/intake-flow', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    setQuestions(DEFAULT_QUESTIONS);
+    const def = buildDefaultFlow(services);
+    setNodes(def.nodes);
+    setEdges(def.edges);
+    setEditingNode(null);
     showToast('Reset to default');
   };
 
-  const addQuestion = (type) => {
-    const id = `q_${Date.now()}`;
-    const newQ = { id, type, text: 'New question', required: false };
-    if (['single_select', 'multi_select'].includes(type)) newQ.options = ['Option 1', 'Option 2'];
-    if (type === 'text' || type === 'long_text') newQ.placeholder = '';
-    setQuestions(prev => [...prev, newQ]);
-    setShowAddType(false);
-    setEditing(id);
-  };
-
-  const updateQuestion = (id, updates) => {
-    setQuestions(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
-  };
-
-  const deleteQuestion = (id) => {
-    setQuestions(prev => prev.filter(q => q.id !== id));
-    if (editing === id) setEditing(null);
-  };
-
-  const moveQuestion = (from, to) => {
-    const updated = [...questions];
-    const [item] = updated.splice(from, 1);
-    updated.splice(to, 0, item);
-    setQuestions(updated);
-  };
-
-  if (loading) return <div className="min-h-screen bg-v-charcoal flex items-center justify-center text-white">Loading...</div>;
+  if (loading) {
+    return <div className="min-h-screen bg-v-charcoal flex items-center justify-center text-white">Loading...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-v-charcoal p-4">
+    <div className="h-screen bg-v-charcoal flex flex-col overflow-hidden">
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50 text-sm">{toast}</div>}
 
-      {/* Header */}
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <a href="/settings" className="text-v-text-secondary text-xs hover:text-white">&larr; Settings</a>
-            <h1 className="text-xl font-light text-white mt-1">Intake Flow Builder</h1>
-            <p className="text-v-text-secondary text-xs mt-1">Customize the questions customers answer when requesting a quote</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowPreview(true)} className="px-3 py-2 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/5">Preview</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-[10px] uppercase tracking-wider bg-v-gold text-v-charcoal rounded hover:bg-v-gold-dim disabled:opacity-50">
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-v-border bg-v-surface/50 backdrop-blur-sm z-10 shrink-0">
+        <div className="flex items-center gap-4">
+          <a href="/settings" className="text-v-text-secondary text-xs hover:text-white">&larr; Settings</a>
+          <h1 className="text-white text-sm font-medium">Intake Flow Builder</h1>
         </div>
 
-        {/* Question Bubbles */}
-        <div className="space-y-3">
-          {questions.map((q, idx) => {
-            const typeInfo = QUESTION_TYPES.find(t => t.key === q.type);
-            const isEditing = editing === q.id;
+        <div className="flex items-center gap-2">
+          {/* Add buttons */}
+          <button onClick={() => addNode('question')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-colors">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />Question
+          </button>
+          <button onClick={() => addNode('condition')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-amber-300 border border-amber-500/30 rounded-lg hover:bg-amber-500/10 transition-colors">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Condition
+          </button>
+          <button onClick={() => addNode('serviceSelect')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-teal-300 border border-teal-500/30 rounded-lg hover:bg-teal-500/10 transition-colors">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />Service Select
+          </button>
+          <button onClick={() => addNode('end')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-green-300 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />End
+          </button>
 
-            return (
-              <div key={q.id}
-                draggable
-                onDragStart={() => setDragIdx(idx)}
-                onDragOver={(e) => { e.preventDefault(); }}
-                onDrop={() => { if (dragIdx !== null && dragIdx !== idx) moveQuestion(dragIdx, idx); setDragIdx(null); }}
-                className={`bg-v-surface border rounded-xl p-4 transition-all ${isEditing ? 'border-v-gold' : 'border-v-border hover:border-v-border-subtle'} ${dragIdx === idx ? 'opacity-50' : ''}`}>
+          <div className="w-px h-6 bg-v-border mx-1" />
 
-                <div className="flex items-start gap-3">
-                  {/* Drag Handle */}
-                  <div className="cursor-grab text-v-text-secondary/40 hover:text-v-text-secondary mt-1 select-none" title="Drag to reorder">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
-                  </div>
-
-                  {/* Question Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white text-sm font-medium">{q.text}</span>
-                      {q.required && <span className="text-red-400 text-[9px]">Required</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-v-text-secondary/60 text-[10px] uppercase tracking-wider">{typeInfo?.label || q.type}</span>
-                      {q.options && <span className="text-v-text-secondary/40 text-[10px]">{q.options.length} options</span>}
-                      {q.showIf && <span className="text-v-gold/60 text-[10px]">Conditional</span>}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {canEdit && (
-                      <button onClick={() => setEditing(isEditing ? null : q.id)} className="p-1.5 text-v-text-secondary hover:text-v-gold transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
-                      </button>
-                    )}
-                    {canAdd && !DEFAULT_QUESTIONS.find(dq => dq.id === q.id) && (
-                      <button onClick={() => deleteQuestion(q.id)} className="p-1.5 text-v-text-secondary hover:text-red-400 transition-colors">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Edit Panel */}
-                {isEditing && canEdit && (
-                  <div className="mt-4 pt-4 border-t border-v-border space-y-3">
-                    <div>
-                      <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Question Text</label>
-                      <input type="text" value={q.text} onChange={e => updateQuestion(q.id, { text: e.target.value })}
-                        className="w-full bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold" />
-                    </div>
-
-                    {q.placeholder !== undefined && (
-                      <div>
-                        <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Placeholder</label>
-                        <input type="text" value={q.placeholder || ''} onChange={e => updateQuestion(q.id, { placeholder: e.target.value })}
-                          className="w-full bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold" />
-                      </div>
-                    )}
-
-                    {q.options && (
-                      <div>
-                        <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Options</label>
-                        {q.options.map((opt, i) => (
-                          <div key={i} className="flex gap-2 mb-1">
-                            <input type="text" value={opt} onChange={e => {
-                              const newOpts = [...q.options]; newOpts[i] = e.target.value;
-                              updateQuestion(q.id, { options: newOpts });
-                            }}
-                              className="flex-1 bg-v-charcoal border border-v-border text-white rounded px-2 py-1 text-xs outline-none focus:border-v-gold" />
-                            <button onClick={() => updateQuestion(q.id, { options: q.options.filter((_, j) => j !== i) })}
-                              className="text-red-400/60 hover:text-red-400 text-xs px-1">x</button>
-                          </div>
-                        ))}
-                        <button onClick={() => updateQuestion(q.id, { options: [...q.options, `Option ${q.options.length + 1}`] })}
-                          className="text-v-gold text-[10px] mt-1 hover:text-v-gold-dim">+ Add option</button>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={q.required || false} onChange={e => updateQuestion(q.id, { required: e.target.checked })}
-                          className="w-3.5 h-3.5 rounded accent-v-gold" />
-                        <span className="text-v-text-secondary text-xs">Required</span>
-                      </label>
-                    </div>
-
-                    {canConditional && (
-                      <div>
-                        <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Show only if</label>
-                        <select value={q.showIf?.questionId || ''} onChange={e => {
-                          if (!e.target.value) { updateQuestion(q.id, { showIf: undefined }); return; }
-                          updateQuestion(q.id, { showIf: { questionId: e.target.value, hasAny: [] } });
-                        }}
-                          className="w-full bg-v-charcoal border border-v-border text-white rounded px-2 py-1 text-xs">
-                          <option value="">Always show</option>
-                          {questions.filter(oq => oq.id !== q.id && oq.options).map(oq => (
-                            <option key={oq.id} value={oq.id}>{oq.text}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Add Question */}
-        {canAdd && (
-          <div className="mt-4">
-            {showAddType ? (
-              <div className="bg-v-surface border border-v-border rounded-xl p-4">
-                <p className="text-v-text-secondary text-xs mb-3">Select question type:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {QUESTION_TYPES.map(t => (
-                    <button key={t.key} onClick={() => addQuestion(t.key)}
-                      className="p-3 bg-v-charcoal border border-v-border rounded-lg text-left hover:border-v-gold/50 transition-colors">
-                      <p className="text-white text-xs font-medium">{t.label}</p>
-                      <p className="text-v-text-secondary/60 text-[10px]">{t.desc}</p>
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setShowAddType(false)} className="mt-2 text-v-text-secondary text-xs hover:text-white">Cancel</button>
-              </div>
-            ) : (
-              <button onClick={() => setShowAddType(true)}
-                className="w-full py-3 border-2 border-dashed border-v-border rounded-xl text-v-text-secondary text-xs hover:border-v-gold/30 hover:text-v-gold transition-colors">
-                + Add Question
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Bottom Actions */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-v-border-subtle">
-          <button onClick={handleReset} className="text-v-text-secondary text-[10px] uppercase tracking-wider hover:text-red-400">Reset to Default</button>
+          <button onClick={() => setShowPreview(true)}
+            className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded-lg hover:bg-v-gold/5 transition-colors">
+            Preview
+          </button>
+          <button onClick={handleReset}
+            className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-text-secondary border border-v-border rounded-lg hover:text-red-400 hover:border-red-400/30 transition-colors">
+            Reset
+          </button>
           <button onClick={handleSave} disabled={saving}
-            className="px-6 py-2.5 bg-v-gold text-v-charcoal text-[10px] uppercase tracking-wider font-semibold rounded hover:bg-v-gold-dim disabled:opacity-50">
-            {saving ? 'Saving...' : 'Save Flow'}
+            className="px-4 py-1.5 text-[10px] uppercase tracking-wider bg-v-gold text-v-charcoal font-semibold rounded-lg hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
+      </div>
 
-        {/* Plan Upgrade Prompts */}
-        {plan === 'free' && (
-          <div className="mt-4 bg-v-gold/5 border border-v-gold/20 rounded-lg p-4 text-center">
-            <p className="text-v-text-secondary text-xs">Upgrade to Pro to edit question text and options</p>
-            <a href="/settings" className="text-v-gold text-xs hover:underline">View Plans</a>
-          </div>
+      {/* Canvas */}
+      <div className="flex-1 relative">
+        <ReactFlow
+          nodes={nodesWithCallbacks}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
+          fitView
+          fitViewOptions={{ padding: 0.3 }}
+          minZoom={0.2}
+          maxZoom={2}
+          deleteKeyCode={['Backspace', 'Delete']}
+          className="bg-v-charcoal"
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background color="#2A3A50" gap={20} size={1} />
+          <Controls
+            position="bottom-left"
+            style={{ background: '#1A2236', border: '1px solid #2A3A50', borderRadius: 8 }}
+            showInteractive={false}
+          />
+          <MiniMap
+            position="bottom-right"
+            style={{ background: '#0F1117', border: '1px solid #2A3A50', borderRadius: 8 }}
+            nodeColor={(node) => {
+              switch (node.type) {
+                case 'start': return '#fff';
+                case 'question': return '#60a5fa';
+                case 'serviceSelect': return '#2dd4bf';
+                case 'condition': return '#fbbf24';
+                case 'end': return '#4ade80';
+                default: return '#4a5568';
+              }
+            }}
+            maskColor="rgba(15, 17, 23, 0.8)"
+          />
+        </ReactFlow>
+
+        {/* Side Panel */}
+        {editingNode && (
+          <SidePanel
+            node={editingNode}
+            nodes={nodes}
+            onUpdate={updateNodeData}
+            onClose={() => setEditingNode(null)}
+          />
         )}
       </div>
 
-      {/* Preview Modal */}
+      {/* Preview */}
       {showPreview && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-v-charcoal border border-v-border rounded-2xl w-full max-w-sm max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-v-border">
-              <span className="text-white text-sm font-medium">Preview</span>
-              <button onClick={() => setShowPreview(false)} className="text-v-text-secondary hover:text-white text-lg">&times;</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {questions.map(q => (
-                <div key={q.id}>
-                  <p className="text-white text-sm mb-2">{q.text}{q.required ? ' *' : ''}</p>
-                  {q.type === 'single_select' && q.options?.map((opt, i) => (
-                    <div key={i} className="w-full p-3 mb-1 rounded-lg border border-white/15 bg-white/5 text-white/60 text-xs">{opt}</div>
-                  ))}
-                  {q.type === 'multi_select' && q.options?.map((opt, i) => (
-                    <div key={i} className="w-full p-3 mb-1 rounded-lg border border-white/15 bg-white/5 text-white/60 text-xs">{opt}</div>
-                  ))}
-                  {q.type === 'yes_no' && (
-                    <div className="flex gap-2">
-                      <div className="flex-1 p-3 rounded-lg border border-white/15 bg-white/5 text-white/60 text-xs text-center">Yes</div>
-                      <div className="flex-1 p-3 rounded-lg border border-white/15 bg-white/5 text-white/60 text-xs text-center">No</div>
-                    </div>
-                  )}
-                  {(q.type === 'text' || q.type === 'long_text') && (
-                    <div className="w-full p-3 rounded-lg border border-white/15 bg-white/5 text-white/30 text-xs">{q.placeholder || 'Type here...'}</div>
-                  )}
-                  {q.type === 'number' && (
-                    <div className="w-full p-3 rounded-lg border border-white/15 bg-white/5 text-white/30 text-xs">0</div>
-                  )}
-                  {q.type === 'date' && (
-                    <div className="w-full p-3 rounded-lg border border-white/15 bg-white/5 text-white/30 text-xs">Select date</div>
-                  )}
-                  {q.type === 'photo_upload' && (
-                    <div className="w-full p-6 rounded-lg border-2 border-dashed border-white/15 text-white/30 text-xs text-center">Tap to upload photos</div>
-                  )}
-                  {q.showIf && <p className="text-v-gold/40 text-[9px] mt-1">Conditional</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <FlowPreview
+          nodes={nodes}
+          edges={edges}
+          services={services}
+          onClose={() => setShowPreview(false)}
+        />
       )}
     </div>
   );

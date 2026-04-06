@@ -26,6 +26,7 @@
     "react-dom": "^18.2.0",
     "react-grid-layout": "^2.2.2",
     "react-phone-number-input": "^3.4.16",
+    "reactflow": "^11.11.4",
     "recharts": "^3.8.0",
     "resend": "^6.8.0",
     "sharp": "^0.34.5",
