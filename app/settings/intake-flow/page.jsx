@@ -9,40 +9,24 @@ import ReactFlow, {
   Controls,
   MiniMap,
   MarkerType,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import dagre from 'dagre';
 import { nodeTypes } from '@/components/flow-builder/nodes';
 import SidePanel from '@/components/flow-builder/SidePanel';
 import FlowPreview from '@/components/flow-builder/FlowPreview';
 
-// ─── Default flow (nodes + edges) ───
-function buildDefaultFlow(services) {
-  const serviceNames = services.length > 0
-    ? services.map(s => s.name)
-    : ['Exterior Wash', 'Interior Detail', 'Ceramic Coating'];
+// ─── Node type definitions for toolbar ───
+const NODE_PALETTE = [
+  { type: 'question', label: 'Question', desc: 'Ask the customer something', color: 'blue', dot: 'bg-blue-400', border: 'border-blue-500/30', hover: 'hover:border-blue-400/60' },
+  { type: 'condition', label: 'Condition', desc: 'Branch based on an answer', color: 'amber', dot: 'bg-amber-400', border: 'border-amber-500/30', hover: 'hover:border-amber-400/60' },
+  { type: 'serviceSelect', label: 'Service Select', desc: 'Pick from your services', color: 'teal', dot: 'bg-teal-400', border: 'border-teal-500/30', hover: 'hover:border-teal-400/60' },
+  { type: 'end', label: 'End', desc: 'Submit the request', color: 'green', dot: 'bg-green-400', border: 'border-green-500/30', hover: 'hover:border-green-400/60' },
+];
 
-  const nodes = [
-    { id: 'start-1', type: 'start', position: { x: 250, y: 0 }, data: { label: 'Customer starts here' }, deletable: false },
-    { id: 'svc-1', type: 'serviceSelect', position: { x: 230, y: 140 }, data: { label: 'What services do you need?', required: true } },
-    { id: 'cond-1', type: 'condition', position: { x: 230, y: 310 }, data: { label: 'Ceramic selected?', sourceNodeId: 'svc-1', field: 'services', value: 'Ceramic' } },
-    { id: 'q-paint', type: 'question', position: { x: 60, y: 500 }, data: { label: 'What is your goal for the paint?', answerType: 'single_select', options: ['Maximum gloss & protection', 'Clean and protected', 'Just clean'] } },
-    { id: 'q-notes', type: 'question', position: { x: 400, y: 500 }, data: { label: 'Any additional notes?', answerType: 'long_text', placeholder: 'Special instructions...' } },
-    { id: 'end-1', type: 'end', position: { x: 100, y: 700 }, data: { label: 'Submit request' } },
-    { id: 'end-2', type: 'end', position: { x: 440, y: 700 }, data: { label: 'Submit request' } },
-  ];
-
-  const edges = [
-    { id: 'e-start-svc', source: 'start-1', target: 'svc-1', type: 'smoothstep', animated: true, style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
-    { id: 'e-svc-cond', source: 'svc-1', target: 'cond-1', type: 'smoothstep', animated: true, style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
-    { id: 'e-cond-yes', source: 'cond-1', sourceHandle: 'yes', target: 'q-paint', type: 'smoothstep', style: { stroke: '#4ade80', strokeWidth: 2 }, label: 'Yes', labelStyle: { fill: '#4ade80', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4ade80' } },
-    { id: 'e-cond-no', source: 'cond-1', sourceHandle: 'no', target: 'q-notes', type: 'smoothstep', style: { stroke: '#f87171', strokeWidth: 2 }, label: 'No', labelStyle: { fill: '#f87171', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#f87171' } },
-    { id: 'e-paint-end', source: 'q-paint', target: 'end-1', type: 'smoothstep', style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
-    { id: 'e-notes-end', source: 'q-notes', target: 'end-2', type: 'smoothstep', style: { stroke: '#4a5568', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' } },
-  ];
-
-  return { nodes, edges };
-}
-
+// ─── Default edge style ───
 const defaultEdgeOptions = {
   type: 'smoothstep',
   animated: true,
@@ -50,8 +34,75 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' },
 };
 
-export default function IntakeFlowBuilder() {
+// ─── Build default flow from detailer services ───
+function buildDefaultFlow(services) {
+  const hasExterior = services.some(s =>
+    /exterior|wash|ceramic|polish|wax|decon|brightwork/i.test(s.name)
+  );
+
+  const nodes = [
+    { id: 'start-1', type: 'start', position: { x: 300, y: 0 }, data: { label: 'Customer starts here' }, deletable: false },
+    { id: 'svc-1', type: 'serviceSelect', position: { x: 270, y: 160 }, data: { label: 'What services do you need?', required: true, serviceNames: services.map(s => s.name) } },
+  ];
+
+  const edges = [
+    { id: 'e-start-svc', source: 'start-1', target: 'svc-1', ...defaultEdgeOptions },
+  ];
+
+  if (hasExterior) {
+    nodes.push(
+      { id: 'cond-1', type: 'condition', position: { x: 270, y: 340 }, data: { label: 'Includes exterior service?', sourceNodeId: 'svc-1', field: 'services', value: 'exterior' } },
+      { id: 'q-paint', type: 'question', position: { x: 60, y: 520 }, data: { label: 'What is your goal for the paint?', answerType: 'single_select', options: ['Maximum gloss & protection', 'Clean and protected', 'Just clean'] } },
+      { id: 'q-notes', type: 'question', position: { x: 480, y: 520 }, data: { label: 'Any additional notes?', answerType: 'long_text', placeholder: 'Special instructions...' } },
+      { id: 'end-1', type: 'end', position: { x: 100, y: 700 }, data: { label: 'Submit request' } },
+      { id: 'end-2', type: 'end', position: { x: 520, y: 700 }, data: { label: 'Submit request' } },
+    );
+    edges.push(
+      { id: 'e-svc-cond', source: 'svc-1', target: 'cond-1', ...defaultEdgeOptions },
+      { id: 'e-cond-yes', source: 'cond-1', sourceHandle: 'yes', target: 'q-paint', type: 'smoothstep', style: { stroke: '#4ade80', strokeWidth: 2 }, label: 'Yes', labelStyle: { fill: '#4ade80', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#4ade80' } },
+      { id: 'e-cond-no', source: 'cond-1', sourceHandle: 'no', target: 'q-notes', type: 'smoothstep', style: { stroke: '#f87171', strokeWidth: 2 }, label: 'No', labelStyle: { fill: '#f87171', fontSize: 10 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#f87171' } },
+      { id: 'e-paint-end', source: 'q-paint', target: 'end-1', ...defaultEdgeOptions },
+      { id: 'e-notes-end', source: 'q-notes', target: 'end-2', ...defaultEdgeOptions },
+    );
+  } else {
+    nodes.push(
+      { id: 'q-notes', type: 'question', position: { x: 270, y: 340 }, data: { label: 'Any additional notes?', answerType: 'long_text', placeholder: 'Special instructions...' } },
+      { id: 'end-1', type: 'end', position: { x: 300, y: 520 }, data: { label: 'Submit request' } },
+    );
+    edges.push(
+      { id: 'e-svc-notes', source: 'svc-1', target: 'q-notes', ...defaultEdgeOptions },
+      { id: 'e-notes-end', source: 'q-notes', target: 'end-1', ...defaultEdgeOptions },
+    );
+  }
+
+  return { nodes, edges };
+}
+
+// ─── Dagre auto-layout ───
+function autoLayout(nodes, edges) {
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: 'TB', nodesep: 80, ranksep: 160, marginx: 40, marginy: 40 });
+
+  nodes.forEach(n => {
+    const w = n.type === 'start' || n.type === 'end' ? 220 : 260;
+    g.setNode(n.id, { width: w, height: 120 });
+  });
+  edges.forEach(e => g.setEdge(e.source, e.target));
+  dagre.layout(g);
+
+  return nodes.map(n => {
+    const pos = g.node(n.id);
+    const w = n.type === 'start' || n.type === 'end' ? 220 : 260;
+    return { ...n, position: { x: pos.x - w / 2, y: pos.y - 60 } };
+  });
+}
+
+// ─── Inner component (needs useReactFlow) ───
+function FlowBuilderInner() {
   const router = useRouter();
+  const reactFlowInstance = useReactFlow();
+  const reactFlowWrapper = useRef(null);
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,34 +111,28 @@ export default function IntakeFlowBuilder() {
   const [editingNode, setEditingNode] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState('');
-  const idCounter = useRef(1);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('vector_token') : null;
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }), [token]);
 
-  // ─── Load services + existing flow ───
+  // ─── Load data ───
   useEffect(() => {
     if (!token) { router.push('/login'); return; }
-
     const loadData = async () => {
       try {
-        // Fetch services
         const svcRes = await fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } });
         const svcData = svcRes.ok ? await svcRes.json() : { services: [] };
-        const svcList = svcData.services || svcData || [];
-        setServices(Array.isArray(svcList) ? svcList : []);
+        const svcList = Array.isArray(svcData.services || svcData) ? (svcData.services || svcData) : [];
+        setServices(svcList);
 
-        // Fetch existing flow
         const flowRes = await fetch('/api/intake-flow', { headers: { Authorization: `Bearer ${token}` } });
         const flowData = flowRes.ok ? await flowRes.json() : {};
 
-        if (flowData.flow_nodes && flowData.flow_edges) {
-          // Saved node-based flow
+        if (flowData.flow_nodes?.length > 0 && flowData.flow_edges) {
           setNodes(flowData.flow_nodes);
           setEdges(flowData.flow_edges);
         } else {
-          // No saved flow or old format — use default
-          const def = buildDefaultFlow(Array.isArray(svcList) ? svcList : []);
+          const def = buildDefaultFlow(svcList);
           setNodes(def.nodes);
           setEdges(def.edges);
         }
@@ -105,39 +150,53 @@ export default function IntakeFlowBuilder() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
   // ─── React Flow callbacks ───
-  const onNodesChange = useCallback((changes) => {
-    setNodes(nds => applyNodeChanges(changes, nds));
-  }, []);
+  const onNodesChange = useCallback((changes) => setNodes(nds => applyNodeChanges(changes, nds)), []);
+  const onEdgesChange = useCallback((changes) => setEdges(eds => applyEdgeChanges(changes, eds)), []);
+  const onConnect = useCallback((conn) => setEdges(eds => addEdge({ ...conn, ...defaultEdgeOptions, id: `e-${Date.now()}` }, eds)), []);
+  const onNodeClick = useCallback((_, node) => { if (node.type !== 'start') setEditingNode(node); }, []);
 
-  const onEdgesChange = useCallback((changes) => {
-    setEdges(eds => applyEdgeChanges(changes, eds));
-  }, []);
+  // ─── Drag from toolbar ───
+  const onDragOver = useCallback((e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }, []);
 
-  const onConnect = useCallback((connection) => {
-    setEdges(eds => addEdge({ ...connection, ...defaultEdgeOptions, id: `e-${Date.now()}` }, eds));
-  }, []);
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('application/reactflow');
+    if (!type || !reactFlowInstance) return;
 
-  const onNodeClick = useCallback((_, node) => {
-    if (node.type !== 'start') {
-      setEditingNode(node);
-    }
-  }, []);
+    const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: e.clientX - (bounds?.left || 0),
+      y: e.clientY - (bounds?.top || 0),
+    });
 
-  // ─── Attach callbacks to node data ───
-  const nodesWithCallbacks = useMemo(() => {
-    return nodes.map(node => ({
+    const id = `${type}-${Date.now()}`;
+    const nodeConfig = {
+      question: { label: 'New question', answerType: 'text' },
+      condition: { label: 'New condition', sourceNodeId: '', field: '', value: '' },
+      serviceSelect: { label: 'Select services', required: true, serviceNames: services.map(s => s.name) },
+      end: { label: 'Submit request' },
+    };
+
+    const newNode = { id, type, position, data: nodeConfig[type] || {} };
+    setNodes(nds => [...nds, newNode]);
+    if (type !== 'end') setEditingNode(newNode);
+  }, [reactFlowInstance, services]);
+
+  // ─── Attach callbacks to nodes ───
+  const nodesWithCallbacks = useMemo(() =>
+    nodes.map(node => ({
       ...node,
       data: {
         ...node.data,
         onEdit: node.type !== 'start' ? () => setEditingNode(node) : undefined,
-        onDelete: (node.type !== 'start') ? () => {
+        onDelete: node.type !== 'start' ? () => {
           setNodes(nds => nds.filter(n => n.id !== node.id));
           setEdges(eds => eds.filter(e => e.source !== node.id && e.target !== node.id));
           if (editingNode?.id === node.id) setEditingNode(null);
         } : undefined,
       },
-    }));
-  }, [nodes, editingNode]);
+    })),
+  [nodes, editingNode]);
 
   // ─── Update node data from side panel ───
   const updateNodeData = useCallback((nodeId, newData) => {
@@ -145,41 +204,23 @@ export default function IntakeFlowBuilder() {
     setEditingNode(prev => prev?.id === nodeId ? { ...prev, data: { ...prev.data, ...newData } } : prev);
   }, []);
 
-  // ─── Add nodes ───
-  const addNode = useCallback((type) => {
-    const id = `${type}-${Date.now()}`;
-    const centerX = 250;
-    // Place new node below existing ones
-    const maxY = nodes.reduce((max, n) => Math.max(max, n.position.y), 0);
-    const y = maxY + 180;
-
-    const nodeConfig = {
-      question: { label: 'New question', answerType: 'text' },
-      condition: { label: 'New condition', sourceNodeId: '', field: '', value: '' },
-      serviceSelect: { label: 'Select services', required: true },
-      end: { label: 'Submit request' },
-    };
-
-    const newNode = {
-      id,
-      type,
-      position: { x: centerX, y },
-      data: nodeConfig[type] || {},
-    };
-
-    setNodes(nds => [...nds, newNode]);
-    if (type !== 'end') setEditingNode(newNode);
-  }, [nodes]);
+  // ─── Auto-arrange ───
+  const handleCleanUp = useCallback(() => {
+    setNodes(nds => {
+      const laid = autoLayout(nds, edges);
+      setTimeout(() => reactFlowInstance?.fitView({ padding: 0.3 }), 50);
+      return laid;
+    });
+    showToast('Layout cleaned up');
+  }, [edges, reactFlowInstance]);
 
   // ─── Save ───
   const handleSave = async () => {
     setSaving(true);
-    // Strip callbacks from node data before saving
     const cleanNodes = nodes.map(({ data, ...rest }) => {
       const { onEdit, onDelete, ...cleanData } = data;
       return { ...rest, data: cleanData };
     });
-
     const res = await fetch('/api/intake-flow', {
       method: 'POST',
       headers,
@@ -208,54 +249,86 @@ export default function IntakeFlowBuilder() {
   }
 
   return (
-    <div className="h-screen bg-v-charcoal flex flex-col overflow-hidden">
+    <div className="h-screen bg-v-charcoal flex overflow-hidden">
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50 text-sm">{toast}</div>}
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-v-border bg-v-surface/50 backdrop-blur-sm z-10 shrink-0">
-        <div className="flex items-center gap-4">
-          <a href="/settings" className="text-v-text-secondary text-xs hover:text-white">&larr; Settings</a>
-          <h1 className="text-white text-sm font-medium">Intake Flow Builder</h1>
+      {/* ─── Left Sidebar Toolbar ─── */}
+      <div className="w-56 flex-shrink-0 border-r border-v-border bg-v-surface/50 flex flex-col">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-v-border">
+          <div className="flex items-center gap-2 mb-1">
+            <a href="/settings" className="text-v-text-secondary text-xs hover:text-white">&larr;</a>
+            <h1 className="text-white text-sm font-medium">Intake Flow</h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Add buttons */}
-          <button onClick={() => addNode('question')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-colors">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />Question
-          </button>
-          <button onClick={() => addNode('condition')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-amber-300 border border-amber-500/30 rounded-lg hover:bg-amber-500/10 transition-colors">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Condition
-          </button>
-          <button onClick={() => addNode('serviceSelect')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-teal-300 border border-teal-500/30 rounded-lg hover:bg-teal-500/10 transition-colors">
-            <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />Service Select
-          </button>
-          <button onClick={() => addNode('end')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider text-green-300 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />End
-          </button>
+        {/* Draggable node cards */}
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3 px-1">Drag nodes onto canvas</p>
+          <div className="space-y-2">
+            {NODE_PALETTE.map(item => (
+              <div
+                key={item.type}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/reactflow', item.type);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                className={`p-3 rounded-lg border ${item.border} ${item.hover} bg-white/[0.02] cursor-grab active:cursor-grabbing transition-colors`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-2 h-2 rounded-full ${item.dot}`} />
+                  <span className="text-white text-xs font-medium">{item.label}</span>
+                </div>
+                <p className="text-v-text-secondary text-[10px] pl-4">{item.desc}</p>
+              </div>
+            ))}
+          </div>
 
-          <div className="w-px h-6 bg-v-border mx-1" />
+          {/* Connection help */}
+          <div className="mt-6 p-3 bg-white/[0.03] border border-v-border-subtle rounded-lg">
+            <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-2">Connecting nodes</p>
+            <p className="text-[10px] text-v-text-secondary leading-relaxed">
+              Drag from the dot at the bottom of a node to the dot at the top of the next node.
+            </p>
+          </div>
 
-          <button onClick={() => setShowPreview(true)}
-            className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded-lg hover:bg-v-gold/5 transition-colors">
-            Preview
+          {/* No services warning */}
+          {services.length === 0 && (
+            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-amber-400 text-[10px] font-medium mb-1">No services configured</p>
+              <p className="text-amber-400/60 text-[10px]">
+                <a href="/settings/services" className="underline">Add services</a> in Settings first.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom actions */}
+        <div className="px-3 py-3 border-t border-v-border space-y-2">
+          <button onClick={handleCleanUp}
+            className="w-full px-3 py-2 text-[10px] uppercase tracking-wider text-v-text-secondary border border-v-border rounded-lg hover:text-white hover:border-white/30 transition-colors">
+            Clean Up Layout
           </button>
-          <button onClick={handleReset}
-            className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-text-secondary border border-v-border rounded-lg hover:text-red-400 hover:border-red-400/30 transition-colors">
-            Reset
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowPreview(true)}
+              className="flex-1 px-3 py-2 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded-lg hover:bg-v-gold/5 transition-colors">
+              Preview
+            </button>
+            <button onClick={handleReset}
+              className="px-3 py-2 text-[10px] uppercase tracking-wider text-v-text-secondary border border-v-border rounded-lg hover:text-red-400 hover:border-red-400/30 transition-colors">
+              Reset
+            </button>
+          </div>
           <button onClick={handleSave} disabled={saving}
-            className="px-4 py-1.5 text-[10px] uppercase tracking-wider bg-v-gold text-v-charcoal font-semibold rounded-lg hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
-            {saving ? 'Saving...' : 'Save'}
+            className="w-full px-3 py-2.5 text-[10px] uppercase tracking-wider bg-v-gold text-v-charcoal font-semibold rounded-lg hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
+            {saving ? 'Saving...' : 'Save Flow'}
           </button>
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 relative">
+      {/* ─── Canvas ─── */}
+      <div className="flex-1 relative" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodesWithCallbacks}
           edges={edges}
@@ -263,6 +336,8 @@ export default function IntakeFlowBuilder() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           fitView
@@ -270,6 +345,7 @@ export default function IntakeFlowBuilder() {
           minZoom={0.2}
           maxZoom={2}
           deleteKeyCode={['Backspace', 'Delete']}
+          connectionLineStyle={{ stroke: '#4ade80', strokeWidth: 2, strokeDasharray: '5 5' }}
           className="bg-v-charcoal"
           proOptions={{ hideAttribution: true }}
         >
@@ -283,14 +359,8 @@ export default function IntakeFlowBuilder() {
             position="bottom-right"
             style={{ background: '#0F1117', border: '1px solid #2A3A50', borderRadius: 8 }}
             nodeColor={(node) => {
-              switch (node.type) {
-                case 'start': return '#fff';
-                case 'question': return '#60a5fa';
-                case 'serviceSelect': return '#2dd4bf';
-                case 'condition': return '#fbbf24';
-                case 'end': return '#4ade80';
-                default: return '#4a5568';
-              }
+              const colors = { start: '#fff', question: '#60a5fa', serviceSelect: '#2dd4bf', condition: '#fbbf24', end: '#4ade80' };
+              return colors[node.type] || '#4a5568';
             }}
             maskColor="rgba(15, 17, 23, 0.8)"
           />
@@ -307,7 +377,7 @@ export default function IntakeFlowBuilder() {
         )}
       </div>
 
-      {/* Preview */}
+      {/* Preview Modal */}
       {showPreview && (
         <FlowPreview
           nodes={nodes}
@@ -317,5 +387,14 @@ export default function IntakeFlowBuilder() {
         />
       )}
     </div>
+  );
+}
+
+// ─── Wrap with ReactFlowProvider ───
+export default function IntakeFlowBuilder() {
+  return (
+    <ReactFlowProvider>
+      <FlowBuilderInner />
+    </ReactFlowProvider>
   );
 }
