@@ -60,9 +60,21 @@ export const StartNode = memo(({ data }) => (
 ));
 StartNode.displayName = 'StartNode';
 
+// Answer type labels for display
+const TYPE_LABELS = {
+  single_select: 'Single Select', multi_select: 'Multi Select', yes_no: 'Yes / No',
+  text: 'Short Text', long_text: 'Long Text', photo_upload: 'Photo Upload',
+  number: 'Number', date: 'Date',
+};
+
 // ─── QUESTION NODE ───
 export const QuestionNode = memo(({ data, selected }) => {
-  const typeLabel = data.answerType || 'text';
+  const typeLabel = TYPE_LABELS[data.answerType] || data.answerType || 'text';
+  const isSelect = ['single_select', 'multi_select'].includes(data.answerType);
+  const isMulti = data.answerType === 'multi_select';
+  const hasBranching = data.answerType === 'single_select' && data.allowBranching;
+  const isYesNo = data.answerType === 'yes_no';
+
   return (
     <div className={`rounded-xl border-2 shadow-lg w-[260px] transition-colors ${selected ? 'border-blue-400' : 'border-blue-500/30'} bg-[#111827]`}>
       <div className="px-4 py-2.5 flex items-center justify-between border-b border-blue-500/10">
@@ -75,8 +87,16 @@ export const QuestionNode = memo(({ data, selected }) => {
       <FlowHandle type="target" position={Position.Top} color="#60a5fa" />
       <div className="px-4 py-3">
         <p className="text-white text-xs leading-relaxed">{data.label || 'New question'}</p>
-        <span className="text-blue-300/50 text-[10px] uppercase tracking-wider mt-1 block">{typeLabel}</span>
-        {data.options?.length > 0 && (
+        {/* Answer type badge row */}
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          <span className="text-[9px] bg-blue-500/15 text-blue-300/70 px-1.5 py-0.5 rounded uppercase tracking-wider">{typeLabel}</span>
+          {isSelect && data.options?.length > 0 && (
+            <span className="text-[9px] bg-blue-500/10 text-blue-300/50 px-1.5 py-0.5 rounded">{data.options.length} options</span>
+          )}
+          {isMulti && <span className="text-[9px] bg-purple-500/15 text-purple-300/70 px-1.5 py-0.5 rounded">Multi</span>}
+          {hasBranching && <span className="text-[9px] bg-amber-500/15 text-amber-300/70 px-1.5 py-0.5 rounded">Branches</span>}
+        </div>
+        {isSelect && data.options?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {data.options.slice(0, 3).map((o, i) => (
               <span key={i} className="text-[9px] bg-blue-500/10 text-blue-300/60 px-1.5 py-0.5 rounded">{o}</span>
@@ -85,7 +105,8 @@ export const QuestionNode = memo(({ data, selected }) => {
           </div>
         )}
       </div>
-      {data.answerType === 'yes_no' ? (
+      {/* Output handles based on type */}
+      {isYesNo ? (
         <>
           <div className="flex justify-between px-4 pb-1">
             <span className="text-[9px] text-green-400/60">Yes</span>
@@ -93,6 +114,18 @@ export const QuestionNode = memo(({ data, selected }) => {
           </div>
           <FlowHandle type="source" position={Position.Bottom} id="yes" color="#4ade80" style={{ left: '30%' }} />
           <FlowHandle type="source" position={Position.Bottom} id="no" color="#f87171" style={{ left: '70%' }} />
+        </>
+      ) : hasBranching && data.options?.length > 0 ? (
+        <>
+          <div className="flex justify-between px-4 pb-1">
+            {data.options.slice(0, 4).map((o, i) => (
+              <span key={i} className="text-[8px] text-blue-300/40 truncate max-w-[60px]">{o}</span>
+            ))}
+          </div>
+          {data.options.slice(0, 4).map((o, i) => {
+            const pct = (i + 1) / (Math.min(data.options.length, 4) + 1);
+            return <FlowHandle key={i} type="source" position={Position.Bottom} id={`opt-${i}`} color="#60a5fa" style={{ left: `${pct * 100}%` }} />;
+          })}
         </>
       ) : (
         <FlowHandle type="source" position={Position.Bottom} color="#60a5fa" />

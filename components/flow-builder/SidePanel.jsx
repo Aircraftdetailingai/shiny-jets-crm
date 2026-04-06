@@ -1,6 +1,16 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { QUESTION_TYPES } from '@/lib/default-intake-flow';
+
+const ANSWER_TYPES = [
+  { key: 'single_select', label: 'Single Select', desc: 'Choose one option' },
+  { key: 'multi_select', label: 'Multi Select', desc: 'Choose multiple options' },
+  { key: 'yes_no', label: 'Yes / No', desc: 'Two-button choice' },
+  { key: 'text', label: 'Short Text', desc: 'Single line input' },
+  { key: 'long_text', label: 'Long Text', desc: 'Multi-line textarea' },
+  { key: 'photo_upload', label: 'Photo Upload', desc: 'File upload' },
+  { key: 'number', label: 'Number', desc: 'Numeric input' },
+  { key: 'date', label: 'Date', desc: 'Date picker' },
+];
 
 export default function SidePanel({ node, nodes, onUpdate, onClose }) {
   const [localData, setLocalData] = useState({});
@@ -18,8 +28,8 @@ export default function SidePanel({ node, nodes, onUpdate, onClose }) {
   };
 
   const nodeType = node.type;
+  const isSelect = ['single_select', 'multi_select'].includes(localData.answerType);
 
-  // Find nodes that can be referenced in conditions (service select and question nodes)
   const referencableNodes = nodes.filter(
     n => n.id !== node.id && (n.type === 'serviceSelect' || n.type === 'question')
   );
@@ -49,7 +59,7 @@ export default function SidePanel({ node, nodes, onUpdate, onClose }) {
           </div>
         )}
 
-        {/* Answer Type (question only) */}
+        {/* Answer Type dropdown (question only) */}
         {nodeType === 'question' && (
           <div>
             <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Answer Type</label>
@@ -63,20 +73,58 @@ export default function SidePanel({ node, nodes, onUpdate, onClose }) {
                 }
                 if (!['single_select', 'multi_select'].includes(type)) {
                   changes.options = undefined;
+                  changes.allowBranching = undefined;
                 }
                 update(changes);
               }}
               className="w-full bg-v-charcoal border border-v-border text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-v-gold"
             >
-              {QUESTION_TYPES.map(t => (
-                <option key={t.key} value={t.key}>{t.label}</option>
+              {ANSWER_TYPES.map(t => (
+                <option key={t.key} value={t.key}>{t.label} — {t.desc}</option>
               ))}
             </select>
           </div>
         )}
 
-        {/* Options (for select types) */}
-        {nodeType === 'question' && ['single_select', 'multi_select'].includes(localData.answerType) && (
+        {/* Select type toggles */}
+        {nodeType === 'question' && isSelect && (
+          <div className="space-y-3">
+            {/* Allow multiple selections toggle */}
+            <label className="flex items-center justify-between cursor-pointer p-3 bg-v-charcoal rounded-lg border border-v-border">
+              <div>
+                <span className="text-white text-xs">Allow multiple selections</span>
+                <p className="text-v-text-secondary text-[10px] mt-0.5">
+                  {localData.answerType === 'multi_select' ? 'Checkbox style — pick many' : 'Radio style — pick one'}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={localData.answerType === 'multi_select'}
+                onChange={e => update({ answerType: e.target.checked ? 'multi_select' : 'single_select' })}
+                className="w-4 h-4 rounded accent-[var(--v-gold)]"
+              />
+            </label>
+
+            {/* Allow branching toggle (single select only) */}
+            {localData.answerType === 'single_select' && (
+              <label className="flex items-center justify-between cursor-pointer p-3 bg-v-charcoal rounded-lg border border-v-border">
+                <div>
+                  <span className="text-white text-xs">Branch per option</span>
+                  <p className="text-v-text-secondary text-[10px] mt-0.5">Each answer goes to a different next node</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={localData.allowBranching || false}
+                  onChange={e => update({ allowBranching: e.target.checked })}
+                  className="w-4 h-4 rounded accent-[var(--v-gold)]"
+                />
+              </label>
+            )}
+          </div>
+        )}
+
+        {/* Options list (for select types) */}
+        {nodeType === 'question' && isSelect && (
           <div>
             <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Options</label>
             <div className="space-y-1.5">
@@ -165,14 +213,14 @@ export default function SidePanel({ node, nodes, onUpdate, onClose }) {
 
         {/* Required toggle */}
         {(nodeType === 'question' || nodeType === 'serviceSelect') && (
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center justify-between cursor-pointer p-3 bg-v-charcoal rounded-lg border border-v-border">
+            <span className="text-white text-xs">Required</span>
             <input
               type="checkbox"
               checked={localData.required || false}
               onChange={e => update({ required: e.target.checked })}
-              className="w-3.5 h-3.5 rounded accent-[var(--v-gold)]"
+              className="w-4 h-4 rounded accent-[var(--v-gold)]"
             />
-            <span className="text-v-text-secondary text-xs">Required</span>
           </label>
         )}
       </div>

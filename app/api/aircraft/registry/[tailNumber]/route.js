@@ -33,7 +33,19 @@ export async function GET(request, { params }) {
       return Response.json({
         tail_number: `N${nNumber}`,
         found: false,
-        message: 'No registration found for this N-number',
+        message: 'Aircraft not found. Please check your tail number and try again.',
+      });
+    }
+
+    // Filter out drones and non-detailable aircraft
+    const filtered = filterUnsupported(registration);
+    if (filtered) {
+      return Response.json({
+        tail_number: `N${nNumber}`,
+        found: false,
+        filtered: true,
+        reason: filtered,
+        message: 'This aircraft type is not supported. Please enter a registered fixed-wing or rotary aircraft tail number.',
       });
     }
 
@@ -98,6 +110,62 @@ function cleanModel(raw) {
   if (!raw) return null;
   const upper = raw.toUpperCase().trim();
   return MODEL_MAP[upper] || raw.trim();
+}
+
+// Drone/UAS manufacturers to reject
+const DRONE_MANUFACTURERS = [
+  'DJI', 'AUTEL', 'SKYDIO', 'PARROT', 'YUNEEC', 'EHANG', 'FIMI',
+  'HOLY STONE', 'HUBSAN', 'SYMA', 'WINGTRA', 'SENSEFLY', 'DRAGANFLY',
+];
+
+// Valid aircraft type patterns (FAA "Aircraft Type" field values)
+const VALID_TYPES = [
+  /fixed wing/i,
+  /rotorcraft/i,
+  /helicopter/i,
+  /turbojet/i,
+  /turboprop/i,
+  /glider/i,
+];
+
+// Reject these aircraft type patterns
+const BLOCKED_TYPES = [
+  /drone/i,
+  /uas/i,
+  /unmanned/i,
+  /weight.?shift/i,
+  /powered parachute/i,
+  /ultralight/i,
+  /balloon/i,
+  /lighter than air/i,
+];
+
+function filterUnsupported(reg) {
+  const mfr = (reg.raw_manufacturer || '').toUpperCase().trim();
+  const type = (reg.aircraft_type || '').toLowerCase();
+  const engineType = (reg.engine_type || '').toLowerCase();
+
+  // Check drone manufacturers
+  for (const drone of DRONE_MANUFACTURERS) {
+    if (mfr.includes(drone)) return `drone_manufacturer:${drone}`;
+  }
+
+  // Check blocked aircraft types
+  for (const pattern of BLOCKED_TYPES) {
+    if (pattern.test(type)) return `blocked_type:${type}`;
+  }
+
+  // Check engine type for electric drones
+  if (engineType === 'electric' && !VALID_TYPES.some(p => p.test(type))) {
+    return `electric_non_aircraft`;
+  }
+
+  // If we have a type, ensure it's in the valid list
+  if (type && !VALID_TYPES.some(p => p.test(type))) {
+    return `unsupported_type:${type}`;
+  }
+
+  return null; // Passes filter
 }
 
 function parseRegistration(html, nNumber) {

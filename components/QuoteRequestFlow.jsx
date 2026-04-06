@@ -746,6 +746,7 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
   const [tail, setTail] = useState(value || '');
   const [looking, setLooking] = useState(false);
   const [found, setFound] = useState(null);
+  const [lookupError, setLookupError] = useState('');
   const timerRef = useRef(null);
 
   const handleChange = (v) => {
@@ -753,6 +754,7 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
     setTail(upper);
     onChange(upper);
     setFound(null);
+    setLookupError('');
     clearTimeout(timerRef.current);
     const nNum = upper.replace(/^N/, '');
     if (nNum.length >= 2) {
@@ -763,18 +765,24 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
   const lookupTail = async (t) => {
     setLooking(true);
     setFound(null);
+    setLookupError('');
     try {
       const res = await fetch(`/api/aircraft/registry/${encodeURIComponent(t)}`);
       if (res.ok) {
         const data = await res.json();
-        // Only show if we got a real manufacturer AND model (not "Serial Number" or empty)
-        const badModel = !data.model || data.model === 'Serial Number' || data.model.length < 2;
-        if (data.found && data.manufacturer && !badModel) {
-          setFound(data);
+        if (data.found) {
+          const badModel = !data.model || data.model === 'Serial Number' || data.model.length < 2;
+          if (data.manufacturer && !badModel) {
+            setFound(data);
+          }
+        } else if (data.filtered) {
+          setLookupError(data.message || 'This aircraft type is not supported.');
+        } else {
+          setLookupError(data.message || 'Aircraft not found. Please check your tail number and try again.');
         }
       }
     } catch {
-      // Network error: silently continue, customer can proceed manually
+      // Network error: silently continue
     }
     setLooking(false);
   };
@@ -800,6 +808,12 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
         <div className="flex items-center gap-2 mt-3">
           <div className="w-4 h-4 border-2 border-[#007CB1] border-t-transparent rounded-full animate-spin" />
           <p className="text-white/40 text-xs">Looking up registration...</p>
+        </div>
+      )}
+
+      {lookupError && (
+        <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <p className="text-red-300 text-xs">{lookupError}</p>
         </div>
       )}
 
