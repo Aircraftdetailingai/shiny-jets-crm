@@ -2,31 +2,22 @@
 import { memo, useState } from 'react';
 import { Handle, Position } from 'reactflow';
 
-// Pulsing handle that shows "Drag to connect" tooltip on hover
+// Handle with hover glow — no wrapper div (wrappers block React Flow drag)
 function FlowHandle({ type, position, id, color, style: extra }) {
-  const [hover, setHover] = useState(false);
   return (
-    <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <Handle
-        type={type}
-        position={position}
-        id={id}
-        style={{
-          width: 14,
-          height: 14,
-          border: '2px solid #1A2236',
-          background: color,
-          transition: 'box-shadow 0.2s',
-          boxShadow: hover ? `0 0 0 4px ${color}40` : 'none',
-          ...extra,
-        }}
-      />
-      {hover && type === 'source' && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-5 bg-black/90 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">
-          Drag to connect
-        </div>
-      )}
-    </div>
+    <Handle
+      type={type}
+      position={position}
+      id={id}
+      className="!w-3.5 !h-3.5 hover:!shadow-[0_0_0_4px_rgba(255,255,255,0.2)] transition-shadow"
+      style={{
+        width: 14,
+        height: 14,
+        border: '2px solid #1A2236',
+        background: color,
+        ...extra,
+      }}
+    />
   );
 }
 
