@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 
-const TOTAL_STEPS = 6;
+// Default question IDs already handled by hardcoded steps
+const DEFAULT_Q_IDS = ['q_tail', 'q_services', 'q_paint_goal', 'q_notes', 'q_photos'];
 
 // Service picker options for Detailing path
 const SERVICE_OPTIONS = [
@@ -41,6 +42,14 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const [intakeQuestions, setIntakeQuestions] = useState(null);
   const [intakeResponses, setIntakeResponses] = useState({});
 
+  // Custom questions = intake questions minus the ones already hardcoded in the UI
+  const customQuestions = (intakeQuestions || []).filter(q => !DEFAULT_Q_IDS.includes(q.id));
+  const hasCustomQ = customQuestions.length > 0;
+  const INTAKE_STEP = 6;                         // between Photos(5) and Contact
+  const CONTACT_STEP = hasCustomQ ? 7 : 6;
+  const SUBMIT_STEP = CONTACT_STEP + 1;
+  const TOTAL_STEPS = CONTACT_STEP;              // progress dots count
+
   // Service selection
   const [quickSelect, setQuickSelect] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -59,8 +68,19 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
 
   const set = (field, value) => setData(prev => ({ ...prev, [field]: value }));
 
-  const goNext = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
+  const goNext = () => setStep(s => {
+    const next = s + 1;
+    // Skip intake step if no custom questions
+    if (next === INTAKE_STEP && !hasCustomQ) return next + 1;
+    return Math.min(next, SUBMIT_STEP);
+  });
   const goBack = () => {
+    if (step === CONTACT_STEP) {
+      // Going back from contact: skip intake step if empty
+      setStep(hasCustomQ ? INTAKE_STEP : 5);
+      return;
+    }
+    if (step === INTAKE_STEP) { setStep(5); return; }
     if (step === 4) {
       if (paintGoal !== null && selectedServices.length > 0) { setPaintGoal(null); return; }
       if (quickSelect === 'maint_wash') { setQuickSelect(null); setWashAddons([]); setFreeTextNote(''); return; }
@@ -159,7 +179,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
       setSubmitted(true);
     } catch (err) {
       setError(err.message);
-      setStep(6);
+      setStep(CONTACT_STEP);
     } finally {
       setSubmitting(false);
       setUploading(false);
@@ -516,22 +536,32 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
           </div>
         )}
 
-        {/* STEP 6: Contact Info */}
-        {step === 6 && (
+        {/* STEP 6: Custom Intake Questions (only if detailer added custom questions) */}
+        {step === INTAKE_STEP && hasCustomQ && (
+          <IntakeQuestionsStep
+            questions={customQuestions}
+            responses={intakeResponses}
+            onChange={setIntakeResponses}
+            onNext={goNext}
+          />
+        )}
+
+        {/* Contact Info */}
+        {step === CONTACT_STEP && (
           <ContactStep
             onSubmit={(name, email, phone, company) => {
               set('name', name);
               set('email', email);
               set('phone', phone);
               if (company) set('company', company);
-              setStep(7);
+              setStep(SUBMIT_STEP);
               handleSubmitWithContact(name, email, phone);
             }}
           />
         )}
 
-        {/* STEP 7: Submitting */}
-        {step === 7 && !submitted && (
+        {/* Submitting */}
+        {step === SUBMIT_STEP && !submitted && (
           <div className="flex-1 flex flex-col items-center justify-center">
             <div className="w-10 h-10 border-2 border-[#007CB1] border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-white/60 text-sm">{uploading ? 'Uploading photos...' : 'Submitting your request...'}</p>
@@ -542,6 +572,112 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   );
 }
 
+
+// Renders custom intake questions from the detailer's intake flow builder
+function IntakeQuestionsStep({ questions, responses, onChange, onNext }) {
+  const update = (id, value) => onChange(prev => ({ ...prev, [id]: value }));
+
+  // Check conditional visibility
+  const visible = questions.filter(q => {
+    if (!q.showIf) return true;
+    const dep = responses[q.showIf.questionId];
+    if (q.showIf.hasAny && Array.isArray(dep)) return q.showIf.hasAny.some(v => dep.includes(v));
+    if (q.showIf.equals) return dep === q.showIf.equals;
+    return !!dep;
+  });
+
+  const allRequiredAnswered = visible.filter(q => q.required).every(q => {
+    const v = responses[q.id];
+    if (Array.isArray(v)) return v.length > 0;
+    return v !== undefined && v !== '';
+  });
+
+  const inputClass = 'w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-4 text-base placeholder-white/40 outline-none focus:border-[#007CB1] transition-colors';
+
+  return (
+    <div className="flex-1 flex flex-col">
+      <h2 className="text-xl font-light text-white mb-2">A few more questions</h2>
+      <p className="text-white/40 text-xs mb-6">Help us prepare the best quote for you</p>
+
+      <div className="flex-1 overflow-y-auto space-y-5">
+        {visible.map(q => (
+          <div key={q.id}>
+            <label className="text-white/80 text-sm mb-2 block">
+              {q.text}{q.required && <span className="text-red-400 ml-1">*</span>}
+            </label>
+
+            {q.type === 'text' && (
+              <input type="text" value={responses[q.id] || ''} onChange={e => update(q.id, e.target.value)}
+                placeholder={q.placeholder || ''} style={{ fontSize: '16px' }} className={inputClass} />
+            )}
+
+            {q.type === 'long_text' && (
+              <textarea value={responses[q.id] || ''} onChange={e => update(q.id, e.target.value)}
+                placeholder={q.placeholder || ''} rows={3}
+                className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-3 text-base placeholder-white/40 outline-none focus:border-[#007CB1] resize-none" />
+            )}
+
+            {q.type === 'number' && (
+              <input type="number" value={responses[q.id] || ''} onChange={e => update(q.id, e.target.value)}
+                placeholder={q.placeholder || ''} style={{ fontSize: '16px' }} className={inputClass} />
+            )}
+
+            {q.type === 'date' && (
+              <input type="date" value={responses[q.id] || ''} onChange={e => update(q.id, e.target.value)}
+                style={{ fontSize: '16px' }} className={inputClass} />
+            )}
+
+            {q.type === 'yes_no' && (
+              <div className="flex gap-3">
+                {['Yes', 'No'].map(opt => (
+                  <button key={opt} onClick={() => update(q.id, opt)}
+                    className={`flex-1 py-3 rounded-lg border text-sm transition-all ${
+                      responses[q.id] === opt ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
+                    }`}>{opt}</button>
+                ))}
+              </div>
+            )}
+
+            {q.type === 'single_select' && (
+              <div className="space-y-2">
+                {(q.options || []).map(opt => (
+                  <button key={opt} onClick={() => update(q.id, opt)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${
+                      responses[q.id] === opt ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
+                    }`}>{opt}</button>
+                ))}
+              </div>
+            )}
+
+            {q.type === 'multi_select' && (
+              <div className="grid grid-cols-2 gap-2">
+                {(q.options || []).map(opt => {
+                  const sel = (responses[q.id] || []).includes(opt);
+                  return (
+                    <button key={opt} onClick={() => {
+                      const cur = responses[q.id] || [];
+                      update(q.id, sel ? cur.filter(v => v !== opt) : [...cur, opt]);
+                    }}
+                      className={`p-3 rounded-lg border text-left text-xs transition-all ${
+                        sel ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
+                      }`}>{opt}</button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-auto pt-6">
+        <button onClick={onNext} disabled={!allRequiredAnswered}
+          className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Separate component to prevent parent re-renders from stealing focus
 // Uncontrolled inputs — bypasses React re-render focus issues on iOS Safari

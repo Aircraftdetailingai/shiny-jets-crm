@@ -89,6 +89,7 @@ export default function RequestDetailPage() {
       service: lead.services_requested || '',
       notes: lead.notes || '',
       photos: lead.photo_urls || [],
+      intake_responses: lead.intake_responses || null,
       timestamp: Date.now(),
     }));
     window.location.href = '/quotes/new';
@@ -180,6 +181,21 @@ export default function RequestDetailPage() {
                 <div key={i}>
                   <img src={typeof p === 'string' ? p : p.url} alt="" className="w-full h-32 object-cover rounded-lg border border-white/10" />
                   {p.caption && <p className="text-v-text-secondary text-[10px] mt-1">{p.caption}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Intake Responses */}
+        {lead.intake_responses && Object.keys(lead.intake_responses).length > 0 && (
+          <div className="bg-white/[0.03] border border-v-border-subtle rounded-lg p-5 mb-4">
+            <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3">Intake Responses</p>
+            <div className="space-y-2">
+              {Object.entries(lead.intake_responses).map(([key, val]) => (
+                <div key={key} className="flex gap-3">
+                  <span className="text-v-text-secondary text-xs w-32 flex-shrink-0">{key.replace(/^q_/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                  <span className="text-white text-sm">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
                 </div>
               ))}
             </div>

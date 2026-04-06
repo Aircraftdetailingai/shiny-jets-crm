@@ -253,7 +253,7 @@ function NewQuoteContent() {
           if (prefill.tail) setTailNumber(prefill.tail);
 
           // Store lead context for reference panel
-          if (prefill.notes || prefill.service || prefill.photos?.length) {
+          if (prefill.notes || prefill.service || prefill.photos?.length || prefill.intake_responses) {
             setLeadContext({
               leadId: prefill.leadId,
               customerName: prefill.name,
@@ -263,6 +263,7 @@ function NewQuoteContent() {
               aircraft: prefill.aircraft,
               tail: prefill.tail,
               airport: prefill.airport,
+              intakeResponses: prefill.intake_responses || null,
             });
           }
 
@@ -774,6 +775,17 @@ function NewQuoteContent() {
               <div className="flex gap-2 mt-2 overflow-x-auto">
                 {leadContext.photos.slice(0, 6).map((p, i) => (
                   <img key={i} src={typeof p === 'string' ? p : p.url} alt="" className="w-16 h-16 object-cover rounded border border-white/10 shrink-0" />
+                ))}
+              </div>
+            )}
+            {leadContext.intakeResponses && Object.keys(leadContext.intakeResponses).length > 0 && (
+              <div className="mt-2 pt-2 border-t border-white/10">
+                <p className="text-v-text-secondary/60 text-[10px] uppercase tracking-wider mb-1">Intake Answers</p>
+                {Object.entries(leadContext.intakeResponses).map(([key, val]) => (
+                  <p key={key} className="text-sm text-gray-300">
+                    <span className="text-v-text-secondary/60">{key.replace(/^q_/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:</span>{' '}
+                    {Array.isArray(val) ? val.join(', ') : String(val)}
+                  </p>
                 ))}
               </div>
             )}
