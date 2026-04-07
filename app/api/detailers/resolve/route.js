@@ -9,6 +9,8 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+const FIELDS = 'id, company, name, logo_url, plan';
+
 // Resolve a detailer by UUID, slug column, or company-name slug
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -23,31 +25,56 @@ export async function GET(request) {
     return Response.json({ error: 'Database not configured' }, { status: 500 });
   }
 
-  const fields = 'id, company, name, logo_url, plan';
-
-  // 1. Try UUID match
+  // 1. UUID match
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
   if (isUUID) {
-    const { data } = await supabase.from('detailers').select(fields).eq('id', identifier).single();
+    const { data } = await supabase.from('detailers').select(FIELDS).eq('id', identifier).single();
     if (data) return Response.json({ detailer: data });
+    return Response.json({ error: 'Detailer not found' }, { status: 404 });
   }
 
-  // 2. Try slug column (may not exist yet)
-  try {
-    const { data } = await supabase.from('detailers').select(fields).eq('slug', identifier).single();
-    if (data) return Response.json({ detailer: data });
-  } catch {}
+  // 2. Try slug column (may not exist yet — gracefully handle column-not-found)
+  const { data: slugData, error: slugErr } = await supabase
+    .from('detailers').select(FIELDS).eq('slug', identifier).single();
+  if (!slugErr && slugData) {
+    return Response.json({ detailer: slugData });
+  }
 
-  // 3. Fuzzy match on company name: normalize slug back to company name
-  // e.g., "vector-aviation" → match "Vector Aviation"
+  // 3. Company name match: "shiny-jets" → "shiny jets" → ilike "Shiny Jets"
   const normalized = identifier.replace(/-/g, ' ');
   const { data: matches } = await supabase
     .from('detailers')
-    .select(fields)
+    .select(FIELDS)
     .ilike('company', normalized);
 
   if (matches?.length === 1) {
     return Response.json({ detailer: matches[0] });
+  }
+
+  // Multiple matches on company name — try to disambiguate:
+  // Prefer the one with an intake flow configured (actively using the system)
+  if (matches?.length > 1) {
+    for (const m of matches) {
+      const { data: flow } = await supabase
+        .from('intake_flows')
+        .select('detailer_id')
+        .eq('detailer_id', m.id)
+        .single();
+      if (flow) return Response.json({ detailer: m });
+    }
+    // Still ambiguous — return the first match as best effort
+    return Response.json({ detailer: matches[0] });
+  }
+
+  // 4. Wildcard match: try %slug%
+  const { data: wildcard } = await supabase
+    .from('detailers')
+    .select(FIELDS)
+    .ilike('company', `%${normalized}%`)
+    .limit(1);
+
+  if (wildcard?.length === 1) {
+    return Response.json({ detailer: wildcard[0] });
   }
 
   return Response.json({ error: 'Detailer not found' }, { status: 404 });
