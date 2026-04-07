@@ -11,13 +11,14 @@ function getSupabase() {
 
 const FIELDS = 'id, company, name, logo_url, plan';
 
-// Resolve a detailer by UUID, slug column, or company-name slug
+// Resolve a detailer by UUID, slug, or company name
+// Accepts: ?slug=shiny-jets  ?id=UUID  ?company=shiny-jets
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const identifier = searchParams.get('id');
+  const identifier = searchParams.get('slug') || searchParams.get('id') || searchParams.get('company');
 
   if (!identifier) {
-    return Response.json({ error: 'id parameter required' }, { status: 400 });
+    return Response.json({ error: 'slug, id, or company parameter required' }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -51,8 +52,7 @@ export async function GET(request) {
     return Response.json({ detailer: matches[0] });
   }
 
-  // Multiple matches on company name — try to disambiguate:
-  // Prefer the one with an intake flow configured (actively using the system)
+  // Multiple matches — prefer the one with an intake flow configured
   if (matches?.length > 1) {
     for (const m of matches) {
       const { data: flow } = await supabase
@@ -62,11 +62,10 @@ export async function GET(request) {
         .single();
       if (flow) return Response.json({ detailer: m });
     }
-    // Still ambiguous — return the first match as best effort
     return Response.json({ detailer: matches[0] });
   }
 
-  // 4. Wildcard match: try %slug%
+  // 4. Wildcard fallback
   const { data: wildcard } = await supabase
     .from('detailers')
     .select(FIELDS)
