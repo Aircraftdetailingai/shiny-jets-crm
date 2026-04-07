@@ -114,6 +114,10 @@ export default function FlowRequestPage() {
 
     // Branching question (single_select with allowBranching)
     if (node.type === 'question' && node.data?.allowBranching && node.data?.answerType === 'single_select') {
+      // Prefer optionLabel match (survives option reordering)
+      const labelMatch = flowEdges.find(e => e.source === fromId && e.data?.optionLabel === answer);
+      if (labelMatch) return labelMatch.target;
+      // Fall back to positional index
       const optIdx = (node.data.options || []).indexOf(answer);
       if (optIdx >= 0) {
         const branchEdge = flowEdges.find(e => e.source === fromId && e.sourceHandle === `opt-${optIdx}`);
