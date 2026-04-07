@@ -1221,7 +1221,10 @@ function NewQuoteContent() {
             // Auto-suggest: calculate buffer and find next available date
             const autoBuffer = totalHours < 4 ? 30 : totalHours <= 8 ? 60 : 120;
             const jobDurationHours = totalHours + (bufferMinutes / 60);
+            const isMultiDay = totalHours > 8;
+            const workDays = Math.ceil(totalHours / 8);
             const endTimeStr = (() => {
+              if (isMultiDay) return null; // don't compute single end time for multi-day
               const [h, m] = proposedTime.split(':').map(Number);
               const endMin = h * 60 + m + Math.round(totalHours * 60);
               return `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
@@ -1288,13 +1291,27 @@ function NewQuoteContent() {
 
                 {proposedDate && (
                   <div className="bg-white/5 rounded p-3 text-sm text-v-text-secondary">
-                    <p>
-                      {new Date(proposedDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                      {' '}{proposedTime} &mdash; {endTimeStr}
-                    </p>
-                    <p className="text-xs text-v-text-secondary/60 mt-1">
-                      {totalHours.toFixed(1)}h job + {bufferMinutes}min buffer
-                    </p>
+                    {isMultiDay ? (
+                      <>
+                        <p>
+                          Estimated {workDays} work day{workDays !== 1 ? 's' : ''} starting{' '}
+                          {new Date(proposedDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        </p>
+                        <p className="text-xs text-v-text-secondary/60 mt-1">
+                          {totalHours.toFixed(1)} hours total ({workDays} &times; 8h days) + {bufferMinutes}min buffer
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          {new Date(proposedDate + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                          {' '}{proposedTime} &mdash; {endTimeStr}
+                        </p>
+                        <p className="text-xs text-v-text-secondary/60 mt-1">
+                          {totalHours.toFixed(1)}h job + {bufferMinutes}min buffer
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
