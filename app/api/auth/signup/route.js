@@ -119,6 +119,16 @@ export async function POST(request) {
     let newReferralCode = '';
     for (let i = 0; i < 8; i++) newReferralCode += chars.charAt(Math.floor(Math.random() * chars.length));
 
+    // Generate slug from company name (or name)
+    const slugSource = company?.trim() || name.trim();
+    const baseSlug = slugSource.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    let slug = baseSlug || 'detailer';
+    for (let i = 2; i <= 20; i++) {
+      const { data: existing } = await supabase.from('detailers').select('id').eq('slug', slug).maybeSingle();
+      if (!existing) break;
+      slug = `${baseSlug}-${i}`;
+    }
+
     // Create the detailer account
     const insertRow = {
       email: normalizedEmail,
@@ -130,6 +140,7 @@ export async function POST(request) {
       status: 'active',
       trial_ends_at: trialEndsAt.toISOString(),
       referral_code: newReferralCode,
+      slug,
     };
 
     let detailer = null;
