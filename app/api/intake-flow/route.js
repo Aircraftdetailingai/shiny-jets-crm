@@ -16,11 +16,14 @@ export async function GET(request) {
   // Public access for quote request form (by detailer_id)
   if (detailerId) {
     const supabase = getSupabase();
-    const { data } = await supabase.from('intake_flows').select('questions, flow_nodes, flow_edges').eq('detailer_id', detailerId).single();
+    const { data } = await supabase.from('intake_flows').select('questions, flow_nodes, flow_edges, updated_at').eq('detailer_id', detailerId).single();
     return Response.json({
       questions: data?.questions || DEFAULT_QUESTIONS,
       flow_nodes: data?.flow_nodes || null,
       flow_edges: data?.flow_edges || null,
+      updatedAt: data?.updated_at || null,
+    }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
     });
   }
 
@@ -37,6 +40,8 @@ export async function GET(request) {
     flow_edges: data?.flow_edges || null,
     isDefault: !data,
     updatedAt: data?.updated_at || null,
+  }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   });
 }
 
@@ -69,7 +74,7 @@ export async function POST(request) {
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  return Response.json({ success: true });
+  return Response.json({ success: true, savedAt: upsertData.updated_at });
 }
 
 // DELETE — reset to default

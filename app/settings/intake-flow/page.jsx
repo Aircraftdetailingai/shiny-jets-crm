@@ -306,7 +306,7 @@ function FlowBuilderInner() {
       headers,
       body: JSON.stringify({ flow_nodes: cleanNodes, flow_edges: edges }),
     });
-    if (res.ok) showToast('Flow saved successfully');
+    if (res.ok) showToast('Flow saved — your quote request page has been updated');
     else {
       const d = await res.json().catch(() => ({}));
       showToast(d.error || 'Failed to save');
