@@ -1526,6 +1526,7 @@ function NewQuoteContent() {
           onClose={closeSendModal}
           onSuccess={() => router.push('/dashboard')}
           preselectedCustomer={preselectedCustomer}
+          initialStep={preselectedCustomer ? 2 : 1}
           quote={{
             aircraft: quoteData.aircraft,
             selectedServices: quoteData.selectedServices,

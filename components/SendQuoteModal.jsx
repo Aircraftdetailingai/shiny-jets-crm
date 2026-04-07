@@ -5,9 +5,10 @@ import { formatPrice, currencySymbol } from "@/lib/formatPrice";
 import { useToast } from "./Toast";
 import PhoneInput from '@/components/PhoneInput';
 
-export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user, preselectedCustomer }) {
+export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user, preselectedCustomer, initialStep }) {
   const { success: toastSuccess, error: toastError } = useToast();
-  const [step, setStep] = useState(1); // 1=customer, 2=preview, 3=compose
+  const startStep = initialStep || 1;
+  const [step, setStep] = useState(startStep); // 1=customer, 2=preview, 3=compose
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -71,7 +72,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
   // Reset step when modal closes
   useEffect(() => {
-    if (!isOpen) { setStep(1); setCreatedQuote(null); setError(""); }
+    if (!isOpen) { setStep(startStep); setCreatedQuote(null); setError(""); }
   }, [isOpen]);
 
   if (!isOpen) return null;
