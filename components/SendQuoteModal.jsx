@@ -37,6 +37,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
   // Message composer state
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Contact fields
   const [pocName, setPocName] = useState("");
@@ -214,14 +215,21 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       // Prepare email defaults
       const companyName = user?.company || 'Your Detailer';
       const firstName = (effectiveName || '').split(' ')[0] || 'there';
-      setEmailSubject(`Your Aircraft Detailing Quote from ${companyName}`);
+      const aircraft = aircraftName || 'your aircraft';
+      const price = `${currencySymbol()}${formatPrice(totalPrice)}`;
+      setEmailSubject(`Your Quote from ${companyName} — ${aircraft} — ${price}`);
       setEmailBody(
 `Hi ${firstName},
 
-Please find your aircraft detailing quote attached. Click the link below to review, approve, and pay online.
+Thank you for reaching out to ${companyName}! We've put together a detailed quote for your ${aircraft} and we're excited about the opportunity to take care of it.
 
-If you have any questions just reply to this email.
+Please review your quote using the link below. You can approve and pay securely online — the process takes less than two minutes.
 
+If you have any questions or would like to adjust anything, just reply to this email and we'll take care of it right away.
+
+We look forward to making your aircraft shine.
+
+Best,
 ${user?.name || companyName}
 ${companyName}${user?.phone ? '\n' + user.phone : ''}`
       );
@@ -338,170 +346,165 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
   const pdfUrl = createdQuote ? `/api/quotes/${createdQuote.id}/pdf?shareToken=${createdQuote.share_link}` : null;
   const quoteLink = createdQuote ? `${appUrl}/q/${createdQuote.share_link}` : '';
 
-  // ─── STEP 2: PDF Preview ───
+  // ─── STEP 2: Email Compose + Quote Preview ───
   if (step === 2 && createdQuote) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-        <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-3xl max-h-[95vh] flex flex-col shadow-2xl">
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-[#0f1623] border border-white/[0.08] rounded-xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-v-border shrink-0">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Review Quote</h2>
-              <p className="text-xs text-v-text-secondary mt-0.5">
-                {aircraftName}{quote?.airport ? ` • ${quote.airport}` : ''} • {currencySymbol()}{formatPrice(totalPrice)}
-              </p>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+              </div>
+              <div>
+                <h2 className="text-white font-semibold text-base">Send Quote to Client</h2>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  {aircraftName}{quote?.tailNumber ? ` · ${quote.tailNumber}` : ''} · {currencySymbol()}{formatPrice(totalPrice)}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setStep(1)} className="px-3 py-1.5 text-xs text-v-text-secondary hover:text-white border border-v-border rounded-lg">
-                Back
-              </button>
-              <button onClick={onClose} className="text-v-text-secondary hover:text-white text-lg px-2">&times;</button>
-            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-lg px-2">&times;</button>
           </div>
 
-          {/* PDF Preview */}
-          <div className="flex-1 overflow-hidden bg-gray-900 min-h-0">
-            <iframe
-              src={pdfUrl}
-              className="w-full h-full border-0"
-              title="Quote Preview"
-              style={{ minHeight: '500px' }}
-            />
-          </div>
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {/* Email Compose */}
+            <div className="p-6 space-y-4">
+              {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          {/* Actions */}
-          <div className="px-5 py-4 border-t border-v-border flex items-center justify-between shrink-0">
-            <a
-              href={pdfUrl}
-              download={`quote-${createdQuote.id.slice(0, 8)}.pdf`}
-              className="text-xs text-v-text-secondary hover:text-v-gold transition-colors"
-            >
-              Download PDF
-            </a>
+              {/* To field */}
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">To</label>
+                <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+                  <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {(effectiveName || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{effectiveName}</p>
+                    <p className="text-gray-400 text-xs truncate">{effectiveEmail}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Subject</label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg text-white text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white/[0.04] border border-white/[0.08]"
+                />
+              </div>
+
+              {/* Message */}
+              <div>
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-1.5">Message</label>
+                <textarea
+                  value={emailBody}
+                  onChange={e => setEmailBody(e.target.value)}
+                  rows={7}
+                  className="w-full px-4 py-3 rounded-lg text-white text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none leading-relaxed bg-white/[0.04] border border-white/[0.08]"
+                />
+              </div>
+
+              {/* Quote link */}
+              <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg p-3">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Quote link (included in email)</p>
+                <div className="flex items-center gap-2">
+                  <a href={quoteLink} target="_blank" rel="noreferrer" className="text-v-gold text-xs hover:underline truncate flex-1">{quoteLink}</a>
+                  <button onClick={() => { navigator.clipboard.writeText(quoteLink).catch(() => {}); toastSuccess('Link copied'); }}
+                    className="text-[10px] text-gray-400 hover:text-white border border-white/[0.08] rounded px-2 py-1 shrink-0">
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Schedule Send */}
+              <div className="border-t border-white/[0.08] pt-3">
+                <label className="flex items-center cursor-pointer">
+                  <input type="checkbox" checked={isScheduled} onChange={e => { setIsScheduled(e.target.checked); if (!e.target.checked) setScheduledDate(""); }}
+                    className="mr-2 w-4 h-4 text-v-gold" />
+                  <span className="text-sm font-medium text-white">Schedule for later</span>
+                </label>
+                {isScheduled && (
+                  <div className="mt-2 pl-6">
+                    <input type="datetime-local" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)}
+                      min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                      className="w-full border border-white/[0.08] bg-white/[0.04] text-white rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                      style={{ colorScheme: 'dark' }} />
+                  </div>
+                )}
+              </div>
+
+              {/* Recurring */}
+              <div className="border-t border-white/[0.08] pt-3">
+                <label className="flex items-center cursor-pointer">
+                  <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)}
+                    className="mr-2 w-4 h-4 text-v-gold" />
+                  <span className="text-sm font-medium text-white">Set up as recurring service</span>
+                </label>
+                {isRecurring && (
+                  <div className="mt-2 pl-6">
+                    <select value={recurringInterval} onChange={e => setRecurringInterval(e.target.value)}
+                      className="w-full border border-white/[0.08] bg-white/[0.04] text-white rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                      style={{ colorScheme: 'dark' }}>
+                      <option value="4_weeks">Every 4 weeks (Recommended)</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="6_weeks">Every 6 weeks</option>
+                      <option value="quarterly">Quarterly</option>
+                    </select>
+                    {recurringInterval === "4_weeks" && (
+                      <p className="text-xs text-v-gold/80 mt-1">13 cycles/year vs 12 months = 8% more annual revenue.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Collapsible Quote Preview */}
             <button
-              onClick={() => setStep(3)}
-              className="px-6 py-2.5 bg-v-gold hover:bg-v-gold-dim text-white rounded-lg font-medium text-sm transition-colors"
+              onClick={() => setPreviewOpen(p => !p)}
+              className="w-full flex items-center gap-3 px-6 py-3 hover:bg-white/5 transition-colors border-t border-white/[0.08]"
+              style={{ borderBottom: previewOpen ? '1px solid rgba(255,255,255,0.08)' : 'none' }}
             >
-              Send Quote
+              <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Quote Preview — As Client Sees It</span>
+              <span className="ml-auto text-gray-500">
+                <svg className={`w-3.5 h-3.5 transition-transform ${previewOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+              </span>
             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── STEP 3: Message Composer ───
-  if (step === 3 && createdQuote) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-        <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-lg max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-v-border shrink-0">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Send Quote</h2>
-              <p className="text-xs text-v-text-secondary mt-0.5">Compose your email to {effectiveName}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setStep(2)} className="px-3 py-1.5 text-xs text-v-text-secondary hover:text-white border border-v-border rounded-lg">
-                Back
-              </button>
-              <button onClick={onClose} className="text-v-text-secondary hover:text-white text-lg px-2">&times;</button>
-            </div>
-          </div>
-
-          {/* Compose Form */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-
-            <div>
-              <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">To</label>
-              <div className="px-3 py-2 bg-v-charcoal border border-v-border rounded-lg text-sm text-white">
-                {effectiveEmail}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Subject</label>
-              <input
-                type="text"
-                value={emailSubject}
-                onChange={e => setEmailSubject(e.target.value)}
-                className="w-full bg-v-charcoal border border-v-border text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-v-gold"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Message</label>
-              <textarea
-                value={emailBody}
-                onChange={e => setEmailBody(e.target.value)}
-                rows={8}
-                className="w-full bg-v-charcoal border border-v-border text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-v-gold resize-none"
-              />
-            </div>
-
-            {/* Quote link preview */}
-            <div className="bg-v-charcoal border border-v-border rounded-lg p-3">
-              <p className="text-[10px] text-v-text-secondary uppercase tracking-wider mb-2">Quote link (included in email)</p>
-              <div className="flex items-center gap-2">
-                <a href={quoteLink} target="_blank" rel="noreferrer" className="text-v-gold text-xs hover:underline truncate flex-1">{quoteLink}</a>
-                <button onClick={() => { navigator.clipboard.writeText(quoteLink).catch(() => {}); toastSuccess('Link copied'); }}
-                  className="text-[10px] text-v-text-secondary hover:text-white border border-v-border rounded px-2 py-1 shrink-0">
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            {/* Schedule Send */}
-            <div className="border-t border-v-border pt-3">
-              <label className="flex items-center cursor-pointer">
-                <input type="checkbox" checked={isScheduled} onChange={e => { setIsScheduled(e.target.checked); if (!e.target.checked) setScheduledDate(""); }}
-                  className="mr-2 w-4 h-4 text-v-gold" />
-                <span className="text-sm font-medium text-white">Schedule for later</span>
-              </label>
-              {isScheduled && (
-                <div className="mt-2 pl-6">
-                  <input type="datetime-local" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)}
-                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                    className="w-full border border-v-border bg-v-charcoal text-white rounded-lg px-3 py-2 text-sm focus:border-v-gold outline-none"
-                    style={{ colorScheme: 'dark' }} />
+            {previewOpen && (
+              <div className="bg-gray-900">
+                <iframe
+                  src={pdfUrl}
+                  className="w-full border-0"
+                  title="Quote Preview"
+                  style={{ height: '500px' }}
+                />
+                <div className="px-6 py-2 flex items-center justify-between border-t border-white/[0.06]">
+                  <a href={pdfUrl} download={`quote-${createdQuote.id.slice(0, 8)}.pdf`}
+                    className="text-xs text-gray-500 hover:text-v-gold transition-colors">
+                    Download PDF
+                  </a>
                 </div>
-              )}
-            </div>
-
-            {/* Recurring */}
-            <div className="border-t border-v-border pt-3">
-              <label className="flex items-center cursor-pointer">
-                <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)}
-                  className="mr-2 w-4 h-4 text-v-gold" />
-                <span className="text-sm font-medium text-white">Set up as recurring service</span>
-              </label>
-              {isRecurring && (
-                <div className="mt-2 pl-6">
-                  <select value={recurringInterval} onChange={e => setRecurringInterval(e.target.value)}
-                    className="w-full border border-v-border bg-v-charcoal text-white rounded-lg px-3 py-2 text-sm focus:border-v-gold outline-none"
-                    style={{ colorScheme: 'dark' }}>
-                    <option value="4_weeks">Every 4 weeks (Recommended)</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="6_weeks">Every 6 weeks</option>
-                    <option value="quarterly">Quarterly</option>
-                  </select>
-                  {recurringInterval === "4_weeks" && (
-                    <p className="text-xs text-v-gold/80 mt-1">13 cycles/year vs 12 months = 8% more annual revenue.</p>
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* Send Button */}
-          <div className="px-5 py-4 border-t border-v-border shrink-0">
+          {/* Footer */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.08] bg-[#0d1520] shrink-0">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">
+              Cancel
+            </button>
             <button
               onClick={handleSendQuote}
               disabled={loading}
-              className="w-full px-4 py-3 bg-v-gold hover:bg-v-gold-dim text-white rounded-lg font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+              className="px-6 py-2.5 text-sm font-semibold text-white rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {loading && <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
               {loading ? (isScheduled ? 'Scheduling...' : 'Sending...') : (isScheduled && scheduledDate ? 'Schedule Quote' : 'Send Quote')}
             </button>
           </div>
