@@ -52,8 +52,12 @@ export default function EmbedSettingsPage() {
   style="border: 1px solid #e5e7eb; border-radius: 8px;"
 ></iframe>`;
 
-  // Direct link
-  const directLink = `${appUrl}/quote-request/${detailerId}`;
+  // Direct link — use slug-based /request/ URL for cleaner sharing
+  const companySlug = (user?.company || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const directLink = `${appUrl}/request/${companySlug || detailerId}`;
+
+  // Legacy link (still works)
+  const legacyLink = `${appUrl}/quote-request/${detailerId}`;
 
   // QR Code URL (using QR code API)
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(directLink)}`;
