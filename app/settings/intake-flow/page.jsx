@@ -11,12 +11,62 @@ import ReactFlow, {
   MarkerType,
   useReactFlow,
   ReactFlowProvider,
+  getSmoothStepPath,
+  EdgeLabelRenderer,
+  BaseEdge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { nodeTypes } from '@/components/flow-builder/nodes';
 import SidePanel from '@/components/flow-builder/SidePanel';
 import FlowPreview from '@/components/flow-builder/FlowPreview';
+
+// ─── Deletable edge with hover ✕ button ───
+function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, label, labelStyle, selected, data }) {
+  const [hovered, setHovered] = useState(false);
+  const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+
+  const activeStyle = {
+    ...style,
+    stroke: selected ? '#f87171' : (hovered ? '#94a3b8' : style?.stroke),
+    strokeWidth: selected ? 3 : (style?.strokeWidth || 2),
+  };
+
+  return (
+    <>
+      {/* Invisible fat hit area for hover detection */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+      <BaseEdge path={edgePath} style={activeStyle} markerEnd={markerEnd} />
+      {label && (
+        <EdgeLabelRenderer>
+          <div style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 14}px)`, pointerEvents: 'none' }}>
+            <span style={{ fontSize: 10, ...labelStyle }}>{label}</span>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+      {(hovered || selected) && (
+        <EdgeLabelRenderer>
+          <button
+            style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
+            className="w-5 h-5 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs flex items-center justify-center shadow-lg cursor-pointer leading-none"
+            onClick={(e) => { e.stopPropagation(); data?.onDelete?.(id); }}
+          >
+            &times;
+          </button>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
+const edgeTypes = { deletable: DeletableEdge };
 
 // ─── Node type definitions for toolbar ───
 const NODE_PALETTE = [
@@ -28,7 +78,7 @@ const NODE_PALETTE = [
 
 // ─── Default edge style ───
 const defaultEdgeOptions = {
-  type: 'smoothstep',
+  type: 'deletable',
   animated: true,
   style: { stroke: '#4a5568', strokeWidth: 2 },
   markerEnd: { type: MarkerType.ArrowClosed, color: '#4a5568' },
@@ -205,6 +255,19 @@ function FlowBuilderInner() {
     })),
   [nodes, editingNode]);
 
+  // ─── Attach delete callback to edges ───
+  const deleteEdge = useCallback((edgeId) => {
+    setEdges(eds => eds.filter(e => e.id !== edgeId));
+  }, []);
+
+  const edgesWithCallbacks = useMemo(() =>
+    edges.map(edge => ({
+      ...edge,
+      type: edge.type || 'deletable',
+      data: { ...edge.data, onDelete: deleteEdge },
+    })),
+  [edges, deleteEdge]);
+
   // ─── Update node data from side panel ───
   const updateNodeData = useCallback((nodeId, newData) => {
     setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n));
@@ -293,10 +356,13 @@ function FlowBuilderInner() {
           </div>
 
           {/* Connection help */}
-          <div className="mt-6 p-3 bg-white/[0.03] border border-v-border-subtle rounded-lg">
-            <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-2">Connecting nodes</p>
+          <div className="mt-6 p-3 bg-white/[0.03] border border-v-border-subtle rounded-lg space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60">Connections</p>
             <p className="text-[10px] text-v-text-secondary leading-relaxed">
-              Drag from the dot at the bottom of a node to the dot at the top of the next node.
+              <span className="text-white/60">Connect:</span> Drag from the dot at the bottom of a node to the dot at the top of another.
+            </p>
+            <p className="text-[10px] text-v-text-secondary leading-relaxed">
+              <span className="text-white/60">Delete:</span> Click a line then press Delete, or hover the line and click the red <span className="text-red-400">&times;</span> button.
             </p>
           </div>
 
@@ -349,7 +415,7 @@ function FlowBuilderInner() {
         </div>
         <ReactFlow
           nodes={nodesWithCallbacks}
-          edges={edges}
+          edges={edgesWithCallbacks}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -357,7 +423,10 @@ function FlowBuilderInner() {
           onDragOver={onDragOver}
           onDrop={onDrop}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
+          edgesFocusable={true}
+          edgesUpdatable={true}
           fitView
           fitViewOptions={{ padding: 0.3 }}
           minZoom={0.2}
