@@ -195,12 +195,10 @@ export default function FlowRequestPage() {
     }
   };
 
-  // ─── FAA lookup ───
+  // ─── FAA lookup (silent — no UI feedback to customer) ───
   const handleTailChange = (v) => {
     const upper = v.toUpperCase();
     setTailNumber(upper);
-    setFaaResult(null);
-    setFaaError('');
     clearTimeout(faaTimer.current);
     const nNum = upper.replace(/^N/, '');
     if (nNum.length >= 2) {
@@ -209,7 +207,6 @@ export default function FlowRequestPage() {
   };
 
   const lookupTail = async (t) => {
-    setFaaLooking(true);
     try {
       const res = await fetch(`/api/aircraft/registry/${encodeURIComponent(t)}`);
       if (res.ok) {
@@ -217,15 +214,15 @@ export default function FlowRequestPage() {
         if (data.found) {
           const badModel = !data.model || data.model === 'Serial Number' || data.model.length < 2;
           if (data.manufacturer && !badModel) {
+            // Store silently for detailer — never shown to customer
             setFaaResult(data);
+            if (!selectedMfr) setSelectedMfr(data.manufacturer);
+            if (!selectedModel) setSelectedModel(data.model);
             setAircraftDisplay(`${data.manufacturer} ${data.model}`);
           }
-        } else if (data.filtered) {
-          setFaaError(data.message || 'This aircraft type is not supported.');
         }
       }
     } catch {}
-    setFaaLooking(false);
   };
 
   // ─── Submit ───
@@ -416,15 +413,8 @@ export default function FlowRequestPage() {
         {/* ━━━ STEP 3: Tail Number + Airport ━━━ */}
         {phase === 'tailAirport' && (
           <div className="flex-1 flex flex-col">
-            {/* Show selected aircraft */}
-            {aircraftDisplay && (
-              <div className="bg-[#007CB1]/10 border border-[#007CB1]/30 rounded-lg p-3 mb-4">
-                <p className="text-white text-sm font-medium">{aircraftDisplay}</p>
-              </div>
-            )}
-
             <h2 className="text-xl font-light text-white mb-2">Tail number &amp; home base</h2>
-            <p className="text-white/40 text-xs mb-5">Optional — helps us look up your aircraft</p>
+            <p className="text-white/40 text-xs mb-5">Optional — helps us prepare your quote</p>
 
             <div className="space-y-4">
               <div>
@@ -432,20 +422,6 @@ export default function FlowRequestPage() {
                 <input type="text" value={tailNumber} onChange={e => handleTailChange(e.target.value)}
                   placeholder="N12345" autoCapitalize="characters" style={{ fontSize: '16px' }} className={inputCls} />
               </div>
-              {faaLooking && (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-[#007CB1] border-t-transparent rounded-full animate-spin" />
-                  <p className="text-white/40 text-xs">Looking up registration...</p>
-                </div>
-              )}
-              {faaError && <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3"><p className="text-red-300 text-xs">{faaError}</p></div>}
-              {faaResult && !aircraftDisplay.includes(faaResult.model) && (
-                <div className="bg-[#007CB1]/10 border border-[#007CB1]/30 rounded-lg p-3">
-                  <p className="text-white text-sm font-medium">{faaResult.manufacturer} {faaResult.model}</p>
-                  <button onClick={() => { setSelectedMfr(faaResult.manufacturer); setSelectedModel(faaResult.model); setAircraftDisplay(`${faaResult.manufacturer} ${faaResult.model}`); }}
-                    className="text-[#007CB1] text-xs mt-1 underline">Use this aircraft instead</button>
-                </div>
-              )}
               <div>
                 <label className="text-white/50 text-xs uppercase tracking-wider mb-1.5 block">Airport / Home Base</label>
                 <input type="text" value={airport} onChange={e => setAirport(e.target.value.toUpperCase())}
