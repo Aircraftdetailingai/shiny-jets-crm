@@ -483,20 +483,27 @@ function ServiceSelectStep({ node, services, value, onChange, onNext }) {
     onChange(selected.includes(name) ? selected.filter(n => n !== name) : [...selected, name]);
   };
 
+  // Use packageNames from node data if present, otherwise fall back to global services list
+  const hasPackages = node.data?.packageNames?.length > 0;
+  const items = hasPackages
+    ? node.data.packageNames.map(name => ({ name, id: name }))
+    : services;
+
   return (
     <div className="flex-1 flex flex-col">
       <h2 className="text-xl font-light text-white mb-2">{node.data?.label || 'What services do you need?'}</h2>
       <p className="text-white/40 text-xs mb-5">Select all that apply</p>
-      {services.length > 0 ? (
+      {items.length > 0 ? (
         <div className="flex-1 overflow-y-auto space-y-2 content-start">
-          {services.map(svc => {
-            const sel = selected.includes(svc.name);
+          {items.map(svc => {
+            const name = typeof svc === 'string' ? svc : svc.name;
+            const sel = selected.includes(name);
             return (
-              <button key={svc.id || svc.name} onClick={() => toggle(svc.name)}
+              <button key={svc.id || name} onClick={() => toggle(name)}
                 className={`w-full p-4 rounded-lg border text-left text-sm transition-all ${
                   sel ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
                 }`}>
-                <span className="font-medium">{svc.name}</span>
+                <span className="font-medium">{name}</span>
               </button>
             );
           })}
