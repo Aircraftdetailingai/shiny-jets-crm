@@ -29,8 +29,6 @@ export default function FlowRequestPage() {
   const [tailNumber, setTailNumber] = useState('');
   const [airport, setAirport] = useState('');
   const [faaResult, setFaaResult] = useState(null);
-  const [faaError, setFaaError] = useState('');
-  const [faaLooking, setFaaLooking] = useState(false);
   const [aircraftDisplay, setAircraftDisplay] = useState('');
   const faaTimer = useRef(null);
 
