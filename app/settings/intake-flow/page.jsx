@@ -46,7 +46,7 @@ function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
       <BaseEdge path={edgePath} style={activeStyle} markerEnd={markerEnd} />
       {label && (
         <EdgeLabelRenderer>
-          <div style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 14}px)`, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 16}px)`, pointerEvents: 'none', zIndex: 999 }}>
             <span style={{ fontSize: 10, ...labelStyle }}>{label}</span>
           </div>
         </EdgeLabelRenderer>
@@ -54,8 +54,8 @@ function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
       {(hovered || selected) && (
         <EdgeLabelRenderer>
           <button
-            style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
-            className="w-5 h-5 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs flex items-center justify-center shadow-lg cursor-pointer leading-none"
+            style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, zIndex: 1000 }}
+            className="w-6 h-6 bg-red-600 hover:bg-red-500 text-white rounded-full text-sm flex items-center justify-center shadow-lg cursor-pointer leading-none pointer-events-auto"
             onClick={(e) => { e.stopPropagation(); data?.onDelete?.(id); }}
           >
             &times;
@@ -263,7 +263,7 @@ function FlowBuilderInner() {
   const edgesWithCallbacks = useMemo(() =>
     edges.map(edge => ({
       ...edge,
-      type: edge.type || 'deletable',
+      type: 'deletable',
       data: { ...edge.data, onDelete: deleteEdge },
     })),
   [edges, deleteEdge]);
