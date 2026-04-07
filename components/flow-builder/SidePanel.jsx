@@ -12,7 +12,7 @@ const ANSWER_TYPES = [
   { key: 'date', label: 'Date', desc: 'Date picker' },
 ];
 
-export default function SidePanel({ node, nodes, services = [], packages = [], onUpdate, onClose }) {
+export default function SidePanel({ node, nodes, services = [], packages = [], onUpdate, onReorderOptions, onClose }) {
   const [localData, setLocalData] = useState({});
 
   useEffect(() => {
@@ -137,9 +137,14 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
                     e.preventDefault();
                     const from = parseInt(e.dataTransfer.getData('text/plain'));
                     if (isNaN(from) || from === i) return;
-                    const opts = [...(localData.options || [])];
+                    const oldOpts = [...(localData.options || [])];
+                    const opts = [...oldOpts];
                     const [moved] = opts.splice(from, 1);
                     opts.splice(i, 0, moved);
+                    // Remap branching edges when options are reordered
+                    if (localData.allowBranching && onReorderOptions) {
+                      onReorderOptions(node.id, oldOpts, opts);
+                    }
                     update({ options: opts });
                   }}
                 >
@@ -155,7 +160,14 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
                     className="flex-1 bg-v-charcoal border border-v-border text-white rounded px-2 py-1.5 text-xs outline-none focus:border-v-gold"
                   />
                   <button
-                    onClick={() => update({ options: (localData.options || []).filter((_, j) => j !== i) })}
+                    onClick={() => {
+                      const oldOpts = [...(localData.options || [])];
+                      const newOpts = oldOpts.filter((_, j) => j !== i);
+                      if (localData.allowBranching && onReorderOptions) {
+                        onReorderOptions(node.id, oldOpts, newOpts);
+                      }
+                      update({ options: newOpts });
+                    }}
                     className="text-red-400/60 hover:text-red-400 text-xs px-1"
                   >
                     &times;

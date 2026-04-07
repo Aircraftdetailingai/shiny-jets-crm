@@ -284,6 +284,29 @@ function FlowBuilderInner() {
     setEditingNode(prev => prev?.id === nodeId ? { ...prev, data: { ...prev.data, ...newData } } : prev);
   }, []);
 
+  // ─── Remap edges when branching options are reordered ───
+  const handleReorderOptions = useCallback((nodeId, oldOptions, newOptions) => {
+    // Build a map: oldIndex → newIndex
+    const indexMap = {};
+    oldOptions.forEach((opt, oldIdx) => {
+      const newIdx = newOptions.indexOf(opt);
+      if (newIdx !== -1 && newIdx !== oldIdx) indexMap[oldIdx] = newIdx;
+    });
+    if (Object.keys(indexMap).length === 0) return;
+
+    setEdges(eds => eds.map(e => {
+      if (e.source !== nodeId) return e;
+      const match = e.sourceHandle?.match(/^opt-(\d+)$/);
+      if (!match) return e;
+      const oldIdx = parseInt(match[1]);
+      // Find which new index this old target should have
+      const oldOpt = oldOptions[oldIdx];
+      const newIdx = newOptions.indexOf(oldOpt);
+      if (newIdx === -1 || newIdx === oldIdx) return e;
+      return { ...e, sourceHandle: `opt-${newIdx}` };
+    }));
+  }, []);
+
   // ─── Auto-arrange ───
   const handleCleanUp = useCallback(() => {
     setNodes(nds => {
@@ -471,6 +494,7 @@ function FlowBuilderInner() {
             services={services}
             packages={packages}
             onUpdate={updateNodeData}
+            onReorderOptions={handleReorderOptions}
             onClose={() => setEditingNode(null)}
           />
         )}
