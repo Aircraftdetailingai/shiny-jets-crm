@@ -10,6 +10,7 @@ export default function FlowRequestPage() {
   const [flowNodes, setFlowNodes] = useState([]);
   const [flowEdges, setFlowEdges] = useState([]);
   const [services, setServices] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState('');
 
@@ -49,16 +50,19 @@ export default function FlowRequestPage() {
         setDetailer(detData.detailer);
         const detailerId = detData.detailer.id;
 
-        const [flowRes, svcRes, mfrRes] = await Promise.all([
+        const [flowRes, svcRes, mfrRes, pkgRes] = await Promise.all([
           fetch(`/api/intake-flow?detailer_id=${detailerId}`),
           fetch(`/api/services?detailer_id=${detailerId}`),
           fetch('/api/aircraft/manufacturers'),
+          fetch(`/api/packages/public?detailer_id=${detailerId}`),
         ]);
         const flowData = flowRes.ok ? await flowRes.json() : {};
         const svcData = svcRes.ok ? await svcRes.json() : {};
         const mfrData = mfrRes.ok ? await mfrRes.json() : {};
+        const pkgData = pkgRes.ok ? await pkgRes.json() : {};
 
         setServices(svcData.services || []);
+        setPackages(pkgData.packages || []);
         setManufacturers(mfrData.manufacturers || []);
 
         if (flowData.flow_nodes?.length > 0 && flowData.flow_edges?.length > 0) {
@@ -441,6 +445,7 @@ export default function FlowRequestPage() {
               <ServiceSelectStep
                 node={currentNode}
                 services={services}
+                packages={packages}
                 value={answers[currentNode.id] || []}
                 onChange={val => setAnswers(a => ({ ...a, [currentNode.id]: val }))}
                 onNext={() => advance(currentNode.id, answers[currentNode.id])}
@@ -477,7 +482,7 @@ export default function FlowRequestPage() {
 }
 
 // ─── Service Select Step ───
-function ServiceSelectStep({ node, services, value, onChange, onNext }) {
+function ServiceSelectStep({ node, services, packages = [], value, onChange, onNext }) {
   const selected = value || [];
   const toggle = (name) => {
     onChange(selected.includes(name) ? selected.filter(n => n !== name) : [...selected, name]);
@@ -486,7 +491,10 @@ function ServiceSelectStep({ node, services, value, onChange, onNext }) {
   // Use packageNames from node data if present, otherwise fall back to global services list
   const hasPackages = node.data?.packageNames?.length > 0;
   const items = hasPackages
-    ? node.data.packageNames.map(name => ({ name, id: name }))
+    ? node.data.packageNames.map(name => {
+        const pkg = packages.find(p => p.name === name);
+        return { name, id: pkg?.id || name, description: pkg?.description || '' };
+      })
     : services;
 
   return (
@@ -497,6 +505,7 @@ function ServiceSelectStep({ node, services, value, onChange, onNext }) {
         <div className="flex-1 overflow-y-auto space-y-2 content-start">
           {items.map(svc => {
             const name = typeof svc === 'string' ? svc : svc.name;
+            const desc = svc.description || '';
             const sel = selected.includes(name);
             return (
               <button key={svc.id || name} onClick={() => toggle(name)}
@@ -504,6 +513,7 @@ function ServiceSelectStep({ node, services, value, onChange, onNext }) {
                   sel ? 'border-[#007CB1] bg-[#007CB1]/15 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:border-white/30'
                 }`}>
                 <span className="font-medium">{name}</span>
+                {desc && <span className="block text-xs text-white/30 mt-0.5">{desc}</span>}
               </button>
             );
           })}
