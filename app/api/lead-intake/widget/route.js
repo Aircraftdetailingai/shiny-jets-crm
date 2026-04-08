@@ -66,7 +66,7 @@ export async function GET(request) {
     // Get detailer info
     const { data: detailer, error: detailerError } = await supabase
       .from('detailers')
-      .select('id, company, logo_url, plan')
+      .select('id, company, logo_url, plan, theme_primary, theme_accent, font_body, font_embed_url')
       .eq('id', detailerId)
       .single();
 
@@ -105,6 +105,10 @@ export async function GET(request) {
         name: detailer.company,
         logo: detailer.logo_url,
         plan: detailer.plan || 'free',
+        theme_primary: detailer.theme_primary || null,
+        theme_accent: detailer.theme_accent || null,
+        font_body: detailer.font_body || null,
+        font_embed_url: detailer.font_embed_url || null,
       },
       questions: formattedQuestions,
       faqs: faqData?.faqs || [],

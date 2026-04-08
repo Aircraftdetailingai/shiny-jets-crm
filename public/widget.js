@@ -164,6 +164,7 @@
 
     .vector-message.bot {
       background: white;
+      color: #1a1a1a;
       align-self: flex-start;
       border-bottom-left-radius: 4px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -171,7 +172,7 @@
 
     .vector-message.user {
       background: ${primaryColor};
-      color: white;
+      color: #ffffff;
       align-self: flex-end;
       border-bottom-right-radius: 4px;
     }
@@ -186,6 +187,7 @@
     .vector-option-btn {
       padding: 8px 16px;
       background: white;
+      color: #374151;
       border: 1px solid #e5e7eb;
       border-radius: 20px;
       cursor: pointer;
@@ -214,6 +216,12 @@
       font-size: 14px;
       outline: none;
       transition: border-color 0.2s;
+      color: #1a1a1a;
+      background: #ffffff;
+    }
+
+    #vector-widget-input::placeholder {
+      color: #9ca3af;
     }
 
     #vector-widget-input:focus {
@@ -371,7 +379,7 @@
   const logoEl = document.getElementById('vector-widget-logo');
   const companyEl = document.getElementById('vector-widget-company');
 
-  // Load config
+  // Load config and apply branding
   async function loadConfig() {
     try {
       const res = await fetch(`${apiBase}/api/lead-intake/widget?detailer_id=${detailerId}`);
@@ -379,9 +387,35 @@
         config = await res.json();
 
         if (config.detailer) {
-          companyEl.textContent = config.detailer.company_name || 'Get a Quote';
+          companyEl.textContent = config.detailer.name || 'Get a Quote';
           if (config.detailer.logo) {
             logoEl.src = config.detailer.logo;
+          }
+
+          // Apply detailer branding — override defaults if set in their settings
+          const d = config.detailer;
+          const brandColor = d.theme_primary || primaryColor;
+          const accentColor = d.theme_accent || '#0f172a';
+
+          // Inject dynamic brand overrides
+          const brandStyle = document.createElement('style');
+          brandStyle.textContent = `
+            #vector-widget-button { background: ${brandColor} !important; }
+            #vector-widget-header { background: linear-gradient(135deg, ${accentColor} 0%, ${brandColor} 100%) !important; }
+            .vector-message.user { background: ${brandColor} !important; }
+            #vector-widget-send { background: ${brandColor} !important; }
+            #vector-widget-input:focus { border-color: ${brandColor} !important; }
+            .vector-option-btn:hover { border-color: ${brandColor} !important; color: ${brandColor} !important; }
+            ${d.font_body ? `#vector-widget-container * { font-family: '${d.font_body}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }` : ''}
+          `;
+          container.appendChild(brandStyle);
+
+          // Load custom font if available
+          if (d.font_embed_url) {
+            const fontLink = document.createElement('link');
+            fontLink.rel = 'stylesheet';
+            fontLink.href = d.font_embed_url;
+            document.head.appendChild(fontLink);
           }
         }
 
