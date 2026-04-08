@@ -33,6 +33,7 @@ function IntegrationsContent() {
   const [stripeSk, setStripeSk] = useState('');
   const [stripeKeySaving, setStripeKeySaving] = useState(false);
   const [stripeKeyMsg, setStripeKeyMsg] = useState(null);
+  const [showUpdateKeys, setShowUpdateKeys] = useState(false);
 
   // QuickBooks state
   const [qbStatus, setQbStatus] = useState({ connected: false, status: 'UNKNOWN' });
@@ -466,13 +467,65 @@ function IntegrationsContent() {
 
             {stripeConnected ? (
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-green-500">&#10003;</span>
-                  <span className="text-green-400 text-xs font-medium">Stripe keys saved</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-500">&#10003;</span>
+                    <span className="text-green-400 text-xs font-medium">Stripe keys saved</span>
+                  </div>
+                  <button onClick={() => setShowUpdateKeys(v => !v)} className="text-xs text-v-text-secondary hover:text-v-gold transition-colors">
+                    {showUpdateKeys ? 'Cancel' : 'Update API Keys'}
+                  </button>
                 </div>
-                <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="text-xs text-v-gold hover:text-v-gold-dim transition-colors">
-                  Manage in Stripe Dashboard &rarr;
-                </a>
+                {!showUpdateKeys && (
+                  <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="text-xs text-v-gold hover:text-v-gold-dim transition-colors">
+                    Manage in Stripe Dashboard &rarr;
+                  </a>
+                )}
+                {showUpdateKeys && (
+                  <div className="mt-3">
+                    {stripeKeyMsg && (
+                      <div className={`mb-2 p-2 text-xs rounded ${stripeKeyMsg.type === 'error' ? 'bg-red-900/20 border border-red-500/30 text-red-400' : 'bg-green-900/20 border border-green-500/30 text-green-400'}`}>
+                        {stripeKeyMsg.text}
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <input type="text" value={stripePk} onChange={e => setStripePk(e.target.value)} placeholder="pk_live_..."
+                        className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50" />
+                      <input type="password" value={stripeSk} onChange={e => setStripeSk(e.target.value)} placeholder="sk_live_..."
+                        className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50" />
+                      <button
+                        onClick={async () => {
+                          if (!stripePk.startsWith('pk_') || !stripeSk.startsWith('sk_')) {
+                            setStripeKeyMsg({ type: 'error', text: 'Keys must start with pk_ and sk_' });
+                            return;
+                          }
+                          setStripeKeySaving(true); setStripeKeyMsg(null);
+                          try {
+                            const res = await fetch('/api/user/settings', {
+                              method: 'POST', headers: getHeaders(),
+                              body: JSON.stringify({ stripe_publishable_key: stripePk.trim(), stripe_secret_key: stripeSk.trim() }),
+                            });
+                            if (res.ok) {
+                              setStripeKeyMsg({ type: 'success', text: 'Stripe keys updated!' });
+                              setShowUpdateKeys(false);
+                            } else {
+                              const d = await res.json(); setStripeKeyMsg({ type: 'error', text: d.error || 'Failed to save' });
+                            }
+                          } catch (err) { setStripeKeyMsg({ type: 'error', text: err.message }); }
+                          finally { setStripeKeySaving(false); }
+                        }}
+                        disabled={stripeKeySaving || !stripePk || !stripeSk}
+                        className="w-full py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
+                      >
+                        {stripeKeySaving ? 'Saving...' : 'Update Keys'}
+                      </button>
+                      <p className="text-[10px] text-v-text-secondary">
+                        Find keys at{' '}
+                        <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className="text-v-gold underline">stripe.com/apikeys</a>
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
