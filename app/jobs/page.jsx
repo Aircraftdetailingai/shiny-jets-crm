@@ -157,10 +157,10 @@ export default function JobsPage() {
           <div className="bg-v-surface border border-v-border rounded-sm p-12 text-center">
             <p className="text-v-text-secondary text-sm mb-2">
               {filter === 'all'
-                ? 'No jobs yet. Jobs appear when quotes are accepted and scheduled.'
+                ? 'No jobs yet. Create a job manually or send a quote to get started.'
                 : `No ${FILTER_TABS.find(f => f.key === filter)?.label?.toLowerCase()} jobs.`}
             </p>
-            <a href="/quotes" className="text-v-gold hover:text-v-gold-dim text-sm">Go to Quotes</a>
+            <a href="/jobs/new" className="text-v-gold hover:text-v-gold-dim text-sm">Create Your First Job</a>
           </div>
         ) : (
           /* Jobs Table */

@@ -50,11 +50,53 @@ export async function GET(request) {
       .order('scheduled_date', { ascending: true, nullsFirst: false });
   }
 
-  const { data: jobs, error } = await query;
+  const { data: quotesJobs, error } = await query;
 
   if (error) {
     console.error('Crew jobs fetch error:', error);
     return Response.json({ error: 'Failed to fetch jobs' }, { status: 500 });
+  }
+
+  const jobs = [...(quotesJobs || [])];
+
+  // Also fetch manually created jobs assigned to this crew member
+  try {
+    const { data: assignments } = await supabase
+      .from('job_assignments')
+      .select('job_id')
+      .eq('team_member_id', user.id);
+
+    if (assignments?.length > 0) {
+      const assignedJobIds = assignments.map(a => a.job_id).filter(Boolean);
+      const { data: manualJobs } = await supabase
+        .from('jobs')
+        .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, created_at, completion_notes')
+        .in('id', assignedJobIds)
+        .in('status', ['scheduled', 'in_progress']);
+
+      if (manualJobs?.length > 0) {
+        for (const mj of manualJobs) {
+          // Convert to same format as quote-based jobs
+          jobs.push({
+            id: mj.id,
+            aircraft_model: mj.aircraft_model,
+            aircraft_type: mj.aircraft_make,
+            airport: mj.airport,
+            scheduled_date: mj.scheduled_date,
+            status: mj.status,
+            line_items: [],
+            notes: mj.completion_notes,
+            created_at: mj.created_at,
+            client_name: mj.customer_name,
+            client_email: mj.customer_email,
+            _source: 'jobs_table',
+            _services_text: mj.services,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.log('[crew-jobs] Assignments query error:', e.message);
   }
 
   // Strip pricing from line items - crew should never see pricing
@@ -65,13 +107,19 @@ export async function GET(request) {
       service_type: li.service_type,
     }));
 
+    // Parse services text from manual jobs
+    let servicesText = null;
+    if (job._services_text) {
+      try { servicesText = JSON.parse(job._services_text); } catch { servicesText = job._services_text; }
+    }
+
     const result = {
       id: job.id,
       aircraft: job.aircraft_model || job.aircraft_type || 'Aircraft',
       airport: job.airport,
       scheduled_date: job.scheduled_date,
       status: job.status,
-      services: sanitizedLineItems,
+      services: sanitizedLineItems.length > 0 ? sanitizedLineItems : (Array.isArray(servicesText) ? servicesText.map(s => ({ description: s })) : []),
       notes: job.notes,
       created_at: job.created_at,
     };

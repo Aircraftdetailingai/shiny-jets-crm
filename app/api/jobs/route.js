@@ -46,11 +46,53 @@ export async function GET(request) {
 
   jobs = jobs || [];
 
+  // Also fetch from jobs table (manually created jobs)
+  try {
+    const { data: manualJobs } = await supabase
+      .from('jobs')
+      .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, created_at, completed_at, completion_notes')
+      .eq('detailer_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (manualJobs?.length > 0) {
+      // Merge — avoid duplicates by quote_id
+      const quoteIds = new Set(jobs.map(j => j.id));
+      for (const mj of manualJobs) {
+        if (mj.quote_id && quoteIds.has(mj.quote_id)) continue; // already in quotes list
+        jobs.push({
+          id: mj.id,
+          client_name: mj.customer_name,
+          client_email: mj.customer_email,
+          aircraft_model: mj.aircraft_model,
+          aircraft_type: mj.aircraft_make,
+          tail_number: mj.tail_number,
+          airport: mj.airport,
+          total_price: mj.total_price,
+          status: mj.status || 'scheduled',
+          scheduled_date: mj.scheduled_date,
+          created_at: mj.created_at,
+          completed_at: mj.completed_at,
+          services: mj.services,
+          _source: 'jobs_table',
+        });
+      }
+    }
+  } catch (e) {
+    console.log('[jobs] Manual jobs query error:', e.message);
+  }
+
+  // Sort by scheduled_date
+  jobs.sort((a, b) => {
+    const da = a.scheduled_date ? new Date(a.scheduled_date) : new Date('9999-12-31');
+    const db = b.scheduled_date ? new Date(b.scheduled_date) : new Date('9999-12-31');
+    return da - db;
+  });
+
   const stats = {
     total: jobs.length,
     scheduled: jobs.filter(j => j.status === 'scheduled').length,
     inProgress: jobs.filter(j => j.status === 'in_progress').length,
-    completed: jobs.filter(j => j.status === 'completed').length,
+    completed: jobs.filter(j => ['completed', 'complete'].includes(j.status)).length,
     totalRevenue: jobs.reduce((sum, j) => sum + (parseFloat(j.total_price) || 0), 0),
   };
 

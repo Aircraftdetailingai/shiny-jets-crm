@@ -19,6 +19,8 @@ export async function POST(request) {
     assigned_crew, payment_method, total_price, notes,
   } = body;
 
+  console.log('[jobs/create] received:', { customer_name, aircraft_make, aircraft_model, payment_method, total_price });
+
   if (!customer_name || !aircraft_make) {
     return Response.json({ error: 'Customer name and aircraft required' }, { status: 400 });
   }
@@ -43,16 +45,25 @@ export async function POST(request) {
     completion_notes: notes || null,
   };
 
-  const { data: job, error: jobErr } = await supabase
-    .from('jobs')
-    .insert(jobData)
-    .select()
-    .single();
+  let job = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error: jobErr } = await supabase.from('jobs').insert(jobData).select().single();
+    if (!jobErr) { job = data; break; }
 
-  if (jobErr) {
+    const colMatch = jobErr.message?.match(/column "([^"]+)".*does not exist/);
+    if (colMatch) {
+      console.log(`[jobs/create] Stripping column: ${colMatch[1]}`);
+      delete jobData[colMatch[1]];
+      continue;
+    }
     console.error('[jobs/create] Insert error:', jobErr);
     return Response.json({ error: jobErr.message }, { status: 500 });
   }
+
+  if (!job) {
+    return Response.json({ error: 'Failed to create job after retries' }, { status: 500 });
+  }
+  console.log('[jobs/create] Created job:', job.id);
 
   // Assign crew members
   if (assigned_crew?.length > 0 && job) {
