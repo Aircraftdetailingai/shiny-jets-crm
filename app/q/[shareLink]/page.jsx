@@ -842,12 +842,16 @@ export default function QuoteViewPage() {
             </div>
           )}
 
-          {/* Default: service names only */}
-          {(quote.minimum_fee_applied || (!detailer?.quote_display_preference || detailer?.quote_display_preference === 'total_only')) && services.length > 0 && (
+          {/* Default / package: service names + prices */}
+          {(quote.minimum_fee_applied || !detailer?.quote_display_preference || detailer?.quote_display_preference === 'total_only' || detailer?.quote_display_preference === 'package') && services.length > 0 && (
             <div className="divide-y divide-[var(--brand-border,#1A2236)]">
               {services.map((svc, i) => (
-                <div key={i} className="py-3">
-                  <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                <div key={i} className="flex justify-between items-center py-3">
+                  <div>
+                    <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                    {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                  </div>
+                  {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
                 </div>
               ))}
             </div>
@@ -1021,7 +1025,7 @@ export default function QuoteViewPage() {
                 disabled={paymentLoading || !agreedToTerms}
                 className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
               >
-                {paymentLoading ? 'Processing...' : 'Accept & Pay by Card'}
+                {paymentLoading ? 'Processing...' : 'Accept & Pay'}
               </button>
               <button
                 onClick={handleRequestInvoice}
