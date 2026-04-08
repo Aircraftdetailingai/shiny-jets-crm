@@ -82,10 +82,10 @@ export async function POST(request) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
-    const { quote_id, services, amount, reason } = await request.json();
+    const { quote_id, job_id, services, line_items, amount, reason, description, photo_url } = await request.json();
 
-    if (!quote_id || !services || !amount) {
-      return Response.json({ error: 'Quote ID, services, and amount required' }, { status: 400 });
+    if (!quote_id || (!services && !line_items) || !amount) {
+      return Response.json({ error: 'Quote ID, services/line items, and amount required' }, { status: 400 });
     }
 
     // Get quote and verify ownership
@@ -108,10 +108,14 @@ export async function POST(request) {
       .from('change_orders')
       .insert({
         quote_id,
+        job_id: job_id || null,
         detailer_id: user.id,
-        services,
+        services: services || null,
+        line_items: line_items || services || [],
         amount: parseFloat(amount),
         reason: reason || '',
+        description: description || reason || '',
+        photo_url: photo_url || null,
         status: 'pending',
       })
       .select()
@@ -136,27 +140,32 @@ export async function POST(request) {
         `<li>${s.name || s.description}: $${(s.amount || s.price || 0).toFixed(2)}</li>`
       ).join('');
 
+      const photoHtml = photo_url ? `<div style="margin:16px 0;"><img src="${photo_url}" alt="Issue photo" style="max-width:100%;border-radius:8px;" /></div>` : '';
+      const descHtml = (description || reason) ? `<p><strong>Description:</strong> ${description || reason}</p>` : '';
+
       await getResend().emails.send({
-        from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+        from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
         to: quote.client_email,
-        subject: `Additional Services Requested - ${quote.detailers?.company_name}`,
+        subject: `Change Order — Additional Services Requested — ${quote.detailers?.company_name || 'Your Detailer'}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #1e3a5f;">Additional Services Requested</h2>
+            <h2 style="color: #1e3a5f;">Change Order — Additional Services</h2>
 
-            <p>${quote.detailers?.company_name} has requested additional services for your job.</p>
+            <p>${quote.detailers?.company_name || 'Your detailer'} has identified additional work needed on your aircraft.</p>
+
+            ${photoHtml}
+            ${descHtml}
 
             <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Original Quote:</strong> ${quote.aircraft_model || quote.aircraft_type}</p>
+              <p><strong>Aircraft:</strong> ${quote.aircraft_model || quote.aircraft_type}</p>
               <p><strong>Original Total:</strong> $${(quote.total_price || 0).toFixed(2)}</p>
             </div>
 
             <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffc107;">
-              <h3 style="margin-top: 0; color: #856404;">Additional Services Requested</h3>
+              <h3 style="margin-top: 0; color: #856404;">Additional Services</h3>
               <ul style="margin: 10px 0;">
                 ${servicesList}
               </ul>
-              ${reason ? `<p><strong>Note:</strong> ${reason}</p>` : ''}
               <p style="font-size: 18px; margin-bottom: 0;"><strong>Additional Amount: $${parseFloat(amount).toFixed(2)}</strong></p>
             </div>
 
