@@ -56,16 +56,19 @@ export async function POST(request) {
       return new Response(JSON.stringify({ error: 'Quote has expired', code: 'quote_expired' }), { status: 400 });
     }
 
-    // Fetch detailer for Stripe Connect account
+    // Fetch detailer for Stripe connection
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_account_id, company, email, plan, pass_fee_to_customer, cc_fee_mode, booking_mode, deposit_percentage')
+      .select('stripe_account_id, stripe_secret_key, company, email, plan, pass_fee_to_customer, cc_fee_mode, booking_mode, deposit_percentage')
       .eq('id', quote.detailer_id)
       .single();
 
-    if (!detailer?.stripe_account_id) {
+    if (!detailer?.stripe_account_id && !detailer?.stripe_secret_key) {
       return new Response(JSON.stringify({ error: 'Detailer has not connected Stripe', code: 'stripe_not_connected' }), { status: 400 });
     }
+
+    // Determine if using detailer's own keys (direct) or platform Connect
+    const useDirectKeys = !!detailer.stripe_secret_key;
 
     // Use the known working test account (temporary fix for DB sync issue)
     const stripeAccountId = detailer.stripe_account_id === 'acct_1Sul7NCqHiG6qwTk'
@@ -121,8 +124,11 @@ export async function POST(request) {
     // Hardcode URL to avoid env var issues
     const appUrl = 'https://crm.shinyjets.com';
 
-    // Create Stripe Checkout Session
-    const session = await getStripe().checkout.sessions.create({
+    const productName = isDeposit
+      ? `Deposit (${depositPct}%) - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`
+      : `Aircraft Detail - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`;
+
+    const sessionParams = {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [
@@ -130,9 +136,7 @@ export async function POST(request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: isDeposit
-              ? `Deposit (${depositPct}%) - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`
-              : `Aircraft Detail - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`,
+              name: productName,
               description: `Quote from ${detailer.company || 'Detailer'}`,
             },
             unit_amount: totalAmount,
@@ -140,12 +144,6 @@ export async function POST(request) {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: applicationFee,
-        transfer_data: {
-          destination: stripeAccountId,
-        },
-      },
       success_url: `${appUrl}/q/${quote.share_link}?payment=success`,
       cancel_url: `${appUrl}/q/${quote.share_link}?payment=cancelled`,
       metadata: {
@@ -154,7 +152,24 @@ export async function POST(request) {
         payment_type: isDeposit ? 'deposit' : 'full',
         deposit_percentage: isDeposit ? String(depositPct) : '',
       },
-    });
+    };
+
+    // Direct keys: charge goes straight to detailer's Stripe account (no Connect)
+    // Connect: charge goes to platform with application_fee + transfer to detailer
+    let stripe;
+    if (useDirectKeys) {
+      stripe = new Stripe(detailer.stripe_secret_key.trim());
+      console.log('[checkout] Using detailer direct keys');
+    } else {
+      stripe = getStripe();
+      sessionParams.payment_intent_data = {
+        application_fee_amount: applicationFee,
+        transfer_data: { destination: stripeAccountId },
+      };
+      console.log(`[checkout] Using Connect: dest=${stripeAccountId} fee=${applicationFee}`);
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
   } catch (err) {
