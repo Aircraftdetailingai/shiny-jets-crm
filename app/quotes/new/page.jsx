@@ -141,8 +141,11 @@ function NewQuoteContent() {
 
     if (mfrMatch) {
       const mdl = q.slice(mfrMatch.length).toLowerCase().trim();
+      console.log('[prefill] manufacturer:', mfrMatch, 'model:', mdl);
       setSelectedManufacturer(mfrMatch);
       if (mdl) setPendingAircraftMatch({ manufacturer: mfrMatch, model: mdl });
+    } else {
+      console.log('[prefill] no manufacturer match for:', pending);
     }
   }, [manufacturers]);
 
@@ -198,10 +201,13 @@ function NewQuoteContent() {
         return qNum && m.model.includes(qNum) && m.model.toLowerCase().split(' ')[0] === q.split(' ')[0];
       });
     if (match) {
+      console.log('[prefill] model matched:', match.model, 'id:', match.id);
       fetch(`/api/aircraft/${match.id}`, { headers })
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data?.aircraft) setSelectedAircraft(data.aircraft); })
+        .then(data => { if (data?.aircraft) { setSelectedAircraft(data.aircraft); console.log('[prefill] aircraft set:', data.aircraft.model); } })
         .catch(() => {});
+    } else {
+      console.log('[prefill] no model match for:', q, 'in', models.map(m => m.model).join(', '));
     }
     setPendingAircraftMatch(null);
   }, [models, pendingAircraftMatch]);
