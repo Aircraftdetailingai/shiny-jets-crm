@@ -166,7 +166,10 @@ export async function POST(request) {
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
   } catch (err) {
-    console.error('[checkout] FULL ERROR:', err.type, err.code, err.message, err.raw?.message);
+    console.error('[checkout-error-type]', err.type || 'unknown');
+    console.error('[checkout-error-code]', err.code || 'none');
+    console.error('[checkout-error-msg]', err.message || 'no message');
+    console.error('[checkout-error-raw]', err.raw?.message || 'no raw');
 
     // Map Stripe error codes to friendly codes
     let code = 'processing_error';
@@ -178,7 +181,7 @@ export async function POST(request) {
     }
 
     return new Response(JSON.stringify({
-      error: 'Payment processing failed',
+      error: err.message || 'Payment processing failed',
       code,
       message: err.message
     }), { status: 500 });
