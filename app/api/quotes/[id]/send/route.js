@@ -41,7 +41,10 @@ export async function POST(request, { params }) {
   }
 
   const { id } = await params;
-  const { clientName, clientPhone, clientEmail, clientCompany, customerId, airport } = await request.json();
+  const body = await request.json();
+  const { clientName, clientPhone, clientEmail, clientCompany, customerId, airport, emailSubject, emailBody } = body;
+  console.log(`[quote-send] id=${id} to=${clientEmail} subject=${emailSubject?.slice(0, 50)}`);
+
 
   // Fetch the quote
   const { data: quote, error: qErr } = await supabase
@@ -269,6 +272,8 @@ export async function POST(request, { params }) {
           quote: emailQuote,
           detailer,
           language: customerLanguage,
+          customSubject: emailSubject || null,
+          customBody: emailBody || null,
         });
         emailSent = result.success;
         if (!result.success) {

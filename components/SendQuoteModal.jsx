@@ -277,10 +277,15 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
     }
   };
 
-  // ─── Step 3: Send the quote ───
+  // ─── Step 2/3: Send the quote ───
   const handleSendQuote = async () => {
+    if (!createdQuote?.id) {
+      setError("Quote not saved yet. Please wait and try again.");
+      return;
+    }
     setError("");
     setLoading(true);
+    console.log('[SendQuote] Sending quote:', createdQuote.id, 'to:', effectiveEmail, 'subject:', emailSubject);
     try {
       const token = localStorage.getItem("vector_token");
       const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
@@ -341,9 +346,9 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
 
       if (sendResult.emailSent === false && sendResult.emailError) {
         toastError(`Email failed: ${sendResult.emailError}`);
+      } else {
+        toastSuccess(`Quote sent to ${effectiveEmail}`);
       }
-
-      toastSuccess(`Quote sent to ${effectiveEmail}`);
       if (onSuccess) onSuccess(); else onClose();
     } catch (err) {
       setError(err.message);
