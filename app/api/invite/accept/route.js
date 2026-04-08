@@ -152,51 +152,17 @@ export async function POST(request) {
 
   const passwordHash = await hashPassword(password);
 
-  // Create a crew-level account in detailers table so they can log in
-  // This creates a minimal account linked to the parent detailer
-  const { data: newAccount, error: createErr } = await supabase
-    .from('detailers')
-    .insert({
-      email: member.email,
-      name: member.name,
-      company: member.name,
-      password_hash: passwordHash,
-      status: 'active',
-      plan: 'crew',
-      parent_detailer_id: member.detailer_id,
-    })
-    .select('id')
-    .single();
-
-  if (createErr) {
-    // If unique constraint on email, it means account exists — try linking
-    if (createErr.message?.includes('unique') || createErr.message?.includes('duplicate')) {
-      // Mark as accepted anyway
-      await supabase.from('team_members').update({
-        invite_status: 'accepted',
-        invite_token: null,
-      }).eq('id', member.id);
-
-      const jwtPayload = {
-        id: member.id,
-        detailer_id: member.detailer_id,
-        name: member.name,
-        email: member.email,
-        role: member.role || 'employee',
-        type: 'crew',
-      };
-      const authToken = await createToken(jwtPayload);
-      return Response.json({ success: true, token: authToken });
-    }
-    console.error('Failed to create crew account:', createErr);
-    return Response.json({ error: 'Failed to create account' }, { status: 500 });
-  }
-
-  // Mark invitation as accepted
-  await supabase.from('team_members').update({
+  // Save password on team_members record and mark as accepted
+  const { error: updateErr } = await supabase.from('team_members').update({
+    password_hash: passwordHash,
     invite_status: 'accepted',
     invite_token: null,
   }).eq('id', member.id);
+
+  if (updateErr) {
+    console.error('[invite-accept] Failed to save password:', updateErr.message, updateErr);
+    return Response.json({ error: 'Failed to create account: ' + updateErr.message }, { status: 500 });
+  }
 
   // Issue JWT for the crew member
   const jwtPayload = {

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createToken } from '@/lib/auth';
+import { createToken, comparePassword } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,21 +9,49 @@ function getSupabase() {
 
 export async function POST(request) {
   try {
-    const { pin_code } = await request.json();
-
-    if (!pin_code || pin_code.length < 4) {
-      return Response.json({ error: 'PIN must be at least 4 digits' }, { status: 400 });
-    }
-
+    const body = await request.json();
+    const { pin_code, email, password } = body;
     const supabase = getSupabase();
+    let member = null;
 
-    // Look up active team member by PIN
-    const { data: member, error } = await supabase
-      .from('team_members')
-      .select('id, detailer_id, name, email, type, status, is_lead_tech, can_see_inventory, can_see_equipment')
-      .eq('pin_code', pin_code)
-      .eq('status', 'active')
-      .single();
+    if (email && password) {
+      // Email + password login (from invite acceptance)
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id, detailer_id, name, email, type, hourly_pay, status, is_lead_tech, can_see_inventory, can_see_equipment, password_hash')
+        .eq('email', email.toLowerCase().trim())
+        .eq('status', 'active')
+        .single();
+
+      if (error || !data) {
+        return Response.json({ error: 'Invalid email or password' }, { status: 401 });
+      }
+      if (!data.password_hash) {
+        return Response.json({ error: 'No password set. Use PIN login or accept your invite first.' }, { status: 401 });
+      }
+      const valid = await comparePassword(password, data.password_hash);
+      if (!valid) {
+        return Response.json({ error: 'Invalid email or password' }, { status: 401 });
+      }
+      member = data;
+    } else if (pin_code) {
+      // PIN login
+      if (pin_code.length < 4) {
+        return Response.json({ error: 'PIN must be at least 4 digits' }, { status: 400 });
+      }
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id, detailer_id, name, email, type, hourly_pay, status, is_lead_tech, can_see_inventory, can_see_equipment')
+        .eq('pin_code', pin_code)
+        .eq('status', 'active')
+        .single();
+      if (error || !data) {
+        return Response.json({ error: 'Invalid PIN' }, { status: 401 });
+      }
+      member = data;
+    } else {
+      return Response.json({ error: 'PIN or email+password required' }, { status: 400 });
+    }
 
     if (error || !member) {
       return Response.json({ error: 'Invalid PIN' }, { status: 401 });
