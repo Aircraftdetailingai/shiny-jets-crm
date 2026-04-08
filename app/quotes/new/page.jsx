@@ -103,13 +103,44 @@ function NewQuoteContent() {
     if (!pending) return;
     localStorage.removeItem('_pending_aircraft');
 
-    const q = pending.toLowerCase();
-    // Find which manufacturer the aircraft string starts with (longest match first)
+    // FAA manufacturer aliases → canonical DB name
+    const MFR_ALIASES = {
+      'raytheon': 'Beechcraft', 'hawker beechcraft': 'Beechcraft', 'beech': 'Beechcraft',
+      'textron aviation': 'Cessna', 'cessna aircraft': 'Cessna',
+      'general dynamics': 'Gulfstream', 'gulfstream aerospace': 'Gulfstream',
+      'bombardier inc': 'Bombardier', 'canadair': 'Bombardier', 'learjet': 'Bombardier',
+      'dassault falcon': 'Dassault', 'dassault aviation': 'Dassault',
+      'embraer s a': 'Embraer', 'embraer sa': 'Embraer',
+      'the boeing company': 'Boeing', 'mcdonnell douglas': 'Boeing',
+      'pilatus aircraft': 'Pilatus',
+      'cirrus design': 'Cirrus',
+      'piper aircraft': 'Piper',
+      'mooney': 'Mooney',
+      'diamond aircraft': 'Diamond',
+    };
+
+    let q = pending.toLowerCase().trim();
     const sortedMfrs = [...manufacturers].sort((a, b) => b.length - a.length);
-    const mfrMatch = sortedMfrs.find(m => q.startsWith(m.toLowerCase()));
+
+    // 1. Try direct match against manufacturer list
+    let mfrMatch = sortedMfrs.find(m => q.startsWith(m.toLowerCase()));
+
+    // 2. Try alias mapping if no direct match
+    if (!mfrMatch) {
+      for (const [alias, canonical] of Object.entries(MFR_ALIASES)) {
+        if (q.startsWith(alias)) {
+          const canonicalMatch = manufacturers.find(m => m.toLowerCase() === canonical.toLowerCase());
+          if (canonicalMatch) {
+            mfrMatch = canonicalMatch;
+            q = canonical.toLowerCase() + q.slice(alias.length);
+            break;
+          }
+        }
+      }
+    }
 
     if (mfrMatch) {
-      const mdl = q.slice(mfrMatch.length).trim();
+      const mdl = q.slice(mfrMatch.length).toLowerCase().trim();
       setSelectedManufacturer(mfrMatch);
       if (mdl) setPendingAircraftMatch({ manufacturer: mfrMatch, model: mdl });
     }
@@ -142,15 +173,30 @@ function NewQuoteContent() {
     if (!pendingAircraftMatch || models.length === 0) return;
     const headers = { Authorization: `Bearer ${localStorage.getItem('vector_token')}` };
     let q = pendingAircraftMatch.model.toLowerCase().trim();
-    // FAA model code mappings
-    const faaMap = { 'g-iv': 'g4', 'g-ivsp': 'g4', 'g-v': 'g550', 'gv-sp': 'g550', 'g-vi': 'g650', 'g-200': 'g280', 'giv-x': 'g450' };
+    // FAA model code → DB model name mappings
+    const faaMap = {
+      // Gulfstream
+      'g-iv': 'g4', 'g-ivsp': 'g4', 'g-v': 'g550', 'gv-sp': 'g550', 'g-vi': 'g650', 'g-200': 'g280', 'giv-x': 'g450',
+      // Beechcraft King Air (FAA uses B-prefix codes)
+      'b300': 'king air 300', 'b300c': 'king air 300', 'b200': 'king air 200', 'b200gt': 'king air 250',
+      'b100': 'king air 100', 'c90': 'king air 90', 'c90a': 'king air 90', 'c90gt': 'king air 90',
+      'b350': 'king air 350', 'b360': 'king air 360',
+      // Bombardier / Learjet
+      'cl-600-2b16': 'challenger 604', 'cl-600-2b19': 'challenger 850', 'bd-700-1a10': 'global express',
+      'bd-700-1a11': 'global 5000', 'bd-100-1a10': 'challenger 300',
+    };
     if (faaMap[q]) q = faaMap[q];
     // Strip common suffixes
     const cleaned = q.replace(/[-\s]/g, '');
 
     const match = models.find(m => m.model.toLowerCase() === q)
       || models.find(m => m.model.toLowerCase().replace(/[-\s]/g, '') === cleaned)
-      || models.find(m => m.model.toLowerCase().includes(q) || q.includes(m.model.toLowerCase()));
+      || models.find(m => m.model.toLowerCase().includes(q) || q.includes(m.model.toLowerCase()))
+      || models.find(m => {
+        // Match "king air 300" against "King Air 360/350/300" — check if model contains the number
+        const qNum = q.match(/\d{2,}/)?.[0];
+        return qNum && m.model.includes(qNum) && m.model.toLowerCase().split(' ')[0] === q.split(' ')[0];
+      });
     if (match) {
       fetch(`/api/aircraft/${match.id}`, { headers })
         .then(r => r.ok ? r.json() : null)
