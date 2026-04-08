@@ -106,6 +106,7 @@ function DashboardContent() {
   const [followUps, setFollowUps] = useState({ needsReview: [], recentCompleted: [], recurring: [] });
   const [pendingQuotes, setPendingQuotes] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [changeOrderRequests, setChangeOrderRequests] = useState([]);
   const [quota, setQuota] = useState(null);
 
   useEffect(() => {
@@ -156,7 +157,7 @@ function DashboardContent() {
         body: JSON.stringify({ action: 'DAILY_LOGIN' }),
       }).catch(() => {});
 
-      const [servicesRes, statsRes, quotesRes, upcomingRes, requestsRes, followUpsRes, staleRes, quotaRes, teamRes] = await Promise.allSettled([
+      const [servicesRes, statsRes, quotesRes, upcomingRes, requestsRes, followUpsRes, staleRes, quotaRes, teamRes, corRes] = await Promise.allSettled([
         fetch('/api/services', { headers }),
         fetch('/api/dashboard/stats', { headers }),
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
@@ -166,6 +167,7 @@ function DashboardContent() {
         fetch('/api/quotes?status=sent,viewed&limit=20&sort=created_at&order=desc', { headers }),
         fetch('/api/quotes/quota', { headers }),
         fetch('/api/team', { headers }),
+        fetch('/api/change-order-requests?status=pending_review', { headers }),
       ]);
 
       if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
@@ -201,6 +203,10 @@ function DashboardContent() {
       if (teamRes.status === 'fulfilled' && teamRes.value.ok) {
         const td = await teamRes.value.json();
         setTeamMembers((td.members || []).filter(m => m.status === 'active'));
+      }
+      if (corRes.status === 'fulfilled' && corRes.value.ok) {
+        const cd = await corRes.value.json();
+        setChangeOrderRequests(cd.requests || []);
       }
       if (quotaRes.status === 'fulfilled' && quotaRes.value.ok) {
         setQuota(await quotaRes.value.json());
@@ -352,7 +358,7 @@ function DashboardContent() {
         </div>
 
         {/* ━━━ 1. NEEDS ATTENTION ━━━ */}
-        {(quoteRequests.length > 0 || (quickStats?.expiringQuotes?.length > 0) || staleViewedQuotes.length > 0 || staleUnviewedQuotes.length > 0 || upcomingJobs.some(j => new Date(j.scheduled_date).toDateString() === new Date().toDateString())) && (
+        {(quoteRequests.length > 0 || changeOrderRequests.length > 0 || (quickStats?.expiringQuotes?.length > 0) || staleViewedQuotes.length > 0 || staleUnviewedQuotes.length > 0 || upcomingJobs.some(j => new Date(j.scheduled_date).toDateString() === new Date().toDateString())) && (
           <div id="attention" className="mt-10">
             <p className="text-[10px] uppercase tracking-[0.2em] text-v-gold mb-4 pb-2 border-b border-v-gold/20">Needs Attention</p>
 
@@ -380,6 +386,25 @@ function DashboardContent() {
             )}
 
             {/* Expiring Quotes */}
+            {/* Change Order Requests from Crew */}
+            {changeOrderRequests.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <p className="text-v-text-secondary text-xs">{changeOrderRequests.length} change order request{changeOrderRequests.length !== 1 ? 's' : ''}</p>
+                </div>
+                {changeOrderRequests.slice(0, 3).map(cor => (
+                  <div key={cor.id} className="flex items-center justify-between py-2.5 border-b border-v-border-subtle/50 hover:bg-white/[0.02] transition-colors">
+                    <div className="min-w-0">
+                      <p className="text-white text-sm truncate">{cor.team_member_name || 'Crew'} found an issue</p>
+                      <p className="text-v-text-secondary text-xs truncate">{cor.description?.slice(0, 60)}</p>
+                    </div>
+                    <span className="text-amber-400 text-[10px] uppercase tracking-wider ml-3 shrink-0">Review</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {(quickStats?.expiringQuotes?.length > 0 || quickStats?.recentlyExpired?.length > 0) && (
               <div className="mb-4">
                 <ExpiringQuotesWidget expiring={quickStats?.expiringQuotes} expired={quickStats?.recentlyExpired} />

@@ -40,6 +40,12 @@ export default function CrewDashboard() {
   const [checkedEquipment, setCheckedEquipment] = useState({});
   const [missingReport, setMissingReport] = useState({ type: '', item_id: '', item_name: '', notes: '' });
 
+  // Issue report state
+  const [showIssueReport, setShowIssueReport] = useState(false);
+  const [issueDescription, setIssueDescription] = useState('');
+  const [issuePhoto, setIssuePhoto] = useState(null);
+  const [issueSending, setIssueSending] = useState(false);
+
   // Messages
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('success');
@@ -556,15 +562,69 @@ export default function CrewDashboard() {
 
               {/* Action buttons */}
               <div className="flex gap-2 mt-4">
-                {['paid', 'accepted', 'scheduled', 'in_progress'].includes(selectedJob.status) && (
+                {['paid', 'accepted', 'scheduled', 'in_progress'].includes(selectedJob.status) && user.can_mark_complete !== false && (
                   <button
                     onClick={() => handleComplete(selectedJob.id)}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium text-sm transition-colors"
                   >
-                    {'Mark Complete'}
+                    Mark Complete
+                  </button>
+                )}
+                {['paid', 'accepted', 'scheduled', 'in_progress'].includes(selectedJob.status) && (
+                  <button
+                    onClick={() => setShowIssueReport(true)}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-lg font-medium text-sm transition-colors"
+                  >
+                    Report Issue
                   </button>
                 )}
               </div>
+
+              {/* Issue Report Form */}
+              {showIssueReport && (
+                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 mt-3">
+                  <h4 className="text-amber-300 font-medium mb-2">Report an Issue</h4>
+                  <textarea value={issueDescription} onChange={e => setIssueDescription(e.target.value)}
+                    placeholder="Describe what you found..." rows={3}
+                    className="w-full bg-black/20 border border-white/10 text-white rounded-lg px-3 py-2 text-sm mb-2 outline-none focus:border-amber-400 resize-none placeholder-white/30" />
+                  <label className="block mb-3">
+                    <span className="text-xs text-white/50 mb-1 block">Photo (required)</span>
+                    <input type="file" accept="image/*" capture="environment"
+                      onChange={e => setIssuePhoto(e.target.files?.[0] || null)}
+                      className="text-xs text-white/60" />
+                  </label>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowIssueReport(false); setIssueDescription(''); setIssuePhoto(null); }}
+                      className="flex-1 py-2 text-sm text-white/60 border border-white/10 rounded-lg">Cancel</button>
+                    <button disabled={!issueDescription.trim() || !issuePhoto || issueSending}
+                      onClick={async () => {
+                        setIssueSending(true);
+                        try {
+                          // Upload photo
+                          let photoUrl = null;
+                          if (issuePhoto) {
+                            const reader = new FileReader();
+                            photoUrl = await new Promise(resolve => { reader.onload = () => resolve(reader.result); reader.readAsDataURL(issuePhoto); });
+                          }
+                          const res = await API('/api/crew/change-order-request', token, {
+                            method: 'POST',
+                            body: JSON.stringify({ job_id: selectedJob.job_id || null, quote_id: selectedJob.id, photo_url: photoUrl, description: issueDescription }),
+                          });
+                          if (res.success) {
+                            showMsg('Reported — your supervisor has been notified');
+                            setShowIssueReport(false); setIssueDescription(''); setIssuePhoto(null);
+                          } else {
+                            showMsg(res.error || 'Failed to report', 'error');
+                          }
+                        } catch { showMsg('Failed to submit', 'error'); }
+                        finally { setIssueSending(false); }
+                      }}
+                      className="flex-1 py-2 text-sm bg-amber-600 text-white rounded-lg font-medium disabled:opacity-50">
+                      {issueSending ? 'Sending...' : 'Submit Report'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Photo upload section */}
