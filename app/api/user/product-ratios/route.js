@@ -15,18 +15,23 @@ export async function GET(request) {
 
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
-    .from('product_ratios')
-    .select('ratios')
-    .eq('detailer_id', user.id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('product_ratios')
+      .select('ratios')
+      .eq('detailer_id', user.id)
+      .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Failed to fetch product ratios:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch product ratios' }), { status: 500 });
+    if (error) {
+      // Table might not exist or other DB error — return empty gracefully
+      console.log('Product ratios fetch:', error.message);
+      return new Response(JSON.stringify({ ratios: null }), { status: 200 });
+    }
+
+    return new Response(JSON.stringify({ ratios: data?.ratios || null }), { status: 200 });
+  } catch (err) {
+    return new Response(JSON.stringify({ ratios: null }), { status: 200 });
   }
-
-  return new Response(JSON.stringify({ ratios: data?.ratios || null }), { status: 200 });
 }
 
 export async function POST(request) {

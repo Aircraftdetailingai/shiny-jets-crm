@@ -27,6 +27,7 @@ export default function JobCompletePage() {
   const [activeUpload, setActiveUpload] = useState(null); // { phase: 'before'|'after', tag: string }
   const [completionNotes, setCompletionNotes] = useState('');
   const [completing, setCompleting] = useState(false);
+  const [productUsage, setProductUsage] = useState([]); // [{ name, estimated, actual, unit, service_id }]
   const [completed, setCompleted] = useState(false);
   const [deliverySent, setDeliverySent] = useState(false);
   const [sendingDelivery, setSendingDelivery] = useState(false);
@@ -43,14 +44,31 @@ export default function JobCompletePage() {
 
   const fetchData = async () => {
     try {
-      const [qRes, mRes] = await Promise.all([
+      const [qRes, mRes, spRes] = await Promise.all([
         fetch(`/api/quotes/${quoteId}`, { headers }),
         fetch(`/api/job-media?quote_id=${quoteId}`, { headers }),
+        fetch(`/api/services/products?quote_id=${quoteId}`, { headers }).catch(() => null),
       ]);
       if (qRes.ok) {
         const q = await qRes.json();
         setQuote(q);
         if (q.status === 'completed') setCompleted(true);
+        // Build product usage list from service-product links
+        if (spRes?.ok) {
+          try {
+            const spData = await spRes.json();
+            const links = spData.links || [];
+            const totalHours = parseFloat(q.total_hours) || 1;
+            const products = links.map(l => ({
+              name: l.product_name || l.products?.name || 'Product',
+              estimated: Math.round((parseFloat(l.quantity_per_hour) || 0) * totalHours * 10) / 10,
+              actual: '',
+              unit: l.products?.unit || 'oz',
+              service_id: l.service_id,
+            }));
+            if (products.length > 0) setProductUsage(products);
+          } catch {}
+        }
       }
       if (mRes.ok) {
         const m = await mRes.json();
@@ -126,6 +144,25 @@ export default function JobCompletePage() {
         throw new Error(d.error || 'Failed to complete');
       }
       setCompleted(true);
+      // Save product usage
+      if (productUsage.length > 0) {
+        try {
+          await fetch('/api/jobs/product-usage', {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              quote_id: quoteId,
+              products: productUsage.map(p => ({
+                product_name: p.name,
+                estimated_quantity: p.estimated,
+                actual_quantity: parseFloat(p.actual) || p.estimated,
+                unit: p.unit,
+                service_id: p.service_id || null,
+              })),
+            }),
+          });
+        } catch {}
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -206,6 +243,35 @@ export default function JobCompletePage() {
           onUpload={startUpload}
           onDelete={handleDelete}
         />
+
+        {/* Actual Products Used */}
+        {!completed && productUsage.length > 0 && (
+          <div className="bg-v-surface rounded-xl p-5">
+            <h3 className="text-white font-medium mb-1">Products Used</h3>
+            <p className="text-v-text-secondary text-xs mb-4">Enter actual quantities used</p>
+            <div className="space-y-2">
+              {productUsage.map((p, i) => (
+                <div key={i} className="flex items-center gap-3 bg-white/[0.03] rounded-lg p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm truncate">{p.name}</p>
+                    <p className="text-v-text-secondary text-[10px]">Est: {p.estimated} {p.unit}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={p.actual}
+                      onChange={e => setProductUsage(prev => prev.map((item, j) => j === i ? { ...item, actual: e.target.value } : item))}
+                      placeholder={String(p.estimated)}
+                      className="w-20 bg-white/5 border border-white/10 text-white rounded px-2 py-1.5 text-sm text-right outline-none focus:border-v-gold"
+                    />
+                    <span className="text-v-text-secondary text-xs w-6">{p.unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Completion Notes */}
         {!completed && (
