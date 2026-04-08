@@ -495,10 +495,16 @@ function IntegrationsContent() {
                         className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50" />
                       <button
                         onClick={async () => {
-                          if (!stripePk.startsWith('pk_') || !stripeSk.startsWith('sk_')) {
-                            setStripeKeyMsg({ type: 'error', text: 'Keys must start with pk_ and sk_' });
+                          const pkVal = stripePk.trim();
+                          const skVal = stripeSk.trim();
+                          const pkValid = pkVal.startsWith('pk_live_') || pkVal.startsWith('pk_test_');
+                          const skValid = skVal.startsWith('sk_live_') || skVal.startsWith('sk_test_') || skVal.startsWith('rk_live_') || skVal.startsWith('rk_test_');
+                          if (!pkValid || !skValid) {
+                            setStripeKeyMsg({ type: 'error', text: `Invalid key format. PK starts with "${pkVal.slice(0, 8)}...", SK starts with "${skVal.slice(0, 8)}...". Expected pk_live_/pk_test_ and sk_live_/sk_test_.` });
                             return;
                           }
+                          setStripePk(pkVal);
+                          setStripeSk(skVal);
                           setStripeKeySaving(true); setStripeKeyMsg(null);
                           try {
                             const res = await fetch('/api/user/settings', {
