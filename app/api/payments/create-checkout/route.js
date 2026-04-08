@@ -4,10 +4,6 @@ import { calculateCcFee } from '@/lib/cc-fee';
 
 export const dynamic = 'force-dynamic';
 
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY?.trim());
-}
-
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
@@ -26,15 +22,12 @@ export async function POST(request) {
       const customerIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
       await supabase
         .from('quotes')
-        .update({
-          customer_agreed_terms_at: agreedToTermsAt,
-          customer_ip_address: customerIp,
-        })
+        .update({ customer_agreed_terms_at: agreedToTermsAt, customer_ip_address: customerIp })
         .eq('id', quoteId)
         .eq('share_link', shareLink);
     }
 
-    // Fetch quote - require share_link match to prevent unauthorized access
+    // Fetch quote
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
       .select('id, detailer_id, total_price, aircraft_type, aircraft_model, status, valid_until, share_link, client_name, client_email')
@@ -45,105 +38,69 @@ export async function POST(request) {
     if (quoteError || !quote) {
       return new Response(JSON.stringify({ error: 'Quote not found' }), { status: 404 });
     }
-
-    // Check if already paid
     if (quote.status === 'paid' || quote.status === 'approved') {
       return new Response(JSON.stringify({ error: 'Quote already paid' }), { status: 400 });
     }
-
-    // Check if expired
     if (new Date() > new Date(quote.valid_until)) {
       return new Response(JSON.stringify({ error: 'Quote has expired', code: 'quote_expired' }), { status: 400 });
     }
 
-    // Fetch detailer for Stripe connection
+    // Fetch detailer
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_account_id, stripe_secret_key, company, email, plan, pass_fee_to_customer, cc_fee_mode, booking_mode, deposit_percentage')
+      .select('stripe_secret_key, company, email, plan, cc_fee_mode, booking_mode, deposit_percentage')
       .eq('id', quote.detailer_id)
       .single();
 
-    if (!detailer?.stripe_account_id && !detailer?.stripe_secret_key) {
-      return new Response(JSON.stringify({ error: 'Detailer has not connected Stripe', code: 'stripe_not_connected' }), { status: 400 });
+    const stripeKey = detailer?.stripe_secret_key?.trim();
+    if (!stripeKey) {
+      return new Response(JSON.stringify({ error: 'Stripe not configured. Go to Settings → Integrations to add your Stripe API key.', code: 'stripe_not_configured' }), { status: 400 });
     }
 
-    // Determine if using detailer's own keys (direct) or platform Connect
-    const useDirectKeys = !!detailer.stripe_secret_key;
+    // Calculate amount in cents
+    const fullBaseAmount = Math.round((quote.total_price || 0) * 100);
 
-    // Use the known working test account (temporary fix for DB sync issue)
-    const stripeAccountId = detailer.stripe_account_id === 'acct_1Sul7NCqHiG6qwTk'
-      ? 'acct_1SulfbE9Qo7bJV5q'  // Use working custom account
-      : detailer.stripe_account_id;
-
-    // Calculate application fee based on plan
-    const fullBaseAmount = Math.round((quote.total_price || 0) * 100); // Convert to cents
-    const plan = detailer?.plan || 'free';
-    const passFee = detailer?.pass_fee_to_customer || false;
-
-    // Determine if this is a deposit payment
+    // Deposit handling
     const isDeposit = paymentType === 'deposit' && detailer?.booking_mode === 'deposit';
     const depositPct = detailer?.deposit_percentage || 25;
     const baseAmount = isDeposit ? Math.round(fullBaseAmount * depositPct / 100) : fullBaseAmount;
 
-    // Store deposit info on quote before checkout
     if (isDeposit) {
       const depositDollars = Math.round((quote.total_price || 0) * depositPct) / 100;
-      await supabase
-        .from('quotes')
-        .update({
-          booking_mode: 'deposit',
-          deposit_percentage: depositPct,
-          deposit_amount: depositDollars,
-          balance_due: (quote.total_price || 0) - depositDollars,
-        })
-        .eq('id', quoteId)
-        .eq('share_link', shareLink);
+      await supabase.from('quotes').update({
+        booking_mode: 'deposit', deposit_percentage: depositPct,
+        deposit_amount: depositDollars, balance_due: (quote.total_price || 0) - depositDollars,
+      }).eq('id', quoteId).eq('share_link', shareLink);
     }
-
-    // Use tier-based platform fees
-    const FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
-    const feeRate = FEES[plan] || FEES.free;
-    const applicationFee = Math.round(baseAmount * feeRate);
-
-    // Store fee on the quote record
-    await supabase.from('quotes').update({
-      platform_fee_rate: feeRate,
-      platform_fee_amount: applicationFee / 100, // store in dollars
-    }).eq('id', quoteId);
-
-    // When pass-through is enabled, add service fee to the total charged to customer
-    let totalAmount = passFee ? baseAmount + applicationFee : baseAmount;
 
     // CC processing fee pass-through
+    let totalAmount = baseAmount;
     const ccFeeMode = detailer?.cc_fee_mode || 'absorb';
     if (ccFeeMode === 'pass' || ccFeeMode === 'customer_choice') {
-      const ccFee = calculateCcFee(totalAmount / 100); // convert cents to dollars for calculation
-      totalAmount += Math.round(ccFee * 100); // add back in cents
+      const ccFee = calculateCcFee(totalAmount / 100);
+      totalAmount += Math.round(ccFee * 100);
     }
 
-    // Hardcode URL to avoid env var issues
     const appUrl = 'https://crm.shinyjets.com';
-
     const productName = isDeposit
       ? `Deposit (${depositPct}%) - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`
       : `Aircraft Detail - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`;
 
-    const sessionParams = {
+    // Create checkout session — direct charge, no Connect
+    console.log(`[checkout] key=${stripeKey.slice(0, 12)}... amount=${totalAmount}cents quote=${quote.id}`);
+    const stripe = new Stripe(stripeKey);
+
+    const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: productName,
-              description: `Quote from ${detailer.company || 'Detailer'}`,
-            },
-            unit_amount: totalAmount,
-          },
-          quantity: 1,
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: productName, description: `Quote from ${detailer.company || 'Detailer'}` },
+          unit_amount: totalAmount,
         },
-      ],
+        quantity: 1,
+      }],
       success_url: `${appUrl}/q/${quote.share_link}?payment=success`,
       cancel_url: `${appUrl}/q/${quote.share_link}?payment=cancelled`,
       metadata: {
@@ -152,38 +109,18 @@ export async function POST(request) {
         payment_type: isDeposit ? 'deposit' : 'full',
         deposit_percentage: isDeposit ? String(depositPct) : '',
       },
-    };
-
-    // Use the detailer's own Stripe secret key for checkout
-    const stripeKey = detailer.stripe_secret_key?.trim();
-    if (!stripeKey) {
-      return new Response(JSON.stringify({ error: 'Stripe secret key not configured. Go to Settings → Integrations to add your Stripe API key.', code: 'stripe_not_configured' }), { status: 400 });
-    }
-    console.log(`[checkout] key=${stripeKey.slice(0, 12)}... amount=${totalAmount}cents quote=${quote.id}`);
-    const stripe = new Stripe(stripeKey);
-
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    });
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
   } catch (err) {
     console.error('[checkout-error-type]', err.type || 'unknown');
     console.error('[checkout-error-code]', err.code || 'none');
     console.error('[checkout-error-msg]', err.message || 'no message');
-    console.error('[checkout-error-raw]', err.raw?.message || 'no raw');
-
-    // Map Stripe error codes to friendly codes
-    let code = 'processing_error';
-    if (err.code) {
-      code = err.code;
-    }
-    if (err.type === 'StripeCardError') {
-      code = err.decline_code || 'card_declined';
-    }
 
     return new Response(JSON.stringify({
       error: err.message || 'Payment processing failed',
-      code,
-      message: err.message
+      code: err.code || 'processing_error',
+      message: err.message,
     }), { status: 500 });
   }
 }
