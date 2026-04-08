@@ -83,12 +83,17 @@ export async function GET(request, { params }) {
 
   // Check if detailer has active Stripe connection
   let stripeConnected = false;
-  if (detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
+  // If detailer has their own Stripe API keys, treat as connected (direct charges)
+  if (detailer?.stripe_secret_key) {
+    stripeConnected = true;
+    console.log(`[quote-view] Stripe: detailer has own API keys — connected`);
+  } else if (detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
+    // Connect account — verify via platform key
     try {
       const Stripe = (await import('stripe')).default;
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
       const account = await stripe.accounts.retrieve(detailer.stripe_account_id);
-      console.log(`[quote-view] Stripe account ${detailer.stripe_account_id}: charges=${account.charges_enabled} payouts=${account.payouts_enabled}`);
+      console.log(`[quote-view] Stripe Connect ${detailer.stripe_account_id}: charges=${account.charges_enabled} payouts=${account.payouts_enabled}`);
       stripeConnected = account.charges_enabled && account.payouts_enabled;
     } catch (e) {
       console.error('Stripe account check failed:', e.message);
