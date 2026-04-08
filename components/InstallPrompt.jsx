@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 // Pages where the install prompt should NOT appear
-const CUSTOMER_PATHS = ['/portal', '/customer', '/q/', '/compare', '/feedback', '/change-order', '/landing', '/login', '/terms', '/privacy'];
+const CUSTOMER_PATHS = ['/portal', '/customer', '/q/', '/compare', '/feedback', '/change-order', '/landing', '/login', '/terms', '/privacy', '/request/', '/quote-request/', '/ref/', '/signup', '/register'];
 
 export default function InstallPrompt() {
   const pathname = usePathname();

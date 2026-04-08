@@ -154,16 +154,16 @@ export async function POST(request) {
       },
     };
 
-    // Use platform key directly for checkout (Connect transfer disabled until onboarding complete)
-    // TODO: Re-enable Connect transfer_data once detailer Connect accounts have charges_enabled=true
-    const stripe = getStripe();
-    console.log(`[checkout] Using platform key, amount=${totalAmount}cents, quote=${quote.id}`);
+    // Use platform key directly — no Connect, no transfer, no application_fee
+    const platformKey = process.env.STRIPE_SECRET_KEY?.trim();
+    console.log(`[checkout] platform key prefix: ${platformKey?.slice(0, 12)}... amount=${totalAmount}cents quote=${quote.id}`);
+    const stripe = new Stripe(platformKey);
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
   } catch (err) {
-    console.error('Checkout error:', err);
+    console.error('[checkout] FULL ERROR:', err.type, err.code, err.message, err.raw?.message);
 
     // Map Stripe error codes to friendly codes
     let code = 'processing_error';
