@@ -35,26 +35,29 @@ export async function POST(request) {
       }
       member = data;
     } else if (pin_code) {
-      // PIN login
-      if (pin_code.length < 4) {
+      // PIN login — use .limit(1) instead of .single() in case of duplicate PINs
+      const pinTrimmed = String(pin_code).trim();
+      if (pinTrimmed.length < 4) {
         return Response.json({ error: 'PIN must be at least 4 digits' }, { status: 400 });
       }
       const { data, error } = await supabase
         .from('team_members')
         .select('id, detailer_id, name, email, type, hourly_pay, status, is_lead_tech, can_see_inventory, can_see_equipment')
-        .eq('pin_code', pin_code)
+        .eq('pin_code', pinTrimmed)
         .eq('status', 'active')
-        .single();
-      if (error || !data) {
+        .order('created_at', { ascending: true })
+        .limit(1);
+      console.log('[crew-login] PIN attempt:', pinTrimmed, 'found:', data?.length, 'error:', error?.message);
+      if (error || !data?.length) {
         return Response.json({ error: 'Invalid PIN' }, { status: 401 });
       }
-      member = data;
+      member = data[0];
     } else {
       return Response.json({ error: 'PIN or email+password required' }, { status: 400 });
     }
 
-    if (error || !member) {
-      return Response.json({ error: 'Invalid PIN' }, { status: 401 });
+    if (!member) {
+      return Response.json({ error: 'Login failed' }, { status: 401 });
     }
 
     // Get detailer company name for display
@@ -81,7 +84,9 @@ export async function POST(request) {
         id: member.id,
         detailer_id: member.detailer_id,
         name: member.name,
+        email: member.email,
         type: member.type,
+        hourly_pay: member.hourly_pay || 0,
         role: 'crew',
         is_lead_tech: member.is_lead_tech || false,
         can_see_inventory: member.can_see_inventory || false,
