@@ -138,23 +138,9 @@ function DashboardContent() {
     };
     refreshUser();
 
-    const checkOnboarding = async () => {
-      try {
-        const res = await fetch('/api/onboarding', { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          // Only redirect if explicitly false AND we got a valid detailer response
-          // (service_count or company confirms this is a real detailer, not a stale/wrong token)
-          if (data.onboarding_complete === false && data.company !== undefined) {
-            // Skip onboarding for existing users who have services or quotes
-            if ((data.service_count || 0) > 0) return false;
-            router.push('/onboarding');
-            return true;
-          }
-        }
-      } catch (e) {}
-      return false;
-    };
+    // Onboarding redirect is handled by the login/OAuth flow, not the dashboard.
+    // This prevents flickering from redundant auth checks on every page load.
+    const checkOnboarding = async () => false;
 
     const fetchDashboardData = async () => {
       const headers = { Authorization: `Bearer ${token}` };

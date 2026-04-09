@@ -124,8 +124,16 @@ export async function POST(request) {
       terms_accepted_version: detailer.terms_accepted_version || null,
     };
 
-    const redirect = isNewUser || !onboardingDone ? '/onboarding' : '/dashboard';
-    console.log('[oauth-complete] DONE:', { redirect, isNewUser, onboardingDone });
+    // Check service count — existing users with services are never new
+    let serviceCount = 0;
+    try {
+      const { count } = await supabase.from('services').select('id', { count: 'exact', head: true }).eq('detailer_id', detailer.id);
+      serviceCount = count || 0;
+    } catch {}
+
+    const hasExistingData = serviceCount > 0;
+    const redirect = (isNewUser && !hasExistingData) ? '/onboarding' : '/dashboard';
+    console.log('[oauth-complete] DONE:', { redirect, isNewUser, onboardingDone, serviceCount });
 
     return Response.json({ token, user, redirect });
   } catch (err) {
