@@ -271,10 +271,10 @@ export default function JobDetailPage() {
                 </div>
               </div>
             ))}
-            {servicesList.length > 1 && computedTotal > 0 && (
+            {servicesList.length > 1 && displayTotal > 0 && (
               <div className="flex justify-between text-sm border-t border-v-border pt-2 mt-2">
                 <span className="text-v-text-secondary font-medium">Total</span>
-                <span className="text-v-text-primary font-semibold">{currencySymbol()}{formatPrice(computedTotal)}</span>
+                <span className="text-v-text-primary font-semibold">{currencySymbol()}{formatPrice(displayTotal)}</span>
               </div>
             )}
           </div>
