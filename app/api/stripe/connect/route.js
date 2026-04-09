@@ -156,8 +156,8 @@ export async function POST(request) {
     try {
       const accountLink = await stripe.accountLinks.create({
         account: accountId,
-        refresh_url: `${appUrl}/settings?stripe=refresh`,
-        return_url: `${appUrl}/settings?stripe=success`,
+        refresh_url: `${appUrl}/settings/integrations?stripe=refresh`,
+        return_url: `${appUrl}/settings/integrations?stripe=success`,
         type: 'account_onboarding',
       });
 
@@ -170,6 +170,44 @@ export async function POST(request) {
         type: linkErr.type,
         code: linkErr.code,
       });
+
+      // If account doesn't belong to this platform, clear it and create fresh
+      if (linkErr.code === 'account_invalid' || linkErr.message?.includes('does not exist') || linkErr.message?.includes('No such account') || linkErr.type === 'invalid_request_error') {
+        console.log('Stale account ID detected, creating fresh Connect account...');
+        try {
+          const freshAccount = await stripe.accounts.create({
+            type: 'express',
+            country: 'US',
+            email: detailer?.email || user.email,
+            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+            business_type: 'individual',
+            business_profile: {
+              name: detailer?.company || 'Aircraft Detailer',
+              product_description: 'Aircraft detailing services',
+              mcc: '7349',
+            },
+            metadata: { detailer_id: user.id },
+          });
+
+          await supabase.from('detailers').update({ stripe_account_id: freshAccount.id, stripe_onboarding_complete: false }).eq('id', user.id);
+
+          const freshLink = await stripe.accountLinks.create({
+            account: freshAccount.id,
+            refresh_url: `${appUrl}/settings?stripe=refresh`,
+            return_url: `${appUrl}/settings?stripe=success`,
+            type: 'account_onboarding',
+          });
+
+          return Response.json({ url: freshLink.url }, { status: 200 });
+        } catch (retryErr) {
+          console.error('Retry account creation failed:', retryErr.message);
+          return Response.json({
+            error: 'Failed to create Stripe Connect account',
+            details: retryErr.message,
+          }, { status: 500 });
+        }
+      }
+
       return Response.json({
         error: 'Failed to create onboarding link',
         details: linkErr.message,
