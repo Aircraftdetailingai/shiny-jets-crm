@@ -53,9 +53,10 @@ export async function POST(request) {
       .eq('id', quote.detailer_id)
       .single();
 
-    // Need at least one valid Stripe key
-    const platformKey = process.env.STRIPE_SECRET_KEY?.trim();
-    const detailerKey = detailer?.stripe_secret_key?.trim();
+    // Need at least one valid Stripe key — strip quotes, newlines, whitespace
+    const cleanKey = (k) => k?.replace(/^["']|["']$/g, '').replace(/\\n/g, '').trim() || null;
+    const platformKey = cleanKey(process.env.STRIPE_SECRET_KEY);
+    const detailerKey = cleanKey(detailer?.stripe_secret_key);
 
     if (!platformKey && !detailerKey) {
       return new Response(JSON.stringify({ error: 'Stripe not configured. Go to Settings → Integrations to connect Stripe.', code: 'stripe_not_configured' }), { status: 400 });
