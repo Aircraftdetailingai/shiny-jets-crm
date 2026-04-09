@@ -2,13 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const SHINY_JETS_CERTS = [
-  'Shiny Jets Online Course',
-  'Shiny Jets 5-Day Group Class',
-  'Shiny Jets 5-Day Private Course',
-  'Verified Finish Certified',
-];
-
 export default function DirectorySettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -21,7 +14,8 @@ export default function DirectorySettingsPage() {
   const [newAirport, setNewAirport] = useState('');
   const [description, setDescription] = useState('');
   const [certifications, setCertifications] = useState([]);
-  const [customCert, setCustomCert] = useState('');
+  const [newCert, setNewCert] = useState('');
+  const [verifiedFinish, setVerifiedFinish] = useState(false);
   const [services, setServices] = useState([]);
 
   // Insurance
@@ -47,7 +41,8 @@ export default function DirectorySettingsPage() {
         setOnlineBooking(u.has_online_booking || false);
         setAirports(u.airports_served || []);
         setDescription(u.directory_description || '');
-        setCertifications(u.certifications || []);
+        setCertifications((u.certifications || []).filter(c => c !== 'Verified Finish Certified'));
+        setVerifiedFinish(u.verified_finish || false);
         setInsuranceUrl(u.insurance_url || null);
         setInsuranceExpiry(u.insurance_expiry_date || null);
         setInsuranceVerified(u.insurance_verified || false);
@@ -218,32 +213,30 @@ export default function DirectorySettingsPage() {
       {/* Certifications */}
       <div>
         <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-2">Certifications</label>
-        <div className="space-y-2 mb-3">
-          {SHINY_JETS_CERTS.map(cert => {
-            const isVerifiedFinish = cert === 'Verified Finish Certified';
-            const checked = certifications.includes(cert);
-            return (
-              <label key={cert} className={`flex items-center gap-2 p-2 bg-v-surface border border-v-border rounded cursor-pointer ${isVerifiedFinish ? 'opacity-60' : ''}`}>
-                <input type="checkbox" checked={checked} disabled={isVerifiedFinish}
-                  onChange={() => setCertifications(prev => checked ? prev.filter(c => c !== cert) : [...prev, cert])}
-                  className="w-3.5 h-3.5 rounded accent-v-gold" />
-                <span className="text-xs text-v-text-primary">{cert}</span>
-                {isVerifiedFinish && <span className="text-[10px] text-v-text-secondary">(Admin only)</span>}
-              </label>
-            );
-          })}
+
+        {verifiedFinish && (
+          <div className="mb-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-v-gold/15 border border-v-gold/30 rounded text-v-gold text-xs font-semibold">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+              Verified Finish Certified
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mb-3">
+          {certifications.map(cert => (
+            <span key={cert} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs rounded-full">
+              {cert}
+              <button onClick={() => setCertifications(prev => prev.filter(c => c !== cert))} className="hover:text-red-400 text-blue-400/60">&times;</button>
+            </span>
+          ))}
         </div>
-        {/* Custom certs */}
-        {certifications.filter(c => !SHINY_JETS_CERTS.includes(c)).map(cert => (
-          <span key={cert} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded mr-2 mb-2">
-            {cert}
-            <button onClick={() => setCertifications(prev => prev.filter(c => c !== cert))} className="hover:text-red-400">&times;</button>
-          </span>
-        ))}
-        <div className="flex gap-2 mt-2">
-          <input value={customCert} onChange={e => setCustomCert(e.target.value)} placeholder="Add custom certification..." className={cls} />
-          <button onClick={() => { if (customCert.trim()) { setCertifications([...certifications, customCert.trim()]); setCustomCert(''); } }}
-            className="px-4 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded">Add</button>
+        <div className="flex gap-2">
+          <input value={newCert} onChange={e => setNewCert(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newCert.trim() && !certifications.includes(newCert.trim())) { setCertifications([...certifications, newCert.trim()]); setNewCert(''); } } }}
+            placeholder="Add a certification... e.g. Shiny Jets 5-Day, Detail King, NASM" className={cls} />
+          <button onClick={() => { if (newCert.trim() && !certifications.includes(newCert.trim())) { setCertifications([...certifications, newCert.trim()]); setNewCert(''); } }}
+            className="px-4 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded whitespace-nowrap">Add</button>
         </div>
       </div>
 
