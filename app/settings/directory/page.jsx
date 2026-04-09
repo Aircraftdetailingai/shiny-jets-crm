@@ -70,6 +70,8 @@ export default function DirectorySettingsPage() {
           airports_served: airports,
           directory_description: description.slice(0, 200),
           certifications,
+          insurance_insurer: insuranceInsurer,
+          insurance_expiry_date: insuranceExpiry,
         }),
       });
       if (res.ok) showToast('Directory settings saved');
@@ -176,20 +178,40 @@ export default function DirectorySettingsPage() {
       {/* Insurance */}
       <div>
         <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-2">Certificate of Insurance</label>
-        <div className="bg-v-surface border border-v-border rounded p-4">
+        <div className="bg-v-surface border border-v-border rounded p-4 space-y-4">
           {insuranceVerified ? (
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-green-400 text-sm font-medium">Insured</span>
-              {insuranceInsurer && <span className="text-v-text-secondary text-xs">({insuranceInsurer})</span>}
-              {insuranceExpiry && <span className="text-v-text-secondary text-xs">Expires: {new Date(insuranceExpiry).toLocaleDateString()}</span>}
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/10 border border-green-500/30 rounded text-green-400 text-xs font-medium">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                Verified &amp; Insured
+              </span>
             </div>
           ) : (
-            <p className="text-v-text-secondary text-xs mb-3">Upload your COI to show the "Insured" badge on your listing</p>
+            <p className="text-v-text-secondary text-xs">Upload your COI to show the &ldquo;Insured&rdquo; badge on your listing</p>
           )}
-          <label className="block">
+
+          {insuranceUrl && (
+            <a href={insuranceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-v-gold text-xs hover:underline">
+              View current COI &rarr;
+            </a>
+          )}
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Upload COI (PDF or image)</label>
             <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleInsuranceUpload(e.target.files?.[0])} className="text-xs text-v-text-secondary" />
-          </label>
-          {(uploading || verifying) && <p className="text-xs text-v-gold mt-2">{verifying ? 'Verifying with AI...' : 'Uploading...'}</p>}
+            {(uploading || verifying) && <p className="text-xs text-v-gold mt-2">{verifying ? 'Verifying with AI...' : 'Uploading...'}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Insurance Provider</label>
+              <input type="text" value={insuranceInsurer} onChange={e => setInsuranceInsurer(e.target.value)} placeholder="e.g. Global Aerospace" className={cls} />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Expiry Date</label>
+              <input type="date" value={insuranceExpiry || ''} onChange={e => setInsuranceExpiry(e.target.value)} className={cls} />
+            </div>
+          </div>
         </div>
       </div>
 

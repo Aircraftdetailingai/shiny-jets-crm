@@ -20,6 +20,8 @@ export async function POST(request) {
   if (body.airports_served !== undefined) updates.airports_served = body.airports_served;
   if (body.directory_description !== undefined) updates.directory_description = (body.directory_description || '').slice(0, 200);
   if (body.certifications !== undefined) updates.certifications = body.certifications;
+  if (body.insurance_insurer !== undefined) updates.insurance_insurer = body.insurance_insurer || null;
+  if (body.insurance_expiry_date !== undefined) updates.insurance_expiry_date = body.insurance_expiry_date || null;
 
   if (Object.keys(updates).length === 0) return Response.json({ error: 'Nothing to update' }, { status: 400 });
 
