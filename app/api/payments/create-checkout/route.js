@@ -53,11 +53,11 @@ export async function POST(request) {
       .eq('id', quote.detailer_id)
       .single();
 
-    // Determine payment mode: Connect (platform key) or Direct (detailer key)
-    const useConnect = !!(detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY);
-    const stripeKey = useConnect ? process.env.STRIPE_SECRET_KEY : detailer?.stripe_secret_key?.trim();
+    // Need at least one valid Stripe key
+    const platformKey = process.env.STRIPE_SECRET_KEY?.trim();
+    const detailerKey = detailer?.stripe_secret_key?.trim();
 
-    if (!stripeKey) {
+    if (!platformKey && !detailerKey) {
       return new Response(JSON.stringify({ error: 'Stripe not configured. Go to Settings → Integrations to connect Stripe.', code: 'stripe_not_configured' }), { status: 400 });
     }
 
@@ -90,10 +90,7 @@ export async function POST(request) {
       ? `Deposit (${depositPct}%) - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`
       : `Aircraft Detail - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`;
 
-    const stripe = new Stripe(stripeKey);
-
-    // Build checkout session params
-    const sessionParams = {
+    const baseSessionParams = {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [{
@@ -114,25 +111,46 @@ export async function POST(request) {
       },
     };
 
-    // Stripe Connect: platform takes application_fee, rest goes to connected account
-    if (useConnect) {
-      const feeRate = PLATFORM_FEES[detailer.plan || 'free'] || PLATFORM_FEES.free;
-      const platformFee = Math.round(totalAmount * feeRate); // already in cents
-      console.log(`[checkout-connect] dest=${detailer.stripe_account_id} plan=${detailer.plan} feeRate=${feeRate} fee=${platformFee}cents total=${totalAmount}cents`);
+    // Try Connect first if both platform key and connected account exist
+    const canConnect = !!(detailer?.stripe_account_id && platformKey);
 
-      sessionParams.payment_intent_data = {
-        application_fee_amount: platformFee,
-        transfer_data: {
-          destination: detailer.stripe_account_id,
-        },
-      };
-    } else {
-      console.log(`[checkout-direct] key=${stripeKey.slice(0, 12)}... amount=${totalAmount}cents quote=${quote.id}`);
+    if (canConnect) {
+      try {
+        const feeRate = PLATFORM_FEES[detailer.plan || 'free'] || PLATFORM_FEES.free;
+        const platformFee = Math.round(totalAmount * feeRate);
+        console.log(`[checkout-connect] dest=${detailer.stripe_account_id} plan=${detailer.plan} feeRate=${feeRate} fee=${platformFee}cents total=${totalAmount}cents key=${platformKey.slice(0, 12)}...`);
+
+        const stripe = new Stripe(platformKey);
+        const connectParams = {
+          ...baseSessionParams,
+          payment_intent_data: {
+            application_fee_amount: platformFee,
+            transfer_data: {
+              destination: detailer.stripe_account_id,
+            },
+          },
+        };
+
+        const session = await stripe.checkout.sessions.create(connectParams);
+        return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
+      } catch (connectErr) {
+        console.error(`[checkout-connect-failed] ${connectErr.type} | ${connectErr.code} | ${connectErr.message}`);
+        console.log('[checkout] Falling back to direct charge...');
+        // Fall through to direct charge
+      }
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    // Direct charge fallback — use detailer's own key
+    if (detailerKey) {
+      console.log(`[checkout-direct] key=${detailerKey.slice(0, 12)}... amount=${totalAmount}cents quote=${quote.id}`);
+      const stripe = new Stripe(detailerKey);
+      const session = await stripe.checkout.sessions.create(baseSessionParams);
+      return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
+    }
 
-    return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), { status: 200 });
+    // If we got here, Connect failed and no detailer key exists
+    return new Response(JSON.stringify({ error: 'Payment processing unavailable. Please contact the detailer.', code: 'stripe_not_configured' }), { status: 400 });
+
   } catch (err) {
     console.error('[checkout-error-type]', err.type || 'unknown');
     console.error('[checkout-error-code]', err.code || 'none');
