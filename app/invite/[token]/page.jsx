@@ -64,10 +64,15 @@ export default function AcceptInvitePage() {
       if (!res.ok) throw new Error(data.error || 'Failed to accept invitation');
 
       if (data.token) {
-        localStorage.setItem('vector_token', data.token);
+        // Store as crew session (not detailer session)
+        localStorage.setItem('crew_token', data.token);
+        // Also store crew user data for the dashboard
+        if (data.user) {
+          localStorage.setItem('crew_user', JSON.stringify(data.user));
+        }
       }
       setDone(true);
-      setTimeout(() => router.push('/dashboard'), 2000);
+      setTimeout(() => router.push('/crew'), 2000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -94,7 +99,7 @@ export default function AcceptInvitePage() {
           </svg>
         </div>
         <h2 className="text-2xl font-light text-white mb-3">You&apos;re in!</h2>
-        <p className="text-white/60 text-sm">Redirecting to your dashboard...</p>
+        <p className="text-white/60 text-sm">Redirecting to your crew dashboard...</p>
       </div>
     );
   }

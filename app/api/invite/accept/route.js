@@ -142,7 +142,13 @@ export async function POST(request) {
     };
     const authToken = await createToken(jwtPayload);
 
-    return Response.json({ success: true, token: authToken });
+    return Response.json({ success: true, token: authToken, user: {
+      id: member.id, detailer_id: member.detailer_id, name: member.name, email: member.email,
+      type: member.type || 'employee', title: member.title, role: 'crew',
+      is_lead_tech: member.is_lead_tech || false,
+      can_see_inventory: member.can_see_inventory || false,
+      can_see_equipment: member.can_see_equipment || false,
+    }});
   }
 
   // New account — password required
@@ -175,5 +181,11 @@ export async function POST(request) {
   };
   const authToken = await createToken(jwtPayload);
 
-  return Response.json({ success: true, token: authToken });
+  return Response.json({ success: true, token: authToken, user: {
+    id: member.id, detailer_id: member.detailer_id, name: member.name, email: member.email,
+    type: member.type || 'employee', title: member.title, role: 'crew',
+    is_lead_tech: member.is_lead_tech || false,
+    can_see_inventory: member.can_see_inventory || false,
+    can_see_equipment: member.can_see_equipment || false,
+  }});
 }
