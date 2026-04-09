@@ -59,12 +59,16 @@ export async function GET(request) {
 
   const jobs = [...(quotesJobs || [])];
 
-  // Also fetch manually created jobs assigned to this crew member
+  // Also fetch manually created jobs — assigned to this crew member, or ALL if lead tech
   try {
-    const { data: assignments } = await supabase
-      .from('job_assignments')
-      .select('job_id')
-      .eq('team_member_id', user.id);
+    let assignmentQuery = supabase.from('job_assignments').select('job_id');
+    if (user.is_lead_tech) {
+      assignmentQuery = assignmentQuery.eq('detailer_id', user.detailer_id);
+    } else {
+      assignmentQuery = assignmentQuery.eq('team_member_id', user.id);
+    }
+    const { data: assignments, error: assignErr } = await assignmentQuery;
+    console.log(`[crew-jobs] user.id=${user.id} is_lead=${user.is_lead_tech} assignments=${assignments?.length || 0} err=${assignErr?.message || 'none'}`);
 
     if (assignments?.length > 0) {
       const assignedJobIds = assignments.map(a => a.job_id).filter(Boolean);
