@@ -137,8 +137,10 @@ export async function POST(request) {
       detailer_id: member.detailer_id,
       name: member.name,
       email: member.email,
-      role: member.role || 'employee',
-      type: 'crew',
+      role: 'crew',
+      is_lead_tech: member.is_lead_tech || false,
+      can_see_inventory: member.can_see_inventory || false,
+      can_see_equipment: member.can_see_equipment || false,
     };
     const authToken = await createToken(jwtPayload);
 
@@ -176,8 +178,10 @@ export async function POST(request) {
     detailer_id: member.detailer_id,
     name: member.name,
     email: member.email,
-    role: member.role || 'employee',
-    type: 'crew',
+    role: 'crew',
+    is_lead_tech: member.is_lead_tech || false,
+    can_see_inventory: member.can_see_inventory || false,
+    can_see_equipment: member.can_see_equipment || false,
   };
   const authToken = await createToken(jwtPayload);
 

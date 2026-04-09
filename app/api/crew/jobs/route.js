@@ -52,6 +52,8 @@ export async function GET(request) {
 
   const { data: quotesJobs, error } = await query;
 
+  console.log('[crew/jobs] member:', user.id, 'detailer:', user.detailer_id, 'quote_jobs:', quotesJobs?.length || 0, 'error:', error?.message || 'none');
+
   if (error) {
     console.error('Crew jobs fetch error:', error);
     return Response.json({ error: 'Failed to fetch jobs' }, { status: 500 });
@@ -138,5 +140,6 @@ export async function GET(request) {
     return result;
   });
 
+  console.log('[crew/jobs] member:', user.id, 'total results:', sanitizedJobs.length);
   return Response.json({ jobs: sanitizedJobs });
 }
