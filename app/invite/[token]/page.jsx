@@ -64,15 +64,18 @@ export default function AcceptInvitePage() {
       if (!res.ok) throw new Error(data.error || 'Failed to accept invitation');
 
       if (data.token) {
-        // Store as crew session (not detailer session)
+        // Clear any stale detailer session so onboarding doesn't intercept
+        localStorage.removeItem('vector_token');
+        localStorage.removeItem('vector_user');
+        // Store as crew session
         localStorage.setItem('crew_token', data.token);
-        // Also store crew user data for the dashboard
         if (data.user) {
           localStorage.setItem('crew_user', JSON.stringify(data.user));
         }
       }
       setDone(true);
-      setTimeout(() => router.push('/crew'), 2000);
+      // Use window.location for hard redirect to avoid client-side routing intercepting
+      setTimeout(() => { window.location.href = '/crew'; }, 1500);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -337,7 +337,7 @@ export default function OnboardingPage() {
     return (
       <div className="page-transition min-h-screen bg-v-charcoal flex flex-col items-center justify-center p-6 relative">
         <div className="text-center max-w-md">
-          <h1 className="font-heading text-4xl sm:text-5xl tracking-[0.25em] text-v-gold uppercase mb-4">
+          <h1 className="font-heading text-3xl sm:text-4xl tracking-wider text-v-gold mb-4">
             Welcome to Shiny Jets CRM
           </h1>
           <p className="text-v-text-secondary text-lg mb-10">
