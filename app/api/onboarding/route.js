@@ -26,6 +26,11 @@ export async function GET(request) {
       .eq('id', user.id)
       .single();
 
+    // If no detailer found (e.g. crew token used), skip onboarding
+    if (!data) {
+      return Response.json({ onboarding_complete: true, service_count: 0 });
+    }
+
     // Get service count for resume support
     const { count: serviceCount } = await supabase
       .from('services')

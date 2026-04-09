@@ -143,7 +143,14 @@ function DashboardContent() {
         const res = await fetch('/api/onboarding', { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const data = await res.json();
-          if (data.onboarding_complete === false) { router.push('/onboarding'); return true; }
+          // Only redirect if explicitly false AND we got a valid detailer response
+          // (service_count or company confirms this is a real detailer, not a stale/wrong token)
+          if (data.onboarding_complete === false && data.company !== undefined) {
+            // Skip onboarding for existing users who have services or quotes
+            if ((data.service_count || 0) > 0) return false;
+            router.push('/onboarding');
+            return true;
+          }
         }
       } catch (e) {}
       return false;
