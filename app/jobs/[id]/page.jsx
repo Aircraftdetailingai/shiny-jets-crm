@@ -33,14 +33,24 @@ export default function JobDetailPage() {
   const fetchJob = async (token) => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      // Try quotes table first, then jobs table
-      let res = await fetch(`/api/quotes/${jobId}`, { headers });
-      let data = res.ok ? await res.json() : null;
-      if (!data) {
-        // Try jobs table via direct query
-        res = await fetch(`/api/jobs/${jobId}/detail`, { headers });
-        data = res.ok ? await res.json() : null;
+      let data = null;
+
+      // Try jobs table first (manually created jobs have enriched data)
+      const jobRes = await fetch(`/api/jobs/${jobId}/detail`, { headers });
+      if (jobRes.ok) {
+        const jobData = await jobRes.json();
+        if (jobData && !jobData.error) data = jobData;
       }
+
+      // Fall back to quotes table (legacy quote-based jobs)
+      if (!data) {
+        const quoteRes = await fetch(`/api/quotes/${jobId}`, { headers });
+        if (quoteRes.ok) {
+          const quoteData = await quoteRes.json();
+          if (quoteData?.id) data = quoteData;
+        }
+      }
+
       if (data) setJob(data);
 
       const mediaRes = await fetch(`/api/job-media?quote_id=${jobId}`, { headers });
