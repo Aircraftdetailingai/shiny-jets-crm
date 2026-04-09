@@ -8,6 +8,7 @@ const navItems = [
   { href: '/settings/locations', label: 'Locations', icon: '📍' },
   { href: '/settings/integrations', label: 'Integrations', icon: '🔗' },
   { href: '/settings/intake-flow', label: 'Intake Flow', icon: '📋' },
+  { href: '/settings/directory', label: 'Directory', icon: '🌐' },
   { href: '/settings/import', label: 'Import / Export', icon: '📦', section: 'Data' },
 ];
 

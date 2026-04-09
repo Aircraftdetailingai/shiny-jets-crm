@@ -53,6 +53,14 @@ function buildUserResponse(data, isAdmin) {
     calendly_url: data.calendly_url || null,
     use_calendly_scheduling: data.use_calendly_scheduling || false,
     website_url: data.website_url || null,
+    insurance_url: data.insurance_url || null,
+    insurance_expiry_date: data.insurance_expiry_date || null,
+    insurance_verified: data.insurance_verified || false,
+    insurance_insurer: data.insurance_insurer || null,
+    certifications: data.certifications || [],
+    directory_description: data.directory_description || '',
+    has_online_booking: data.has_online_booking || false,
+    verified_finish: data.verified_finish || false,
   };
 }
 
