@@ -26,6 +26,7 @@ export default function TeamMemberPage() {
   // Availability state
   const [memberAvail, setMemberAvail] = useState(null);
   const [availSaving, setAvailSaving] = useState(false);
+  const [serviceOptions, setServiceOptions] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -38,6 +39,12 @@ export default function TeamMemberPage() {
 
   const fetchMember = async (token) => {
     try {
+      // Fetch services for specialties
+      fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : { services: [] })
+        .then(d => setServiceOptions((d.services || d || []).map(s => s.name).filter(Boolean)))
+        .catch(() => {});
+
       const res = await fetch(`/api/team/${params.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -376,6 +383,31 @@ export default function TeamMemberPage() {
               </select>
             </div>
 
+            {/* Specialties */}
+            <div className="col-span-full border-t border-v-border pt-4 mt-2">
+              <p className="text-sm font-medium text-v-text-secondary mb-3">Specialties</p>
+              {serviceOptions.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                  {serviceOptions.map(s => {
+                    const specs = editForm.specialties || [];
+                    const sel = specs.includes(s);
+                    return (
+                      <label key={s} className="flex items-center gap-2 p-2 bg-v-charcoal border border-v-border rounded-lg cursor-pointer hover:border-v-gold/30">
+                        <input type="checkbox" checked={sel}
+                          onChange={() => setEditForm({ ...editForm, specialties: sel ? specs.filter(x => x !== s) : [...specs, s] })}
+                          className="w-3.5 h-3.5 rounded accent-v-gold" />
+                        <span className="text-xs text-v-text-primary">{s}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-v-text-secondary mb-4">
+                  <a href="/settings/services" className="text-v-gold hover:underline">Add services in Settings → Services</a> first
+                </p>
+              )}
+            </div>
+
             {/* Permissions */}
             <div className="col-span-full border-t border-v-border pt-4 mt-2">
               <p className="text-sm font-medium text-v-text-secondary mb-3">Visibility Permissions</p>
@@ -418,6 +450,16 @@ export default function TeamMemberPage() {
               <div className="col-span-full">
                 <p className="text-sm text-v-text-secondary">Title</p>
                 <p className="text-v-text-primary font-medium">{member.title}</p>
+              </div>
+            )}
+            {member.specialties?.length > 0 && (
+              <div className="col-span-full">
+                <p className="text-sm text-v-text-secondary mb-1">Specialties</p>
+                <div className="flex flex-wrap gap-1">
+                  {member.specialties.map(s => (
+                    <span key={s} className="text-xs bg-v-gold/10 text-v-gold px-2 py-0.5 rounded">{s}</span>
+                  ))}
+                </div>
               </div>
             )}
             <div>

@@ -19,16 +19,15 @@ export default function AddTeamMemberPage() {
     send_invite: false,
   });
 
-  const SPECIALTY_OPTIONS = [
-    'Exterior Wash', 'Interior Detail', 'Paint Correction', 'Ceramic Coating',
-    'Brightwork', 'Leather Care', 'Carpet Extraction', 'Engine Detail',
-  ];
+  const [serviceOptions, setServiceOptions] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
-    if (!token) {
-      router.push('/login');
-    }
+    if (!token) { router.push('/login'); return; }
+    fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : { services: [] })
+      .then(d => setServiceOptions((d.services || d || []).map(s => s.name).filter(Boolean)))
+      .catch(() => {});
   }, [router]);
 
   const handleChange = (e) => {
@@ -179,16 +178,22 @@ export default function AddTeamMemberPage() {
           {/* Specialties */}
           <div>
             <label className="block text-sm font-medium text-v-text-secondary mb-2">Specialties</label>
-            <div className="grid grid-cols-2 gap-2">
-              {SPECIALTY_OPTIONS.map(s => (
-                <label key={s} className="flex items-center gap-2 p-2 bg-v-surface-light border border-v-border rounded-lg cursor-pointer hover:border-v-gold/30">
-                  <input type="checkbox" checked={form.specialties.includes(s)}
-                    onChange={() => setForm(f => ({ ...f, specialties: f.specialties.includes(s) ? f.specialties.filter(x => x !== s) : [...f.specialties, s] }))}
-                    className="w-3.5 h-3.5 rounded accent-v-gold" />
-                  <span className="text-xs text-v-text-primary">{s}</span>
-                </label>
-              ))}
-            </div>
+            {serviceOptions.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {serviceOptions.map(s => (
+                  <label key={s} className="flex items-center gap-2 p-2 bg-v-surface-light border border-v-border rounded-lg cursor-pointer hover:border-v-gold/30">
+                    <input type="checkbox" checked={form.specialties.includes(s)}
+                      onChange={() => setForm(f => ({ ...f, specialties: f.specialties.includes(s) ? f.specialties.filter(x => x !== s) : [...f.specialties, s] }))}
+                      className="w-3.5 h-3.5 rounded accent-v-gold" />
+                    <span className="text-xs text-v-text-primary">{s}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-v-text-secondary">
+                <a href="/settings/services" className="text-v-gold hover:underline">Add services in Settings → Services</a> first
+              </p>
+            )}
           </div>
 
           {/* Send Invite Email */}
