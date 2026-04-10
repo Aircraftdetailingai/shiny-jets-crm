@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
 const API = (path, token, opts = {}) =>
   fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...opts.headers } }).then(r => r.json());
@@ -33,6 +34,8 @@ export default function CrewDashboard() {
   const [inventoryChanges, setInventoryChanges] = useState({});
   const [inventorySaving, setInventorySaving] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [barcodeLookup, setBarcodeLookup] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: '', brand: '', quantity: '', unit: 'oz', category: 'cleaner', size: '', url: '', image_url: '' });
   const [scraping, setScraping] = useState(false);
 
@@ -998,6 +1001,19 @@ export default function CrewDashboard() {
                 <button onClick={() => setShowAddProduct(false)} className="text-white/50 hover:text-white text-2xl leading-none">&times;</button>
               </div>
               <div className="p-5 space-y-3">
+                {/* Scan Barcode */}
+                <button
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-sm font-semibold rounded-lg hover:bg-blue-500/25 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/>
+                  </svg>
+                  {barcodeLookup ? 'Looking up...' : 'Scan Barcode'}
+                </button>
+
                 {/* URL + Auto-fill */}
                 <div>
                   <label className="block text-white/60 text-xs uppercase tracking-wider mb-1">Product URL (optional)</label>
@@ -1149,6 +1165,46 @@ export default function CrewDashboard() {
             </div>
           </div>
         )}
+
+        {/* Barcode Scanner */}
+        <BarcodeScanner
+          isOpen={showScanner}
+          onClose={() => setShowScanner(false)}
+          onDetected={async (upc) => {
+            setShowScanner(false);
+            setBarcodeLookup(true);
+            try {
+              const tk = localStorage.getItem('crew_token');
+              const res = await fetch(`/api/products/barcode?upc=${encodeURIComponent(upc)}`, {
+                headers: { Authorization: `Bearer ${tk}` },
+              });
+              if (res.ok) {
+                const d = await res.json();
+                if (d.found && d.product) {
+                  setNewProduct(p => ({
+                    ...p,
+                    name: d.product.name || p.name,
+                    brand: d.product.brand || p.brand,
+                    size: d.product.size != null ? String(d.product.size) : p.size,
+                    unit: d.product.unit || p.unit,
+                    category: d.product.category || p.category,
+                    image_url: d.product.image_url || p.image_url,
+                  }));
+                } else {
+                  alert('Barcode not found in database. Enter details manually.');
+                }
+              } else {
+                const e = await res.json().catch(() => ({}));
+                alert(e.error || 'Lookup failed');
+              }
+            } catch (e) {
+              alert('Lookup failed: ' + (e?.message || 'unknown error'));
+            } finally {
+              setBarcodeLookup(false);
+            }
+          }}
+        />
+        {/* End Add Product modal */}
 
         {/* ===== EQUIPMENT TAB ===== */}
         {tab === 'equipment' && (

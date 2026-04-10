@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AppShell from '@/components/AppShell';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function ProductsPage() {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [barcodeLookup, setBarcodeLookup] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
@@ -635,6 +638,21 @@ export default function ProductsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Scan Barcode */}
+              {!editingProduct && (
+                <button
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500/15 border border-blue-500/30 text-blue-400 text-sm font-semibold rounded-sm hover:bg-blue-500/25 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/>
+                  </svg>
+                  {barcodeLookup ? 'Looking up...' : 'Scan Barcode'}
+                </button>
+              )}
+
               {/* Paste Product Link */}
               {!editingProduct && (
                 <div className="bg-v-gold/10 border border-v-gold/30 rounded-sm p-3">
@@ -827,6 +845,44 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onDetected={async (upc) => {
+          setShowScanner(false);
+          setBarcodeLookup(true);
+          try {
+            const tk = localStorage.getItem('vector_token');
+            const res = await fetch(`/api/products/barcode?upc=${encodeURIComponent(upc)}`, {
+              headers: { Authorization: `Bearer ${tk}` },
+            });
+            if (res.ok) {
+              const d = await res.json();
+              if (d.found && d.product) {
+                setFormData(prev => ({
+                  ...prev,
+                  name: d.product.name || prev.name,
+                  brand: d.product.brand || prev.brand,
+                  size: d.product.size != null ? `${d.product.size}${d.product.unit ? ' ' + d.product.unit : ''}` : prev.size,
+                  category: d.product.category || prev.category,
+                  imageUrl: d.product.image_url || prev.imageUrl,
+                }));
+              } else {
+                alert('Barcode not found in database. Enter details manually.');
+              }
+            } else {
+              const e = await res.json().catch(() => ({}));
+              alert(e.error || 'Lookup failed');
+            }
+          } catch (e) {
+            alert('Lookup failed: ' + (e?.message || 'unknown error'));
+          } finally {
+            setBarcodeLookup(false);
+          }
+        }}
+      />
 
       {/* Adjust Quantity Modal */}
       {showAdjustModal && (
