@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { nanoid } from 'nanoid';
-import { PLATFORM_FEES } from '@/lib/pricing-tiers';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,15 +11,7 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-function generateInvoiceNumber() {
-  const now = new Date();
-  const y = now.getFullYear().toString().slice(-2);
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const seq = nanoid(4).toUpperCase();
-  return `INV-${y}${m}-${seq}`;
-}
-
-// GET - List all invoices for the detailer
+// GET - List all invoices for the authenticated detailer
 export async function GET(request) {
   try {
     const user = await getAuthUser(request);
@@ -29,11 +20,20 @@ export async function GET(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+
+    let query = supabase
       .from('invoices')
       .select('*')
       .eq('detailer_id', user.id)
       .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Invoices fetch error:', error);
@@ -47,7 +47,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create invoice from a quote
+// POST - Create a new invoice
 export async function POST(request) {
   try {
     const user = await getAuthUser(request);
@@ -57,78 +57,43 @@ export async function POST(request) {
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
     const body = await request.json();
-    const { quote_id } = body;
+    const {
+      job_id,
+      customer_name,
+      customer_email,
+      aircraft_model,
+      tail_number,
+      line_items,
+      total,
+      net_terms,
+      notes,
+    } = body;
 
-    if (!quote_id) {
-      return Response.json({ error: 'Quote ID required' }, { status: 400 });
+    if (!customer_name || !customer_email || !line_items || !total) {
+      return Response.json({ error: 'Missing required fields: customer_name, customer_email, line_items, total' }, { status: 400 });
     }
 
-    // Fetch the quote
-    const { data: quote, error: quoteError } = await supabase
-      .from('quotes')
-      .select('*')
-      .eq('id', quote_id)
-      .eq('detailer_id', user.id)
-      .single();
-
-    if (quoteError || !quote) {
-      return Response.json({ error: 'Quote not found' }, { status: 404 });
-    }
-
-    // Check if invoice already exists for this quote
-    const { data: existing } = await supabase
-      .from('invoices')
-      .select('id, invoice_number')
-      .eq('quote_id', quote_id)
-      .single();
-
-    if (existing) {
-      return Response.json({ error: 'Invoice already exists for this quote', invoice: existing }, { status: 409 });
-    }
-
-    // Fetch detailer info
-    const { data: detailer } = await supabase
-      .from('detailers')
-      .select('name, email, company, phone, plan')
-      .eq('id', user.id)
-      .single();
-
-    // Calculate fee breakdown
-    const plan = detailer?.plan || 'free';
-    const feeRate = PLATFORM_FEES[plan] || PLATFORM_FEES.free;
-    const subtotal = parseFloat(quote.total_price) || 0;
-    const platformFee = Math.round(subtotal * feeRate * 100) / 100;
-
-    const invoiceNumber = generateInvoiceNumber();
+    const share_link = crypto.randomBytes(12).toString('hex');
+    const issued_date = new Date().toISOString();
+    const due_date = new Date(Date.now() + (net_terms || 30) * 24 * 60 * 60 * 1000).toISOString();
 
     const invoiceRow = {
       detailer_id: user.id,
-      quote_id: quote.id,
-      invoice_number: invoiceNumber,
-      status: quote.status === 'paid' || quote.status === 'completed' ? 'paid' : 'unpaid',
-      // Customer info
-      customer_name: quote.client_name || quote.customer_name || '',
-      customer_email: quote.client_email || quote.customer_email || '',
-      customer_phone: quote.client_phone || quote.customer_phone || '',
-      customer_company: quote.customer_company || quote.company_name || '',
-      // Detailer info
-      detailer_name: detailer?.name || '',
-      detailer_email: detailer?.email || '',
-      detailer_company: detailer?.company || '',
-      detailer_phone: detailer?.phone || '',
-      // Job info
-      aircraft: quote.aircraft_model || quote.aircraft_type || '',
-      tail_number: quote.tail_number || '',
-      line_items: quote.line_items || [],
-      addon_fees: quote.addon_fees || [],
-      subtotal,
-      platform_fee: platformFee,
-      platform_fee_rate: feeRate,
-      total: subtotal,
-      notes: quote.notes || '',
-      airport: quote.airport || '',
-      paid_at: quote.paid_at || null,
-      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      job_id: job_id || null,
+      customer_name,
+      customer_email,
+      aircraft_model: aircraft_model || '',
+      tail_number: tail_number || '',
+      line_items: Array.isArray(line_items) ? line_items : [],
+      total: parseFloat(total) || 0,
+      amount_paid: 0,
+      balance_due: parseFloat(total) || 0,
+      net_terms: net_terms || 30,
+      notes: notes || '',
+      status: 'draft',
+      share_link,
+      issued_date,
+      due_date,
     };
 
     // Insert with retry for missing columns

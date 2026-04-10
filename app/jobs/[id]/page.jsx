@@ -29,6 +29,9 @@ export default function JobDetailPage() {
 
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceSent, setInvoiceSent] = useState(false);
+  const [showInvoicePrompt, setShowInvoicePrompt] = useState(false);
 
   const fetchJob = async (token) => {
     try {
@@ -89,11 +92,61 @@ export default function JobDetailPage() {
       });
       if (res.ok) {
         await fetchJob(token);
+        if (status === 'completed') setShowInvoicePrompt(true);
       }
     } catch (err) {
       console.error(err);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    setInvoiceLoading(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+      const invoiceRes = await fetch('/api/invoices', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          job_id: jobId,
+          customer_name: job.client_name || job.customer_name,
+          customer_email: job.client_email || job.customer_email,
+          aircraft_model: job.aircraft_model,
+          tail_number: job.tail_number,
+          line_items: servicesList,
+          total: displayTotal,
+          net_terms: 30,
+          notes: '',
+        }),
+      });
+
+      if (!invoiceRes.ok) {
+        const err = await invoiceRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create invoice');
+      }
+
+      const invoice = await invoiceRes.json();
+
+      const sendRes = await fetch(`/api/invoices/${invoice.id}/send`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!sendRes.ok) {
+        throw new Error('Invoice created but failed to send email');
+      }
+
+      setInvoiceSent(true);
+      setShowInvoicePrompt(false);
+      alert('Invoice generated and sent successfully.');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to generate invoice');
+    } finally {
+      setInvoiceLoading(false);
     }
   };
 
@@ -300,6 +353,13 @@ export default function JobDetailPage() {
               >
                 {updating ? 'Starting...' : 'Start Job'}
               </button>
+              <button
+                onClick={handleGenerateInvoice}
+                disabled={invoiceLoading || invoiceSent}
+                className="px-6 py-3 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+              >
+                {invoiceLoading ? 'Sending...' : invoiceSent ? 'Invoice Sent' : 'Generate & Send Invoice'}
+              </button>
             </div>
           </div>
         )}
@@ -334,6 +394,13 @@ export default function JobDetailPage() {
               >
                 Complete Job
               </button>
+              <button
+                onClick={handleGenerateInvoice}
+                disabled={invoiceLoading || invoiceSent}
+                className="px-6 py-3 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+              >
+                {invoiceLoading ? 'Sending...' : invoiceSent ? 'Invoice Sent' : 'Generate & Send Invoice'}
+              </button>
             </div>
           </div>
         )}
@@ -341,9 +408,44 @@ export default function JobDetailPage() {
         {isCompleted && (
           <div className="bg-v-surface border border-green-500/30 rounded-lg p-6 text-center">
             <p className="text-green-400 font-medium mb-2">Job Completed</p>
-            <p className="text-v-text-secondary text-sm">
+            <p className="text-v-text-secondary text-sm mb-4">
               {job.completed_at ? `Completed on ${new Date(job.completed_at).toLocaleString()}` : 'Marked as complete'}
             </p>
+
+            {showInvoicePrompt && !invoiceSent && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+                <p className="text-blue-400 font-medium text-sm mb-3">Job complete! Generate invoice?</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={handleGenerateInvoice}
+                    disabled={invoiceLoading}
+                    className="px-5 py-2 border border-blue-500/30 text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                  >
+                    {invoiceLoading ? 'Sending...' : 'Generate & Send Invoice'}
+                  </button>
+                  <button
+                    onClick={() => setShowInvoicePrompt(false)}
+                    className="px-5 py-2 text-sm text-v-text-secondary border border-v-border rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {invoiceSent && (
+              <p className="text-blue-400 text-sm">Invoice sent.</p>
+            )}
+
+            {!showInvoicePrompt && !invoiceSent && (
+              <button
+                onClick={handleGenerateInvoice}
+                disabled={invoiceLoading}
+                className="px-6 py-3 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+              >
+                {invoiceLoading ? 'Sending...' : 'Generate & Send Invoice'}
+              </button>
+            )}
           </div>
         )}
       </div>

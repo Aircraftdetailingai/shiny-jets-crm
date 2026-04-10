@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { sendInvoiceEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,158 +10,112 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// GET - Single invoice
+// GET - Get single invoice by id (owner auth)
 export async function GET(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const supabase = getSupabase();
+    if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
+
     const { id } = await params;
 
     const { data, error } = await supabase
       .from('invoices')
       .select('*')
       .eq('id', id)
+      .eq('detailer_id', user.id)
       .single();
 
-    if (error || !data) return Response.json({ error: 'Invoice not found' }, { status: 404 });
-    if (data.detailer_id !== user.id) return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-    return Response.json(data);
-  } catch (err) {
-    return Response.json({ error: 'Failed to fetch invoice' }, { status: 500 });
-  }
-}
-
-// PUT - Update invoice (mark paid, update notes)
-export async function PUT(request, { params }) {
-  try {
-    const user = await getAuthUser(request);
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const supabase = getSupabase();
-    const { id } = await params;
-    const body = await request.json();
-
-    // Verify ownership
-    const { data: invoice, error: fetchError } = await supabase
-      .from('invoices')
-      .select('detailer_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !invoice) return Response.json({ error: 'Invoice not found' }, { status: 404 });
-    if (invoice.detailer_id !== user.id) return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-    // Build update object
-    const updates = {};
-    if (body.status) {
-      updates.status = body.status;
-      if (body.status === 'paid' && !body.paid_at) {
-        updates.paid_at = new Date().toISOString();
-      }
-    }
-    if (body.paid_at) updates.paid_at = body.paid_at;
-    if (body.payment_method) updates.payment_method = body.payment_method;
-    if (body.notes !== undefined) updates.notes = body.notes;
-    if (body.manual_payment_note) updates.manual_payment_note = body.manual_payment_note;
-    if (body.status === 'paid') {
-      updates.amount_paid = body.amount_paid || invoice.total || 0;
-      updates.balance_due = 0;
-    }
-    updates.updated_at = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from('invoices')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) return Response.json({ error: error.message }, { status: 500 });
-
-    // When marking invoice as paid, also update the linked quote
-    if (body.status === 'paid' && data?.quote_id) {
-      try {
-        await supabase.from('quotes').update({
-          status: 'paid',
-          paid_at: updates.paid_at || new Date().toISOString(),
-          amount_paid: data.total || 0,
-          balance_due: 0,
-        }).eq('id', data.quote_id);
-      } catch (e) { console.error('Failed to sync quote status:', e); }
+    if (error || !data) {
+      return Response.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
     return Response.json({ invoice: data });
   } catch (err) {
+    console.error('Invoice GET error:', err);
+    return Response.json({ error: 'Failed to fetch invoice' }, { status: 500 });
+  }
+}
+
+// PATCH - Update invoice (owner auth)
+export async function PATCH(request, { params }) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = getSupabase();
+    if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
+
+    const { id } = await params;
+    const body = await request.json();
+
+    // Verify ownership
+    const { data: existing, error: fetchError } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('id', id)
+      .eq('detailer_id', user.id)
+      .single();
+
+    if (fetchError || !existing) {
+      return Response.json({ error: 'Invoice not found' }, { status: 404 });
+    }
+
+    // Only allow updating safe fields
+    const allowedFields = [
+      'status', 'notes', 'customer_name', 'customer_email',
+      'aircraft_model', 'tail_number', 'line_items', 'total',
+      'net_terms', 'due_date', 'amount_paid', 'balance_due',
+    ];
+
+    const updates = {};
+    for (const key of allowedFields) {
+      if (body[key] !== undefined) {
+        updates[key] = body[key];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return Response.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    // Update with retry for missing columns
+    let updateData = { ...updates };
+    let data, error;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const result = await supabase
+        .from('invoices')
+        .update(updateData)
+        .eq('id', id)
+        .eq('detailer_id', user.id)
+        .select()
+        .single();
+
+      data = result.data;
+      error = result.error;
+
+      if (!error) break;
+
+      const colMatch = error.message?.match(/column "([^"]+)" of relation "invoices" does not exist/)
+        || error.message?.match(/Could not find the '([^']+)' column of 'invoices'/);
+      if (colMatch) {
+        delete updateData[colMatch[1]];
+        continue;
+      }
+      break;
+    }
+
+    if (error) {
+      console.error('Invoice update error:', JSON.stringify(error));
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+
+    return Response.json({ invoice: data });
+  } catch (err) {
+    console.error('Invoice PATCH error:', err);
     return Response.json({ error: 'Failed to update invoice' }, { status: 500 });
-  }
-}
-
-// POST - Email invoice to customer
-export async function POST(request, { params }) {
-  try {
-    const user = await getAuthUser(request);
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const supabase = getSupabase();
-    const { id } = await params;
-
-    const { data: invoice, error: fetchError } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !invoice) return Response.json({ error: 'Invoice not found' }, { status: 404 });
-    if (invoice.detailer_id !== user.id) return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-    if (!invoice.customer_email) {
-      return Response.json({ error: 'No customer email on invoice' }, { status: 400 });
-    }
-
-    const result = await sendInvoiceEmail({ invoice });
-
-    if (!result.success) {
-      return Response.json({ error: result.error || 'Failed to send email' }, { status: 500 });
-    }
-
-    // Update invoice as sent
-    await supabase
-      .from('invoices')
-      .update({ emailed_at: new Date().toISOString() })
-      .eq('id', id);
-
-    return Response.json({ success: true });
-  } catch (err) {
-    console.error('Invoice email error:', err);
-    return Response.json({ error: 'Failed to email invoice' }, { status: 500 });
-  }
-}
-
-// DELETE
-export async function DELETE(request, { params }) {
-  try {
-    const user = await getAuthUser(request);
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const supabase = getSupabase();
-    const { id } = await params;
-
-    const { data: invoice } = await supabase
-      .from('invoices')
-      .select('detailer_id')
-      .eq('id', id)
-      .single();
-
-    if (!invoice) return Response.json({ error: 'Invoice not found' }, { status: 404 });
-    if (invoice.detailer_id !== user.id) return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-    await supabase.from('invoices').delete().eq('id', id);
-
-    return Response.json({ success: true });
-  } catch (err) {
-    return Response.json({ error: 'Failed to delete invoice' }, { status: 500 });
   }
 }
