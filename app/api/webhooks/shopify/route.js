@@ -93,7 +93,7 @@ async function sendEmail(to, subject, html) {
       body: JSON.stringify({
         to,
         from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
-        reply_to: 'brett@vectorav.ai',
+        reply_to: 'brett@shinyjets.com',
         subject,
         html,
       }),
