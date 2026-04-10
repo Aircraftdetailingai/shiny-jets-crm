@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail as sendLibEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,41 +81,27 @@ function verifyHmac(rawBody, signature, secret) {
   }
 }
 
+// Thin shim around lib/email.js's sendEmail so every email out of this webhook
+// goes through the shared infrastructure (correct FROM, CAN-SPAM footer,
+// List-Unsubscribe headers, full Resend error handling). Keeps the existing
+// (to, subject, html, options) positional signature so the 6 call sites below
+// don't have to change.
 async function sendEmail(to, subject, html, options = {}) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    console.error('[shopify-webhook] RESEND_API_KEY not configured');
-    return false;
-  }
   try {
-    const payload = {
+    const result = await sendLibEmail({
       to,
-      from: process.env.RESEND_FROM_EMAIL || 'Brett @ Shiny Jets <noreply@mail.shinyjets.com>',
-      reply_to: 'brett@shinyjets.com',
       subject,
-      headers: {
-        'X-Priority': '1',
-        'X-MSMail-Priority': 'High',
-        'Importance': 'high',
-        'X-Mailer': 'Shiny Jets CRM',
-      },
-    };
-    if (html) payload.html = html;
-    if (options.text) payload.text = options.text;
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      html: html || undefined,
+      text: options.text,
     });
-    if (!res.ok) {
-      const body = await res.text();
-      console.error(`[shopify-webhook] Resend rejected email to ${to}:`, res.status, body);
+    if (!result?.success) {
+      console.error(`[shopify-webhook] Resend rejected email to ${to}:`, result?.error);
       return false;
     }
     console.log(`[shopify-webhook] Email sent to ${to}: ${subject}`);
     return true;
   } catch (e) {
-    console.error(`[shopify-webhook] Email send error to ${to}:`, e.message);
+    console.error(`[shopify-webhook] Email send error to ${to}:`, e?.message || e);
     return false;
   }
 }
