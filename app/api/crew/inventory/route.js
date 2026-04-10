@@ -50,32 +50,43 @@ export async function GET(request) {
   return Response.json({ items });
 }
 
-// PATCH — update quantity for a specific product
+// PATCH — update quantity for a specific product (absolute or delta)
 export async function PATCH(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
 
-  const { product_id, quantity } = await request.json();
-  if (!product_id || quantity === undefined) {
-    return Response.json({ error: 'product_id and quantity required' }, { status: 400 });
+  const { product_id, quantity, adjustment } = await request.json();
+  if (!product_id || (quantity === undefined && adjustment === undefined)) {
+    return Response.json({ error: 'product_id and quantity or adjustment required' }, { status: 400 });
   }
 
   const supabase = getSupabase();
 
-  // Verify product belongs to crew's detailer
+  // Fetch product to verify ownership and get current state
   const { data: product } = await supabase
     .from('products')
-    .select('id')
+    .select('id, name, quantity, unit')
     .eq('id', product_id)
     .eq('detailer_id', user.detailer_id)
     .single();
 
   if (!product) return Response.json({ error: 'Product not found' }, { status: 404 });
 
+  const oldQuantity = parseFloat(product.quantity) || 0;
+  let newQuantity;
+
+  if (adjustment !== undefined) {
+    // Delta mode: add/subtract from current
+    newQuantity = Math.max(0, oldQuantity + parseFloat(adjustment));
+  } else {
+    // Absolute mode
+    newQuantity = Math.max(0, parseFloat(quantity));
+  }
+
   const { error } = await supabase
     .from('products')
-    .update({ quantity: parseFloat(quantity) })
+    .update({ quantity: newQuantity })
     .eq('id', product_id);
 
   if (error) {
@@ -83,8 +94,35 @@ export async function PATCH(request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  console.log('[crew/inventory] Updated product:', product_id, 'qty:', quantity, 'by:', user.id);
-  return Response.json({ success: true });
+  // Log to crew_activity_log (non-blocking)
+  try {
+    await supabase.from('crew_activity_log').insert({
+      detailer_id: user.detailer_id,
+      team_member_id: user.id,
+      team_member_name: user.name,
+      action_type: 'inventory_update',
+      action_details: {
+        product_id,
+        product_name: product.name,
+        old_quantity: oldQuantity,
+        new_quantity: newQuantity,
+        unit: product.unit,
+      },
+    });
+  } catch (e) {
+    console.error('[crew/inventory] Activity log error:', e);
+  }
+
+  console.log('[crew/inventory] Updated product:', product_id, 'qty:', oldQuantity, '->', newQuantity, 'by:', user.id);
+  return Response.json({
+    success: true,
+    product: {
+      id: product_id,
+      name: product.name,
+      quantity: newQuantity,
+      unit: product.unit,
+    },
+  });
 }
 
 // POST — add a new product to inventory
@@ -98,6 +136,7 @@ export async function POST(request) {
 
   const supabase = getSupabase();
 
+  const newQty = parseFloat(quantity) || 0;
   const { data, error } = await supabase
     .from('products')
     .insert({
@@ -105,7 +144,7 @@ export async function POST(request) {
       name,
       category: category || 'General',
       unit: unit || 'oz',
-      quantity: parseFloat(quantity) || 0,
+      quantity: newQty,
       brand: brand || null,
       notes: notes || null,
     })
@@ -115,6 +154,25 @@ export async function POST(request) {
   if (error) {
     console.error('[crew/inventory] POST error:', error);
     return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  // Log to crew_activity_log (non-blocking)
+  try {
+    await supabase.from('crew_activity_log').insert({
+      detailer_id: user.detailer_id,
+      team_member_id: user.id,
+      team_member_name: user.name,
+      action_type: 'inventory_add',
+      action_details: {
+        product_id: data.id,
+        product_name: data.name,
+        category: data.category,
+        quantity: newQty,
+        unit: data.unit,
+      },
+    });
+  } catch (e) {
+    console.error('[crew/inventory] Activity log error:', e);
   }
 
   console.log('[crew/inventory] Added product:', data.name, 'by:', user.id);

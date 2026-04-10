@@ -108,11 +108,40 @@ export async function POST(request) {
 
     if (!error) {
       // Deduct from quantity
-      const newQty = Math.max(0, (parseFloat(product.quantity) || 0) - parseFloat(amount_used));
+      const oldQty = parseFloat(product.quantity) || 0;
+      const newQty = Math.max(0, oldQty - parseFloat(amount_used));
       await supabase
         .from('products')
         .update({ quantity: newQty })
         .eq('id', product_id);
+
+      // Log to crew_activity_log (non-blocking)
+      try {
+        // Fetch product name for the log
+        const { data: prod } = await supabase
+          .from('products')
+          .select('name, unit')
+          .eq('id', product_id)
+          .single();
+
+        await supabase.from('crew_activity_log').insert({
+          detailer_id: user.detailer_id,
+          team_member_id: user.id,
+          team_member_name: user.name,
+          job_id: quote_id,
+          action_type: 'product_usage',
+          action_details: {
+            product_id,
+            product_name: prod?.name || 'Unknown',
+            amount_used: parseFloat(amount_used),
+            unit: unit || prod?.unit || 'oz',
+            old_quantity: oldQty,
+            new_quantity: newQty,
+          },
+        });
+      } catch (e) {
+        console.error('[crew/products] Activity log error:', e);
+      }
 
       return Response.json({ success: true, usage_id: data.id });
     }

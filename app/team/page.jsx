@@ -74,6 +74,12 @@ export default function TeamPage() {
         <h1 className="font-heading text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>TEAM</h1>
         <div className="flex items-center gap-2">
           <a
+            href="/team/activity"
+            className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
+          >
+            {'Activity'}
+          </a>
+          <a
             href="/team/permissions"
             className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
           >
