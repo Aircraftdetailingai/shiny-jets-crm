@@ -24,7 +24,7 @@ export async function GET(request) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('products')
-    .select('id, name, category, unit, quantity, reorder_level, brand, notes, image_url')
+    .select('id, name, category, unit, size, quantity, reorder_level, brand, notes, image_url')
     .eq('detailer_id', user.detailer_id)
     .order('name', { ascending: true });
 
@@ -38,9 +38,9 @@ export async function GET(request) {
     name: p.name,
     category: p.category,
     unit: p.unit,
+    size: p.size || null,
     quantity: parseFloat(p.quantity) || 0,
-    reorder_level: parseFloat(p.reorder_level) || 0,
-    low_stock: parseFloat(p.reorder_level) > 0 && parseFloat(p.quantity) <= parseFloat(p.reorder_level),
+    low_stock: (parseFloat(p.quantity) || 0) < 2,
     brand: p.brand,
     notes: p.notes,
     image_url: p.image_url,
@@ -131,7 +131,7 @@ export async function POST(request) {
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
 
-  const { name, category, unit, quantity, brand, notes } = await request.json();
+  const { name, category, unit, size, quantity, brand, notes } = await request.json();
   if (!name) return Response.json({ error: 'Product name required' }, { status: 400 });
 
   const supabase = getSupabase();
@@ -144,11 +144,12 @@ export async function POST(request) {
       name,
       category: category || 'General',
       unit: unit || 'oz',
+      size: size || null,
       quantity: newQty,
       brand: brand || null,
       notes: notes || null,
     })
-    .select('id, name, category, unit, quantity, brand')
+    .select('id, name, category, unit, size, quantity, brand')
     .single();
 
   if (error) {

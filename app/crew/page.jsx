@@ -31,7 +31,7 @@ export default function CrewDashboard() {
   const [inventoryChanges, setInventoryChanges] = useState({});
   const [inventorySaving, setInventorySaving] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', quantity: '', unit: 'oz', category: 'cleaner' });
+  const [newProduct, setNewProduct] = useState({ name: '', quantity: '', unit: 'oz', category: 'cleaner', size: '' });
 
   // Equipment state
   const [equipment, setEquipment] = useState([]);
@@ -838,11 +838,14 @@ export default function CrewDashboard() {
             {showAddProduct && (
               <div className="bg-white/10 backdrop-blur rounded-xl p-4 space-y-2">
                 <input value={newProduct.name} onChange={e => setNewProduct(p => ({...p, name: e.target.value}))} placeholder="Product name" className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40" />
-                <div className="grid grid-cols-3 gap-2">
-                  <input type="number" value={newProduct.quantity} onChange={e => setNewProduct(p => ({...p, quantity: e.target.value}))} placeholder="Qty" className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" value={newProduct.size || ''} onChange={e => setNewProduct(p => ({...p, size: e.target.value}))} placeholder="Container size (e.g. 16)" className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40" />
                   <select value={newProduct.unit} onChange={e => setNewProduct(p => ({...p, unit: e.target.value}))} className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm">
-                    <option value="oz">oz</option><option value="gallon">gallon</option><option value="ml">ml</option><option value="units">units</option><option value="bottles">bottles</option>
+                    <option value="oz">oz</option><option value="gallon">gallon</option><option value="ml">ml</option><option value="count">count</option>
                   </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" value={newProduct.quantity} onChange={e => setNewProduct(p => ({...p, quantity: e.target.value}))} placeholder="# of containers" className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40" />
                   <select value={newProduct.category} onChange={e => setNewProduct(p => ({...p, category: e.target.value}))} className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm">
                     <option value="cleaner">Cleaner</option><option value="wax">Wax</option><option value="polish">Polish</option><option value="ceramic">Ceramic</option><option value="degreaser">Degreaser</option><option value="other">Other</option>
                   </select>
@@ -858,7 +861,7 @@ export default function CrewDashboard() {
                   if (res.ok) {
                     const d = await res.json();
                     setProducts(prev => [...prev, d.product]);
-                    setNewProduct({ name: '', quantity: '', unit: 'oz', category: 'cleaner' });
+                    setNewProduct({ name: '', quantity: '', unit: 'oz', category: 'cleaner', size: '' });
                     setShowAddProduct(false);
                   }
                 }} className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium">Add Product</button>
@@ -869,13 +872,9 @@ export default function CrewDashboard() {
             {products.length === 0 && <div className="text-white/50 text-center py-8">No products yet</div>}
             {products.map(p => {
               const currentQty = inventoryChanges[p.id] !== undefined ? inventoryChanges[p.id] : p.quantity;
-              const unit = p.unit || 'units';
-              const isLow = unit === 'gallon' ? currentQty < 1
-                : unit === 'oz' ? currentQty < 8
-                : unit === 'ml' ? currentQty < 250
-                : (unit === 'count' || unit === 'units') ? currentQty < 3
-                : currentQty < 2;
+              const isLow = currentQty < 2;
               const changed = inventoryChanges[p.id] !== undefined && inventoryChanges[p.id] !== p.quantity;
+              const sizeLabel = p.size ? `${p.size} ${p.unit || 'oz'}` : (p.unit || 'units');
               return (
                 <div key={p.id} className={`bg-white/10 backdrop-blur rounded-xl p-4 ${isLow ? 'border border-amber-500/30' : ''}`}>
                   <div className="flex items-center justify-between">
@@ -885,9 +884,9 @@ export default function CrewDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: Math.max(0, (prev[p.id] !== undefined ? prev[p.id] : p.quantity) - 1)}))}
-                        className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">-</button>
-                      <span className={`min-w-[4rem] text-center font-medium ${isLow ? 'text-amber-400' : 'text-white'} ${changed ? 'text-blue-400' : ''}`}>
-                        {currentQty} {unit}
+                        className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">&minus;</button>
+                      <span className={`min-w-[5rem] text-center font-medium text-sm ${isLow ? 'text-amber-400' : 'text-white'} ${changed ? 'text-blue-400' : ''}`}>
+                        {p.size ? `${currentQty} x ${sizeLabel}` : `${currentQty} ${sizeLabel}`}
                       </span>
                       <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: (prev[p.id] !== undefined ? prev[p.id] : p.quantity) + 1}))}
                         className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">+</button>

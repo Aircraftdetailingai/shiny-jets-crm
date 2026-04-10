@@ -28,7 +28,7 @@ export async function GET(request) {
 
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, name, category, unit, quantity, reorder_level, brand, notes, image_url')
+    .select('id, name, category, unit, size, quantity, reorder_level, brand, notes, image_url')
     .eq('detailer_id', user.detailer_id)
     .order('name', { ascending: true });
 
@@ -43,8 +43,9 @@ export async function GET(request) {
     name: p.name,
     category: p.category,
     unit: p.unit,
+    size: p.size || null,
     quantity: parseFloat(p.quantity) || 0,
-    low_stock: parseFloat(p.reorder_level) > 0 && parseFloat(p.quantity) <= parseFloat(p.reorder_level),
+    low_stock: (parseFloat(p.quantity) || 0) < 2,
     brand: p.brand,
     notes: p.notes,
     image_url: p.image_url,
