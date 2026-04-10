@@ -27,6 +27,8 @@ export default function CrewDashboard() {
 
   // Products state
   const [products, setProducts] = useState([]);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null); // { id, name }
+  const [removingProductId, setRemovingProductId] = useState(null);
   const [usageForm, setUsageForm] = useState({ product_id: '', amount_used: '', notes: '' });
   const [inventoryChanges, setInventoryChanges] = useState({});
   const [inventorySaving, setInventorySaving] = useState(false);
@@ -866,8 +868,9 @@ export default function CrewDashboard() {
               const isLow = currentQty < 2;
               const changed = inventoryChanges[p.id] !== undefined && inventoryChanges[p.id] !== p.quantity;
               const sizeLabel = p.size ? `${p.size} ${p.unit || 'oz'}` : (p.unit || 'units');
+              const removing = removingProductId === p.id;
               return (
-                <div key={p.id} className={`bg-white/10 backdrop-blur rounded-xl p-4 ${isLow ? 'border border-amber-500/50' : ''}`}>
+                <div key={p.id} className={`bg-white/10 backdrop-blur rounded-xl p-4 transition-all duration-300 ${isLow ? 'border border-amber-500/50' : ''} ${removing ? 'opacity-0 scale-95' : 'opacity-100'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {p.image_url && (
@@ -887,6 +890,13 @@ export default function CrewDashboard() {
                       <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: (prev[p.id] !== undefined ? prev[p.id] : p.quantity) + 1}))}
                         className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">+</button>
                       <span className="text-white/40 text-xs ml-1">{p.size ? `× ${sizeLabel}` : sizeLabel}</span>
+                      <button onClick={() => setConfirmDeleteProduct({ id: p.id, name: p.name })}
+                        aria-label="Remove product"
+                        className="ml-1 w-8 h-8 rounded-full text-red-400/70 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
                   {isLow && (
@@ -897,6 +907,57 @@ export default function CrewDashboard() {
                 </div>
               );
             })}
+
+            {/* Delete confirmation modal */}
+            {confirmDeleteProduct && (
+              <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setConfirmDeleteProduct(null)}>
+                <div className="bg-[#0f1623] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                    </div>
+                    <h3 className="text-white font-semibold text-base">Remove Product</h3>
+                  </div>
+                  <p className="text-white/70 text-sm mb-5">
+                    Remove <span className="text-white font-medium">{confirmDeleteProduct.name}</span> from inventory?
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmDeleteProduct(null)}
+                      className="flex-1 px-4 py-2.5 text-sm text-white/70 border border-white/10 rounded-lg hover:bg-white/5 transition-colors">
+                      Cancel
+                    </button>
+                    <button onClick={async () => {
+                      const productId = confirmDeleteProduct.id;
+                      setRemovingProductId(productId);
+                      setConfirmDeleteProduct(null);
+                      const tk = localStorage.getItem('crew_token');
+                      try {
+                        await fetch('/api/crew/inventory', {
+                          method: 'DELETE',
+                          headers: { Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ product_id: productId }),
+                        });
+                        // Wait for fade animation
+                        setTimeout(() => {
+                          setProducts(prev => prev.filter(x => x.id !== productId));
+                          setInventoryChanges(prev => {
+                            const next = { ...prev };
+                            delete next[productId];
+                            return next;
+                          });
+                          setRemovingProductId(null);
+                        }, 300);
+                      } catch {
+                        setRemovingProductId(null);
+                      }
+                    }}
+                      className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Save button — only show when changes exist */}
             {Object.keys(inventoryChanges).length > 0 && (

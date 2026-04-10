@@ -337,8 +337,8 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Delete ${name || 'this product'}? This cannot be undone.`)) return;
 
     const token = localStorage.getItem('vector_token');
     try {
@@ -347,7 +347,7 @@ export default function ProductsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        fetchProducts();
+        setProducts(prev => prev.filter(p => p.id !== id));
       }
     } catch (err) {
       console.error('Failed to delete product:', err);
@@ -570,7 +570,7 @@ export default function ProductsPage() {
                               Edit
                             </button>
                             <button
-                              onClick={() => handleDelete(product.id)}
+                              onClick={() => handleDelete(product.id, product.name)}
                               className="px-3 py-1 text-xs text-red-400 hover:bg-red-900/20 rounded"
                             >
                               Delete

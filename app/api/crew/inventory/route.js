@@ -125,6 +125,64 @@ export async function PATCH(request) {
   });
 }
 
+// DELETE — remove a product from inventory
+export async function DELETE(request) {
+  const user = await getCrewUser(request);
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
+
+  // Accept product_id from body or URL query
+  let productId = null;
+  try {
+    const body = await request.json();
+    productId = body.product_id;
+  } catch {
+    const { searchParams } = new URL(request.url);
+    productId = searchParams.get('product_id') || searchParams.get('id');
+  }
+
+  if (!productId) return Response.json({ error: 'product_id required' }, { status: 400 });
+
+  const supabase = getSupabase();
+
+  // Verify product belongs to crew's detailer
+  const { data: product } = await supabase
+    .from('products')
+    .select('id, name')
+    .eq('id', productId)
+    .eq('detailer_id', user.detailer_id)
+    .single();
+
+  if (!product) return Response.json({ error: 'Product not found' }, { status: 404 });
+
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', productId)
+    .eq('detailer_id', user.detailer_id);
+
+  if (error) {
+    console.error('[crew/inventory] DELETE error:', error);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  // Log to crew_activity_log (non-blocking)
+  try {
+    await supabase.from('crew_activity_log').insert({
+      detailer_id: user.detailer_id,
+      team_member_id: user.id,
+      team_member_name: user.name,
+      action_type: 'inventory_remove',
+      action_details: { product_id: productId, product_name: product.name },
+    });
+  } catch (e) {
+    console.error('[crew/inventory] Activity log error:', e);
+  }
+
+  console.log('[crew/inventory] Removed product:', product.name, 'by:', user.id);
+  return Response.json({ success: true });
+}
+
 // POST — add a new product to inventory
 export async function POST(request) {
   const user = await getCrewUser(request);
