@@ -50,6 +50,23 @@ function getSupabase() {
   );
 }
 
+// Extract customer email from a Shopify order payload, falling back through
+// the 4 known locations. Returns '' if none are present.
+function extractEmail(payload) {
+  const candidates = [
+    payload?.customer?.email,
+    payload?.email,
+    payload?.contact_email,
+    payload?.billing_address?.email,
+  ];
+  for (const c of candidates) {
+    if (c && typeof c === 'string' && c.trim()) {
+      return c.toLowerCase().trim();
+    }
+  }
+  return '';
+}
+
 function verifyHmac(rawBody, signature, secret) {
   if (!secret || !signature) return false;
   const computed = crypto
@@ -139,7 +156,7 @@ function generateTempPassword() {
 
 // ─── Find detailer by email or Shopify customer ID ───
 async function findDetailer(supabase, payload) {
-  const email = (payload?.customer?.email || payload?.email || '').toLowerCase().trim();
+  const email = extractEmail(payload);
   const customerId = payload?.customer?.id || payload?.customer_id;
 
   if (email) {
@@ -189,7 +206,7 @@ async function handleOrderPaid(supabase, payload) {
   }
   if (!plan) return;
 
-  const email = (payload?.customer?.email || '').toLowerCase().trim();
+  const email = extractEmail(payload);
   if (!email) return;
 
   const detailer = await findDetailer(supabase, payload);
