@@ -882,14 +882,15 @@ export default function CrewDashboard() {
                       <p className="text-white font-medium">{p.name}</p>
                       <p className="text-white/50 text-sm">{p.brand || p.category}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: Math.max(0, (prev[p.id] !== undefined ? prev[p.id] : p.quantity) - 1)}))}
                         className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">&minus;</button>
-                      <span className={`min-w-[5rem] text-center font-medium text-sm ${isLow ? 'text-amber-400' : 'text-white'} ${changed ? 'text-blue-400' : ''}`}>
-                        {p.size ? `${currentQty} x ${sizeLabel}` : `${currentQty} ${sizeLabel}`}
+                      <span className={`w-8 text-center font-semibold ${isLow ? 'text-amber-400' : 'text-white'} ${changed ? 'text-blue-400' : ''}`}>
+                        {currentQty}
                       </span>
                       <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: (prev[p.id] !== undefined ? prev[p.id] : p.quantity) + 1}))}
                         className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">+</button>
+                      <span className="text-white/40 text-xs ml-1">{p.size ? `× ${sizeLabel}` : sizeLabel}</span>
                     </div>
                   </div>
                   {isLow && <p className="text-amber-400 text-xs mt-1">Low stock</p>}
