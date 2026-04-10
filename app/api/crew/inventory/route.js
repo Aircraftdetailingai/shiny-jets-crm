@@ -109,7 +109,7 @@ export async function POST(request) {
       brand: brand || null,
       notes: notes || null,
     })
-    .select('id, name')
+    .select('id, name, category, unit, quantity, brand')
     .single();
 
   if (error) {

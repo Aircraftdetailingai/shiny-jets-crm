@@ -28,6 +28,10 @@ export default function CrewDashboard() {
   // Products state
   const [products, setProducts] = useState([]);
   const [usageForm, setUsageForm] = useState({ product_id: '', amount_used: '', notes: '' });
+  const [inventoryChanges, setInventoryChanges] = useState({});
+  const [inventorySaving, setInventorySaving] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', quantity: '', unit: 'oz', category: 'cleaner' });
 
   // Equipment state
   const [equipment, setEquipment] = useState([]);
@@ -823,26 +827,99 @@ export default function CrewDashboard() {
         {/* ===== PRODUCTS TAB ===== */}
         {tab === 'products' && (
           <div className="space-y-3">
-            <h2 className="text-white font-semibold text-lg mb-3">{'Products'}</h2>
-            {products.length === 0 && (
-              <div className="text-white/50 text-center py-8">{'No products yet'}</div>
-            )}
-            {products.map(p => (
-              <div key={p.id} className={`bg-white/10 backdrop-blur rounded-xl p-4 ${p.low_stock ? 'border border-amber-500/30' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-medium">{p.name}</p>
-                    <p className="text-white/50 text-sm">{p.brand || p.category}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-medium ${p.low_stock ? 'text-amber-400' : 'text-white'}`}>
-                      {p.quantity} {p.unit}
-                    </p>
-                    {p.low_stock && <p className="text-amber-400 text-xs">{'Low stock'}</p>}
-                  </div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-white font-semibold text-lg">Inventory</h2>
+              <button onClick={() => setShowAddProduct(v => !v)} className="px-3 py-1.5 text-xs bg-white/10 text-white border border-white/20 rounded-lg">
+                {showAddProduct ? 'Cancel' : '+ Add Product'}
+              </button>
+            </div>
+
+            {/* Add product form */}
+            {showAddProduct && (
+              <div className="bg-white/10 backdrop-blur rounded-xl p-4 space-y-2">
+                <input value={newProduct.name} onChange={e => setNewProduct(p => ({...p, name: e.target.value}))} placeholder="Product name" className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40" />
+                <div className="grid grid-cols-3 gap-2">
+                  <input type="number" value={newProduct.quantity} onChange={e => setNewProduct(p => ({...p, quantity: e.target.value}))} placeholder="Qty" className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm" />
+                  <select value={newProduct.unit} onChange={e => setNewProduct(p => ({...p, unit: e.target.value}))} className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm">
+                    <option value="oz">oz</option><option value="gallon">gallon</option><option value="ml">ml</option><option value="units">units</option><option value="bottles">bottles</option>
+                  </select>
+                  <select value={newProduct.category} onChange={e => setNewProduct(p => ({...p, category: e.target.value}))} className="bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm">
+                    <option value="cleaner">Cleaner</option><option value="wax">Wax</option><option value="polish">Polish</option><option value="ceramic">Ceramic</option><option value="degreaser">Degreaser</option><option value="other">Other</option>
+                  </select>
                 </div>
+                <button onClick={async () => {
+                  if (!newProduct.name) return;
+                  const tk = localStorage.getItem('crew_token');
+                  const res = await fetch('/api/crew/inventory', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newProduct),
+                  });
+                  if (res.ok) {
+                    const d = await res.json();
+                    setProducts(prev => [...prev, d.product]);
+                    setNewProduct({ name: '', quantity: '', unit: 'oz', category: 'cleaner' });
+                    setShowAddProduct(false);
+                  }
+                }} className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium">Add Product</button>
               </div>
-            ))}
+            )}
+
+            {/* Product list with +/- controls */}
+            {products.length === 0 && <div className="text-white/50 text-center py-8">No products yet</div>}
+            {products.map(p => {
+              const currentQty = inventoryChanges[p.id] !== undefined ? inventoryChanges[p.id] : p.quantity;
+              const isLow = currentQty < 5;
+              const changed = inventoryChanges[p.id] !== undefined && inventoryChanges[p.id] !== p.quantity;
+              return (
+                <div key={p.id} className={`bg-white/10 backdrop-blur rounded-xl p-4 ${isLow ? 'border border-amber-500/30' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium">{p.name}</p>
+                      <p className="text-white/50 text-sm">{p.brand || p.category}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: Math.max(0, (prev[p.id] !== undefined ? prev[p.id] : p.quantity) - 1)}))}
+                        className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">-</button>
+                      <span className={`w-12 text-center font-medium ${isLow ? 'text-amber-400' : 'text-white'} ${changed ? 'text-blue-400' : ''}`}>
+                        {currentQty}
+                      </span>
+                      <button onClick={() => setInventoryChanges(prev => ({...prev, [p.id]: (prev[p.id] !== undefined ? prev[p.id] : p.quantity) + 1}))}
+                        className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-lg font-bold hover:bg-white/20">+</button>
+                      <span className="text-white/50 text-xs w-8">{p.unit}</span>
+                    </div>
+                  </div>
+                  {isLow && <p className="text-amber-400 text-xs mt-1">Low stock</p>}
+                </div>
+              );
+            })}
+
+            {/* Save button — only show when changes exist */}
+            {Object.keys(inventoryChanges).length > 0 && (
+              <button onClick={async () => {
+                setInventorySaving(true);
+                const tk = localStorage.getItem('crew_token');
+                for (const [productId, quantity] of Object.entries(inventoryChanges)) {
+                  try {
+                    await fetch('/api/crew/inventory', {
+                      method: 'PATCH',
+                      headers: { Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ product_id: productId, quantity }),
+                    });
+                  } catch {}
+                }
+                // Refresh products
+                try {
+                  const res = await fetch('/api/crew/products', { headers: { Authorization: `Bearer ${tk}` } });
+                  if (res.ok) { const d = await res.json(); setProducts(d.products || []); }
+                } catch {}
+                setInventoryChanges({});
+                setInventorySaving(false);
+              }} disabled={inventorySaving}
+                className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold text-sm disabled:opacity-50 transition-colors">
+                {inventorySaving ? 'Saving...' : `Save Changes (${Object.keys(inventoryChanges).length} items)`}
+              </button>
+            )}
           </div>
         )}
 
