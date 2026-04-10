@@ -5,6 +5,7 @@ import Link from 'next/link';
 const navItems = [
   { href: '/settings', label: 'General', icon: '⚙️' },
   { href: '/settings/services', label: 'Services', icon: '🛠️' },
+  { href: '/settings/aircraft', label: 'Aircraft', icon: '✈️' },
   { href: '/settings/locations', label: 'Locations', icon: '📍' },
   { href: '/settings/integrations', label: 'Integrations', icon: '🔗' },
   { href: '/settings/intake-flow', label: 'Intake Flow', icon: '📋' },
