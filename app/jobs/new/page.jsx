@@ -179,7 +179,10 @@ export default function NewJobPage() {
       <div className="px-6 md:px-10 py-8 max-w-3xl">
         <div className="flex items-center gap-3 mb-8">
           <a href="/jobs" className="text-v-text-secondary hover:text-white text-lg">&larr;</a>
-          <h1 className="font-heading text-2xl font-light text-v-text-primary tracking-wider">CREATE JOB</h1>
+          <div>
+            <h1 className="font-heading text-2xl font-light text-v-text-primary tracking-wider">CREATE JOB</h1>
+            <p className="text-[10px] text-v-text-secondary tracking-wider uppercase mt-0.5">For work already agreed or paid &middot; <a href="/quotes/new" className="text-v-gold/60 hover:text-v-gold">Send a quote for approval &rarr;</a></p>
+          </div>
         </div>
 
         {error && <div className="bg-red-500/20 border border-red-500/40 text-red-300 px-4 py-2 rounded mb-4 text-sm">{error}</div>}

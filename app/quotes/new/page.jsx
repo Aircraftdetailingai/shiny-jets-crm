@@ -42,6 +42,10 @@ function NewQuoteContent() {
   const [loading, setLoading] = useState(true);
   const [availableServices, setAvailableServices] = useState([]);
   const [preselectedCustomer, setPreselectedCustomer] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [customerMode, setCustomerMode] = useState('existing');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [newCustomer, setNewCustomer] = useState({ name: '', company_name: '', email: '', phone: '' });
   const [availablePackages, setAvailablePackages] = useState([]);
   const [manufacturers, setManufacturers] = useState([]);
   const [models, setModels] = useState([]);
@@ -280,6 +284,12 @@ function NewQuoteContent() {
     };
 
     fetchData().catch(err => console.error('Quote builder fetch error:', err));
+
+    // Fetch customer list
+    fetch('/api/customers', { headers })
+      .then(r => r.ok ? r.json() : { customers: [] })
+      .then(d => setCustomers(d.customers || []))
+      .catch(() => {});
 
     // Pre-select customer from URL param
     const customerIdParam = searchParams.get('customer_id');
@@ -692,7 +702,14 @@ function NewQuoteContent() {
     setSelectedAddons(prev => ({ ...prev, [addonId]: !prev[addonId] }));
   };
 
-  const openSendModal = () => setModalOpen(true);
+  const openSendModal = () => {
+    if (!preselectedCustomer) {
+      alert('Please select or add a customer before sending the quote.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setModalOpen(true);
+  };
   const closeSendModal = () => setModalOpen(false);
 
   const resetQuoteForm = () => {
@@ -801,9 +818,12 @@ function NewQuoteContent() {
       <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-6 bg-gradient-to-b from-v-charcoal via-v-charcoal to-transparent flex justify-between items-center text-white">
         <div className="flex items-center gap-4">
           <a href={leadContext?.leadId ? `/requests/${leadContext.leadId}` : '/quotes'} className="text-lg text-gray-400 hover:text-v-gold transition-colors">&#8592;</a>
-          <h1 className="text-2xl font-normal tracking-[0.2em] uppercase" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>
-            {leadContext?.customerName ? `Quote for ${leadContext.customerName.split(' ')[0]}` : 'New Quote'}
-          </h1>
+          <div>
+            <h1 className="text-2xl font-normal tracking-[0.2em] uppercase" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>
+              {leadContext?.customerName ? `Quote for ${leadContext.customerName.split(' ')[0]}` : 'New Quote'}
+            </h1>
+            <p className="text-[10px] text-gray-500 tracking-wider uppercase mt-0.5 hidden sm:block">Send a quote for customer approval &middot; <a href="/jobs/new" className="text-v-gold/60 hover:text-v-gold">Create job for already-agreed work &rarr;</a></p>
+          </div>
         </div>
         <div className="hidden sm:flex items-center gap-4 text-sm">
           <a href="/quotes" className="text-gray-400 hover:text-white transition-colors">Quotes</a>
@@ -951,6 +971,131 @@ function NewQuoteContent() {
       )}
 
       <div className="max-w-3xl mx-auto">
+          {/* 0. Customer */}
+          <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-light tracking-wider uppercase text-v-gold">Customer</h3>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCustomerMode('existing')}
+                  className={`px-3 py-1 text-xs uppercase tracking-wider rounded ${customerMode === 'existing' ? 'bg-v-gold text-v-charcoal font-medium' : 'border border-v-border text-gray-400 hover:text-white'}`}
+                >
+                  Existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerMode('new')}
+                  className={`px-3 py-1 text-xs uppercase tracking-wider rounded ${customerMode === 'new' ? 'bg-v-gold text-v-charcoal font-medium' : 'border border-v-border text-gray-400 hover:text-white'}`}
+                >
+                  New
+                </button>
+              </div>
+            </div>
+
+            {/* Selected customer pill */}
+            {preselectedCustomer && (
+              <div className="mb-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-v-gold/10 border border-v-gold/30 text-v-gold text-sm">
+                <span className="font-medium">{preselectedCustomer.name}</span>
+                {preselectedCustomer.email && <span className="text-v-gold/60">{preselectedCustomer.email}</span>}
+                <button
+                  type="button"
+                  onClick={() => { setPreselectedCustomer(null); setNewCustomer({ name: '', company_name: '', email: '', phone: '' }); }}
+                  className="text-v-gold/60 hover:text-red-400 text-base leading-none"
+                >&times;</button>
+              </div>
+            )}
+
+            {!preselectedCustomer && customerMode === 'existing' && (
+              <div>
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={e => setCustomerSearch(e.target.value)}
+                  placeholder="Search customers by name or email..."
+                  className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-sm mb-2"
+                />
+                <div className="max-h-48 overflow-y-auto border border-v-border/40 rounded-sm divide-y divide-v-border/40">
+                  {customers
+                    .filter(c => {
+                      if (!customerSearch) return true;
+                      const q = customerSearch.toLowerCase();
+                      return (c.name || '').toLowerCase().includes(q)
+                        || (c.email || '').toLowerCase().includes(q)
+                        || (c.company_name || '').toLowerCase().includes(q);
+                    })
+                    .slice(0, 20)
+                    .map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setPreselectedCustomer(c)}
+                        className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors"
+                      >
+                        <div className="text-sm text-v-text-primary">{c.name || '—'}</div>
+                        <div className="text-xs text-gray-500">{c.email}{c.company_name ? ` · ${c.company_name}` : ''}</div>
+                      </button>
+                    ))}
+                  {customers.length === 0 && (
+                    <div className="px-3 py-4 text-xs text-gray-500 text-center">No customers yet — switch to "New" to add one</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!preselectedCustomer && customerMode === 'new' && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={newCustomer.name}
+                    onChange={e => setNewCustomer(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Name *"
+                    className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={newCustomer.company_name}
+                    onChange={e => setNewCustomer(p => ({ ...p, company_name: e.target.value }))}
+                    placeholder="Company (optional)"
+                    className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-sm"
+                  />
+                  <input
+                    type="email"
+                    value={newCustomer.email}
+                    onChange={e => setNewCustomer(p => ({ ...p, email: e.target.value }))}
+                    placeholder="Email *"
+                    className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-sm"
+                  />
+                  <input
+                    type="tel"
+                    value={newCustomer.phone}
+                    onChange={e => setNewCustomer(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="Phone (optional)"
+                    className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newCustomer.name || !newCustomer.email) return;
+                    setPreselectedCustomer({
+                      name: newCustomer.name,
+                      email: newCustomer.email,
+                      phone: newCustomer.phone,
+                      company_name: newCustomer.company_name,
+                      _isNew: true,
+                    });
+                  }}
+                  disabled={!newCustomer.name || !newCustomer.email}
+                  className="px-4 py-2 bg-v-gold text-v-charcoal text-xs uppercase tracking-wider font-medium rounded disabled:opacity-50"
+                >
+                  Use This Customer
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* 1. Select Aircraft */}
           <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
             <h3 className="text-lg font-light tracking-wider uppercase text-v-gold mb-4">Select Aircraft</h3>
