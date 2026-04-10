@@ -299,6 +299,20 @@ export async function POST(request) {
       }
     }
 
+    // Schedule 5-message drip campaign (same as Shopify signups)
+    try {
+      const now = new Date();
+      const dripRows = [0, 1, 3, 5, 7].map(offset => ({
+        detailer_id: detailer.id,
+        message_id: `drip-day-${offset}`,
+        scheduled_for: new Date(now.getTime() + offset * 86400000).toISOString(),
+      }));
+      await supabase.from('drip_messages').insert(dripRows);
+      console.log('[signup] Drip campaign scheduled for:', normalizedEmail);
+    } catch (dripErr) {
+      console.error('[signup] Drip scheduling failed:', dripErr.message);
+    }
+
     // Send admin notification email (non-blocking)
     try {
       const { Resend } = require('resend');
