@@ -348,9 +348,9 @@ export default function CrewDashboard() {
   const tabs = [
     { id: 'jobs', label: t('crew.jobs') || 'Jobs', icon: '📋' },
     ...(user.can_clock !== false ? [{ id: 'clock', label: t('crew.timeClock') || 'Time Clock', icon: '⏱️' }] : []),
-    ...(user.type === 'contractor' ? [{ id: 'earnings', label: 'Earnings', icon: '💰' }] : []),
-    ...(user.can_see_inventory ? [{ id: 'products', label: 'Products', icon: '🧴' }] : []),
-    ...(user.can_see_equipment ? [{ id: 'equipment', label: 'Equipment', icon: '🔧' }] : []),
+    ...(user.type === 'contractor' ? [{ id: 'earnings', label: t('crew.earnings') || 'Earnings', icon: '💰' }] : []),
+    ...(user.can_see_inventory ? [{ id: 'products', label: t('crew.inventory') || 'Inventory', icon: '🧴' }] : []),
+    ...(user.can_see_equipment ? [{ id: 'equipment', label: t('crew.equipment') || 'Equipment', icon: '🔧' }] : []),
   ];
 
   return (
@@ -367,9 +367,12 @@ export default function CrewDashboard() {
             {!user.title && user.is_lead_tech && <span className="text-v-gold text-xs ml-1">Lead Tech</span>}
           </p>
         </div>
-        <button onClick={logout} className="text-white/60 hover:text-white text-sm px-3 py-1 rounded border border-white/20">
-          {'Logout'}
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageSelector />
+          <button onClick={logout} className="text-white/60 hover:text-white text-sm px-3 py-1 rounded border border-white/20">
+            {'Logout'}
+          </button>
+        </div>
       </div>
 
       {/* Toast */}
@@ -851,9 +854,9 @@ export default function CrewDashboard() {
           return (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-white font-semibold text-lg">Inventory</h2>
+              <h2 className="text-white font-semibold text-lg">{t('crew.inventory')}</h2>
               <button onClick={() => setShowAddProduct(true)} className="px-3 py-1.5 text-xs bg-white/10 text-white border border-white/20 rounded-lg">
-                + Add Product
+                + {t('crew.addProduct')}
               </button>
             </div>
 
@@ -862,13 +865,13 @@ export default function CrewDashboard() {
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-center gap-2">
                 <span className="text-amber-400 text-lg">&#9888;</span>
                 <p className="text-amber-400 text-sm font-medium">
-                  {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} running low on stock
+                  {lowStockCount} {lowStockCount !== 1 ? t('crew.items') || 'items' : t('crew.item') || 'item'} {t('crew.runningLowOn')}
                 </p>
               </div>
             )}
 
             {/* Product list with +/- controls */}
-            {sortedProducts.length === 0 && <div className="text-white/50 text-center py-8">No products yet</div>}
+            {sortedProducts.length === 0 && <div className="text-white/50 text-center py-8">{t('crew.noProductsYet')}</div>}
             {sortedProducts.map(p => {
               const currentQty = inventoryChanges[p.id] !== undefined ? inventoryChanges[p.id] : p.quantity;
               const isLow = currentQty < 2;
@@ -1000,7 +1003,7 @@ export default function CrewDashboard() {
           <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4" onClick={() => setShowAddProduct(false)}>
             <div onClick={e => e.stopPropagation()} className="bg-[#0f1623] border border-white/10 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-[#0f1623] border-b border-white/10 px-5 py-4 flex items-center justify-between">
-                <h3 className="text-white font-semibold text-lg">Add Product</h3>
+                <h3 className="text-white font-semibold text-lg">{t('crew.addProduct')}</h3>
                 <button onClick={() => setShowAddProduct(false)} className="text-white/50 hover:text-white text-2xl leading-none">&times;</button>
               </div>
               <div className="p-5 space-y-3">
@@ -1162,7 +1165,7 @@ export default function CrewDashboard() {
                     }
                   }}
                   className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold text-sm disabled:opacity-50 transition-colors">
-                  Add Product
+                  {t('crew.addProduct')}
                 </button>
               </div>
             </div>
