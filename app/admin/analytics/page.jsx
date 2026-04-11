@@ -1,340 +1,420 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { formatPriceWhole } from '@/lib/formatPrice';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-  AreaChart, Area,
-} from 'recharts';
+import { useRouter } from 'next/navigation';
+import AppShell from '@/components/AppShell';
 
-const ADMIN_NAV = [
-  { label: 'Dashboard', href: '/admin' },
-  { label: 'Analytics', href: '/admin/analytics' },
-  { label: 'Inventory', href: '/admin/inventory' },
-  { label: 'Redemptions', href: '/admin/redemptions' },
-  { label: 'Aircraft', href: '/admin/aircraft' },
-  { label: 'Vendors', href: '/admin/vendors' },
+const ADMIN_EMAILS = ['brett@vectorav.ai', 'admin@vectorav.ai', 'brett@shinyjets.com'];
+
+const CATEGORY_COLUMNS = [
+  { key: 'light_jet', label: 'Light Jet', aliases: ['light jet', 'light_jet', 'light'] },
+  { key: 'mid_jet', label: 'Mid Jet', aliases: ['mid jet', 'mid_jet', 'midsize', 'mid'] },
+  { key: 'heavy_jet', label: 'Heavy Jet', aliases: ['heavy jet', 'heavy_jet', 'heavy'] },
+  { key: 'ultra_long_range', label: 'Ultra Long', aliases: ['ultra long', 'ultra_long_range', 'ultra long range', 'ultra'] },
 ];
 
-const DATE_RANGES = [
-  { label: '30 days', value: 30 },
-  { label: '60 days', value: 60 },
-  { label: '90 days', value: 90 },
-  { label: '1 year', value: 365 },
-];
-
-const CHART_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
-
-const TIER_COLORS = {
-  free: '#9ca3af',
-  pro: '#f59e0b',
-  business: '#3b82f6',
-  enterprise: '#8b5cf6',
-};
-
-function MetricCard({ label, value, sub }) {
-  return (
-    <div className="p-4">
-      <p className="text-3xl font-bold text-v-text-primary font-data">{value}</p>
-      <p className="text-xs uppercase tracking-widest text-v-text-secondary mt-1">{label}</p>
-      {sub && <p className="text-xs text-v-text-secondary/60 mt-0.5">{sub}</p>}
-    </div>
-  );
+function normalizeCategoryKey(raw) {
+  if (!raw) return null;
+  const lower = String(raw).trim().toLowerCase();
+  for (const col of CATEGORY_COLUMNS) {
+    if (col.aliases.includes(lower) || lower === col.key) return col.key;
+  }
+  return null;
 }
 
-function ChartCard({ title, children }) {
-  return (
-    <div className="bg-v-surface border border-v-border p-5">
-      <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">{title}</h3>
-      {children}
-    </div>
-  );
+function varianceClass(avg, stddev) {
+  if (!avg || avg <= 0 || stddev == null) return 'text-v-text-secondary';
+  const ratio = stddev / avg;
+  if (ratio < 0.2) return 'text-green-400';
+  if (ratio < 0.5) return 'text-yellow-400';
+  return 'text-red-400';
 }
 
-export default function AdminAnalytics() {
-  const [data, setData] = useState(null);
+function formatHours(n) {
+  if (n == null || isNaN(n)) return '—';
+  const num = Number(n);
+  return num.toFixed(num < 10 ? 2 : 1);
+}
+
+export default function AdminServiceAnalyticsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [days, setDays] = useState(30);
-
-  const fetchData = (rangeDays) => {
-    setLoading(true);
-    const token = localStorage.getItem('vector_token');
-    if (!token) { window.location.href = '/login'; return; }
-
-    fetch(`/api/admin/analytics?days=${rangeDays}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(d => {
-        if (d.error) { setError(d.error); return; }
-        setData(d);
-        setError('');
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  };
+  const [benchmarks, setBenchmarks] = useState([]);
+  const [adoption, setAdoption] = useState([]);
+  const [anomalies, setAnomalies] = useState(null);
+  const [anomaliesSummary, setAnomaliesSummary] = useState('');
+  const [anomaliesLoading, setAnomaliesLoading] = useState(false);
+  const [anomaliesError, setAnomaliesError] = useState('');
+  const [user, setUser] = useState(null);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
-    fetchData(days);
-  }, []);
+    let parsed = null;
+    try {
+      const raw = localStorage.getItem('vector_user');
+      if (raw) parsed = JSON.parse(raw);
+    } catch (e) {
+      parsed = null;
+    }
+    setUser(parsed);
 
-  const handleRangeChange = (newDays) => {
-    setDays(newDays);
-    fetchData(newDays);
+    const email = (parsed?.email || '').toLowerCase();
+    const isAdmin = parsed && (parsed.is_admin === true || ADMIN_EMAILS.includes(email));
+    if (!isAdmin) {
+      setUnauthorized(true);
+      setLoading(false);
+      return;
+    }
+
+    const token = localStorage.getItem('vector_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    Promise.all([
+      fetch('/api/admin/benchmarks', { headers }).then(r => r.ok ? r.json() : Promise.reject(r)),
+      fetch('/api/admin/calibration-adoption', { headers }).then(r => r.ok ? r.json() : Promise.reject(r)),
+    ])
+      .then(([b, a]) => {
+        setBenchmarks(Array.isArray(b?.benchmarks) ? b.benchmarks : []);
+        setAdoption(Array.isArray(a?.adoption) ? a.adoption : []);
+      })
+      .catch(() => setFetchError('Failed to load analytics data'))
+      .finally(() => setLoading(false));
+  }, [router]);
+
+  const runAnomalyDetection = async () => {
+    setAnomaliesLoading(true);
+    setAnomaliesError('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/admin/anomalies', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error('Request failed');
+      const data = await res.json();
+      setAnomalies(Array.isArray(data?.anomalies) ? data.anomalies : []);
+      setAnomaliesSummary(data?.summary || '');
+    } catch (err) {
+      setAnomaliesError('Failed to run anomaly detection');
+    } finally {
+      setAnomaliesLoading(false);
+    }
   };
 
-  if (error && !data) {
+  // Group benchmarks: { service_name: { light_jet: {avg,stddev,n}, ... } }
+  const groupedBenchmarks = {};
+  for (const row of benchmarks) {
+    const svc = row.service_name || 'Unknown';
+    if (!groupedBenchmarks[svc]) groupedBenchmarks[svc] = {};
+    const catKey = normalizeCategoryKey(row.aircraft_category);
+    if (!catKey) continue;
+    groupedBenchmarks[svc][catKey] = {
+      avg: Number(row.avg_hours) || 0,
+      stddev: Number(row.stddev_hours) || 0,
+      median: Number(row.median_hours) || 0,
+      min: Number(row.min_hours) || 0,
+      max: Number(row.max_hours) || 0,
+      n: Number(row.sample_size) || 0,
+      detailers: Number(row.detailer_count) || 0,
+    };
+  }
+  const serviceNames = Object.keys(groupedBenchmarks).sort();
+
+  if (unauthorized) {
     return (
-      <div className="min-h-screen bg-v-charcoal flex items-center justify-center">
-        <div className="text-red-600">{error}</div>
-      </div>
+      <AppShell title="Service Analytics">
+        <div className="px-6 md:px-10 py-8 max-w-7xl">
+          <div className="bg-v-surface border border-v-border rounded-sm p-12 text-center">
+            <h1 className="font-heading text-2xl text-v-text-primary mb-2" style={{ letterSpacing: '0.15em' }}>
+              UNAUTHORIZED
+            </h1>
+            <p className="text-v-text-secondary text-sm">
+              You do not have permission to view this page.
+            </p>
+          </div>
+        </div>
+      </AppShell>
     );
   }
 
-  // Prepare tier pie data
-  const tierPieData = data?.tierBreakdown ? Object.entries(data.tierBreakdown)
-    .filter(([, v]) => v > 0)
-    .map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value })) : [];
-
-  // Prepare funnel data
-  const funnelData = data ? [
-    { stage: 'Sent', count: data.acceptanceRate.sent },
-    { stage: 'Viewed', count: data.acceptanceRate.viewed },
-    { stage: 'Accepted', count: data.acceptanceRate.accepted },
-    { stage: 'Paid', count: data.acceptanceRate.paid },
-    { stage: 'Completed', count: data.acceptanceRate.completed },
-  ] : [];
-
   return (
-    <div className="min-h-screen bg-v-charcoal">
-      {/* Nav */}
-      <nav className="bg-v-surface border-b border-v-border sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <span className="text-v-text-primary font-bold text-lg">Admin</span>
-            {ADMIN_NAV.map(nav => (
-              <a
-                key={nav.href}
-                href={nav.href}
-                className={`text-sm ${nav.href === '/admin/analytics' ? 'text-v-gold font-medium' : 'text-v-text-secondary hover:text-v-text-primary'}`}
-              >
-                {nav.label}
-              </a>
-            ))}
-          </div>
-          <a href="/dashboard" className="text-sm text-v-text-secondary hover:text-v-text-primary">Back to app</a>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Header + Date Range */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-v-text-primary font-heading">Platform Analytics</h1>
-            <p className="text-sm text-v-text-secondary">Aggregated, anonymized data across all accounts</p>
-          </div>
-          <div className="flex gap-2">
-            {DATE_RANGES.map(r => (
-              <button
-                key={r.value}
-                onClick={() => handleRangeChange(r.value)}
-                className={`px-3 py-1.5 text-xs uppercase tracking-wider font-medium transition-colors ${
-                  days === r.value
-                    ? 'bg-v-gold text-v-charcoal'
-                    : 'border border-v-border text-v-text-secondary hover:border-v-gold/50'
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+    <AppShell title="Service Analytics">
+      <div className="px-6 md:px-10 py-8 pb-40 max-w-7xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1
+            className="font-heading text-[2rem] font-light text-v-text-primary"
+            style={{ letterSpacing: '0.15em' }}
+          >
+            SERVICE HOURS ANALYTICS
+          </h1>
+          <p className="text-v-text-secondary text-xs mt-1">
+            Anonymous aggregate data from all detailers
+          </p>
         </div>
 
-        {loading && !data ? (
-          <div className="text-center py-20 text-v-text-secondary">Loading analytics...</div>
-        ) : data ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-32">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-v-text-secondary text-xs tracking-widest uppercase">
+                Loading analytics
+              </p>
+            </div>
+          </div>
+        ) : fetchError ? (
+          <div className="bg-v-surface border border-red-500/30 rounded-sm p-6 text-center">
+            <p className="text-red-400 text-sm">{fetchError}</p>
+          </div>
+        ) : (
           <>
-            {/* Summary Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <MetricCard label="Total Quotes" value={data.summary.totalQuotes.toLocaleString()} sub={`Last ${days} days`} />
-              <MetricCard label="Avg Quote Value" value={`$${data.summary.avgValue.toLocaleString()}`} />
-              <MetricCard label="Acceptance Rate" value={`${data.summary.acceptanceRate}%`} sub="Sent to accepted/paid" />
-              <MetricCard label="Platform Revenue" value={`$${formatPriceWhole(data.summary.totalRevenue)}`} sub="Fees collected" />
-            </div>
+            {/* Benchmarks Table */}
+            <section className="mb-10">
+              <h2
+                className="text-[11px] font-medium uppercase tracking-[0.25em] text-v-gold mb-3"
+              >
+                Service Hours Benchmarks
+              </h2>
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {serviceNames.length === 0 ? (
+                <div className="bg-v-surface border border-v-border rounded-sm p-8 text-center">
+                  <p className="text-v-text-secondary text-sm">No benchmark data available.</p>
+                </div>
+              ) : (
+                <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+                  <div className="sticky top-0 z-10 bg-v-surface border-b border-[#1A2236]">
+                    <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_90px] min-w-[900px] px-6 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+                      <div>Service</div>
+                      {CATEGORY_COLUMNS.map(c => (
+                        <div key={c.key} className="text-center">{c.label}</div>
+                      ))}
+                      <div className="text-right">Sample</div>
+                    </div>
+                  </div>
 
-              {/* 1. Quote Volume Trends */}
-              <ChartCard title="Quote Volume (Weekly)">
-                {data.quoteVolume.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={data.quoteVolume}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#8A9BB0' }} tickFormatter={v => v.slice(5)} />
-                      <YAxis tick={{ fontSize: 11, fill: '#8A9BB0' }} />
-                      <Tooltip labelFormatter={v => `Week of ${v}`} />
-                      <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Quotes" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No data</p>}
-              </ChartCard>
-
-              {/* 2. Platform Revenue Trend */}
-              <ChartCard title="Platform Revenue (Weekly)">
-                {data.revenueByWeek.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={data.revenueByWeek}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#8A9BB0' }} tickFormatter={v => v.slice(5)} />
-                      <YAxis tick={{ fontSize: 11, fill: '#8A9BB0' }} tickFormatter={v => `$${v}`} />
-                      <Tooltip formatter={v => [`$${v.toFixed(2)}`, 'Revenue']} labelFormatter={v => `Week of ${v}`} />
-                      <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="#10b98133" strokeWidth={2} name="Revenue" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No revenue data</p>}
-              </ChartCard>
-
-              {/* 3. Avg Quote Value by Aircraft */}
-              <ChartCard title="Avg Quote Value by Aircraft Type">
-                {data.avgByAircraft.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(280, data.avgByAircraft.length * 32)}>
-                    <BarChart data={data.avgByAircraft} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: '#8A9BB0' }} tickFormatter={v => `$${v.toLocaleString()}`} />
-                      <YAxis type="category" dataKey="type" tick={{ fontSize: 11, fill: '#8A9BB0' }} width={120} />
-                      <Tooltip formatter={v => [`$${v.toLocaleString()}`, 'Avg Value']} />
-                      <Bar dataKey="avg" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Avg Value" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No data</p>}
-              </ChartCard>
-
-              {/* 4. Most Common Services */}
-              <ChartCard title="Most Quoted Services">
-                {data.topServices.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(280, data.topServices.slice(0, 10).length * 32)}>
-                    <BarChart data={data.topServices.slice(0, 10)} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: '#8A9BB0' }} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#8A9BB0' }} width={140} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} name="Quotes" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No service data</p>}
-              </ChartCard>
-
-              {/* 5. Aircraft Frequency */}
-              <ChartCard title="Aircraft Type Frequency">
-                {data.aircraftFrequency.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(280, data.aircraftFrequency.slice(0, 10).length * 32)}>
-                    <BarChart data={data.aircraftFrequency.slice(0, 10)} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: '#8A9BB0' }} />
-                      <YAxis type="category" dataKey="type" tick={{ fontSize: 11, fill: '#8A9BB0' }} width={120} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Quotes" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No data</p>}
-              </ChartCard>
-
-              {/* 6. Geographic Distribution */}
-              <ChartCard title="Top Airports">
-                {data.geoDistribution.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(280, data.geoDistribution.slice(0, 10).length * 32)}>
-                    <BarChart data={data.geoDistribution.slice(0, 10)} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: '#8A9BB0' }} />
-                      <YAxis type="category" dataKey="airport" tick={{ fontSize: 11, fill: '#8A9BB0' }} width={80} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#06b6d4" radius={[0, 4, 4, 0]} name="Quotes" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No airport data</p>}
-              </ChartCard>
-
-              {/* 7. Subscription Tier Breakdown */}
-              <ChartCard title="Subscription Tier Breakdown">
-                {tierPieData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie
-                        data={tierPieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={3}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
+                  {serviceNames.map((svc) => {
+                    const row = groupedBenchmarks[svc];
+                    const totalN = CATEGORY_COLUMNS.reduce(
+                      (acc, c) => acc + (row[c.key]?.n || 0),
+                      0
+                    );
+                    return (
+                      <div
+                        key={svc}
+                        className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_90px] min-w-[900px] px-6 items-center border-b border-[#1A2236] hover:bg-white/[0.02] transition-colors"
+                        style={{ minHeight: '64px' }}
                       >
-                        {tierPieData.map((entry) => (
-                          <Cell key={entry.name} fill={TIER_COLORS[entry.name.toLowerCase()] || '#9ca3af'} />
-                        ))}
-                      </Pie>
-                      <Legend />
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No data</p>}
-              </ChartCard>
+                        <div className="pr-4 py-3">
+                          <span className="text-white text-sm capitalize">{svc}</span>
+                        </div>
+                        {CATEGORY_COLUMNS.map(c => {
+                          const cell = row[c.key];
+                          if (!cell || !cell.n) {
+                            return (
+                              <div key={c.key} className="text-center py-3">
+                                <span className="text-v-text-secondary/40 text-sm">—</span>
+                              </div>
+                            );
+                          }
+                          const cls = varianceClass(cell.avg, cell.stddev);
+                          return (
+                            <div key={c.key} className="text-center py-3">
+                              <div className={`text-sm font-data ${cls}`}>
+                                {formatHours(cell.avg)}
+                                <span className="text-v-text-secondary/70 text-xs ml-1">
+                                  ± {formatHours(cell.stddev)}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-v-text-secondary/60 mt-0.5">
+                                n={cell.n}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="text-right py-3">
+                          <span className="text-v-gold text-xs font-data">{totalN}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
 
-              {/* 8. Quote Funnel */}
-              <ChartCard title="Quote Funnel (Acceptance Rate)">
-                {funnelData.some(d => d.count > 0) ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={funnelData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                      <XAxis dataKey="stage" tick={{ fontSize: 12, fill: '#8A9BB0' }} />
-                      <YAxis tick={{ fontSize: 11, fill: '#8A9BB0' }} />
-                      <Tooltip />
-                      <Bar dataKey="count" name="Quotes" radius={[4, 4, 0, 0]}>
-                        {funnelData.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className="text-v-text-secondary text-sm py-10 text-center">No data</p>}
-              </ChartCard>
-            </div>
-
-            {/* Community Hours Intelligence */}
-            {data.community && (
-              <>
-                <div className="border-t border-v-border pt-6 mt-2">
-                  <h2 className="text-xl font-bold text-v-text-primary font-heading mb-4">Community Hours Intelligence</h2>
+                  <div className="px-6 py-3 border-t border-[#1A2236] text-[#8A9BB0] text-[10px] uppercase tracking-wider flex gap-4">
+                    <span><span className="text-green-400">&bull;</span> Low variance (&lt;20%)</span>
+                    <span><span className="text-yellow-400">&bull;</span> Medium (20-50%)</span>
+                    <span><span className="text-red-400">&bull;</span> High (&gt;50%)</span>
+                  </div>
                 </div>
+              )}
+            </section>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <MetricCard label="Total Contributions" value={(data.community.totalContributions || 0).toLocaleString()} sub={`${data.community.thisMonth || 0} this month`} />
-                  <MetricCard label="Unique Aircraft" value={(data.community.uniqueAircraft || 0).toLocaleString()} />
-                  <MetricCard label="Pending Suggestions" value={(data.community.pendingSuggestions || 0).toLocaleString()} />
-                  <MetricCard label="Defaults Updated" value={(data.community.defaultsUpdated || 0).toLocaleString()} sub="Via community data" />
+            {/* Anomaly Detection */}
+            <section className="mb-10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-3">
+                <h2 className="text-[11px] font-medium uppercase tracking-[0.25em] text-v-gold">
+                  Anomaly Detection
+                </h2>
+                <button
+                  onClick={runAnomalyDetection}
+                  disabled={anomaliesLoading}
+                  className="px-5 py-2.5 text-xs uppercase tracking-widest bg-v-gold text-v-charcoal font-semibold hover:bg-v-gold/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {anomaliesLoading ? 'Analyzing...' : 'Find Anomalies (AI)'}
+                </button>
+              </div>
+
+              {anomaliesError && (
+                <div className="bg-v-surface border border-red-500/30 rounded-sm p-4 mb-3">
+                  <p className="text-red-400 text-sm">{anomaliesError}</p>
                 </div>
+              )}
 
-                {data.community.topAircraft && data.community.topAircraft.length > 0 && (
-                  <ChartCard title="Most Contributed Aircraft">
-                    <ResponsiveContainer width="100%" height={Math.max(280, data.community.topAircraft.length * 32)}>
-                      <BarChart data={data.community.topAircraft} layout="vertical" margin={{ left: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2a3548" />
-                        <XAxis type="number" tick={{ fontSize: 11, fill: '#8A9BB0' }} />
-                        <YAxis type="category" dataKey="aircraft" tick={{ fontSize: 11, fill: '#8A9BB0' }} width={160} />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} name="Contributions" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartCard>
-                )}
-              </>
-            )}
+              {anomalies && !anomaliesError && (
+                <div className="bg-v-surface border border-v-border rounded-sm">
+                  {anomaliesSummary && (
+                    <div className="px-6 py-4 border-b border-[#1A2236]">
+                      <p className="text-v-text-primary text-sm leading-relaxed">
+                        {anomaliesSummary}
+                      </p>
+                    </div>
+                  )}
+
+                  {anomalies.length === 0 ? (
+                    <div className="px-6 py-8 text-center">
+                      <p className="text-v-text-secondary text-sm">No anomalies detected.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <div className="sticky top-0 bg-v-surface border-b border-[#1A2236]">
+                        <div className="grid grid-cols-[1.3fr_1fr_90px_90px_2fr_100px] min-w-[900px] px-6 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+                          <div>Service</div>
+                          <div>Category</div>
+                          <div className="text-right">Avg Hrs</div>
+                          <div className="text-center">Type</div>
+                          <div>Explanation</div>
+                          <div className="text-center">Profitable</div>
+                        </div>
+                      </div>
+                      {anomalies.map((a, i) => {
+                        const type = (a.type || a.anomaly_type || '').toLowerCase();
+                        const typeClass = type === 'high'
+                          ? 'border border-red-500/40 text-red-400'
+                          : type === 'low'
+                          ? 'border border-cyan-400/40 text-cyan-300'
+                          : 'border border-gray-500/30 text-gray-400';
+                        const profitable = a.profitable === true || a.is_profitable === true;
+                        return (
+                          <div
+                            key={i}
+                            className="grid grid-cols-[1.3fr_1fr_90px_90px_2fr_100px] min-w-[900px] px-6 py-3 items-center border-b border-[#1A2236]"
+                          >
+                            <div className="text-white text-sm capitalize pr-3 truncate" title={a.service_name || a.service}>
+                              {a.service_name || a.service || '—'}
+                            </div>
+                            <div className="text-[#8A9BB0] text-xs capitalize pr-3 truncate">
+                              {(a.aircraft_category || a.category || '—').toString().replace(/_/g, ' ')}
+                            </div>
+                            <div className="text-right text-v-text-primary text-sm font-data">
+                              {formatHours(a.avg_hours)}
+                            </div>
+                            <div className="flex justify-center">
+                              <span className={`px-2 py-0.5 text-[10px] uppercase tracking-wider ${typeClass}`}>
+                                {type || 'info'}
+                              </span>
+                            </div>
+                            <div className="text-[#8A9BB0] text-xs pr-3">
+                              {a.explanation || a.reason || '—'}
+                            </div>
+                            <div className="flex justify-center">
+                              {profitable ? (
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider border border-green-500/40 text-green-400">
+                                  Profitable
+                                </span>
+                              ) : (
+                                <span className="text-v-text-secondary/50 text-[10px]">—</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!anomalies && !anomaliesError && !anomaliesLoading && (
+                <div className="bg-v-surface border border-v-border rounded-sm p-6 text-center">
+                  <p className="text-v-text-secondary text-sm">
+                    Click "Find Anomalies (AI)" to analyze benchmark data for outliers.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* Calibration Adoption */}
+            <section>
+              <h2 className="text-[11px] font-medium uppercase tracking-[0.25em] text-v-gold mb-3">
+                Calibration Adoption
+              </h2>
+              {adoption.length === 0 ? (
+                <div className="bg-v-surface border border-v-border rounded-sm p-8 text-center">
+                  <p className="text-v-text-secondary text-sm">No calibration adoption data.</p>
+                </div>
+              ) : (
+                <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
+                  <div className="sticky top-0 bg-v-surface border-b border-[#1A2236]">
+                    <div className="grid grid-cols-[1.5fr_120px_140px_140px_140px] min-w-[850px] px-6 py-3 text-[10px] uppercase tracking-[0.2em] text-[#8A9BB0]">
+                      <div>Reference Service</div>
+                      <div className="text-right">Detailers Using</div>
+                      <div className="text-right">Avg Adjustment</div>
+                      <div className="text-right">Variance (StdDev)</div>
+                      <div className="text-right">Total Calibrations</div>
+                    </div>
+                  </div>
+                  {adoption.map((row, i) => {
+                    const adj = Number(row.avg_adjustment_pct) || 0;
+                    const adjClass = adj > 0 ? 'text-green-400' : adj < 0 ? 'text-red-400' : 'text-v-text-primary';
+                    return (
+                      <div
+                        key={i}
+                        className="grid grid-cols-[1.5fr_120px_140px_140px_140px] min-w-[850px] px-6 py-3 items-center border-b border-[#1A2236] hover:bg-white/[0.02] transition-colors"
+                      >
+                        <div className="text-white text-sm capitalize pr-3 truncate" title={row.reference_service_type}>
+                          {row.reference_service_type || '—'}
+                        </div>
+                        <div className="text-right text-v-text-primary text-sm font-data">
+                          {row.detailer_count || 0}
+                        </div>
+                        <div className={`text-right text-sm font-data ${adjClass}`}>
+                          {adj > 0 ? '+' : ''}{adj.toFixed(1)}%
+                        </div>
+                        <div className="text-right text-[#8A9BB0] text-sm font-data">
+                          {(Number(row.stddev_adjustment) || 0).toFixed(2)}
+                        </div>
+                        <div className="text-right text-v-gold text-sm font-data">
+                          {row.total_calibrations || 0}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="px-6 py-3 border-t border-[#1A2236] text-[#8A9BB0] text-xs">
+                    {adoption.length} reference service{adoption.length === 1 ? '' : 's'}
+                  </div>
+                </div>
+              )}
+            </section>
           </>
-        ) : null}
+        )}
       </div>
-    </div>
+    </AppShell>
   );
 }

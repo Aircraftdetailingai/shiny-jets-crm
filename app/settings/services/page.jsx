@@ -2,6 +2,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import CalibrationModal from '@/components/CalibrationModal';
 import { currencySymbol } from '@/lib/formatPrice';
 
 const CATEGORY_OPTIONS = {
@@ -97,6 +98,9 @@ export default function ServicesPage() {
 
   // Service suggestion tips (aircraft hours matching)
   const [serviceSuggestions, setServiceSuggestions] = useState({});
+
+  // Calibration modal state
+  const [calibratingService, setCalibratingService] = useState(null);
 
   // Error state
   const [error, setError] = useState('');
@@ -744,17 +748,27 @@ export default function ServicesPage() {
                             <p className="text-[10px] text-v-text-secondary">${svc.product_cost_per_hour} product/hr</p>
                           )}
                         </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCalibratingService({ id: svc.id, name: svc.name }); }}
+                          title="Calibrate Hours"
+                          className="px-2 py-1 text-[10px] font-medium text-v-text-secondary border border-v-border rounded hover:text-v-gold hover:border-v-gold/50 hover:bg-v-gold/10"
+                        >
+                          &#9881; Calibrate
+                        </button>
                         <button onClick={() => openEditService(svc)} className="p-1.5 text-v-text-secondary hover:text-blue-600 hover:bg-blue-900/20 rounded">&#9998;</button>
                         <button onClick={() => deleteService(svc)} className="p-1.5 text-v-text-secondary hover:text-red-600 hover:bg-red-900/20 rounded">&#128465;</button>
                       </div>
                     </div>
                     {serviceSuggestions[svc.id] && (
-                      <div className="ml-8 mr-3 p-3 bg-v-gold/5 border border-v-gold/20 rounded-lg flex items-start gap-3">
+                      <div
+                        className="ml-8 mr-3 p-3 bg-v-gold/5 border border-v-gold/20 rounded-lg flex items-start gap-3 cursor-pointer hover:bg-v-gold/10 transition-colors"
+                        onClick={() => setCalibratingService({ id: svc.id, name: svc.name })}
+                      >
                         <span className="text-v-gold text-sm mt-0.5">&#10022;</span>
                         <div className="flex-1 text-sm text-v-text-secondary">
                           {serviceSuggestions[svc.id].type === 'no_match' ? (
                             <p>
-                              <span className="text-v-gold font-medium">Tip:</span> This service doesn&apos;t match our aircraft hours database. You can manually set default hours, or if this is similar to an existing service type (like Polish or Wax), you can link it in Edit to use aircraft-based hour estimates.
+                              <span className="text-v-gold font-medium">Tip:</span> This service doesn&apos;t match our aircraft hours database. Click to calibrate hours based on a similar standard service.
                             </p>
                           ) : (
                             <div>
@@ -762,11 +776,11 @@ export default function ServicesPage() {
                                 <span className="text-v-gold font-medium">We found a possible match:</span> this service looks similar to &ldquo;{serviceSuggestions[svc.id].match.label}&rdquo;. Link it to use aircraft-based hour estimates?
                               </p>
                               <div className="flex gap-2 mt-2">
-                                <button onClick={() => linkServiceToHours(svc.id, serviceSuggestions[svc.id].match.column)}
+                                <button onClick={(e) => { e.stopPropagation(); linkServiceToHours(svc.id, serviceSuggestions[svc.id].match.column); }}
                                   className="px-3 py-1 text-xs bg-v-gold text-v-charcoal rounded font-medium hover:bg-v-gold-dim">
                                   Yes, link it
                                 </button>
-                                <button onClick={() => dismissSuggestion(svc.id)}
+                                <button onClick={(e) => { e.stopPropagation(); dismissSuggestion(svc.id); }}
                                   className="px-3 py-1 text-xs text-v-text-secondary border border-v-border rounded hover:bg-white/5">
                                   No thanks
                                 </button>
@@ -774,7 +788,7 @@ export default function ServicesPage() {
                             </div>
                           )}
                         </div>
-                        <button onClick={() => dismissSuggestion(svc.id)} className="text-v-text-secondary hover:text-v-text-primary text-sm shrink-0">&times;</button>
+                        <button onClick={(e) => { e.stopPropagation(); dismissSuggestion(svc.id); }} className="text-v-text-secondary hover:text-v-text-primary text-sm shrink-0">&times;</button>
                       </div>
                     )}
                   </Fragment>
@@ -1324,6 +1338,12 @@ export default function ServicesPage() {
           </div>
         </Modal>
       )}
+
+      <CalibrationModal
+        isOpen={!!calibratingService}
+        onClose={() => setCalibratingService(null)}
+        service={calibratingService}
+      />
     </div>
   );
 }
