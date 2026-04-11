@@ -22,7 +22,7 @@ export async function GET(request) {
 
   let query = supabase
     .from('detailers')
-    .select('id, name, company, country, home_airport, preferred_currency, plan, stripe_account_id, stripe_publishable_key, has_online_booking')
+    .select('id, name, company, country, home_airport, airports_served, preferred_currency, plan, stripe_account_id, stripe_publishable_key, has_online_booking, logo_url, theme_logo_url, directory_description, certifications, slug, verified_finish, insurance_verified')
     .eq('listed_in_directory', true)
     .eq('status', 'active');
 
@@ -86,13 +86,33 @@ export async function GET(request) {
     });
   }
 
+  // Bulk-fetch services for all detailers in this batch
+  let servicesByDetailer = {};
+  if (detailerIds.length > 0) {
+    const { data: svcRows } = await supabase
+      .from('services')
+      .select('detailer_id, name')
+      .in('detailer_id', detailerIds);
+    if (svcRows) {
+      for (const r of svcRows) {
+        if (!servicesByDetailer[r.detailer_id]) servicesByDetailer[r.detailer_id] = [];
+        if (r.name) servicesByDetailer[r.detailer_id].push(r.name);
+      }
+    }
+  }
+
   // Add online booking badge based on Stripe connection
   enriched = enriched.map(d => ({
     ...d,
     online_booking: !!(d.stripe_account_id || d.stripe_publishable_key || d.has_online_booking),
-    // Remove sensitive fields from response
+    // Prefer theme_logo_url, fall back to logo_url
+    logo_url: d.theme_logo_url || d.logo_url || null,
+    // Attach services list
+    services: servicesByDetailer[d.id] || [],
+    // Remove sensitive/internal fields from response
     stripe_account_id: undefined,
     stripe_publishable_key: undefined,
+    theme_logo_url: undefined,
   }));
 
   return Response.json({ detailers: enriched }, {
