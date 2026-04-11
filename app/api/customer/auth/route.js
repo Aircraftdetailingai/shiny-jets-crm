@@ -74,7 +74,7 @@ export async function POST(request) {
       // Send email with code
       if (process.env.RESEND_API_KEY) {
         await getResend().emails.send({
-          from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+          from: 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
           to: normalizedEmail,
           subject: 'Your Login Code',
           html: `

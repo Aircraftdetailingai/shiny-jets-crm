@@ -16,7 +16,7 @@ function getResend() {
   if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
   return _resend;
 }
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
 
 function buildCampaignHtml(campaign, detailer, unsubscribeUrl) {

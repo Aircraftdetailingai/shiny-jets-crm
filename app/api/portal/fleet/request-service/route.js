@@ -111,7 +111,7 @@ export async function POST(request) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+            from: 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
             to: routedDetailer.email,
             subject: 'New Fleet Service Request',
             text: `New fleet service request!\n\nCustomer: ${customerName}\nAircraft: ${aircraftLabel}\nLocation: ${location || 'Not specified'}\nServices: ${servicesList}\n${preferred_date ? `Preferred Date: ${preferred_date}\n` : ''}${notes ? `Notes: ${notes}\n` : ''}\nLog in to Shiny Jets CRM to send them a quote.`,
@@ -164,7 +164,7 @@ export async function POST(request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+        from: 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
         to: 'brett@shinyjets.com',
         subject: 'Fleet Service Request — No Detailer Match',
         text: `A fleet service request came in but no detailer is registered at the aircraft's home airport.\n\nCustomer: ${customerName} (${resolved.customer.email})\nAircraft: ${aircraftLabel}\nHome Airport: ${location || 'Not specified'}\nServices: ${servicesList}\n${preferred_date ? `Preferred Date: ${preferred_date}\n` : ''}${notes ? `Notes: ${notes}\n` : ''}\nPlease route this request manually.`,

@@ -265,7 +265,7 @@ export async function POST(request, { params }) {
       emailError = 'Email service not configured (RESEND_API_KEY missing)';
     } else {
       try {
-        const fromAddr = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>';
+        const fromAddr = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>';
         console.log(`Email: to=${clientEmail}, from=${fromAddr}`);
         const emailQuote = { ...updated, share_link: quote.share_link, client_email: clientEmail };
         const result = await sendQuoteSentEmail({

@@ -5,9 +5,12 @@ import { setUserCurrency } from '@/lib/currency';
 import TermsConsentModal from '@/components/TermsConsentModal';
 import SocialLoginButtons from '@/components/SocialLoginButtons';
 import BiometricLogin from '@/components/BiometricLogin';
+import LanguageSelector from '@/components/LanguageSelector';
+import { useTranslation } from '@/lib/i18n';
 import { TERMS_VERSION } from '@/lib/terms';
 
 function LoginContent() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState('');
@@ -90,12 +93,17 @@ function LoginContent() {
   };
 
   return (
-    <div className="page-transition min-h-screen flex items-center justify-center bg-v-charcoal p-4">
+    <div className="page-transition min-h-screen flex items-center justify-center bg-v-charcoal p-4 relative">
+      {/* Language selector — top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSelector />
+      </div>
+
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <img src="/images/shiny-jets-logo.png" alt="Shiny Jets CRM" className="h-12 mx-auto mb-2 object-contain" />
-          <p className="text-v-text-secondary mt-2 text-sm">Professional Aircraft Detailing Software</p>
+          <p className="text-v-text-secondary mt-2 text-sm">{t('login.professionalSoftware')}</p>
         </div>
 
         <div className="bg-v-surface border border-v-border rounded-sm p-6">
@@ -125,7 +133,7 @@ function LoginContent() {
           {/* Divider */}
           <div className="flex items-center my-6">
             <div className="flex-grow border-t border-v-border"></div>
-            <span className="mx-4 text-v-text-secondary text-xs uppercase tracking-widest">or continue with email</span>
+            <span className="mx-4 text-v-text-secondary text-xs uppercase tracking-widest">{t('login.orContinueWithEmail')}</span>
             <div className="flex-grow border-t border-v-border"></div>
           </div>
 
@@ -139,24 +147,24 @@ function LoginContent() {
           {/* Email Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Email</label>
+              <label className="block text-sm text-v-text-secondary mb-1">{t('login.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
-                placeholder="you@company.com"
+                placeholder={t('login.enterEmail')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Password</label>
+              <label className="block text-sm text-v-text-secondary mb-1">{t('login.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
-                placeholder="Enter your password"
+                placeholder={t('login.enterPassword')}
                 required
               />
             </div>
@@ -165,13 +173,13 @@ function LoginContent() {
               disabled={loading}
               className="w-full py-3 bg-v-gold text-v-charcoal rounded-sm font-medium hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t('login.signingIn') : t('login.signIn')}
             </button>
           </form>
 
           <div className="mt-3 text-right">
             <a href="/forgot-password" className="text-xs text-v-gold hover:text-v-gold-dim transition-colors">
-              Forgot password?
+              {t('login.forgotPassword')}
             </a>
           </div>
         </div>
@@ -179,16 +187,16 @@ function LoginContent() {
         {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-v-text-secondary text-sm">
-            New to Shiny Jets CRM?{' '}
-            <a href="/" className="text-v-gold hover:text-v-gold-dim transition-colors">See Plans & Pricing</a>
+            {t('login.newToShinyJets')}{' '}
+            <a href="/" className="text-v-gold hover:text-v-gold-dim transition-colors">{t('login.seePlansAndPricing')}</a>
           </p>
         </div>
 
         <div className="mt-4 flex items-center justify-between px-1">
           <a href="/crew/login" className="text-xs text-v-text-secondary hover:text-v-gold transition-colors">
-            Crew login &rarr;
+            {t('login.crewLogin')}
           </a>
-          <p className="text-xs text-v-text-secondary/50">By Shiny Jets</p>
+          <p className="text-xs text-v-text-secondary/50">{t('login.byShinyJets')}</p>
         </div>
       </div>
 

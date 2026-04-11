@@ -236,7 +236,7 @@ export async function POST(request) {
               const { Resend } = require('resend');
               const resend = new Resend(process.env.RESEND_API_KEY);
               await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
+                from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
                 to: referrer.email,
                 subject: 'You referred a new detailer!',
                 html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
@@ -287,7 +287,7 @@ export async function POST(request) {
         const resend = new Resend(process.env.RESEND_API_KEY);
         const tmpl = welcomeTemplate({ detailer: { name, email: normalizedEmail } });
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
+          from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
           to: normalizedEmail,
           subject: tmpl.subject,
           html: tmpl.html,
@@ -319,7 +319,7 @@ export async function POST(request) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const signupDate = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' });
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@shinyjets.com>',
+        from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
         to: 'brett@shinyjets.com',
         subject: `New Detailer Signup — ${name.trim()} (${normalizedEmail})`,
         html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">

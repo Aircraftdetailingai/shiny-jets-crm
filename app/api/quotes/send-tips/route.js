@@ -57,7 +57,7 @@ export async function POST(request) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+            from: 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
             to: quote.client_email,
             subject: 'Preparing for Your Aircraft Detail',
             html: `

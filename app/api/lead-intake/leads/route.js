@@ -120,7 +120,7 @@ export async function POST(request) {
           .join('');
 
         await getResend().emails.send({
-          from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+          from: 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
           to: detailer.email,
           subject: `New Lead: ${customer_name || 'Website Visitor'}`,
           html: `
@@ -318,7 +318,7 @@ export async function POST(request) {
               const firstName = (name || '').split(' ')[0] || 'there';
               const aircraftDesc = aircraft_model || tail_number || 'your aircraft';
               emails.push(getResend().emails.send({
-                from: `${companyName} via Shiny Jets CRM <noreply@shinyjets.com>`,
+                from: `${companyName} via Shiny Jets CRM <noreply@mail.shinyjets.com>`,
                 replyTo: detailerEmail || undefined,
                 to: email,
                 subject: "We got your request — here's what happens next",

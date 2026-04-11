@@ -2,12 +2,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import LanguageSelector from '@/components/LanguageSelector';
+import { useTranslation } from '@/lib/i18n';
 
 const API = (path, token, opts = {}) =>
   fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...opts.headers } }).then(r => r.json());
 
 export default function CrewDashboard() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [tab, setTab] = useState('jobs');
@@ -343,8 +346,8 @@ export default function CrewDashboard() {
   };
 
   const tabs = [
-    { id: 'jobs', label: 'Jobs', icon: '📋' },
-    ...(user.can_clock !== false ? [{ id: 'clock', label: 'Time Clock', icon: '⏱️' }] : []),
+    { id: 'jobs', label: t('crew.jobs') || 'Jobs', icon: '📋' },
+    ...(user.can_clock !== false ? [{ id: 'clock', label: t('crew.timeClock') || 'Time Clock', icon: '⏱️' }] : []),
     ...(user.type === 'contractor' ? [{ id: 'earnings', label: 'Earnings', icon: '💰' }] : []),
     ...(user.can_see_inventory ? [{ id: 'products', label: 'Products', icon: '🧴' }] : []),
     ...(user.can_see_equipment ? [{ id: 'equipment', label: 'Equipment', icon: '🔧' }] : []),

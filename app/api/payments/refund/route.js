@@ -104,7 +104,7 @@ export async function POST(request) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: 'Shiny Jets CRM <noreply@shinyjets.com>',
+            from: 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
             to: quote.client_email,
             subject: 'Refund Confirmation',
             text: `Hi ${quote.client_name || 'there'},\n\nA refund of $${refundAmount.toFixed(2)} has been processed for your aircraft detail quote.\n\nRefund details:\n- Amount: $${refundAmount.toFixed(2)}\n- Original payment: $${totalPaid.toFixed(2)}\n${reason ? `- Reason: ${reason}` : ''}\n\nThe refund should appear on your statement within 5-10 business days.\n\nIf you have any questions, please contact ${detailer?.company || 'us'}.\n\nThank you,\n${detailer?.name || detailer?.company || 'your detailing professional'}`
