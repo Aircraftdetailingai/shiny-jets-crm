@@ -286,9 +286,9 @@ export async function POST(request) {
 
             // 1. Notify detailer
             if (detailerEmail) {
-              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vectorav.ai';
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
               emails.push(getResend().emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Vector Aviation <noreply@vectorav.ai>',
+                from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
                 to: detailerEmail,
                 subject: `New Quote Request: ${name || 'Customer'} - ${aircraft_model || 'Aircraft'}`,
                 html: `

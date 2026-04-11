@@ -91,7 +91,7 @@ const SEED_REWARDS = [
   },
   {
     name: 'VIP Coaching Call',
-    description: '30-min call with Brett Berry',
+    description: '30-min 1-on-1 strategy call with the Shiny Jets team',
     points_cost: 15000,
     quantity_available: 5,
     category: 'vip',
