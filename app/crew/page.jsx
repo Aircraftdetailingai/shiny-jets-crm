@@ -24,6 +24,8 @@ export default function CrewDashboard() {
   const [clockStatus, setClockStatus] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
   const [clockElapsed, setClockElapsed] = useState('');
+  const [showJobPicker, setShowJobPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState('clock_in'); // 'clock_in' | 'switch'
 
   // Photos state
   const [photos, setPhotos] = useState([]);
@@ -179,16 +181,31 @@ export default function CrewDashboard() {
     return () => clearInterval(interval);
   }, [clockStatus]);
 
-  // Clock in/out
-  const handleClock = async (action) => {
+  // Clock in/out/switch — action takes optional job object
+  const handleClock = async (action, job = null) => {
     setClockLoading(true);
+    // jobs list uses quote_id for quote-based jobs, but manual jobs from /api/crew/jobs use the jobs table id
+    // The /api/crew/jobs route returns both in the same list; we pass both and let the API choose
+    const body = { action };
+    if (job) {
+      // If this came from the jobs table (has _source flag), use job_id; otherwise quote_id
+      if (job._source === 'jobs_table') body.job_id = job.id;
+      else body.quote_id = job.id;
+    }
     const data = await API('/api/crew/clock', token, {
       method: 'POST',
-      body: JSON.stringify({ action, quote_id: selectedJob?.id }),
+      body: JSON.stringify(body),
     });
     if (data.success) {
-      showMsg(action === 'clock_in' ? 'Clocked in!' : `Clocked out! ${data.hours_worked || 0}h logged`);
+      if (action === 'clock_in') {
+        showMsg(`Clocked in${data.job_label ? ' · ' + data.job_label : ''}`);
+      } else if (action === 'switch') {
+        showMsg(`Switched to ${data.job_label || 'new job'} (${data.closed_hours || 0}h logged)`);
+      } else {
+        showMsg(`Clocked out · ${data.hours_worked || 0}h on ${data.job_label || 'job'}`);
+      }
       fetchClock();
+      setShowJobPicker(false);
     } else {
       showMsg(data.error || 'Failed', 'error');
     }
@@ -796,31 +813,45 @@ export default function CrewDashboard() {
         {/* ===== CLOCK TAB ===== */}
         {tab === 'clock' && (
           <div className="space-y-4">
-            <h2 className="text-white font-semibold text-lg">{'Time Clock'}</h2>
+            <h2 className="text-white font-semibold text-lg">Time Clock</h2>
 
             <div className="bg-white/10 backdrop-blur rounded-xl p-6 text-center">
               {clockStatus?.clocked_in ? (
                 <>
-                  <div className="text-green-400 text-sm font-medium mb-2">{'Clocked In'}</div>
-                  <div className="text-white text-4xl font-mono font-bold mb-4">{clockElapsed}</div>
-                  <p className="text-white/50 text-sm mb-4">
-                    {'Since'} {new Date(clockStatus.clock_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  <div className="text-green-400 text-[10px] uppercase tracking-wider font-semibold mb-2">On the Clock</div>
+                  {clockStatus.current_job_label && (
+                    <div className="text-white/90 text-base font-medium mb-3 px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+                      {clockStatus.current_job_label}
+                    </div>
+                  )}
+                  <div className="text-white text-5xl font-mono font-bold mb-2">{clockElapsed}</div>
+                  <p className="text-white/40 text-xs mb-5">
+                    Since {new Date(clockStatus.clock_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   </p>
-                  <button
-                    onClick={() => handleClock('clock_out')}
-                    disabled={clockLoading}
-                    className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg transition-colors"
-                  >
-                    {clockLoading ? 'Processing...' : 'Clock Out'}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setPickerMode('switch'); setShowJobPicker(true); }}
+                      disabled={clockLoading}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-4 rounded-xl font-semibold text-sm transition-colors"
+                    >
+                      Switch Job
+                    </button>
+                    <button
+                      onClick={() => handleClock('clock_out')}
+                      disabled={clockLoading}
+                      className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white py-4 rounded-xl font-semibold text-sm transition-colors"
+                    >
+                      {clockLoading ? '...' : 'Clock Out'}
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
-                  <div className="text-white/50 text-sm mb-4">{'Not clocked in'}</div>
+                  <div className="text-white/50 text-sm mb-5">Not clocked in</div>
                   <button
-                    onClick={() => handleClock('clock_in')}
+                    onClick={() => { setPickerMode('clock_in'); setShowJobPicker(true); }}
                     disabled={clockLoading}
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg transition-colors"
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-5 rounded-xl font-bold text-xl transition-colors"
                   >
                     {clockLoading ? 'Processing...' : 'Clock In'}
                   </button>
@@ -828,10 +859,59 @@ export default function CrewDashboard() {
               )}
 
               {clockStatus?.today_hours > 0 && (
-                <p className="text-white/50 text-sm mt-4">
-                  {'Today:'} {clockStatus.today_hours.toFixed(2)} hours
+                <p className="text-white/50 text-xs mt-5 pt-5 border-t border-white/10">
+                  Today: <span className="text-white font-semibold">{clockStatus.today_hours.toFixed(2)}h</span>
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ===== JOB PICKER MODAL (for clock_in / switch) ===== */}
+        {showJobPicker && (
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4" onClick={() => !clockLoading && setShowJobPicker(false)}>
+            <div onClick={e => e.stopPropagation()} className="bg-[#0f1623] border border-white/10 rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto">
+              <div className="sticky top-0 bg-[#0f1623] border-b border-white/10 px-5 py-4 flex items-center justify-between">
+                <h3 className="text-white font-semibold text-lg">
+                  {pickerMode === 'switch' ? 'Switch Job' : 'Select Aircraft'}
+                </h3>
+                <button
+                  onClick={() => !clockLoading && setShowJobPicker(false)}
+                  disabled={clockLoading}
+                  className="text-white/50 hover:text-white text-2xl leading-none disabled:opacity-50"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="p-5 space-y-2">
+                {jobs.length === 0 ? (
+                  <p className="text-white/50 text-sm text-center py-6">No active jobs assigned to you</p>
+                ) : (
+                  jobs
+                    .filter(j => {
+                      // In switch mode, hide the job we're currently clocked into
+                      if (pickerMode !== 'switch') return true;
+                      const currentId = clockStatus?.current_job_id || clockStatus?.current_quote_id;
+                      return j.id !== currentId;
+                    })
+                    .map(j => (
+                      <button
+                        key={j.id}
+                        onClick={() => handleClock(pickerMode === 'switch' ? 'switch' : 'clock_in', j)}
+                        disabled={clockLoading}
+                        className="w-full text-left p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        <p className="text-white font-medium text-sm">{j.aircraft || 'Aircraft'}</p>
+                        {j.airport && <p className="text-white/50 text-xs mt-0.5">{j.airport}</p>}
+                        {j.scheduled_date && (
+                          <p className="text-white/40 text-[10px] mt-1">
+                            {new Date(j.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                        )}
+                      </button>
+                    ))
+                )}
+              </div>
             </div>
           </div>
         )}

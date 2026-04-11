@@ -80,6 +80,12 @@ export default function TeamPage() {
             {'Activity'}
           </a>
           <a
+            href="/team/payroll"
+            className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
+          >
+            {'Payroll'}
+          </a>
+          <a
             href="/team/permissions"
             className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
           >

@@ -14,6 +14,7 @@ export default function JobDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState([]);
   const [afterPhotos, setAfterPhotos] = useState([]);
+  const [labor, setLabor] = useState(null);
   const [progress, setProgress] = useState(0);
   const progressTimer = useRef(null);
 
@@ -62,6 +63,15 @@ export default function JobDetailPage() {
         setBeforePhotos(media.beforeMedia || []);
         setAfterPhotos(media.afterMedia || []);
       }
+
+      // Fetch labor breakdown (non-blocking)
+      try {
+        const laborRes = await fetch(`/api/jobs/${jobId}/labor`, { headers });
+        if (laborRes.ok) {
+          const laborData = await laborRes.json();
+          setLabor(laborData);
+        }
+      } catch {}
     } catch (err) {
       console.error(err);
     } finally {
@@ -449,6 +459,69 @@ export default function JobDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Labor */}
+      {labor && labor.entry_count > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider">Labor</h3>
+            <div className="text-xs text-v-text-secondary">
+              {labor.actual_hours.toFixed(2)}h actual
+              {labor.estimated_hours > 0 && (
+                <span className="text-v-text-secondary/60"> / {labor.estimated_hours.toFixed(1)}h estimated</span>
+              )}
+            </div>
+          </div>
+
+          {labor.over_estimate && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-4">
+              <p className="text-amber-400 text-xs font-medium">
+                ⚠ Job is running over estimate ({((labor.actual_hours / labor.estimated_hours - 1) * 100).toFixed(0)}% over)
+              </p>
+            </div>
+          )}
+
+          <div className="bg-v-surface border border-v-border rounded-lg overflow-hidden">
+            {labor.members.map((m) => (
+              <div key={m.team_member_id} className="px-4 py-3 border-b border-v-border last:border-0">
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <p className="text-v-text-primary text-sm font-medium">{m.name}</p>
+                    {m.title && <p className="text-v-text-secondary text-[10px]">{m.title}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-v-text-primary text-sm font-semibold">{m.total_hours.toFixed(2)}h</p>
+                    {m.total_pay > 0 && (
+                      <p className="text-v-text-secondary text-xs">{currencySymbol()}{formatPrice(m.total_pay)}</p>
+                    )}
+                  </div>
+                </div>
+                {/* Per-entry breakdown */}
+                {m.entries.length > 1 && (
+                  <div className="mt-2 pl-2 border-l-2 border-v-border/50 space-y-0.5">
+                    {m.entries.map((e) => (
+                      <p key={e.id} className="text-v-text-secondary text-[10px]">
+                        {e.clock_in && new Date(e.clock_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        {e.clock_out && ' – ' + new Date(e.clock_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        {' · '}{e.hours_worked.toFixed(2)}h
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="px-4 py-3 bg-v-charcoal/50 flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider text-v-text-secondary">Total Labor</span>
+              <div className="text-right">
+                <p className="text-v-text-primary text-base font-bold">{labor.actual_hours.toFixed(2)}h</p>
+                {labor.total_labor_cost > 0 && (
+                  <p className="text-v-text-secondary text-xs">{currencySymbol()}{formatPrice(labor.total_labor_cost)}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Before/After Photos */}
       {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
