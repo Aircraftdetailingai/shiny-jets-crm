@@ -248,39 +248,92 @@ export default function InvoiceViewPage() {
           </div>
         )}
 
-        {/* Line items table */}
-        {lineItems.length > 0 && (
-          <div className="mb-8">
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
-            <div className="divide-y divide-[var(--brand-border,#1A2236)]">
-              {/* Header row */}
-              <div className="flex items-center py-2 text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.2em] uppercase">
-                <span className="flex-1">Description</span>
-                {lineItems.some(item => item.hours) && <span className="w-16 text-right">Hours</span>}
-                {lineItems.some(item => item.rate) && <span className="w-20 text-right">Rate</span>}
-                <span className="w-24 text-right">Amount</span>
-              </div>
-              {lineItems.map((item, i) => (
-                <div key={i} className="flex items-center py-3">
-                  <span className="flex-1 text-[var(--brand-text,#F5F5F5)] text-sm">{item.description || item.service || item.name || 'Service'}</span>
-                  {lineItems.some(li => li.hours) && (
-                    <span className="w-16 text-right text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
-                      {item.hours ? `${parseFloat(item.hours).toFixed(1)}` : ''}
-                    </span>
-                  )}
-                  {lineItems.some(li => li.rate) && (
-                    <span className="w-20 text-right text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
-                      {item.rate ? `${sym}${formatPrice(item.rate)}` : ''}
-                    </span>
-                  )}
-                  <span className="w-24 text-right text-[var(--brand-text,#F5F5F5)] text-sm font-medium">
-                    {sym}{formatPrice(item.amount || item.price || 0)}
-                  </span>
+        {/* Line items — respects detailer's quote_display_mode */}
+        {(() => {
+          const displayMode = detailer?.quote_display_mode || 'itemized';
+          const packageName = detailer?.quote_package_name || 'Aircraft Detail Package';
+          const showBreakdown = detailer?.quote_show_breakdown;
+          const total = parseFloat(invoice.total) || 0;
+
+          if (displayMode === 'package' && lineItems.length > 0) {
+            return (
+              <div className="mb-8">
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
+                <div className="flex items-center justify-between py-4 border-b border-[var(--brand-border,#1A2236)]">
+                  <span className="text-[var(--brand-text,#F5F5F5)] text-base font-medium">{packageName}</span>
+                  <span className="text-[var(--brand-text,#F5F5F5)] text-base font-semibold">{sym}{formatPrice(total)}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                {showBreakdown && (
+                  <details className="mt-2">
+                    <summary className="text-[var(--brand-primary,#007CB1)] text-xs cursor-pointer hover:underline py-1">View service breakdown</summary>
+                    <div className="mt-2 divide-y divide-[var(--brand-border,#1A2236)]">
+                      {lineItems.map((item, i) => (
+                        <div key={i} className="flex items-center justify-between py-2 text-sm text-[var(--brand-text-secondary,#8A9BB0)]">
+                          <span>{item.description || item.name || 'Service'}{item.hours ? ` — ${parseFloat(item.hours).toFixed(1)}h` : ''}</span>
+                          <span>{sym}{formatPrice(item.amount || item.price || 0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            );
+          }
+
+          if (displayMode === 'hours_only' && lineItems.length > 0) {
+            return (
+              <div className="mb-8">
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
+                <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                  {lineItems.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between py-3">
+                      <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{item.description || item.name || 'Service'}</span>
+                      <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
+                        {item.hours ? `${parseFloat(item.hours).toFixed(1)}h estimated` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // Default: itemized
+          if (lineItems.length > 0) {
+            return (
+              <div className="mb-8">
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
+                <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                  <div className="flex items-center py-2 text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.2em] uppercase">
+                    <span className="flex-1">Description</span>
+                    {lineItems.some(item => item.hours) && <span className="w-16 text-right">Hours</span>}
+                    {lineItems.some(item => item.rate) && <span className="w-20 text-right">Rate</span>}
+                    <span className="w-24 text-right">Amount</span>
+                  </div>
+                  {lineItems.map((item, i) => (
+                    <div key={i} className="flex items-center py-3">
+                      <span className="flex-1 text-[var(--brand-text,#F5F5F5)] text-sm">{item.description || item.service || item.name || 'Service'}</span>
+                      {lineItems.some(li => li.hours) && (
+                        <span className="w-16 text-right text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
+                          {item.hours ? `${parseFloat(item.hours).toFixed(1)}` : ''}
+                        </span>
+                      )}
+                      {lineItems.some(li => li.rate) && (
+                        <span className="w-20 text-right text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
+                          {item.rate ? `${sym}${formatPrice(item.rate)}` : ''}
+                        </span>
+                      )}
+                      <span className="w-24 text-right text-[var(--brand-text,#F5F5F5)] text-sm font-medium">
+                        {sym}{formatPrice(item.amount || item.price || 0)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Add-on fees */}
         {invoice.addon_fees && invoice.addon_fees.length > 0 && (
