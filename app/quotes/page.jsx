@@ -314,6 +314,7 @@ export default function QuotesPage() {
     let result = quotes.filter((q) => {
       const status = getStatus(q);
       if (filter === 'all') return true;
+      if (filter === 'drafts') return status === 'draft';
       if (filter === 'active') return ['sent', 'viewed'].includes(status);
       if (filter === 'paid') return status === 'paid';
       if (filter === 'completed') return status === 'completed';
@@ -392,6 +393,7 @@ export default function QuotesPage() {
 
   const stats = {
     total: quotes.length,
+    drafts: quotes.filter(q => getStatus(q) === 'draft').length,
     active: quotes.filter(q => ['sent', 'viewed'].includes(getStatus(q))).length,
     paid: quotes.filter(q => getStatus(q) === 'paid').length,
     completed: quotes.filter(q => getStatus(q) === 'completed').length,
@@ -434,9 +436,9 @@ export default function QuotesPage() {
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-base sm:text-sm pl-9 pr-4 py-1.5 w-full sm:w-56 focus:outline-none focus:border-v-gold/40 transition-colors" />
             </div>
             <div className="flex items-center gap-5">
-              {['all', 'active', 'paid', 'completed', 'expired'].map((f) => (
+              {['all', 'drafts', 'active', 'paid', 'completed', 'expired'].map((f) => (
                 <button key={f} onClick={() => setFilter(f)} className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-v-gold' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
-                  {f === 'all' ? `All (${stats.total})` : f === 'active' ? `Active (${stats.active})` : f === 'paid' ? `Paid (${stats.paid})` : f === 'completed' ? `Done (${stats.completed})` : 'Expired'}
+                  {f === 'all' ? `All (${stats.total})` : f === 'drafts' ? `Drafts (${stats.drafts})` : f === 'active' ? `Active (${stats.active})` : f === 'paid' ? `Paid (${stats.paid})` : f === 'completed' ? `Done (${stats.completed})` : 'Expired'}
                 </button>
               ))}
             </div>
@@ -520,7 +522,26 @@ export default function QuotesPage() {
               const status = getStatus(q);
               const isSelected = selectedIds.has(q.id);
               return (
-                <div key={q.id} onClick={() => { if (q.share_link) window.open(`/q/${q.share_link}`, '_blank'); }}
+                <div key={q.id} onClick={() => {
+                    if (status === 'draft') {
+                      // Open draft in quote builder with prefilled data
+                      localStorage.setItem('quote_prefill', JSON.stringify({
+                        draftId: q.id,
+                        name: q.client_name || '',
+                        email: q.client_email || '',
+                        phone: q.customer_phone || '',
+                        aircraft: q.aircraft_model || '',
+                        tail: q.tail_number || '',
+                        airport: q.airport || '',
+                        service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
+                        notes: q.notes || '',
+                        timestamp: Date.now(),
+                      }));
+                      router.push('/quotes/new');
+                    } else if (q.share_link) {
+                      window.open(`/q/${q.share_link}`, '_blank');
+                    }
+                  }}
                   className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
@@ -547,6 +568,20 @@ export default function QuotesPage() {
                     <span className="text-v-text-secondary text-xs">{formatDate(q.created_at)}</span>
                   </div>
                   <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                    {status === 'draft' && (
+                      <button onClick={() => {
+                        localStorage.setItem('quote_prefill', JSON.stringify({
+                          draftId: q.id, name: q.client_name || '', email: q.client_email || '', phone: q.customer_phone || '',
+                          aircraft: q.aircraft_model || '', tail: q.tail_number || '', airport: q.airport || '',
+                          service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
+                          notes: q.notes || '', timestamp: Date.now(),
+                        }));
+                        router.push('/quotes/new');
+                      }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">
+                        Continue
+                      </button>
+                    )}
                     {(status === 'paid' || status === 'approved') && (
                       <button onClick={() => openScheduleModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded hover:bg-indigo-400/10">
                         Schedule
