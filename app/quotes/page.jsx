@@ -529,12 +529,17 @@ export default function QuotesPage() {
                         draftId: q.id,
                         name: q.client_name || '',
                         email: q.client_email || '',
-                        phone: q.customer_phone || '',
+                        phone: q.customer_phone || q.client_phone || '',
                         aircraft: q.aircraft_model || '',
                         tail: q.tail_number || '',
-                        airport: q.airport || '',
+                        airport: q.airport || q.job_location || '',
                         service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
                         notes: q.notes || '',
+                        selected_services: Array.isArray(q.selected_services) ? q.selected_services : [],
+                        line_items: q.line_items || [],
+                        discount_type: q.discount_type || null,
+                        discount_value: q.discount_value || null,
+                        discount_reason: q.discount_reason || null,
                         timestamp: Date.now(),
                       }));
                       router.push('/quotes/new');
@@ -571,10 +576,13 @@ export default function QuotesPage() {
                     {status === 'draft' && (
                       <button onClick={() => {
                         localStorage.setItem('quote_prefill', JSON.stringify({
-                          draftId: q.id, name: q.client_name || '', email: q.client_email || '', phone: q.customer_phone || '',
-                          aircraft: q.aircraft_model || '', tail: q.tail_number || '', airport: q.airport || '',
+                          draftId: q.id, name: q.client_name || '', email: q.client_email || '', phone: q.customer_phone || q.client_phone || '',
+                          aircraft: q.aircraft_model || '', tail: q.tail_number || '', airport: q.airport || q.job_location || '',
                           service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
                           notes: q.notes || '', timestamp: Date.now(),
+                          selected_services: Array.isArray(q.selected_services) ? q.selected_services : [],
+                          line_items: q.line_items || [],
+                          discount_type: q.discount_type || null, discount_value: q.discount_value || null, discount_reason: q.discount_reason || null,
                         }));
                         router.push('/quotes/new');
                       }}

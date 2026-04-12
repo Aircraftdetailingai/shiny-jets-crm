@@ -329,6 +329,19 @@ function NewQuoteContent() {
           if (prefill.draftId) setDraftId(prefill.draftId);
           if (prefill.notes) setQuoteNotes(prefill.notes);
 
+          // Restore selected services — store for deferred matching after services load
+          if (prefill.selected_services?.length > 0) {
+            localStorage.setItem('_pending_services', JSON.stringify(prefill.selected_services));
+          }
+
+          // Restore discount
+          if (prefill.discount_type && prefill.discount_value) {
+            setShowDiscount(true);
+            setUserDiscountType(prefill.discount_type);
+            setUserDiscountValue(String(prefill.discount_value));
+            if (prefill.discount_reason) setUserDiscountReason(prefill.discount_reason);
+          }
+
           // Store lead context for reference panel
           if (prefill.notes || prefill.service || prefill.photos?.length || prefill.intake_responses) {
             setLeadContext({
@@ -355,6 +368,30 @@ function NewQuoteContent() {
       }
     } catch {}
   }, [router]);
+
+  // Deferred service restoration — apply pending services once availableServices loads
+  useEffect(() => {
+    if (availableServices.length === 0) return;
+    try {
+      const pending = localStorage.getItem('_pending_services');
+      if (pending) {
+        const serviceIds = JSON.parse(pending);
+        if (Array.isArray(serviceIds) && serviceIds.length > 0) {
+          const newSelected = {};
+          serviceIds.forEach(id => {
+            if (availableServices.some(s => s.id === id)) {
+              newSelected[id] = true;
+            }
+          });
+          if (Object.keys(newSelected).length > 0) {
+            setSelectedServices(newSelected);
+            console.log('[prefill] restored', Object.keys(newSelected).length, 'services from draft');
+          }
+        }
+        localStorage.removeItem('_pending_services');
+      }
+    } catch {}
+  }, [availableServices]);
 
   // Auto-suggest date from Google Calendar when services change
   useEffect(() => {
