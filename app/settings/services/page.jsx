@@ -931,11 +931,11 @@ export default function ServicesPage() {
                       if (pkgDragIdx !== null) { handlePkgDrop(e, pkgIdx); return; }
                       e.stopPropagation(); handleDropOnPackage(e, pkg);
                     }}
-                    className={`p-4 bg-v-surface rounded-lg border transition-all ${
-                      dragOver === pkg.id ? 'border-v-gold ring-2 ring-v-gold/50 scale-[1.02]'
-                      : pkgOverIdx === pkgIdx && pkgDragIdx !== null ? 'border-v-gold bg-v-gold/10 scale-[1.01]'
-                      : pkgDragIdx === pkgIdx ? 'opacity-40 scale-[0.98] border-v-border'
-                      : 'border-v-border hover:border-v-gold/30'
+                    className={`p-4 rounded-lg border transition-all ${
+                      dragOver === pkg.id ? 'bg-[#1A2236] border-[#C9A84C] ring-2 ring-[#C9A84C]/50 scale-[1.02]'
+                      : pkgOverIdx === pkgIdx && pkgDragIdx !== null ? 'bg-[#1A2236] border-[#C9A84C] scale-[1.01]'
+                      : pkgDragIdx === pkgIdx ? 'bg-[#1A2236] opacity-40 scale-[0.98] border-[#2A3548]'
+                      : 'bg-[#1A2236] border-[#2A3548] hover:border-[#C9A84C]/30'
                     }`}>
                     {dragOver === pkg.id && (
                       <div className="text-xs text-v-gold font-medium mb-2">
