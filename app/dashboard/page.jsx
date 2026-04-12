@@ -308,7 +308,7 @@ function DashboardContent() {
                 {quota.used}/{quota.limit} quotes used this month
               </span>
               {quota.used >= quota.limit ? (
-                <a href="https://shinyjets.com/products/aircraft-detailing-crm-pro" target="_blank" rel="noreferrer"
+                <a href="https://shinyjets.com/products/shiny-jets-crm-pro-aircraft-detailing-business-software" target="_blank" rel="noreferrer"
                   className="text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim">
                   Upgrade to Pro
                 </a>
