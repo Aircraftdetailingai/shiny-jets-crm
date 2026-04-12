@@ -707,17 +707,11 @@ export default function ServicesPage() {
                   <Fragment key={svc.id}>
                     <div
                       draggable
-                      onDragStart={(e) => {
-                        handleReorderDragStart(e, idx);
-                        handleDragStart(e, svc);
-                      }}
+                      onDragStart={(e) => handleDragStart(e, svc)}
+                      onDragEnd={() => handleDragEnd()}
                       onDragOver={(e) => handleReorderDragOver(e, idx)}
                       onDrop={(e) => handleReorderDrop(e, idx)}
-                      onDragEnd={() => {
-                        handleReorderDragEnd();
-                        handleDragEnd();
-                      }}
-                      className={`flex items-center justify-between p-3 bg-v-charcoal rounded-lg border transition-all group cursor-grab ${
+                      className={`flex items-center justify-between p-3 bg-v-charcoal rounded-lg border transition-all group ${
                         reorderDragIdx === idx
                           ? 'opacity-40 border-v-gold scale-[0.98]'
                           : reorderOverIdx === idx && reorderDragIdx !== null
@@ -726,7 +720,13 @@ export default function ServicesPage() {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-gray-500 group-hover:text-v-gold select-none">&#9776;</span>
+                        <span
+                          draggable
+                          onDragStart={(e) => { e.stopPropagation(); handleReorderDragStart(e, idx); }}
+                          onDragEnd={(e) => { e.stopPropagation(); handleReorderDragEnd(); }}
+                          className="text-gray-500 group-hover:text-v-gold select-none cursor-grab active:cursor-grabbing px-1"
+                          title="Drag to reorder"
+                        >&#9776;</span>
                         <div>
                           <p className="font-medium">{svc.name}</p>
                           {svc.description && <p className="text-xs text-v-text-secondary">{svc.description}</p>}
