@@ -547,6 +547,18 @@ export default function ServicesPage() {
     finally { setSaving(false); }
   };
 
+  // ---- Auto-scroll while dragging near viewport edges ----
+  const autoScroll = (clientY) => {
+    const ZONE = 100;
+    const MAX_SPEED = 12;
+    const vh = window.innerHeight;
+    if (clientY < ZONE) {
+      window.scrollBy(0, -MAX_SPEED * (1 - clientY / ZONE));
+    } else if (clientY > vh - ZONE) {
+      window.scrollBy(0, MAX_SPEED * (1 - (vh - clientY) / ZONE));
+    }
+  };
+
   // ---- Drag handlers ----
   const handleDragStart = (e, svc) => {
     setDraggedService(svc);
@@ -555,7 +567,7 @@ export default function ServicesPage() {
   };
   const handleDragEnd = () => { setDraggedService(null); setDragOver(null); };
 
-  const handleDragOverNew = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver('new'); };
+  const handleDragOverNew = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver('new'); autoScroll(e.clientY); };
   const handleDragLeaveNew = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); };
   const handleDropNew = (e) => {
     e.preventDefault(); setDragOver(null);
@@ -565,7 +577,7 @@ export default function ServicesPage() {
     setDraggedService(null);
   };
 
-  const handleDragOverPkg = (e, pkgId) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver(pkgId); };
+  const handleDragOverPkg = (e, pkgId) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver(pkgId); autoScroll(e.clientY); };
   const handleDragLeavePkg = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); };
   const handleDropOnPackage = async (e, pkg) => {
     e.preventDefault(); setDragOver(null);
@@ -611,7 +623,7 @@ export default function ServicesPage() {
   };
 
   const handleReorderDragOver = (e, idx) => {
-    e.preventDefault();
+    e.preventDefault(); autoScroll(e.clientY);
     e.dataTransfer.dropEffect = 'move';
     setReorderOverIdx(idx);
   };
@@ -657,7 +669,7 @@ export default function ServicesPage() {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(idx));
   };
-  const handlePkgDragOver = (e, idx) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setPkgOverIdx(idx); };
+  const handlePkgDragOver = (e, idx) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setPkgOverIdx(idx); autoScroll(e.clientY); };
   const handlePkgDrop = async (e, dropIdx) => {
     e.preventDefault(); e.stopPropagation();
     setPkgOverIdx(null);
@@ -698,7 +710,7 @@ export default function ServicesPage() {
   }
 
   return (
-    <div className="page-transition min-h-screen bg-v-charcoal p-4">
+    <div className="page-transition min-h-screen bg-v-charcoal p-4" onDragOver={(e) => { if (draggedService || reorderDragIdx !== null || pkgDragIdx !== null) autoScroll(e.clientY); }}>
       {/* Order saved toast */}
       {orderSavedToast && (
         <div className="fixed top-4 right-4 z-50 bg-green-900/90 border border-green-500/50 text-green-200 px-4 py-2 rounded-lg shadow-lg text-sm animate-pulse">
