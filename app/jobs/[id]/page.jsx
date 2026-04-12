@@ -34,6 +34,11 @@ export default function JobDetailPage() {
   const [invoiceSent, setInvoiceSent] = useState(false);
   const [showInvoicePrompt, setShowInvoicePrompt] = useState(false);
 
+  // Edit job state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // Dispatch / crew assignment state
   const [assignments, setAssignments] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -50,12 +55,32 @@ export default function JobDetailPage() {
       const headers = { Authorization: `Bearer ${token}` };
       const res = await fetch('/api/dispatch/board', { headers });
       if (res.status === 403) { setPlanRequired(true); return; }
-      if (!res.ok) return;
-      const data = await res.json();
-      const thisJob = (data.jobs || []).find(j => j.id === jobId);
-      setAssignments(thisJob?.assignments || []);
-      setTeamMembers((data.team_members || []).filter(m => m.status === 'active'));
-    } catch {}
+      if (!res.ok) {
+        console.warn('[crew] dispatch/board failed:', res.status);
+        // Fall through to fallback team fetch below
+      } else {
+        const data = await res.json();
+        const thisJob = (data.jobs || []).find(j => j.id === jobId);
+        setAssignments(thisJob?.assignments || []);
+        const active = (data.team_members || []).filter(m => m.status === 'active');
+        if (active.length > 0) {
+          setTeamMembers(active);
+          console.log('[crew] from dispatch/board — members:', active.length, 'assignments:', thisJob?.assignments?.length || 0);
+          return;
+        }
+      }
+
+      // Fallback: fetch team members directly from /api/team
+      const teamRes = await fetch('/api/team', { headers });
+      if (teamRes.ok) {
+        const teamData = await teamRes.json();
+        const members = (teamData.members || teamData.team || teamData || []).filter(m => m.status === 'active');
+        setTeamMembers(members);
+        console.log('[crew] fallback /api/team — members:', members.length);
+      }
+    } catch (e) {
+      console.error('[crew] fetchAssignments error:', e);
+    }
   };
 
   // Fetch smart crew suggestions for this job
@@ -105,6 +130,40 @@ export default function JobDetailPage() {
       });
       await fetchAssignments(token);
     } catch {}
+  };
+
+  const openEditModal = () => {
+    setEditForm({
+      scheduled_date: job.scheduled_date || '',
+      airport: job.airport || '',
+      tail_number: job.tail_number || '',
+      completion_notes: job.completion_notes || job.notes || '',
+      total_price: job.total_price || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        await fetchJob(token);
+        setShowEditModal(false);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to save changes');
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const handleDispatch = async () => {
@@ -330,11 +389,88 @@ export default function JobDetailPage() {
               {dispatching ? 'Sending...' : dispatchedToast ? 'Dispatched ✓' : 'Dispatch'}
             </button>
           )}
+          <button onClick={openEditModal} className="px-3 py-1 text-xs text-v-gold border border-v-gold/30 rounded-full hover:bg-v-gold/10 transition-colors">
+            Edit
+          </button>
           <button onClick={() => setShowDeleteConfirm(true)} className="px-3 py-1 text-xs text-red-400 border border-red-400/30 rounded-full hover:bg-red-400/10 transition-colors">
             Delete
           </button>
         </div>
       </div>
+
+      {/* Edit modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
+          <div onClick={e => e.stopPropagation()} className="bg-v-surface border border-v-border rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold">Edit Job</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-v-text-secondary hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Scheduled Date</label>
+                <input
+                  type="date"
+                  value={editForm.scheduled_date || ''}
+                  onChange={e => setEditForm(p => ({ ...p, scheduled_date: e.target.value || null }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Airport</label>
+                <input
+                  type="text"
+                  value={editForm.airport || ''}
+                  onChange={e => setEditForm(p => ({ ...p, airport: e.target.value.toUpperCase() }))}
+                  placeholder="KCNO"
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white uppercase outline-none focus:border-v-gold/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Tail Number</label>
+                <input
+                  type="text"
+                  value={editForm.tail_number || ''}
+                  onChange={e => setEditForm(p => ({ ...p, tail_number: e.target.value.toUpperCase() }))}
+                  placeholder="N12345"
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white uppercase outline-none focus:border-v-gold/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Total Price</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editForm.total_price || ''}
+                  onChange={e => setEditForm(p => ({ ...p, total_price: parseFloat(e.target.value) || 0 }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Notes</label>
+                <textarea
+                  value={editForm.completion_notes || ''}
+                  onChange={e => setEditForm(p => ({ ...p, completion_notes: e.target.value }))}
+                  rows={3}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowEditModal(false)} className="px-4 py-2 text-sm text-v-text-secondary border border-v-border rounded hover:bg-white/5">Cancel</button>
+              <button onClick={handleSaveEdit} disabled={savingEdit} className="px-4 py-2 text-sm bg-v-gold text-v-charcoal font-semibold rounded hover:bg-v-gold-dim disabled:opacity-50">
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (
@@ -742,7 +878,12 @@ export default function JobDetailPage() {
                       </button>
                     );
                   })}
-                {teamMembers.filter(m => !assignments.some(a => a.team_member_id === m.id)).length === 0 && (
+                {teamMembers.length === 0 && (
+                  <p className="text-v-text-secondary text-sm text-center py-4">
+                    No team members yet. <a href="/team" className="text-v-gold hover:underline">Invite your team →</a>
+                  </p>
+                )}
+                {teamMembers.length > 0 && teamMembers.filter(m => !assignments.some(a => a.team_member_id === m.id)).length === 0 && (
                   <p className="text-v-text-secondary text-sm text-center py-4">All team members assigned</p>
                 )}
               </div>

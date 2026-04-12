@@ -91,16 +91,29 @@ export async function GET(request) {
     assignments: assignmentsByJob[j.id] || [],
   }));
 
-  // Fetch active team members
-  const { data: teamMembers, error: tmError } = await supabase
-    .from('team_members')
-    .select('id, detailer_id, name, email, title, type, status, hourly_pay, is_lead_tech, can_clock, can_see_inventory, can_see_equipment, can_see_pricing, hours_per_day')
-    .eq('detailer_id', user.id)
-    .eq('status', 'active');
-
-  if (tmError) {
-    console.error('[dispatch/board] team_members error:', tmError);
-    return Response.json({ error: tmError.message }, { status: 500 });
+  // Fetch active team members — column-stripping retry to survive missing columns
+  let tmCols = 'id, detailer_id, name, email, title, type, status, hourly_pay, is_lead_tech, can_clock, can_see_inventory, can_see_equipment, can_see_pricing, hours_per_day';
+  let teamMembers = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select(tmCols)
+      .eq('detailer_id', user.id)
+      .eq('status', 'active');
+    if (!error) { teamMembers = data; break; }
+    const colMatch = error.message?.match(/column [\w."]+ does not exist/i)
+      || error.message?.match(/column "([^"]+)" does not exist/i);
+    if (colMatch) {
+      const missing = (error.message.match(/column [\w."]*\.?"?(\w+)"? does not exist/i) || [])[1];
+      if (missing) {
+        tmCols = tmCols.split(',').map(c => c.trim()).filter(c => c !== missing).join(', ');
+        console.log(`[dispatch/board] stripped missing column: ${missing}`);
+        continue;
+      }
+    }
+    console.error('[dispatch/board] team_members error:', error);
+    teamMembers = [];
+    break;
   }
 
   return Response.json({
