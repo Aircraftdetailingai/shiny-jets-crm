@@ -183,6 +183,8 @@ export async function POST(request) {
       discount_percent,
       addon_fees,
       addon_total,
+      client_name,
+      client_email,
       customer_id,
       customer_phone,
       customer_company,
@@ -200,6 +202,10 @@ export async function POST(request) {
       contact_notes,
       linked_products,
       linked_equipment,
+      discount_type,
+      discount_value,
+      discount_reason,
+      discounted_total,
     } = body;
 
     // Validate: need at minimum an aircraft type or model, and some price
@@ -242,6 +248,9 @@ export async function POST(request) {
       valid_until: validUntil,
       status: 'draft',
       services: services || {},
+      client_name: client_name || null,
+      client_email: client_email || null,
+      client_phone: customer_phone || null,
     };
 
     // Try adding optional columns - these may or may not exist in the DB
@@ -275,6 +284,10 @@ export async function POST(request) {
       product_estimates: product_estimates || [],
       linked_products: linked_products || [],
       linked_equipment: linked_equipment || [],
+      discount_type: discount_type || null,
+      discount_value: discount_value ? parseFloat(discount_value) : null,
+      discount_reason: discount_reason || null,
+      discounted_total: discounted_total ? parseFloat(discounted_total) : null,
       metadata: quoteMetadata,
       poc_name: poc_name || null,
       poc_phone: poc_phone || null,
