@@ -60,6 +60,10 @@ function NewQuoteContent() {
   const [draftId, setDraftId] = useState(null);
   const [draftSaving, setDraftSaving] = useState(false);
   const [autoSaveLabel, setAutoSaveLabel] = useState('');
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [userDiscountType, setUserDiscountType] = useState('percentage');
+  const [userDiscountValue, setUserDiscountValue] = useState('');
+  const [userDiscountReason, setUserDiscountReason] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
   const [minimumFee, setMinimumFee] = useState(0);
   const [minimumFeeLocations, setMinimumFeeLocations] = useState([]);
@@ -661,7 +665,13 @@ function NewQuoteContent() {
   };
 
   const isMinimumApplied = minimumFeeApplies();
-  const totalPrice = isMinimumApplied ? minimumFee : calculatedPrice;
+  const priceBeforeUserDiscount = isMinimumApplied ? minimumFee : calculatedPrice;
+  const userDiscountAmt = showDiscount && parseFloat(userDiscountValue) > 0
+    ? (userDiscountType === 'percentage'
+      ? priceBeforeUserDiscount * (parseFloat(userDiscountValue) / 100)
+      : parseFloat(userDiscountValue))
+    : 0;
+  const totalPrice = Math.max(0, priceBeforeUserDiscount - userDiscountAmt);
   const ccFeeAmount = ccFeeMode === 'pass' ? calculateCcFee(totalPrice) : 0;
   const grandTotal = totalPrice + ccFeeAmount;
 
@@ -828,6 +838,10 @@ function NewQuoteContent() {
       client_email: preselectedCustomer?.email || '',
       customer_id: preselectedCustomer?.id || null,
       customer_phone: preselectedCustomer?.phone || null,
+      discount_type: showDiscount && userDiscountAmt > 0 ? userDiscountType : null,
+      discount_value: showDiscount && userDiscountAmt > 0 ? parseFloat(userDiscountValue) : null,
+      discount_reason: showDiscount && userDiscountReason ? userDiscountReason : null,
+      discounted_total: userDiscountAmt > 0 ? totalPrice : null,
     };
   };
 
@@ -1711,12 +1725,83 @@ function NewQuoteContent() {
                 </div>
               )}
 
+              {/* User Discount */}
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                  <div
+                    onClick={() => setShowDiscount(!showDiscount)}
+                    className={`relative w-8 h-4 rounded-full transition-colors ${showDiscount ? 'bg-green-500' : 'bg-gray-600'}`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${showDiscount ? 'translate-x-4' : ''}`} />
+                  </div>
+                  <span className="text-xs text-gray-400">Apply Discount</span>
+                </label>
+
+                {showDiscount && (
+                  <div className="space-y-2 mb-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUserDiscountType('percentage')}
+                        className={`flex-1 py-1.5 text-xs rounded ${userDiscountType === 'percentage' ? 'bg-green-600 text-white' : 'bg-white/10 text-gray-400 border border-white/20'}`}
+                      >
+                        Percentage %
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUserDiscountType('fixed')}
+                        className={`flex-1 py-1.5 text-xs rounded ${userDiscountType === 'fixed' ? 'bg-green-600 text-white' : 'bg-white/10 text-gray-400 border border-white/20'}`}
+                      >
+                        Fixed Amount $
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max={userDiscountType === 'percentage' ? 100 : priceBeforeUserDiscount}
+                          step={userDiscountType === 'percentage' ? 1 : 0.01}
+                          value={userDiscountValue}
+                          onChange={e => setUserDiscountValue(e.target.value)}
+                          placeholder={userDiscountType === 'percentage' ? '10' : '100'}
+                          className="w-full bg-white/10 border border-white/20 text-white rounded px-3 py-1.5 text-sm outline-none focus:border-green-500/50"
+                        />
+                        <span className="absolute right-3 top-1.5 text-gray-500 text-sm">{userDiscountType === 'percentage' ? '%' : '$'}</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={userDiscountReason}
+                        onChange={e => setUserDiscountReason(e.target.value)}
+                        placeholder="Reason (optional)"
+                        className="flex-1 bg-white/10 border border-white/20 text-white rounded px-3 py-1.5 text-sm placeholder-gray-500 outline-none focus:border-green-500/50"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {userDiscountAmt > 0 && (
+                  <div className="flex justify-between text-sm text-green-400 mb-1">
+                    <span>
+                      Discount{userDiscountReason ? ` — ${userDiscountReason}` : ''}
+                      {userDiscountType === 'percentage' ? ` (-${userDiscountValue}%)` : ''}
+                    </span>
+                    <span>-{currencySymbol()}{formatPrice(userDiscountAmt)}</span>
+                  </div>
+                )}
+              </div>
+
               <div className="border-t border-white/10 my-3" />
 
               {/* Total */}
               <div className="flex justify-between items-baseline">
                 <span className="text-sm text-gray-400 uppercase tracking-wider">Total</span>
-                <span className="text-[2.5rem] font-extralight text-v-gold">{currencySymbol()}{formatPrice(totalPrice)}</span>
+                <div className="text-right">
+                  {userDiscountAmt > 0 && (
+                    <span className="text-sm text-gray-500 line-through mr-2">{currencySymbol()}{formatPrice(priceBeforeUserDiscount)}</span>
+                  )}
+                  <span className="text-[2.5rem] font-extralight text-v-gold">{currencySymbol()}{formatPrice(totalPrice)}</span>
+                </div>
               </div>
 
               {/* CC Processing Fee */}

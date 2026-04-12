@@ -705,6 +705,23 @@ export default function QuoteViewPage() {
             )}
           </div>
 
+          {/* Discount */}
+          {quote.discount_type && parseFloat(quote.discount_value) > 0 && (
+            <div className="flex justify-between items-center py-2 mb-2 text-sm">
+              <span className="text-green-400">
+                {quote.discount_reason || 'Discount'}
+                {quote.discount_type === 'percentage' ? ` (-${quote.discount_value}%)` : ''}
+              </span>
+              <span className="text-green-400">
+                -{sym}{formatPrice(
+                  quote.discount_type === 'percentage'
+                    ? (parseFloat(quote.discounted_total ? (parseFloat(quote.total_price) + (parseFloat(quote.total_price) - parseFloat(quote.discounted_total))) : quote.total_price) - parseFloat(quote.total_price))
+                    : parseFloat(quote.discount_value)
+                )}
+              </span>
+            </div>
+          )}
+
           {/* Total */}
           <div className="border-t border-[var(--brand-border-strong,#2A3A50)] pt-6 mb-8 text-center">
             {isDepositPaid ? (
@@ -718,6 +735,9 @@ export default function QuoteViewPage() {
             ) : (
               <>
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">{isPaid ? 'Total Paid' : 'Total'}</p>
+                {quote.discount_type && parseFloat(quote.discount_value) > 0 && quote.discounted_total && (
+                  <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-lg line-through mb-1">{sym}{formatPrice(parseFloat(quote.total_price) + (parseFloat(quote.total_price) - parseFloat(quote.discounted_total)))}</p>
+                )}
                 <p className="text-[var(--brand-primary,#007CB1)] text-[2.5rem] font-light">{sym}{formatPrice(quote.total_price)}</p>
               </>
             )}
