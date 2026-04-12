@@ -660,17 +660,49 @@ export default function QuoteViewPage() {
           {/* Services */}
           <div className="mb-8">
             <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
-            <div className="divide-y divide-[var(--brand-border,#1A2236)]">
-              {services.map((svc, i) => (
-                <div key={i} className="flex justify-between items-center py-3">
-                  <div>
+            {(detailer?.quote_display_mode === 'package') ? (
+              <div className="text-center py-4">
+                <p className="text-[var(--brand-text,#F5F5F5)] text-lg font-semibold">{detailer.quote_package_name || 'Aircraft Detail Package'}</p>
+                <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-bold mt-2">{sym}{formatPrice(quote.total_price)}</p>
+                {detailer.quote_show_breakdown && services.length > 0 && (
+                  <details>
+                    <summary className="text-sm cursor-pointer text-blue-400 hover:underline mt-2">View service breakdown</summary>
+                    <div className="divide-y divide-[var(--brand-border,#1A2236)] mt-2 text-left">
+                      {services.map((svc, i) => (
+                        <div key={i} className="flex justify-between items-center py-3">
+                          <div>
+                            <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                            {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                          </div>
+                          {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            ) : (detailer?.quote_display_mode === 'hours_only') ? (
+              <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                {services.map((svc, i) => (
+                  <div key={i} className="flex justify-between items-center py-3">
                     <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
-                    {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                    {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{svc.hours.toFixed(1)}h estimated</span>}
                   </div>
-                  {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                {services.map((svc, i) => (
+                  <div key={i} className="flex justify-between items-center py-3">
+                    <div>
+                      <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                      {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                    </div>
+                    {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Total */}
@@ -819,45 +851,86 @@ export default function QuoteViewPage() {
         <div className="mb-8">
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
 
-          {/* Full breakdown */}
-          {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'full_breakdown' && services.length > 0 && (
-            <div className="divide-y divide-[var(--brand-border,#1A2236)]">
-              {services.map((svc, i) => (
-                <div key={i} className="flex justify-between py-3">
-                  <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
-                  {svc.amount > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(svc.amount)}</span>}
-                </div>
-              ))}
+          {/* Display mode: package */}
+          {detailer?.quote_display_mode === 'package' && (
+            <div className="text-center py-4">
+              <p className="text-[var(--brand-text,#F5F5F5)] text-lg font-semibold">{detailer.quote_package_name || 'Aircraft Detail Package'}</p>
+              <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-bold mt-2">{sym}{formatPrice(quote.total_price)}</p>
+              {detailer.quote_show_breakdown && services.length > 0 && (
+                <details>
+                  <summary className="text-sm cursor-pointer text-blue-400 hover:underline mt-2">View service breakdown</summary>
+                  <div className="divide-y divide-[var(--brand-border,#1A2236)] mt-2 text-left">
+                    {services.map((svc, i) => (
+                      <div key={i} className="flex justify-between items-center py-3">
+                        <div>
+                          <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                          {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                        </div>
+                        {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 
-          {/* Labor/products split */}
-          {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'labor_products' && (
-            <div className="divide-y divide-[var(--brand-border,#1A2236)]">
-              <div className="flex justify-between py-3">
-                <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Labor</span>
-                <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(parseFloat(quote.labor_total) || basePrice * 0.7)}</span>
-              </div>
-              <div className="flex justify-between py-3">
-                <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Products & Materials</span>
-                <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(parseFloat(quote.products_total) || basePrice * 0.3)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Default / package: service names + prices */}
-          {(quote.minimum_fee_applied || !detailer?.quote_display_preference || detailer?.quote_display_preference === 'total_only' || detailer?.quote_display_preference === 'package') && services.length > 0 && (
+          {/* Display mode: hours_only */}
+          {detailer?.quote_display_mode === 'hours_only' && services.length > 0 && (
             <div className="divide-y divide-[var(--brand-border,#1A2236)]">
               {services.map((svc, i) => (
                 <div key={i} className="flex justify-between items-center py-3">
-                  <div>
-                    <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
-                    {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
-                  </div>
-                  {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
+                  <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                  {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{svc.hours.toFixed(1)}h estimated</span>}
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Display mode: itemized (default) — preserves existing quote_display_preference logic */}
+          {(!detailer?.quote_display_mode || detailer?.quote_display_mode === 'itemized') && (
+            <>
+              {/* Full breakdown */}
+              {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'full_breakdown' && services.length > 0 && (
+                <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                  {services.map((svc, i) => (
+                    <div key={i} className="flex justify-between py-3">
+                      <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                      {svc.amount > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(svc.amount)}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Labor/products split */}
+              {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'labor_products' && (
+                <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                  <div className="flex justify-between py-3">
+                    <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Labor</span>
+                    <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(parseFloat(quote.labor_total) || basePrice * 0.7)}</span>
+                  </div>
+                  <div className="flex justify-between py-3">
+                    <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Products & Materials</span>
+                    <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(parseFloat(quote.products_total) || basePrice * 0.3)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Default / package: service names + prices */}
+              {(quote.minimum_fee_applied || !detailer?.quote_display_preference || detailer?.quote_display_preference === 'total_only' || detailer?.quote_display_preference === 'package') && services.length > 0 && (
+                <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                  {services.map((svc, i) => (
+                    <div key={i} className="flex justify-between items-center py-3">
+                      <div>
+                        <span className="text-[var(--brand-text,#F5F5F5)] text-sm">{svc.name}</span>
+                        {svc.hours > 0 && <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                      </div>
+                      {svc.amount > 0 && <span className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{sym}{formatPrice(svc.amount)}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

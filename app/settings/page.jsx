@@ -45,6 +45,10 @@ function SettingsContent() {
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [priceReminder, setPriceReminder] = useState(6);
   const [quoteDisplayPref, setQuoteDisplayPref] = useState('package');
+  const [quoteDisplayMode, setQuoteDisplayMode] = useState('itemized');
+  const [quotePackageName, setQuotePackageName] = useState('Aircraft Detail Package');
+  const [quoteShowBreakdown, setQuoteShowBreakdown] = useState(false);
+  const [quoteItemizedCheckout, setQuoteItemizedCheckout] = useState(true);
   const [efficiencyFactor, setEfficiencyFactor] = useState(1.0);
   const [stripeStatus, setStripeStatus] = useState({ connected: false, status: 'UNKNOWN' });
   const [stripeLoading, setStripeLoading] = useState(false);
@@ -200,6 +204,10 @@ function SettingsContent() {
     setProfilePhone(u.phone || '');
     setPriceReminder(u.price_reminder_months || 6);
     setQuoteDisplayPref(u.quote_display_preference || 'package');
+    setQuoteDisplayMode(u.quote_display_mode || u.quote_display_preference || 'itemized');
+    setQuotePackageName(u.quote_package_name || 'Aircraft Detail Package');
+    setQuoteShowBreakdown(u.quote_show_breakdown || false);
+    setQuoteItemizedCheckout(u.quote_itemized_checkout !== false);
     setEfficiencyFactor(u.efficiency_factor || 1.0);
     setLaborRate(u.default_labor_rate || 25);
     setHomeAirport(u.home_airport || '');
@@ -831,15 +839,36 @@ function SettingsContent() {
   };
 
   const saveQuoteDisplayPref = async (pref) => {
+    const token = localStorage.getItem('vector_token');
     await fetch('/api/user/quote-display', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ quote_display_preference: pref }),
     });
-    const newUser = { ...user, quote_display_preference: pref };
+    await fetch('/api/user/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        quote_display_mode: quoteDisplayMode,
+        quote_package_name: quotePackageName,
+        quote_show_breakdown: quoteShowBreakdown,
+        quote_itemized_checkout: quoteItemizedCheckout,
+      }),
+    });
+    const newUser = {
+      ...user,
+      quote_display_preference: pref,
+      quote_display_mode: quoteDisplayMode,
+      quote_package_name: quotePackageName,
+      quote_show_breakdown: quoteShowBreakdown,
+      quote_itemized_checkout: quoteItemizedCheckout,
+    };
     localStorage.setItem('vector_user', JSON.stringify(newUser));
     setUser(newUser);
   };
@@ -2382,6 +2411,111 @@ function SettingsContent() {
             </div>
             );
           })()}
+        </div>
+
+        {/* Quote Presentation */}
+        <div className="pb-6 mb-2">
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Quote Presentation</h3>
+
+          {/* Pricing Display */}
+          <div className="mb-4">
+            <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-2">Pricing Display</label>
+            <div className="space-y-3">
+              <label
+                className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
+                  quoteDisplayMode === 'itemized' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="quoteDisplayMode"
+                  checked={quoteDisplayMode === 'itemized'}
+                  onChange={() => { setQuoteDisplayMode('itemized'); markDirty('quoteDisplay'); }}
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <p className="font-medium text-v-text-primary">{'\u00C0 la carte'}</p>
+                  <p className="text-sm text-v-text-secondary">Each service shown with individual price</p>
+                </div>
+              </label>
+              <label
+                className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
+                  quoteDisplayMode === 'package' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="quoteDisplayMode"
+                  checked={quoteDisplayMode === 'package'}
+                  onChange={() => { setQuoteDisplayMode('package'); markDirty('quoteDisplay'); }}
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <p className="font-medium text-v-text-primary">Package pricing</p>
+                  <p className="text-sm text-v-text-secondary">Services grouped, single total shown</p>
+                </div>
+              </label>
+              <label
+                className={`flex items-start p-3 border rounded-sm cursor-pointer transition-colors ${
+                  quoteDisplayMode === 'hours_only' ? 'border-v-gold bg-v-gold/10' : 'border-v-border hover:bg-white/5'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="quoteDisplayMode"
+                  checked={quoteDisplayMode === 'hours_only'}
+                  onChange={() => { setQuoteDisplayMode('hours_only'); markDirty('quoteDisplay'); }}
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <p className="font-medium text-v-text-primary">Hours only</p>
+                  <p className="text-sm text-v-text-secondary">Hours per service, no individual prices, just grand total</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Package settings (only when package mode selected) */}
+          {quoteDisplayMode === 'package' && (
+            <div className="mb-4 pl-4 border-l-2 border-v-gold/30 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">Package Name</label>
+                <input
+                  type="text"
+                  value={quotePackageName}
+                  onChange={(e) => { setQuotePackageName(e.target.value); markDirty('quoteDisplay'); }}
+                  placeholder="Aircraft Detail Package"
+                  className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-v-text-primary">Show line-item breakdown</p>
+                  <p className="text-xs text-v-text-secondary">Display individual services under the package total</p>
+                </div>
+                <div
+                  onClick={() => { setQuoteShowBreakdown(!quoteShowBreakdown); markDirty('quoteDisplay'); }}
+                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${quoteShowBreakdown ? 'bg-v-gold' : 'bg-gray-600'}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${quoteShowBreakdown ? 'translate-x-5' : ''}`} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stripe checkout setting */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-v-text-primary">Show individual services on Stripe checkout</p>
+              <p className="text-xs text-v-text-secondary">When off, customers see a single line item on checkout</p>
+            </div>
+            <div
+              onClick={() => { setQuoteItemizedCheckout(!quoteItemizedCheckout); markDirty('quoteDisplay'); }}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${quoteItemizedCheckout ? 'bg-v-gold' : 'bg-gray-600'}`}
+            >
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${quoteItemizedCheckout ? 'translate-x-5' : ''}`} />
+            </div>
+          </div>
         </div>
 
         {/* Region, Language & Currency */}

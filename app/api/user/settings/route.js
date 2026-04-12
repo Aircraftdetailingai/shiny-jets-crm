@@ -14,6 +14,10 @@ const ALLOWED_FIELDS = [
   'chargeback_terms_accepted_at',
   'stripe_publishable_key',
   'stripe_secret_key',
+  'quote_display_mode',
+  'quote_package_name',
+  'quote_show_breakdown',
+  'quote_itemized_checkout',
 ];
 
 export async function POST(request) {

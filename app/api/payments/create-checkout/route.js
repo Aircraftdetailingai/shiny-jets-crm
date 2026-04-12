@@ -53,7 +53,7 @@ export async function POST(request) {
     // Fetch detailer
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_secret_key, stripe_account_id, company, email, plan, cc_fee_mode, booking_mode, deposit_percentage')
+      .select('stripe_secret_key, stripe_account_id, company, email, plan, cc_fee_mode, booking_mode, deposit_percentage, quote_package_name, quote_itemized_checkout')
       .eq('id', quote.detailer_id)
       .single();
 
@@ -96,6 +96,8 @@ export async function POST(request) {
 
     let stripeLineItems;
 
+    const useItemizedCheckout = detailer?.quote_itemized_checkout !== false;
+
     if (isDeposit) {
       // Deposits show as a single line
       stripeLineItems = [{
@@ -103,6 +105,19 @@ export async function POST(request) {
           currency: 'usd',
           product_data: {
             name: `Deposit (${depositPct}%) - ${quote.aircraft_model || quote.aircraft_type || 'Quote'}`,
+            description: `Quote from ${detailer.company || 'Detailer'}`,
+          },
+          unit_amount: baseAmount,
+        },
+        quantity: 1,
+      }];
+    } else if (!useItemizedCheckout) {
+      // Package / non-itemized checkout: single line item with package name
+      stripeLineItems = [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: detailer.quote_package_name || 'Aircraft Detail Package',
             description: `Quote from ${detailer.company || 'Detailer'}`,
           },
           unit_amount: baseAmount,
