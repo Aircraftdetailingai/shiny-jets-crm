@@ -34,6 +34,98 @@ export default function JobDetailPage() {
   const [invoiceSent, setInvoiceSent] = useState(false);
   const [showInvoicePrompt, setShowInvoicePrompt] = useState(false);
 
+  // Dispatch / crew assignment state
+  const [assignments, setAssignments] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showAddCrew, setShowAddCrew] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchedToast, setDispatchedToast] = useState(false);
+  const [planRequired, setPlanRequired] = useState(false);
+
+  // Fetch dispatch board data scoped to this job
+  const fetchAssignments = async (token) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await fetch('/api/dispatch/board', { headers });
+      if (res.status === 403) { setPlanRequired(true); return; }
+      if (!res.ok) return;
+      const data = await res.json();
+      const thisJob = (data.jobs || []).find(j => j.id === jobId);
+      setAssignments(thisJob?.assignments || []);
+      setTeamMembers((data.team_members || []).filter(m => m.status === 'active'));
+    } catch {}
+  };
+
+  // Fetch smart crew suggestions for this job
+  const fetchSuggestions = async (token) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const date = job?.scheduled_date || new Date().toISOString().split('T')[0];
+      const res = await fetch(`/api/dispatch/suggest?job_id=${jobId}&date=${date}`, { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSuggestions(data.suggestions || []);
+    } catch {}
+  };
+
+  // Load dispatch data when job loads
+  useEffect(() => {
+    if (!job) return;
+    const token = localStorage.getItem('vector_token');
+    if (!token) return;
+    fetchAssignments(token);
+    fetchSuggestions(token);
+  }, [job?.id]);
+
+  const handleAssignCrew = async (memberId) => {
+    setAssigning(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/dispatch/assign', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId, team_member_ids: [memberId] }),
+      });
+      if (res.ok) {
+        await fetchAssignments(token);
+        setShowAddCrew(false);
+      }
+    } finally { setAssigning(false); }
+  };
+
+  const handleUnassignCrew = async (memberId) => {
+    try {
+      const token = localStorage.getItem('vector_token');
+      await fetch('/api/dispatch/assign', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId, team_member_id: memberId }),
+      });
+      await fetchAssignments(token);
+    } catch {}
+  };
+
+  const handleDispatch = async () => {
+    setDispatching(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const pendingIds = assignments.filter(a => a.status === 'pending').map(a => a.team_member_id);
+      if (pendingIds.length === 0) { setDispatching(false); return; }
+      const res = await fetch('/api/dispatch/assign', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId, team_member_ids: pendingIds }),
+      });
+      if (res.ok) {
+        setDispatchedToast(true);
+        setTimeout(() => setDispatchedToast(false), 2500);
+        await fetchAssignments(token);
+      }
+    } finally { setDispatching(false); }
+  };
+
   const fetchJob = async (token) => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
@@ -229,6 +321,15 @@ export default function JobDetailPage() {
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[job.status] || 'bg-gray-500/20 text-gray-400'}`}>
             {(job.status || '').replace('_', ' ')}
           </span>
+          {assignments.some(a => a.status === 'pending') && (
+            <button
+              onClick={handleDispatch}
+              disabled={dispatching}
+              className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50"
+            >
+              {dispatching ? 'Sending...' : dispatchedToast ? 'Dispatched ✓' : 'Dispatch'}
+            </button>
+          )}
           <button onClick={() => setShowDeleteConfirm(true)} className="px-3 py-1 text-xs text-red-400 border border-red-400/30 rounded-full hover:bg-red-400/10 transition-colors">
             Delete
           </button>
@@ -520,6 +621,133 @@ export default function JobDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Crew / Dispatch */}
+      {!planRequired && (
+        <div className="mb-8 bg-v-surface border border-v-border rounded-lg p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider">Crew</h3>
+            {!showAddCrew && (
+              <button
+                onClick={() => setShowAddCrew(true)}
+                className="text-xs text-v-gold hover:text-v-gold-dim transition-colors"
+              >
+                + Add Crew
+              </button>
+            )}
+          </div>
+
+          {/* Currently assigned crew */}
+          {assignments.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {assignments.map(a => {
+                const member = teamMembers.find(m => m.id === a.team_member_id);
+                if (!member) return null;
+                const statusBadge = a.status === 'accepted'
+                  ? { color: 'text-green-400 bg-green-500/10 border-green-500/30', icon: '✓', label: 'Accepted' }
+                  : a.status === 'declined'
+                  ? { color: 'text-red-400 bg-red-500/10 border-red-500/30', icon: '✕', label: 'Declined' }
+                  : { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: '◷', label: 'Pending' };
+                return (
+                  <div key={a.id} className="flex items-center justify-between p-3 bg-v-charcoal border border-v-border rounded">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-v-gold/20 text-v-gold flex items-center justify-center text-xs font-semibold shrink-0">
+                        {(member.name || '?').charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-v-text-primary text-sm truncate">{member.name}</p>
+                        {member.title && <p className="text-v-text-secondary text-xs truncate">{member.title}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge.color}`}>
+                        <span>{statusBadge.icon}</span>
+                        {statusBadge.label}
+                      </span>
+                      <button
+                        onClick={() => handleUnassignCrew(a.team_member_id)}
+                        className="text-v-text-secondary/60 hover:text-red-400 text-lg leading-none px-1"
+                        title="Unassign"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add crew picker — also shows when no crew assigned */}
+          {(showAddCrew || assignments.length === 0) && (
+            <div className={assignments.length > 0 ? 'border-t border-v-border pt-4' : ''}>
+              {assignments.length === 0 && !showAddCrew && (
+                <p className="text-v-text-secondary text-sm mb-3">No crew assigned yet. Pick from your team:</p>
+              )}
+              {showAddCrew && (
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-v-text-secondary uppercase tracking-wider">Add Team Member</p>
+                  <button onClick={() => setShowAddCrew(false)} className="text-xs text-v-text-secondary hover:text-v-text-primary">Cancel</button>
+                </div>
+              )}
+
+              <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                {teamMembers
+                  .filter(m => !assignments.some(a => a.team_member_id === m.id))
+                  .sort((a, b) => {
+                    const aSug = suggestions.find(s => s.team_member_id === a.id)?.score || 0;
+                    const bSug = suggestions.find(s => s.team_member_id === b.id)?.score || 0;
+                    if (aSug !== bSug) return bSug - aSug;
+                    return (a.name || '').localeCompare(b.name || '');
+                  })
+                  .map(m => {
+                    const sug = suggestions.find(s => s.team_member_id === m.id);
+                    const isSuggested = sug && sug.score > 0;
+                    const overbooked = sug && !sug.available;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => handleAssignCrew(m.id)}
+                        disabled={assigning || overbooked}
+                        className={`w-full flex items-center justify-between p-3 rounded border transition-colors text-left ${
+                          isSuggested
+                            ? 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15'
+                            : 'bg-v-charcoal border-v-border hover:bg-white/5'
+                        } ${overbooked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${isSuggested ? 'bg-blue-500/20 text-blue-400' : 'bg-white/10 text-v-text-secondary'}`}>
+                            {(m.name || '?').charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-v-text-primary text-sm truncate">{m.name}</p>
+                              {isSuggested && <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[9px] uppercase tracking-wider rounded-full">Suggested</span>}
+                            </div>
+                            {m.title && <p className="text-v-text-secondary text-xs truncate">{m.title}</p>}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {sug && sug.hours_today > 0 ? (
+                            <p className={`text-xs ${overbooked ? 'text-red-400' : 'text-v-text-secondary'}`}>{sug.hours_today}h today</p>
+                          ) : (
+                            <p className="text-xs text-green-400">Available</p>
+                          )}
+                          {sug && sug.specialty_match > 0 && (
+                            <p className="text-[10px] text-v-gold mt-0.5">{sug.specialty_match} specialty match</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                {teamMembers.filter(m => !assignments.some(a => a.team_member_id === m.id)).length === 0 && (
+                  <p className="text-v-text-secondary text-sm text-center py-4">All team members assigned</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
