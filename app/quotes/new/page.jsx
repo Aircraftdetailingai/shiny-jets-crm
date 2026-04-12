@@ -438,9 +438,10 @@ function NewQuoteContent() {
         setSelectedPackage(null);
         setSelectedAddons({});
         setAccessDifficulty(1.0);
-        setQuoteNotes('');
+        setQuoteNotes(prev => prev || '');
         setJobLocation('');
-        setAirport('');
+        // Preserve airport if pre-filled from a customer request — only clear on manual aircraft pick
+        setAirport(prev => prev || '');
         setCustomHours({});
         setSaveDefaultPrompt({});
         setAircraftHoursRef(null);
