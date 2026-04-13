@@ -11,6 +11,7 @@ const STATUS_STYLES = {
   quoted:    { label: 'Quoted', bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
   converted: { label: 'Converted', bg: 'bg-v-gold/20', text: 'text-v-gold', border: 'border-v-gold/30' },
   closed:    { label: 'Closed', bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' },
+  declined:  { label: 'Declined', bg: 'bg-red-500/10', text: 'text-red-400/70', border: 'border-red-500/20' },
 };
 
 export default function RequestDetailPage() {
@@ -21,6 +22,8 @@ export default function RequestDetailPage() {
   const [dismissing, setDismissing] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+  const [declineNote, setDeclineNote] = useState('');
+  const [sendDeclineEmail, setSendDeclineEmail] = useState(true);
   const [declining, setDeclining] = useState(false);
   const [requestingPhotos, setRequestingPhotos] = useState(false);
 
@@ -253,14 +256,33 @@ export default function RequestDetailPage() {
 
         {/* Decline Modal */}
         {showDecline && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-v-surface border border-v-border rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-white font-medium mb-3">Decline Request</h3>
-              <p className="text-v-text-secondary text-xs mb-4">The customer will receive a polite notification.</p>
-              <textarea value={declineReason} onChange={e => setDeclineReason(e.target.value)}
-                placeholder="Reason (optional) — e.g. outside service area, fully booked"
-                rows={3}
-                className="w-full bg-white/10 border border-white/20 text-white rounded px-3 py-2 text-sm placeholder-white/30 outline-none focus:border-v-gold/50 resize-none mb-4" />
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => !declining && setShowDecline(false)}>
+            <div className="bg-v-surface border border-v-border rounded-lg p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <h3 className="text-white font-medium mb-1">Decline Request</h3>
+              <p className="text-v-text-secondary text-xs mb-4">Internal only — the customer receives a generic professional email.</p>
+
+              <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Reason (internal)</label>
+              <select value={declineReason} onChange={e => setDeclineReason(e.target.value)}
+                className="w-full bg-white/10 border border-white/20 text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50 mb-3" style={{ colorScheme: 'dark' }}>
+                <option value="">Select a reason...</option>
+                <option value="outside_area">Too far / Outside service area</option>
+                <option value="not_available">Not available on requested date</option>
+                <option value="aircraft_type">Aircraft type not serviced</option>
+                <option value="pricing">Pricing doesn&apos;t work</option>
+                <option value="other">Other</option>
+              </select>
+
+              <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Internal note (optional)</label>
+              <textarea value={declineNote} onChange={e => setDeclineNote(e.target.value)}
+                placeholder="Optional internal note..."
+                rows={2}
+                className="w-full bg-white/10 border border-white/20 text-white rounded px-3 py-2 text-sm placeholder-white/30 outline-none focus:border-v-gold/50 resize-none mb-3" />
+
+              <label className="flex items-center gap-2 cursor-pointer mb-5">
+                <input type="checkbox" checked={sendDeclineEmail} onChange={e => setSendDeclineEmail(e.target.checked)} className="w-4 h-4 rounded accent-red-500" />
+                <span className="text-sm text-white">Send decline email to customer</span>
+              </label>
+
               <div className="flex gap-3">
                 <button onClick={async () => {
                   setDeclining(true);
@@ -268,15 +290,15 @@ export default function RequestDetailPage() {
                   await fetch('/api/lead-intake/decline', {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ lead_id: id, reason: declineReason }),
+                    body: JSON.stringify({ lead_id: id, reason: declineReason, note: declineNote, send_email: sendDeclineEmail }),
                   }).catch(() => {});
                   router.push('/requests');
                 }} disabled={declining}
-                  className="flex-1 py-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-xs uppercase tracking-wider hover:bg-red-500/30 disabled:opacity-50">
-                  {declining ? 'Sending...' : 'Decline & Notify'}
+                  className="flex-1 py-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs uppercase tracking-wider hover:bg-red-500/30 disabled:opacity-50 font-medium">
+                  {declining ? 'Processing...' : 'Decline Request'}
                 </button>
-                <button onClick={() => setShowDecline(false)}
-                  className="flex-1 py-3 border border-v-border text-v-text-secondary rounded text-xs uppercase tracking-wider hover:bg-white/5">
+                <button onClick={() => setShowDecline(false)} disabled={declining}
+                  className="flex-1 py-3 border border-v-border text-v-text-secondary rounded-lg text-xs uppercase tracking-wider hover:bg-white/5 disabled:opacity-50">
                   Cancel
                 </button>
               </div>

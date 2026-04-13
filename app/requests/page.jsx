@@ -11,6 +11,7 @@ const STATUS_STYLES = {
   quoted:    { label: 'Quoted', bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
   converted: { label: 'Converted', bg: 'bg-v-gold/20', text: 'text-v-gold', border: 'border-v-gold/30' },
   closed:    { label: 'Closed', bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' },
+  declined:  { label: 'Declined', bg: 'bg-red-500/10', text: 'text-red-400/70', border: 'border-red-500/20' },
 };
 
 export default function RequestsPage() {
@@ -32,11 +33,16 @@ export default function RequestsPage() {
 
   if (loading) return <LoadingSpinner message="Loading requests..." />;
 
-  // Hide quoted/converted requests — they move to the quotes dashboard
+  // Hide quoted/converted — they move to quotes dashboard. Declined hidden from default too.
   const activeLeads = leads.filter(l => !['quoted', 'converted'].includes(l.status));
-  const filtered = filter === 'all' ? activeLeads : activeLeads.filter(l => l.status === filter || (filter === 'opened' && l.status === 'viewed'));
-  const newCount = activeLeads.filter(l => l.status === 'new').length;
-  const openedCount = activeLeads.filter(l => l.status === 'opened' || l.status === 'viewed').length;
+  const nonDeclined = activeLeads.filter(l => l.status !== 'declined');
+  const declinedCount = activeLeads.filter(l => l.status === 'declined').length;
+  const filtered = filter === 'all' ? nonDeclined
+    : filter === 'all_including_declined' ? activeLeads
+    : filter === 'declined' ? activeLeads.filter(l => l.status === 'declined')
+    : nonDeclined.filter(l => l.status === filter || (filter === 'opened' && l.status === 'viewed'));
+  const newCount = nonDeclined.filter(l => l.status === 'new').length;
+  const openedCount = nonDeclined.filter(l => l.status === 'opened' || l.status === 'viewed').length;
 
   return (
     <AppShell title="Requests">
@@ -48,9 +54,10 @@ export default function RequestsPage() {
         {/* Filter tabs */}
         <div className="flex items-center gap-5 mb-6 overflow-x-auto">
           {[
-            { key: 'all', label: `All (${activeLeads.length})` },
+            { key: 'all', label: `All (${nonDeclined.length})` },
             { key: 'new', label: `New (${newCount})` },
             { key: 'opened', label: `Opened (${openedCount})` },
+            ...(declinedCount > 0 ? [{ key: 'declined', label: `Declined (${declinedCount})` }] : []),
           ].map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${
