@@ -7,6 +7,42 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
 
+// GET - Fetch assignments for a specific job
+export async function GET(request, { params }) {
+  const user = await getAuthUser(request);
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = params;
+  const supabase = getSupabase();
+  const detailerId = user.detailer_id || user.id;
+
+  // Fetch from job_assignments table (works for both jobs and quotes)
+  const { data: rows } = await supabase
+    .from('job_assignments')
+    .select('id, job_id, team_member_id, status, notified_at, accepted_at')
+    .eq('job_id', id)
+    .eq('detailer_id', detailerId);
+
+  // Resolve team member names
+  const memberIds = [...new Set((rows || []).map(r => r.team_member_id).filter(Boolean))];
+  let membersById = {};
+  if (memberIds.length > 0) {
+    const { data: members } = await supabase
+      .from('team_members')
+      .select('id, name, title, phone, email')
+      .in('id', memberIds);
+    for (const m of (members || [])) membersById[m.id] = m;
+  }
+
+  const assignments = (rows || []).map(r => ({
+    ...r,
+    member_name: membersById[r.team_member_id]?.name || 'Unknown',
+    member_title: membersById[r.team_member_id]?.title || null,
+  }));
+
+  return Response.json({ assignments });
+}
+
 // POST - Assign team members to a job (quote)
 export async function POST(request, { params }) {
   const user = await getAuthUser(request);

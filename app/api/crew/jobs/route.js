@@ -38,7 +38,7 @@ export async function GET(request) {
   }
   const { data: assignments } = await assignmentQuery;
   const assignedJobIds = new Set((assignments || []).map(a => a.job_id).filter(Boolean));
-  console.log(`[crew/jobs] member=${user.id} is_lead=${isLead} assignments=${assignedJobIds.size}`);
+  console.log(`[crew/jobs] member=${user.id} is_lead=${isLead} assignments=${assignedJobIds.size} ids=[${[...assignedJobIds].join(',')}]`);
 
   const jobs = [];
 

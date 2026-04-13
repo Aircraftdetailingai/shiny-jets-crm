@@ -64,30 +64,44 @@ export default function JobDetailPage() {
   const fetchAssignments = async (token) => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await fetch('/api/dispatch/board', { headers });
-      if (res.status === 403) { setPlanRequired(true); return; }
-      if (!res.ok) {
-        console.warn('[crew] dispatch/board failed:', res.status);
-        // Fall through to fallback team fetch below
-      } else {
-        const data = await res.json();
-        const thisJob = (data.jobs || []).find(j => j.id === jobId);
-        setAssignments(thisJob?.assignments || []);
-        const active = (data.team_members || []).filter(m => m.status === 'active');
-        if (active.length > 0) {
-          setTeamMembers(active);
-          console.log('[crew] from dispatch/board — members:', active.length, 'assignments:', thisJob?.assignments?.length || 0);
-          return;
+
+      // Try dispatch board first (has smart scheduling data)
+      let boardWorked = false;
+      try {
+        const res = await fetch('/api/dispatch/board', { headers });
+        if (res.status === 403) { setPlanRequired(true); }
+        else if (res.ok) {
+          const data = await res.json();
+          const thisJob = (data.jobs || []).find(j => j.id === jobId);
+          if (thisJob) {
+            setAssignments(thisJob.assignments || []);
+            boardWorked = true;
+          }
+          const active = (data.team_members || []).filter(m => m.status === 'active');
+          if (active.length > 0) setTeamMembers(active);
         }
+      } catch {}
+
+      // If board didn't have this job (e.g. quote-based job), fetch assignments directly
+      if (!boardWorked) {
+        try {
+          const aRes = await fetch(`/api/jobs/${jobId}/assign`, { headers });
+          if (aRes.ok) {
+            const aData = await aRes.json();
+            setAssignments(aData.assignments || []);
+            console.log('[crew] direct assignments fetch:', (aData.assignments || []).length);
+          }
+        } catch {}
       }
 
-      // Fallback: fetch team members directly from /api/team
-      const teamRes = await fetch('/api/team', { headers });
-      if (teamRes.ok) {
-        const teamData = await teamRes.json();
-        const members = (teamData.members || teamData.team || teamData || []).filter(m => m.status === 'active');
-        setTeamMembers(members);
-        console.log('[crew] fallback /api/team — members:', members.length);
+      // Ensure team members are loaded
+      if (teamMembers.length === 0) {
+        const teamRes = await fetch('/api/team', { headers });
+        if (teamRes.ok) {
+          const teamData = await teamRes.json();
+          const members = (teamData.members || teamData.team || teamData || []).filter(m => m.status === 'active');
+          setTeamMembers(members);
+        }
       }
     } catch (e) {
       console.error('[crew] fetchAssignments error:', e);

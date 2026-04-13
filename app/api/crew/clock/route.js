@@ -299,5 +299,55 @@ export async function POST(request) {
     });
   }
 
-  return Response.json({ error: 'Invalid action. Use clock_in, switch, or clock_out.' }, { status: 400 });
+  if (action === 'adjust_clock_in') {
+    // Adjust the clock_in time on the current open entry
+    const { new_clock_in, entry_id } = await request.json().catch(() => ({}));
+    if (!entry_id || !new_clock_in) {
+      return Response.json({ error: 'entry_id and new_clock_in required' }, { status: 400 });
+    }
+    const { error: adjErr } = await supabase
+      .from('time_entries')
+      .update({ clock_in: new_clock_in })
+      .eq('id', entry_id)
+      .eq('team_member_id', user.id);
+    if (adjErr) {
+      console.error('[crew/clock] adjust error:', adjErr.message);
+      return Response.json({ error: 'Failed to adjust' }, { status: 500 });
+    }
+    return Response.json({ success: true, adjusted: true });
+  }
+
+  if (action === 'manual_entry') {
+    // Create a complete time entry (both clock_in and clock_out set)
+    const { clock_in: manualIn, clock_out: manualOut, job_id: manualJobId, quote_id: manualQuoteId, date: manualDate } = await request.json().catch(() => ({}));
+    if (!manualIn || !manualOut) {
+      return Response.json({ error: 'clock_in and clock_out required' }, { status: 400 });
+    }
+    const start = new Date(manualIn);
+    const end = new Date(manualOut);
+    const hoursWorked = Math.round(((end - start) / (1000 * 60 * 60)) * 100) / 100;
+    if (hoursWorked <= 0) {
+      return Response.json({ error: 'End time must be after start time' }, { status: 400 });
+    }
+
+    const entry = {
+      team_member_id: user.id,
+      detailer_id: user.detailer_id,
+      date: manualDate || start.toISOString().split('T')[0],
+      clock_in: start.toISOString(),
+      clock_out: end.toISOString(),
+      hours_worked: hoursWorked,
+      job_id: manualJobId || null,
+      quote_id: manualQuoteId || null,
+      notes: 'Manual entry',
+    };
+    const { data: inserted, error: insertErr } = await insertEntry(supabase, entry);
+    if (insertErr) {
+      console.error('[crew/clock] manual_entry error:', insertErr.message);
+      return Response.json({ error: 'Failed to create entry' }, { status: 500 });
+    }
+    return Response.json({ success: true, entry_id: inserted.id, hours_worked: hoursWorked });
+  }
+
+  return Response.json({ error: 'Invalid action. Use clock_in, switch, clock_out, adjust_clock_in, or manual_entry.' }, { status: 400 });
 }

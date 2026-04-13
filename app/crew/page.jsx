@@ -987,6 +987,54 @@ export default function CrewDashboard() {
                 </p>
               )}
             </div>
+
+            {/* Adjust + Manual entry links */}
+            <div className="flex justify-center gap-4 text-xs">
+              {clockStatus?.clocked_in && clockStatus.entry_id && (
+                <button
+                  onClick={() => {
+                    const newTime = prompt('Adjust clock-in time (HH:MM, 24h format):', new Date(clockStatus.clock_in_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+                    if (!newTime || !/^\d{1,2}:\d{2}$/.test(newTime)) return;
+                    const [h, m] = newTime.split(':').map(Number);
+                    const d = new Date(clockStatus.clock_in_time);
+                    d.setHours(h, m, 0, 0);
+                    const tk = localStorage.getItem('crew_token');
+                    fetch('/api/crew/clock', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'adjust_clock_in', entry_id: clockStatus.entry_id, new_clock_in: d.toISOString() }),
+                    }).then(r => { if (r.ok) { showMsg('Start time adjusted'); fetchClock(); } else { showMsg('Failed to adjust', 'error'); } });
+                  }}
+                  className="text-white/40 hover:text-white/70 transition-colors"
+                >
+                  Adjust start time
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const dateStr = prompt('Date (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+                  if (!dateStr) return;
+                  const startStr = prompt('Start time (HH:MM):', '06:00');
+                  if (!startStr) return;
+                  const endStr = prompt('End time (HH:MM):', '12:00');
+                  if (!endStr) return;
+                  const clockIn = new Date(`${dateStr}T${startStr}:00`);
+                  const clockOut = new Date(`${dateStr}T${endStr}:00`);
+                  if (isNaN(clockIn.getTime()) || isNaN(clockOut.getTime())) { showMsg('Invalid time', 'error'); return; }
+                  const tk = localStorage.getItem('crew_token');
+                  fetch('/api/crew/clock', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'manual_entry', clock_in: clockIn.toISOString(), clock_out: clockOut.toISOString(), date: dateStr }),
+                  }).then(r => r.json()).then(d => {
+                    if (d.success) { showMsg(`Logged ${d.hours_worked}h`); fetchClock(); } else { showMsg(d.error || 'Failed', 'error'); }
+                  });
+                }}
+                className="text-white/40 hover:text-white/70 transition-colors"
+              >
+                + Add missed entry
+              </button>
+            </div>
           </div>
         )}
 
