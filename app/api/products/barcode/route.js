@@ -45,10 +45,52 @@ export async function GET(request) {
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const upc = (searchParams.get('upc') || '').replace(/\D/g, '').trim();
+  const rawBarcode = (searchParams.get('upc') || '').trim();
 
+  if (!rawBarcode || rawBarcode.length < 4) {
+    return Response.json({ found: false, upc: rawBarcode }, { status: 200 });
+  }
+
+  // Check if this is an Amazon ASIN (B0XXXXXXXXX format)
+  const isASIN = /^B[0-9A-Z]{9}$/i.test(rawBarcode);
+  if (isASIN) {
+    // Try to scrape basic product info from Amazon
+    try {
+      const asinRes = await fetch(`https://www.amazon.com/dp/${rawBarcode}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ShinyJetsCRM/1.0)' },
+        redirect: 'follow',
+      });
+      if (asinRes.ok) {
+        const html = await asinRes.text();
+        const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
+        const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+        if (titleMatch) {
+          const { size, unit } = parseSize(titleMatch[1]);
+          return Response.json({
+            found: true,
+            upc: rawBarcode,
+            product: {
+              name: titleMatch[1],
+              brand: '',
+              size, unit,
+              category: inferCategory(titleMatch[1], ''),
+              image_url: imageMatch?.[1] || null,
+              upc: rawBarcode,
+            },
+          });
+        }
+      }
+    } catch (e) {
+      console.log('[barcode] ASIN lookup failed:', e.message);
+    }
+    return Response.json({ found: false, upc: rawBarcode });
+  }
+
+  // For numeric barcodes (UPC/EAN), use upcitemdb
+  const upc = rawBarcode.replace(/\D/g, '');
   if (!upc || upc.length < 8) {
-    return Response.json({ error: 'Valid UPC/EAN required (8-14 digits)' }, { status: 400 });
+    // Non-standard barcode format — return not found (no error, user can enter manually)
+    return Response.json({ found: false, upc: rawBarcode });
   }
 
   try {
@@ -58,13 +100,13 @@ export async function GET(request) {
 
     if (!res.ok) {
       console.error('[barcode] upcitemdb status:', res.status);
-      return Response.json({ error: 'Lookup service unavailable', upc }, { status: 502 });
+      return Response.json({ found: false, upc });
     }
 
     const data = await res.json();
 
     if (data.code === 'INVALID_UPC') {
-      return Response.json({ error: 'Invalid UPC code', upc }, { status: 400 });
+      return Response.json({ found: false, upc });
     }
 
     if (!data.items || data.items.length === 0) {

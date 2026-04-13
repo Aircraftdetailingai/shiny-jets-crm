@@ -870,14 +870,14 @@ export default function ProductsPage() {
                   imageUrl: d.product.image_url || prev.imageUrl,
                 }));
               } else {
-                alert('Barcode not found in database. Enter details manually.');
+                // Not found — silently let user type manually
               }
             } else {
               const e = await res.json().catch(() => ({}));
-              alert(e.error || 'Lookup failed');
+              // Lookup failed — silently let user type manually
             }
           } catch (e) {
-            alert('Lookup failed: ' + (e?.message || 'unknown error'));
+            // Lookup exception — silently let user type manually
           } finally {
             setBarcodeLookup(false);
           }
