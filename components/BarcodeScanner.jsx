@@ -100,13 +100,24 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
         </div>
 
         {/* Camera viewfinder */}
-        <div className="relative bg-black aspect-[4/3] overflow-hidden">
+        <div className="relative bg-black aspect-[4/3] overflow-hidden" style={{ touchAction: 'none' }}>
           <video
             ref={videoRef}
             playsInline
             autoPlay
             muted
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-crosshair"
+            style={{ touchAction: 'none' }}
+            onClick={() => {
+              // iOS tap-to-focus via ImageCapture API
+              try {
+                const track = videoRef.current?.srcObject?.getVideoTracks()?.[0];
+                if (track && 'ImageCapture' in window) {
+                  const capture = new ImageCapture(track);
+                  capture.getPhotoCapabilities?.().catch(() => {});
+                }
+              } catch {}
+            }}
           />
 
           {/* Viewfinder overlay */}

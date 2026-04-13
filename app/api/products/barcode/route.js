@@ -54,63 +54,83 @@ export async function GET(request) {
   // Check if this is an Amazon ASIN (B0XXXXXXXXX format)
   const isASIN = /^B[0-9A-Z]{9}$/i.test(rawBarcode);
   if (isASIN) {
-    // Try to scrape basic product info from Amazon
     try {
       const asinRes = await fetch(`https://www.amazon.com/dp/${rawBarcode}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ShinyJetsCRM/1.0)' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
         redirect: 'follow',
+        signal: AbortSignal.timeout(8000),
       });
       if (asinRes.ok) {
         const html = await asinRes.text();
-        const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-        const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+        const titleMatch = html.match(/<meta\s+(?:property|name)="og:title"\s+content="([^"]+)"/i)
+          || html.match(/<title[^>]*>([^<]+)</i);
+        const imageMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]+)"/i);
         if (titleMatch) {
-          const { size, unit } = parseSize(titleMatch[1]);
+          const title = titleMatch[1].replace(/ : Amazon\.com.*$/, '').replace(/ - Amazon\.com.*$/, '').trim();
+          const { size, unit } = parseSize(title);
           return Response.json({
-            found: true,
-            upc: rawBarcode,
-            product: {
-              name: titleMatch[1],
-              brand: '',
-              size, unit,
-              category: inferCategory(titleMatch[1], ''),
-              image_url: imageMatch?.[1] || null,
-              upc: rawBarcode,
-            },
+            found: true, upc: rawBarcode,
+            product: { name: title, brand: '', size, unit, category: inferCategory(title, ''), image_url: imageMatch?.[1] || null, upc: rawBarcode },
           });
         }
       }
     } catch (e) {
       console.log('[barcode] ASIN lookup failed:', e.message);
     }
-    return Response.json({ found: false, upc: rawBarcode });
+    // ASIN not found — return barcode as name hint
+    return Response.json({ found: false, upc: rawBarcode, hint: `Amazon ASIN: ${rawBarcode}` });
   }
 
-  // For numeric barcodes (UPC/EAN), use upcitemdb
+  // For numeric barcodes (UPC/EAN)
   const upc = rawBarcode.replace(/\D/g, '');
   if (!upc || upc.length < 8) {
-    // Non-standard barcode format — return not found (no error, user can enter manually)
-    return Response.json({ found: false, upc: rawBarcode });
+    return Response.json({ found: false, upc: rawBarcode, hint: rawBarcode });
   }
 
+  // Try Open Food Facts first (free, no rate limits)
+  try {
+    const offRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${upc}.json`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (offRes.ok) {
+      const offData = await offRes.json();
+      if (offData.status === 1 && offData.product?.product_name) {
+        const p = offData.product;
+        const { size, unit } = parseSize(`${p.product_name} ${p.quantity || ''}`);
+        return Response.json({
+          found: true, upc,
+          product: {
+            name: p.product_name, brand: p.brands || '', size, unit,
+            category: inferCategory(p.product_name, p.categories || ''),
+            image_url: p.image_url || p.image_front_url || null, upc,
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.log('[barcode] OpenFoodFacts failed:', e.message);
+  }
+
+  // Fallback to upcitemdb
   try {
     const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(upc)}`, {
       headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok) {
       console.error('[barcode] upcitemdb status:', res.status);
-      return Response.json({ found: false, upc });
+      return Response.json({ found: false, upc, hint: `UPC: ${upc}` });
     }
 
     const data = await res.json();
 
-    if (data.code === 'INVALID_UPC') {
-      return Response.json({ found: false, upc });
-    }
-
-    if (!data.items || data.items.length === 0) {
-      return Response.json({ found: false, upc });
+    if (data.code === 'INVALID_UPC' || !data.items || data.items.length === 0) {
+      return Response.json({ found: false, upc, hint: `UPC: ${upc}` });
     }
 
     const item = data.items[0];
@@ -134,6 +154,6 @@ export async function GET(request) {
     });
   } catch (err) {
     console.error('[barcode] lookup error:', err.message);
-    return Response.json({ error: 'Lookup failed', upc }, { status: 500 });
+    return Response.json({ found: false, upc, hint: `UPC: ${upc}`, error: 'Lookup failed' });
   }
 }
