@@ -29,12 +29,12 @@ export async function GET(request) {
   const isLead = user.is_lead_tech;
   const contactCols = isLead ? ', client_name, client_phone, client_email' : '';
 
-  // Step 1: Get all job_assignments for this crew member (or all for lead tech)
-  let assignmentQuery = supabase.from('job_assignments').select('job_id');
+  // Step 1: Get job_assignments for this crew member (pending or accepted) or all for lead tech
+  let assignmentQuery = supabase.from('job_assignments').select('job_id, status');
   if (isLead) {
     assignmentQuery = assignmentQuery.eq('detailer_id', user.detailer_id);
   } else {
-    assignmentQuery = assignmentQuery.eq('team_member_id', user.id);
+    assignmentQuery = assignmentQuery.eq('team_member_id', user.id).in('status', ['pending', 'accepted']);
   }
   const { data: assignments } = await assignmentQuery;
   const assignedJobIds = new Set((assignments || []).map(a => a.job_id).filter(Boolean));
@@ -65,14 +65,21 @@ export async function GET(request) {
     console.log('[crew/jobs] quotes error:', e.message);
   }
 
-  // Step 3: Fetch manual jobs from jobs table — only assigned ones
-  if (assignedJobIds.size > 0) {
+  // Step 3: Fetch manual jobs from jobs table — assigned or all as fallback
+  {
     try {
-      const { data: manualJobs } = await supabase
+      let jobQuery = supabase
         .from('jobs')
         .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, created_at, completion_notes')
-        .in('id', [...assignedJobIds])
         .in('status', ['scheduled', 'in_progress']);
+
+      if (assignedJobIds.size > 0 && !isLead) {
+        jobQuery = jobQuery.in('id', [...assignedJobIds]);
+      } else {
+        jobQuery = jobQuery.eq('detailer_id', user.detailer_id);
+      }
+
+      const { data: manualJobs } = await jobQuery;
 
       for (const mj of manualJobs || []) {
         // Skip if already in quotes list

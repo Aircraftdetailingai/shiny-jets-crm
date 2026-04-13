@@ -22,16 +22,38 @@ export async function POST(request) {
   if (!validStatuses.includes(status)) return Response.json({ error: 'Invalid status' }, { status: 400 });
 
   const supabase = getSupabase();
+  const detailerId = user.detailer_id || user.id;
 
-  // Verify ownership
-  const { data: job, error: fetchErr } = await supabase
+  // Try quotes table first (quote-based jobs), then jobs table (manual jobs)
+  let job = null;
+  let table = 'quotes';
+
+  const { data: quoteJob } = await supabase
     .from('quotes')
     .select('id, detailer_id, status, client_email, client_name, aircraft_model, tail_number, total_price')
     .eq('id', job_id)
-    .eq('detailer_id', user.id)
-    .single();
+    .eq('detailer_id', detailerId)
+    .maybeSingle();
 
-  if (fetchErr || !job) return Response.json({ error: 'Job not found' }, { status: 404 });
+  if (quoteJob) {
+    job = quoteJob;
+    table = 'quotes';
+  } else {
+    const { data: manualJob } = await supabase
+      .from('jobs')
+      .select('id, detailer_id, status, customer_email, customer_name, aircraft_model, tail_number, total_price')
+      .eq('id', job_id)
+      .eq('detailer_id', detailerId)
+      .maybeSingle();
+    if (manualJob) {
+      job = manualJob;
+      table = 'jobs';
+    }
+  }
+
+  if (!job) return Response.json({ error: 'Job not found' }, { status: 404 });
+
+  console.log(`[jobs/status] ${table} ${job_id} → ${status}`);
 
   const updates = { status };
 
@@ -43,7 +65,7 @@ export async function POST(request) {
     updates.completed_at = new Date().toISOString();
   }
 
-  const { error } = await supabase.from('quotes').update(updates).eq('id', job_id);
+  const { error } = await supabase.from(table).update(updates).eq('id', job_id);
 
   if (error) {
     console.error('[jobs/status] Update error:', error.message);
@@ -51,7 +73,8 @@ export async function POST(request) {
   }
 
   // If completing, check for before/after photos and send email
-  if (status === 'completed' && job.client_email) {
+  const clientEmail = job.client_email || job.customer_email;
+  if (status === 'completed' && clientEmail) {
     try {
       const { data: photos } = await supabase
         .from('job_media')
@@ -97,7 +120,7 @@ export async function POST(request) {
         </body></html>`;
 
         await sendEmail({
-          to: job.client_email,
+          to: clientEmail,
           subject: `Your ${aircraft || 'aircraft'} is ready — ${companyName}`,
           html,
           text: `Your aircraft detail is complete. Thank you for choosing ${companyName}.`,
