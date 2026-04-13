@@ -1446,9 +1446,13 @@ export default function CrewDashboard() {
                     unit: d.product.unit || p.unit,
                     category: d.product.category || p.category,
                     image_url: d.product.image_url || p.image_url,
+                    url: d.product.product_url || p.url,
                   }));
+                  showMsg(d.product.product_url ? 'Product found — reorder link saved' : 'Product found');
                 } else {
-                  // Not found — silently let user type manually
+                  // Not found — populate with barcode hint so user knows it scanned
+                  setNewProduct(p => ({ ...p, name: d.hint || upc }));
+                  showMsg('Product not found — enter details manually');
                 }
               } else {
                 const e = await res.json().catch(() => ({}));

@@ -70,11 +70,16 @@ export async function GET(request) {
           || html.match(/<title[^>]*>([^<]+)</i);
         const imageMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]+)"/i);
         if (titleMatch) {
-          const title = titleMatch[1].replace(/ : Amazon\.com.*$/, '').replace(/ - Amazon\.com.*$/, '').trim();
+          const title = titleMatch[1]
+            .replace(/^Amazon\.com:\s*/i, '')
+            .replace(/\s*[\-:|]\s*Amazon\.com.*$/i, '')
+            .replace(/\s*:\s*Amazon\.com.*$/i, '')
+            .trim();
           const { size, unit } = parseSize(title);
+          const productUrl = `https://www.amazon.com/dp/${rawBarcode}`;
           return Response.json({
             found: true, upc: rawBarcode,
-            product: { name: title, brand: '', size, unit, category: inferCategory(title, ''), image_url: imageMatch?.[1] || null, upc: rawBarcode },
+            product: { name: title, brand: '', size, unit, category: inferCategory(title, ''), image_url: imageMatch?.[1] || null, product_url: productUrl, upc: rawBarcode, source: 'amazon' },
           });
         }
       }
@@ -106,7 +111,8 @@ export async function GET(request) {
           product: {
             name: p.product_name, brand: p.brands || '', size, unit,
             category: inferCategory(p.product_name, p.categories || ''),
-            image_url: p.image_url || p.image_front_url || null, upc,
+            image_url: p.image_url || p.image_front_url || null,
+            product_url: p.link || null, upc, source: 'openfoodfacts',
           },
         });
       }
@@ -149,7 +155,8 @@ export async function GET(request) {
         unit,
         category: inferCategory(item.title, item.category),
         image_url: image,
-        upc,
+        product_url: (Array.isArray(item.offers) && item.offers.length > 0) ? item.offers[0].link : null,
+        upc, source: 'upcitemdb',
       },
     });
   } catch (err) {
