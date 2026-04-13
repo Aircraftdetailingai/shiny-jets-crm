@@ -181,21 +181,24 @@ export async function POST(request) {
       return Response.json({ error: 'Already clocked in. Use "switch" to change jobs.' }, { status: 400 });
     }
 
+    console.log('[crew/clock] clock_in attempt:', { user_id: user.id, detailer_id: user.detailer_id, job_id, quote_id });
+
     const entry = {
       team_member_id: user.id,
       detailer_id: user.detailer_id,
       date: today,
       clock_in: now,
       hours_worked: 0,
-      job_id: job_id || null,
-      quote_id: quote_id || null,
       notes: notes || null,
     };
+    // Set job_id or quote_id — the crew page may send the job under either field
+    if (job_id) entry.job_id = job_id;
+    if (quote_id) entry.quote_id = quote_id;
 
     const { data, error } = await insertEntry(supabase, entry);
     if (error) {
-      console.error('[crew/clock] clock_in error:', error.message);
-      return Response.json({ error: 'Failed to clock in' }, { status: 500 });
+      console.error('[crew/clock] clock_in error:', error.message, '| entry:', JSON.stringify(entry));
+      return Response.json({ error: 'Failed to clock in: ' + (error.message || 'Unknown error') }, { status: 500 });
     }
 
     const label = await getJobLabel(supabase, { job_id, quote_id });

@@ -38,9 +38,10 @@ export async function GET(request) {
   }
   const { data: assignments } = await assignmentQuery;
   const assignedJobIds = new Set((assignments || []).map(a => a.job_id).filter(Boolean));
-  console.log(`[crew/jobs] member=${user.id} is_lead=${isLead} assignments=${assignedJobIds.size} ids=[${[...assignedJobIds].join(',')}]`);
+  console.log(`[crew/jobs] member=${user.id} is_lead=${isLead} assignments=${assignedJobIds.size}`);
 
   const jobs = [];
+  const seenIds = new Set();
 
   // Step 2: Fetch quote-based jobs — lead techs see all, regular crew only see assigned
   try {
@@ -58,6 +59,8 @@ export async function GET(request) {
       for (const q of quotesJobs || []) {
         // Regular crew: only show if assigned to this quote (or if no assignments exist for any job — backward compat)
         if (!isLead && assignedJobIds.size > 0 && !assignedJobIds.has(q.id)) continue;
+        if (seenIds.has(q.id)) continue;
+        seenIds.add(q.id);
         jobs.push(q);
       }
     }
@@ -82,8 +85,8 @@ export async function GET(request) {
       const { data: manualJobs } = await jobQuery;
 
       for (const mj of manualJobs || []) {
-        // Skip if already in quotes list
-        if (jobs.some(j => j.id === mj.id)) continue;
+        if (seenIds.has(mj.id)) continue;
+        seenIds.add(mj.id);
         jobs.push({
           id: mj.id,
           aircraft_model: mj.aircraft_model,
@@ -130,6 +133,7 @@ export async function GET(request) {
       services: sanitizedLineItems.length > 0 ? sanitizedLineItems : (Array.isArray(servicesText) ? servicesText.map(s => typeof s === 'string' ? { description: s } : { description: s.name || s.description || 'Service' }) : []),
       notes: job.notes,
       created_at: job.created_at,
+      _source: job._source || null,
     };
 
     // Only include contact info for lead techs
