@@ -47,7 +47,7 @@ export async function GET(request) {
   try {
     let quoteQuery = supabase
       .from('quotes')
-      .select(`id, aircraft_model, aircraft_type, airport, scheduled_date, status, line_items, notes, created_at${contactCols}`)
+      .select(`id, aircraft_model, aircraft_type, tail_number, airport, scheduled_date, status, line_items, notes, created_at${contactCols}`)
       .eq('detailer_id', user.detailer_id)
       .in('status', ['paid', 'accepted', 'scheduled', 'in_progress'])
       .order('scheduled_date', { ascending: true, nullsFirst: false });
@@ -123,9 +123,23 @@ export async function GET(request) {
       try { servicesText = JSON.parse(job._services_text); } catch { servicesText = job._services_text; }
     }
 
+    // Build display aircraft name:
+    // - Quote-based: aircraft_model already contains "Gulfstream G4" (full name from quote builder)
+    //   aircraft_type = category like "Jet" — NOT the manufacturer
+    // - Manual jobs: aircraft_type = aircraft_make (mapped at push time), aircraft_model = model only
+    //   So combine: aircraft_type + aircraft_model = "Gulfstream" + "G4"
+    let aircraftDisplay;
+    if (job._source === 'jobs_table') {
+      // Manual job: aircraft_type holds the make, aircraft_model holds the model
+      aircraftDisplay = [job.aircraft_type, job.aircraft_model].filter(Boolean).join(' ') || 'Aircraft';
+    } else {
+      // Quote-based: aircraft_model is already the full name
+      aircraftDisplay = job.aircraft_model || 'Aircraft';
+    }
+
     const result = {
       id: job.id,
-      aircraft: job.aircraft_model || job.aircraft_type || 'Aircraft',
+      aircraft: aircraftDisplay,
       tail_number: job.tail_number || null,
       airport: job.airport,
       scheduled_date: job.scheduled_date,
