@@ -494,7 +494,8 @@ function FlowBuilderInner() {
           minZoom={0.2}
           maxZoom={2}
           deleteKeyCode={['Backspace', 'Delete']}
-          connectionLineStyle={{ stroke: '#4ade80', strokeWidth: 2, strokeDasharray: '5 5' }}
+          connectionLineStyle={{ stroke: '#0ea5e9', strokeWidth: 2, strokeDasharray: '5 5' }}
+          connectionLineType="bezier"
           className="bg-v-charcoal"
           proOptions={{ hideAttribution: true }}
         >

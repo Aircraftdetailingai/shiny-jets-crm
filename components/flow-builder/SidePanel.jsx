@@ -14,17 +14,33 @@ const ANSWER_TYPES = [
 
 export default function SidePanel({ node, nodes, services = [], packages = [], onUpdate, onReorderOptions, onClose }) {
   const [localData, setLocalData] = useState({});
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    if (node) setLocalData({ ...node.data });
+    if (node) {
+      setLocalData({ ...node.data });
+      setDirty(false);
+    }
   }, [node?.id]);
 
   if (!node) return null;
 
+  // Buffer changes locally — don't push to parent until Save
   const update = (changes) => {
-    const updated = { ...localData, ...changes };
-    setLocalData(updated);
-    onUpdate(node.id, updated);
+    setLocalData(prev => ({ ...prev, ...changes }));
+    setDirty(true);
+  };
+
+  const handleSave = () => {
+    onUpdate(node.id, localData);
+    setDirty(false);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    setLocalData({ ...node.data }); // revert
+    setDirty(false);
+    onClose();
   };
 
   const nodeType = node.type;
@@ -39,7 +55,7 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-v-border">
         <h2 className="text-white text-sm font-medium">Edit Node</h2>
-        <button onClick={onClose} className="text-v-text-secondary hover:text-white text-lg">&times;</button>
+        <button onClick={handleCancel} className="text-v-text-secondary hover:text-white text-lg">&times;</button>
       </div>
 
       {/* Body */}
@@ -89,7 +105,6 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
         {/* Select type toggles */}
         {nodeType === 'question' && isSelect && (
           <div className="space-y-3">
-            {/* Allow multiple selections toggle */}
             <label className="flex items-center justify-between cursor-pointer p-3 bg-v-charcoal rounded-lg border border-v-border">
               <div>
                 <span className="text-white text-xs">Allow multiple selections</span>
@@ -105,7 +120,6 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
               />
             </label>
 
-            {/* Allow branching toggle (single select only) */}
             {localData.answerType === 'single_select' && (
               <label className="flex items-center justify-between cursor-pointer p-3 bg-v-charcoal rounded-lg border border-v-border">
                 <div>
@@ -123,7 +137,7 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
           </div>
         )}
 
-        {/* Options list (for select types) — drag to reorder */}
+        {/* Options list */}
         {nodeType === 'question' && isSelect && (
           <div>
             <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Options</label>
@@ -137,14 +151,9 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
                     e.preventDefault();
                     const from = parseInt(e.dataTransfer.getData('text/plain'));
                     if (isNaN(from) || from === i) return;
-                    const oldOpts = [...(localData.options || [])];
-                    const opts = [...oldOpts];
+                    const opts = [...(localData.options || [])];
                     const [moved] = opts.splice(from, 1);
                     opts.splice(i, 0, moved);
-                    // Remap branching edges when options are reordered
-                    if (localData.allowBranching && onReorderOptions) {
-                      onReorderOptions(node.id, oldOpts, opts);
-                    }
                     update({ options: opts });
                   }}
                 >
@@ -161,11 +170,7 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
                   />
                   <button
                     onClick={() => {
-                      const oldOpts = [...(localData.options || [])];
-                      const newOpts = oldOpts.filter((_, j) => j !== i);
-                      if (localData.allowBranching && onReorderOptions) {
-                        onReorderOptions(node.id, oldOpts, newOpts);
-                      }
+                      const newOpts = (localData.options || []).filter((_, j) => j !== i);
                       update({ options: newOpts });
                     }}
                     className="text-red-400/60 hover:text-red-400 text-xs px-1"
@@ -184,7 +189,7 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
           </div>
         )}
 
-        {/* Placeholder (for text types) */}
+        {/* Placeholder */}
         {nodeType === 'question' && ['text', 'long_text'].includes(localData.answerType) && (
           <div>
             <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Placeholder</label>
@@ -237,10 +242,9 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
           </>
         )}
 
-        {/* Packages + Services (serviceSelect nodes) */}
+        {/* Packages + Services */}
         {nodeType === 'serviceSelect' && (
           <div className="space-y-4">
-            {/* Packages */}
             {packages.length > 0 && (
               <div>
                 <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Packages</label>
@@ -255,9 +259,7 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
                           checked={included}
                           onChange={() => {
                             const current = localData.packageNames || [];
-                            const updated = included
-                              ? current.filter(n => n !== name)
-                              : [...current, name];
+                            const updated = included ? current.filter(n => n !== name) : [...current, name];
                             update({ packageNames: updated });
                           }}
                           className="w-3.5 h-3.5 rounded accent-[var(--v-gold)]"
@@ -273,7 +275,6 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
               </div>
             )}
 
-            {/* Individual services */}
             {services.length > 0 && (
               <div>
                 <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1.5">Individual Services</label>
@@ -288,9 +289,7 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
                           checked={included}
                           onChange={() => {
                             const current = localData.serviceNames || [];
-                            const updated = included
-                              ? current.filter(n => n !== name)
-                              : [...current, name];
+                            const updated = included ? current.filter(n => n !== name) : [...current, name];
                             update({ serviceNames: updated });
                           }}
                           className="w-3.5 h-3.5 rounded accent-[var(--v-gold)]"
@@ -323,6 +322,26 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
             />
           </label>
         )}
+      </div>
+
+      {/* Footer — Save / Cancel */}
+      <div className="px-5 py-4 border-t border-v-border flex justify-end gap-2 shrink-0">
+        <button
+          onClick={handleCancel}
+          className="px-4 py-2 text-sm text-v-text-secondary border border-v-border rounded-lg hover:bg-white/5 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+            dirty
+              ? 'bg-v-gold text-v-charcoal hover:bg-v-gold/90'
+              : 'bg-v-gold/50 text-v-charcoal/60 cursor-default'
+          }`}
+        >
+          Save
+        </button>
       </div>
     </div>
   );
