@@ -21,6 +21,9 @@ export default function NewJobPage() {
   const [customerMode, setCustomerMode] = useState('existing'); // existing | new
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [newCustomer, setNewCustomer] = useState({ name: '', company_name: '', email: '', phone: '' });
+  const [aircraftMode, setAircraftMode] = useState('standard'); // 'standard' | 'custom'
+  const [customMake, setCustomMake] = useState('');
+  const [customModel, setCustomModel] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
   const [tailNumber, setTailNumber] = useState('');
@@ -104,7 +107,9 @@ export default function NewJobPage() {
     const customerName = selectedCustomer?.name || newCustomer.name;
     const customerEmail = selectedCustomer?.email || newCustomer.email;
     if (!customerName) { setError('Customer name required'); return; }
-    if (!manufacturer || !model) { setError('Aircraft required'); return; }
+    const effectiveMake = aircraftMode === 'custom' ? customMake : manufacturer;
+    const effectiveModel = aircraftMode === 'custom' ? customModel : model;
+    if (!effectiveMake && !effectiveModel) { setError('Aircraft make or model required'); return; }
 
     setSaving(true); setError('');
     try {
@@ -125,8 +130,8 @@ export default function NewJobPage() {
           customer_id: customerId,
           customer_name: customerName,
           customer_email: customerEmail,
-          aircraft_make: manufacturer,
-          aircraft_model: model,
+          aircraft_make: effectiveMake,
+          aircraft_model: effectiveModel,
           tail_number: tailNumber,
           airport,
           services: selectedServices.map(id => {
@@ -213,16 +218,33 @@ export default function NewJobPage() {
           {/* Aircraft */}
           <div>
             <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-2">Aircraft</label>
-            <div className="grid grid-cols-2 gap-3 mb-2">
-              <select value={manufacturer} onChange={e => { setManufacturer(e.target.value); setModel(''); }} className={cls}>
-                <option value="">Manufacturer...</option>
-                {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <select value={model} onChange={e => setModel(e.target.value)} className={cls} disabled={!manufacturer}>
-                <option value="">Model...</option>
-                {models.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
-              </select>
+            <div className="flex gap-2 mb-3">
+              <button onClick={() => { setAircraftMode('standard'); setCustomMake(''); setCustomModel(''); }}
+                className={`px-3 py-1 text-xs rounded ${aircraftMode === 'standard' ? 'bg-v-gold text-v-charcoal' : 'border border-v-border text-v-text-secondary'}`}>
+                Standard Aircraft
+              </button>
+              <button onClick={() => { setAircraftMode('custom'); setManufacturer(''); setModel(''); setSelectedAircraft(null); }}
+                className={`px-3 py-1 text-xs rounded ${aircraftMode === 'custom' ? 'bg-v-gold text-v-charcoal' : 'border border-v-border text-v-text-secondary'}`}>
+                Custom / Not Listed
+              </button>
             </div>
+            {aircraftMode === 'standard' ? (
+              <div className="grid grid-cols-2 gap-3 mb-2">
+                <select value={manufacturer} onChange={e => { setManufacturer(e.target.value); setModel(''); }} className={cls}>
+                  <option value="">Manufacturer...</option>
+                  {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <select value={model} onChange={e => setModel(e.target.value)} className={cls} disabled={!manufacturer}>
+                  <option value="">Model...</option>
+                  {models.map(m => <option key={m.id} value={m.model}>{m.model}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 mb-2">
+                <input value={customMake} onChange={e => setCustomMake(e.target.value)} placeholder="Make (e.g. Lockheed)" className={cls} />
+                <input value={customModel} onChange={e => setCustomModel(e.target.value)} placeholder="Model (e.g. 12 Electra Junior)" className={cls} />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <input value={tailNumber} onChange={e => setTailNumber(e.target.value.toUpperCase())} placeholder="Tail Number (N12345)" className={cls} />
               <input value={airport} onChange={e => setAirport(e.target.value.toUpperCase())} placeholder="Airport (KTEB)" className={cls} />
@@ -245,7 +267,8 @@ export default function NewJobPage() {
                       className="w-4 h-4 rounded accent-v-gold cursor-pointer" />
                     <div className="flex-1 min-w-0">
                       <span className="text-sm text-v-text-primary">{svc.name}</span>
-                      {!selectedAircraft && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Select aircraft for hours</span>}
+                      {!selectedAircraft && aircraftMode === 'standard' && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Select aircraft for hours</span>}
+                      {aircraftMode === 'custom' && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Enter hours manually</span>}
                     </div>
                     {sel && (
                       <div className="flex items-center gap-2 shrink-0">
@@ -319,8 +342,19 @@ export default function NewJobPage() {
             </div>
             <div>
               <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-2">Total</label>
-              <input type="number" step="0.01" value={totalOverride || calculatedTotal.toFixed(2)} onChange={e => setTotalOverride(e.target.value)}
-                className={cls} />
+              <input
+                type="text"
+                inputMode="decimal"
+                value={totalOverride !== '' ? totalOverride : calculatedTotal > 0 ? calculatedTotal.toFixed(2) : ''}
+                onChange={e => setTotalOverride(e.target.value.replace(/[^0-9.]/g, ''))}
+                onBlur={e => {
+                  const num = parseFloat(e.target.value);
+                  if (isNaN(num) || num === 0) { setTotalOverride(''); return; }
+                  setTotalOverride(num.toFixed(2));
+                }}
+                placeholder={calculatedTotal > 0 ? calculatedTotal.toFixed(2) : '0.00'}
+                className={cls}
+              />
             </div>
           </div>
 
