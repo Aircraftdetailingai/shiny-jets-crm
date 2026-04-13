@@ -37,6 +37,10 @@ export default function JobDetailPage() {
   const [completionData, setCompletionData] = useState(null);
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
 
+  // Product selection state
+  const [jobProducts, setJobProducts] = useState({ selections: [], serviceProducts: [] });
+  const [changingProduct, setChangingProduct] = useState(null);
+
   // Edit job state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -105,6 +109,11 @@ export default function JobDetailPage() {
     if (!token) return;
     fetchAssignments(token);
     fetchSuggestions(token);
+    // Fetch product selections for this job
+    fetch(`/api/jobs/${jobId}/products`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : {})
+      .then(d => { if (d.selections || d.serviceProducts) setJobProducts(d); })
+      .catch(() => {});
   }, [job?.id]);
 
   const handleAssignCrew = async (memberId) => {
@@ -621,18 +630,69 @@ export default function JobDetailPage() {
         <div className="bg-v-surface border border-v-border rounded-lg p-4 mb-6">
           <h3 className="text-sm font-medium text-v-text-secondary mb-3">Services</h3>
           <div className="space-y-2">
-            {servicesList.map((svc, i) => (
-              <div key={i} className="flex justify-between items-center text-sm">
-                <div>
-                  <span className="text-v-text-primary">{svc.name}</span>
-                  {svc.hours > 0 && <span className="text-v-text-secondary text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+            {servicesList.map((svc, i) => {
+              const svcId = svc.service_id || svc.id;
+              const linkedProducts = (jobProducts.serviceProducts || []).filter(sp => sp.service_id === svcId);
+              const selectedProduct = (jobProducts.selections || []).find(s => s.service_id === svcId);
+              const defaultProduct = linkedProducts.find(lp => lp.is_default);
+              const activeProduct = selectedProduct
+                ? linkedProducts.find(lp => lp.product_id === selectedProduct.product_id)?.product
+                : defaultProduct?.product;
+
+              return (
+                <div key={i} className="text-sm">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-v-text-primary">{svc.name}</span>
+                      {svc.hours > 0 && <span className="text-v-text-secondary text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                    </div>
+                    <div className="text-right">
+                      {svc.price > 0 && <span className="text-v-text-primary font-medium">{currencySymbol()}{formatPrice(svc.price)}</span>}
+                      {svc.rate > 0 && svc.hours > 0 && <span className="text-v-text-secondary text-[10px] block">@ {currencySymbol()}{svc.rate}/hr</span>}
+                    </div>
+                  </div>
+                  {linkedProducts.length > 0 && (
+                    <div className="mt-1 flex items-center gap-2">
+                      {changingProduct === svcId ? (
+                        <select
+                          value={selectedProduct?.product_id || defaultProduct?.product_id || ''}
+                          onChange={async (e) => {
+                            const token = localStorage.getItem('vector_token');
+                            await fetch(`/api/jobs/${jobId}/products`, {
+                              method: 'POST',
+                              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ service_id: svcId, product_id: e.target.value }),
+                            });
+                            const res = await fetch(`/api/jobs/${jobId}/products`, { headers: { Authorization: `Bearer ${token}` } });
+                            if (res.ok) setJobProducts(await res.json());
+                            setChangingProduct(null);
+                          }}
+                          className="text-[10px] bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-0.5 outline-none"
+                          autoFocus
+                          onBlur={() => setTimeout(() => setChangingProduct(null), 200)}
+                        >
+                          {linkedProducts.map(lp => (
+                            <option key={lp.product_id} value={lp.product_id}>
+                              {lp.product?.name}{lp.product?.brand ? ` (${lp.product.brand})` : ''}{lp.is_default ? ' ★' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <>
+                          <span className="text-[10px] text-v-text-secondary/60">
+                            {activeProduct ? `${activeProduct.name}${activeProduct.brand ? ` · ${activeProduct.brand}` : ''}` : ''}
+                            {!selectedProduct && defaultProduct ? ' (default)' : ''}
+                          </span>
+                          {linkedProducts.length > 1 && (
+                            <button onClick={() => setChangingProduct(svcId)} className="text-[10px] text-v-gold hover:underline">Change</button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="text-right">
-                  {svc.price > 0 && <span className="text-v-text-primary font-medium">{currencySymbol()}{formatPrice(svc.price)}</span>}
-                  {svc.rate > 0 && svc.hours > 0 && <span className="text-v-text-secondary text-[10px] block">@ {currencySymbol()}{svc.rate}/hr</span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {servicesList.length > 1 && displayTotal > 0 && (
               <div className="flex justify-between text-sm border-t border-v-border pt-2 mt-2">
                 <span className="text-v-text-secondary font-medium">Total</span>

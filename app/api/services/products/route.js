@@ -145,6 +145,13 @@ export async function PUT(request) {
     if (quantity_per_hour !== undefined) updates.quantity_per_hour = parseFloat(quantity_per_hour) || 0;
     if (fixed_quantity !== undefined) updates.fixed_quantity = parseFloat(fixed_quantity) || 0;
     if (notes !== undefined) updates.notes = notes;
+    if (body.is_default !== undefined) {
+      updates.is_default = !!body.is_default;
+      // If setting as default, unset other defaults for this service
+      if (body.is_default && body.service_id) {
+        await supabase.from('service_products').update({ is_default: false }).eq('service_id', body.service_id).neq('id', id);
+      }
+    }
 
     const { data: link, error } = await supabase
       .from('service_products')
