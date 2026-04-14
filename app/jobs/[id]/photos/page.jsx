@@ -70,41 +70,30 @@ export default function JobPhotosPage() {
     try {
       const token = localStorage.getItem('vector_token');
 
-      // For now, create a data URL (in production, upload to Supabase Storage)
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = reader.result;
+      // Upload via FormData to avoid Vercel body size limits
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('quote_id', quoteId);
+      formData.append('media_type', uploadType);
+      if (notes) formData.append('notes', notes);
 
-        // In production, you'd upload to storage and get a URL back
-        // For demo, we'll use the data URL directly (not ideal for large files)
-        const res = await fetch('/api/job-media', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            quote_id: quoteId,
-            media_type: uploadType,
-            url: dataUrl,
-            notes: notes || null,
-          }),
-        });
+      const res = await fetch('/api/job-media', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-        if (res.ok) {
-          // Refresh media list
-          await fetchData(token);
-          setUploadType(null);
-          setNotes('');
-        } else {
-          const data = await res.json();
-          setError(data.error || 'Upload failed');
-        }
-      };
-      reader.readAsDataURL(file);
+      if (res.ok) {
+        await fetchData(token);
+        setUploadType(null);
+        setNotes('');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Upload failed');
+      }
     } catch (err) {
-      console.error('Upload error:', err);
-      setError('Failed to upload');
+      console.error('[photo upload error]', err);
+      setError('Failed to upload: ' + (err.message || 'unknown error'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) {

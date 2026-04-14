@@ -65,42 +65,36 @@ export default function JobDetailPage() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Try dispatch board first (has smart scheduling data)
-      let boardWorked = false;
+      // Always fetch assignments directly from the dedicated endpoint (most reliable)
       try {
-        const res = await fetch('/api/dispatch/board', { headers });
-        if (res.status === 403) { setPlanRequired(true); }
-        else if (res.ok) {
-          const data = await res.json();
-          const thisJob = (data.jobs || []).find(j => j.id === jobId);
-          if (thisJob) {
-            setAssignments(thisJob.assignments || []);
-            boardWorked = true;
-          }
-          const active = (data.team_members || []).filter(m => m.status === 'active');
-          if (active.length > 0) setTeamMembers(active);
+        const aRes = await fetch(`/api/jobs/${jobId}/assign`, { headers });
+        if (aRes.ok) {
+          const aData = await aRes.json();
+          setAssignments(aData.assignments || []);
         }
       } catch {}
 
-      // If board didn't have this job (e.g. quote-based job), fetch assignments directly
-      if (!boardWorked) {
+      // Load team members if not already loaded
+      if (teamMembers.length === 0) {
+        // Try dispatch board for team + suggestions
         try {
-          const aRes = await fetch(`/api/jobs/${jobId}/assign`, { headers });
-          if (aRes.ok) {
-            const aData = await aRes.json();
-            setAssignments(aData.assignments || []);
-            console.log('[crew] direct assignments fetch:', (aData.assignments || []).length);
+          const res = await fetch('/api/dispatch/board', { headers });
+          if (res.status === 403) { setPlanRequired(true); }
+          else if (res.ok) {
+            const data = await res.json();
+            const active = (data.team_members || []).filter(m => m.status === 'active');
+            if (active.length > 0) setTeamMembers(active);
           }
         } catch {}
-      }
 
-      // Ensure team members are loaded
-      if (teamMembers.length === 0) {
-        const teamRes = await fetch('/api/team', { headers });
-        if (teamRes.ok) {
-          const teamData = await teamRes.json();
-          const members = (teamData.members || teamData.team || teamData || []).filter(m => m.status === 'active');
-          setTeamMembers(members);
+        // Fallback: load team directly
+        if (teamMembers.length === 0) {
+          const teamRes = await fetch('/api/team', { headers });
+          if (teamRes.ok) {
+            const teamData = await teamRes.json();
+            const members = (teamData.members || teamData.team || teamData || []).filter(m => m.status === 'active');
+            setTeamMembers(members);
+          }
         }
       }
     } catch (e) {
@@ -140,16 +134,39 @@ export default function JobDetailPage() {
     setAssigning(true);
     try {
       const token = localStorage.getItem('vector_token');
+
+      // Optimistic update: show member as pending immediately
+      const member = teamMembers.find(m => m.id === memberId);
+      if (member) {
+        setAssignments(prev => [...prev, {
+          team_member_id: memberId,
+          member_name: member.name,
+          member_title: member.title,
+          status: 'pending',
+          _optimistic: true,
+        }]);
+      }
+      setShowAddCrew(false);
+
       const res = await fetch('/api/dispatch/assign', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_id: jobId, team_member_ids: [memberId] }),
       });
-      if (res.ok) {
-        await fetchAssignments(token);
-        setShowAddCrew(false);
+
+      // Refresh real data from server regardless of success
+      await fetchAssignments(token);
+
+      if (!res.ok) {
+        console.error('[assign] API error:', res.status);
+        // Revert optimistic update on failure
+        setAssignments(prev => prev.filter(a => !a._optimistic || a.team_member_id !== memberId));
       }
-    } finally { setAssigning(false); }
+    } catch (err) {
+      console.error('[assign] error:', err);
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const handleUnassignCrew = async (memberId) => {

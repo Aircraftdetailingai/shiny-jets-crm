@@ -101,8 +101,58 @@ export async function POST(request) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
-    const body = await request.json();
-    const { quote_id, media_type, url, notes, surface_tag } = body;
+    // Accept both FormData (file upload) and JSON (url-based)
+    const contentType = request.headers.get('content-type') || '';
+    let quote_id, media_type, url, notes, surface_tag;
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      quote_id = formData.get('quote_id');
+      media_type = formData.get('media_type');
+      notes = formData.get('notes') || null;
+      surface_tag = formData.get('surface_tag') || null;
+      const file = formData.get('file');
+
+      if (!quote_id || !media_type || !file) {
+        return Response.json({ error: 'quote_id, media_type, and file required' }, { status: 400 });
+      }
+
+      // Upload to Supabase Storage
+      const ext = (file.name || 'photo.jpg').split('.').pop() || 'jpg';
+      const path = `${user.id}/${quote_id}/${media_type}_${Date.now()}.${ext}`;
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      const { error: uploadErr } = await supabase.storage
+        .from('job-photos')
+        .upload(path, buffer, { contentType: file.type || 'image/jpeg', upsert: false });
+
+      if (uploadErr) {
+        console.error('[job-media] storage upload error:', uploadErr.message);
+        // Fallback: try 'photos' bucket
+        const { error: fallbackErr } = await supabase.storage
+          .from('photos')
+          .upload(path, buffer, { contentType: file.type || 'image/jpeg', upsert: false });
+        if (fallbackErr) {
+          console.error('[job-media] fallback storage error:', fallbackErr.message);
+          // Last resort: use data URL
+          const base64 = buffer.toString('base64');
+          url = `data:${file.type || 'image/jpeg'};base64,${base64}`;
+        } else {
+          const { data: publicData } = supabase.storage.from('photos').getPublicUrl(path);
+          url = publicData?.publicUrl;
+        }
+      } else {
+        const { data: publicData } = supabase.storage.from('job-photos').getPublicUrl(path);
+        url = publicData?.publicUrl;
+      }
+    } else {
+      const body = await request.json();
+      quote_id = body.quote_id;
+      media_type = body.media_type;
+      url = body.url;
+      notes = body.notes || null;
+      surface_tag = body.surface_tag || null;
+    }
 
     if (!quote_id || !media_type || !url) {
       return Response.json({ error: 'quote_id, media_type, and url required' }, { status: 400 });
@@ -114,16 +164,17 @@ export async function POST(request) {
       return Response.json({ error: 'Invalid media_type' }, { status: 400 });
     }
 
-    // Verify user owns this quote
-    const { data: quote } = await supabase
-      .from('quotes')
-      .select('id')
-      .eq('id', quote_id)
-      .eq('detailer_id', user.id)
-      .single();
+    const detailerId = user.detailer_id || user.id;
 
+    // Verify user owns this quote/job (check both tables)
+    const { data: quote } = await supabase
+      .from('quotes').select('id').eq('id', quote_id).eq('detailer_id', detailerId).maybeSingle();
     if (!quote) {
-      return Response.json({ error: 'Quote not found' }, { status: 404 });
+      const { data: job } = await supabase
+        .from('jobs').select('id').eq('id', quote_id).eq('detailer_id', detailerId).maybeSingle();
+      if (!job) {
+        return Response.json({ error: 'Job not found' }, { status: 404 });
+      }
     }
 
     const { data: media, error } = await supabase
@@ -134,7 +185,7 @@ export async function POST(request) {
         url,
         notes: notes || null,
         surface_tag: surface_tag || null,
-        detailer_id: user.id,
+        detailer_id: detailerId,
       })
       .select()
       .single();
