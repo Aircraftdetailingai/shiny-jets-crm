@@ -22,13 +22,15 @@ export async function GET(request) {
     .eq('detailer_id', detailerId)
     .eq('status', 'active');
 
-  // Get open time entries (clocked in now)
+  // Get open time entries (clocked in now) — filter to today + order by most recent
   const { data: openEntries } = await supabase
     .from('time_entries')
     .select('id, team_member_id, clock_in, job_id, quote_id')
     .eq('detailer_id', detailerId)
+    .eq('date', today)
     .is('clock_out', null)
-    .not('clock_in', 'is', null);
+    .not('clock_in', 'is', null)
+    .order('clock_in', { ascending: false });
 
   // Get job details for open entries
   const jobIds = (openEntries || []).map(e => e.job_id).filter(Boolean);
@@ -54,9 +56,11 @@ export async function GET(request) {
     }
   }
 
-  // Build entry map by member
+  // Build entry map by member — keep only the most recent open entry per member
+  // (entries already sorted by clock_in DESC, so first match wins)
   const entryMap = {};
   for (const e of openEntries || []) {
+    if (entryMap[e.team_member_id]) continue; // skip older entries for same member
     entryMap[e.team_member_id] = {
       clock_in: e.clock_in,
       job_id: e.job_id || e.quote_id,
