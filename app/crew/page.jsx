@@ -519,15 +519,25 @@ export default function CrewDashboard() {
                     className="bg-white/10 backdrop-blur border border-amber-400/30 rounded-xl p-4"
                   >
                     <div className="mb-3">
-                      <p className="text-white font-semibold text-base">{a.aircraft || 'Aircraft'}</p>
-                      {a.tail_number && (
-                        <p className="text-white/70 text-sm">{a.tail_number}</p>
+                      <p className="text-white font-semibold text-base">
+                        {a.aircraft || 'Aircraft'}{a.tail_number ? ` · ${a.tail_number}` : ''}
+                      </p>
+                      {a.customer_name && (
+                        <p className="text-white/70 text-sm">{a.customer_name}</p>
                       )}
-                      <p className="text-white/60 text-sm">{a.airport || 'No airport'}</p>
+                      <p className="text-white/60 text-sm">{a.airport || 'Location TBD'}</p>
                       {a.scheduled_date && (
                         <p className="text-white/50 text-xs mt-1">
-                          {new Date(a.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(a.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                         </p>
+                      )}
+                      {a.services?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {a.services.slice(0, 3).map((s, i) => (
+                            <span key={i} className="bg-white/10 text-white/60 text-[10px] px-2 py-0.5 rounded">{s}</span>
+                          ))}
+                          {a.services.length > 3 && <span className="text-white/40 text-[10px]">+{a.services.length - 3}</span>}
+                        </div>
                       )}
                     </div>
                     <div className="flex gap-2">
