@@ -436,10 +436,19 @@ export default function CrewDashboard() {
           <h1 className="text-white font-bold text-lg flex items-center gap-2">
             <span>✈️</span> {'Shiny Jets Crew'}
           </h1>
-          <p className="text-white/60 text-sm">
+          <p className="text-white/60 text-sm flex items-center gap-1.5">
+            {clockStatus?.clocked_in && <span className="dot-pulse" />}
             {user.name}
             {user.title && <span className="text-v-gold text-xs ml-1">{user.title}</span>}
             {!user.title && user.is_lead_tech && <span className="text-v-gold text-xs ml-1">Lead Tech</span>}
+            {clockStatus?.clocked_in && clockStatus?.clock_in_time && (
+              <span className="text-green-400 text-[10px] ml-1">
+                &middot; Clocked in {(() => {
+                  const mins = Math.floor((Date.now() - new Date(clockStatus.clock_in_time).getTime()) / 60000);
+                  return mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`;
+                })()}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">

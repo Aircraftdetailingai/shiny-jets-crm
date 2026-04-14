@@ -109,6 +109,7 @@ function DashboardContent() {
   const [changeOrderRequests, setChangeOrderRequests] = useState([]);
   const [quota, setQuota] = useState(null);
   const [jobAlerts, setJobAlerts] = useState([]);
+  const [liveStatus, setLiveStatus] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -219,6 +220,19 @@ function DashboardContent() {
     checkOnboarding().then(redirected => {
       if (!redirected) fetchDashboardData().catch(err => console.error('Dashboard fetch error:', err));
     });
+
+    // Live crew status — fetch + poll every 30s
+    const liveToken = localStorage.getItem('vector_token');
+    const fetchLive = () => {
+      if (!liveToken) return;
+      fetch('/api/team/live-status', { headers: { Authorization: `Bearer ${liveToken}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setLiveStatus(d); })
+        .catch(() => {});
+    };
+    fetchLive();
+    const liveInterval = setInterval(fetchLive, 30000);
+    return () => clearInterval(liveInterval);
   }, [router]);
 
   const dismissJobAlert = async (alertId) => {
@@ -371,6 +385,45 @@ function DashboardContent() {
             Add Customer
           </button>
         </div>
+
+        {/* ━━━ LIVE CREW STATUS ━━━ */}
+        {liveStatus?.members?.length > 0 && (
+          <div className="mt-10">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary mb-4 pb-2 border-b border-v-border/40">
+              Crew Status
+              {liveStatus.clocked_in_count > 0 && (
+                <span className="ml-2 text-green-400">{liveStatus.clocked_in_count} clocked in</span>
+              )}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {liveStatus.members.map(m => {
+                const elapsed = m.clocked_in && m.clock_in_time
+                  ? (() => {
+                      const mins = Math.floor((Date.now() - new Date(m.clock_in_time).getTime()) / 60000);
+                      const h = Math.floor(mins / 60);
+                      const mm = mins % 60;
+                      return h > 0 ? `${h}h ${mm}m` : `${mm}m`;
+                    })()
+                  : null;
+                return (
+                  <div key={m.id} className="flex items-center gap-3 p-3 bg-v-surface border border-v-border rounded-sm">
+                    <div className={m.clocked_in ? 'dot-pulse' : 'w-2 h-2 rounded-full bg-gray-600'} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-v-text-primary text-sm truncate">{m.name}</p>
+                      {m.clocked_in ? (
+                        <p className="text-green-400 text-[10px] truncate">
+                          {m.job_label || 'Working'} &middot; {elapsed}
+                        </p>
+                      ) : (
+                        <p className="text-v-text-secondary/50 text-[10px]">Not clocked in</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ━━━ 1. NEEDS ATTENTION ━━━ */}
         {(quoteRequests.length > 0 || changeOrderRequests.length > 0 || (quickStats?.expiringQuotes?.length > 0) || staleViewedQuotes.length > 0 || staleUnviewedQuotes.length > 0 || jobAlerts.length > 0 || upcomingJobs.some(j => new Date(j.scheduled_date).toDateString() === new Date().toDateString())) && (
