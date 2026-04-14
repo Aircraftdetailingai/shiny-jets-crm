@@ -248,7 +248,7 @@ export default function DirectorySettingsPage() {
             <div className="text-2xl">🏅</div>
             <p className="text-sm text-v-text-primary font-medium">Verified Finish Certification</p>
             <p className="text-xs text-v-text-secondary">The Verified Finish badge signals premium quality to aircraft owners. Available on the Enterprise plan.</p>
-            <button onClick={() => router.push('/settings/billing')} className="px-5 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded">Upgrade to Enterprise</button>
+            <a href="https://shinyjets.com/products/aircraft-detailing-crm-enterprise" target="_blank" rel="noreferrer" className="inline-block px-5 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded">Upgrade to Enterprise</a>
           </div>
         ) : verifiedFinishStatus === 'approved' ? (
           <div className="bg-v-surface border border-v-gold/30 rounded p-5 space-y-3">
