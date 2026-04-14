@@ -280,23 +280,36 @@ export async function POST(request) {
       is_admin: false,
     };
 
-    // Send welcome email (non-blocking — don't fail signup if email fails)
+    // Send welcome email via Resend REST API (proven reliable — same as Shopify webhook)
     if (process.env.RESEND_API_KEY) {
       try {
-        const { Resend } = require('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
         const tmpl = welcomeTemplate({ detailer: { name, email: normalizedEmail } });
-        await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
-          to: normalizedEmail,
-          subject: tmpl.subject,
-          html: tmpl.html,
-          text: tmpl.text,
+        const fromAddr = process.env.RESEND_FROM_EMAIL || 'Brett @ Shiny Jets <noreply@mail.shinyjets.com>';
+        console.log('[signup] Sending welcome email to:', normalizedEmail, 'from:', fromAddr);
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: fromAddr,
+            to: normalizedEmail,
+            reply_to: 'brett@shinyjets.com',
+            subject: tmpl.subject,
+            html: tmpl.html,
+            text: tmpl.text,
+          }),
         });
-        console.log('[signup] Welcome email sent to:', normalizedEmail);
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          console.log('[signup] Welcome email sent:', emailData.id, 'to:', normalizedEmail);
+        } else {
+          const errBody = await emailRes.text();
+          console.error('[signup] Resend rejected welcome email:', emailRes.status, errBody);
+        }
       } catch (emailErr) {
-        console.error('[signup] Welcome email failed:', emailErr.message);
+        console.error('[signup] Welcome email error:', emailErr.message);
       }
+    } else {
+      console.warn('[signup] RESEND_API_KEY not set — skipping welcome email');
     }
 
     // Schedule 5-message drip campaign (same as Shopify signups)
@@ -315,11 +328,12 @@ export async function POST(request) {
 
     // Send admin notification email (non-blocking)
     try {
-      const { Resend } = require('resend');
-      const resend = new Resend(process.env.RESEND_API_KEY);
       const signupDate = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' });
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+        from: process.env.RESEND_FROM_EMAIL || 'Brett @ Shiny Jets <noreply@mail.shinyjets.com>',
         to: 'brett@shinyjets.com',
         subject: `New Detailer Signup — ${name.trim()} (${normalizedEmail})`,
         html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
@@ -334,7 +348,9 @@ export async function POST(request) {
           </div>
           <a href="https://crm.shinyjets.com/admin/detailers" style="display:inline-block;padding:12px 24px;background:#007CB1;color:white;text-decoration:none;border-radius:8px;margin-top:15px;">View in Admin</a>
         </div>`,
+      }),
       });
+      console.log('[signup] Admin notification sent for:', normalizedEmail);
     } catch (adminErr) {
       console.error('[signup] Admin notification failed:', adminErr.message);
     }
