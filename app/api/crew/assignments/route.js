@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -169,6 +170,39 @@ export async function PATCH(request) {
     });
   } catch (logErr) {
     console.error('[crew/assignments] activity log error:', logErr);
+  }
+
+  // Notify the owner when crew accepts/declines
+  try {
+    // Get job details for the email
+    let jobLabel = 'a job';
+    const { data: jobRow } = await supabase.from('jobs').select('aircraft_model, aircraft_make, tail_number, scheduled_date').eq('id', existing.job_id).maybeSingle();
+    if (jobRow) {
+      jobLabel = [jobRow.aircraft_make, jobRow.aircraft_model].filter(Boolean).join(' ') + (jobRow.tail_number ? ` ${jobRow.tail_number}` : '');
+    } else {
+      const { data: quoteRow } = await supabase.from('quotes').select('aircraft_model, tail_number, scheduled_date').eq('id', existing.job_id).maybeSingle();
+      if (quoteRow) jobLabel = (quoteRow.aircraft_model || '') + (quoteRow.tail_number ? ` ${quoteRow.tail_number}` : '');
+    }
+
+    // Get owner email
+    const { data: detailer } = await supabase.from('detailers').select('email, company').eq('id', existing.detailer_id).maybeSingle();
+    if (detailer?.email) {
+      const verb = action === 'accept' ? 'accepted' : 'declined';
+      await sendEmail({
+        to: detailer.email,
+        subject: `${user.name || 'Crew member'} ${verb} job: ${jobLabel}`,
+        html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+          <h2 style="color:#007CB1;">Job ${action === 'accept' ? 'Accepted' : 'Declined'}</h2>
+          <p><strong>${user.name || 'A crew member'}</strong> has ${verb} the assignment for <strong>${jobLabel}</strong>.</p>
+          ${jobRow?.scheduled_date ? `<p>Scheduled: ${new Date(jobRow.scheduled_date + 'T12:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>` : ''}
+          <p style="margin-top:20px;"><a href="https://crm.shinyjets.com/jobs/${existing.job_id}" style="background:#007CB1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Job</a></p>
+        </div>`,
+        text: `${user.name || 'Crew member'} ${verb} job: ${jobLabel}. View at crm.shinyjets.com/jobs/${existing.job_id}`,
+      });
+      console.log('[crew/assignments] Notified owner:', detailer.email, 'about', verb);
+    }
+  } catch (notifyErr) {
+    console.error('[crew/assignments] notification error:', notifyErr.message);
   }
 
   return Response.json({ success: true });

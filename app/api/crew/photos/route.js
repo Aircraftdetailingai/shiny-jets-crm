@@ -26,15 +26,12 @@ export async function GET(request) {
 
   const supabase = getSupabase();
 
-  // Verify job belongs to crew's detailer
-  const { data: quote } = await supabase
-    .from('quotes')
-    .select('id')
-    .eq('id', quoteId)
-    .eq('detailer_id', user.detailer_id)
-    .single();
-
-  if (!quote) return Response.json({ error: 'Job not found' }, { status: 404 });
+  // Verify job belongs to crew's detailer (check both tables)
+  const { data: q1 } = await supabase.from('quotes').select('id').eq('id', quoteId).eq('detailer_id', user.detailer_id).maybeSingle();
+  if (!q1) {
+    const { data: j1 } = await supabase.from('jobs').select('id').eq('id', quoteId).eq('detailer_id', user.detailer_id).maybeSingle();
+    if (!j1) return Response.json({ error: 'Job not found' }, { status: 404 });
+  }
 
   const { data: media, error } = await supabase
     .from('job_media')
@@ -68,21 +65,68 @@ export async function POST(request) {
 
   const supabase = getSupabase();
 
-  // Verify job belongs to crew's detailer
+  // Verify job belongs to crew's detailer — check BOTH quotes and jobs tables
+  let jobVerified = false;
   const { data: quote } = await supabase
     .from('quotes')
     .select('id')
     .eq('id', quote_id)
     .eq('detailer_id', user.detailer_id)
-    .single();
+    .maybeSingle();
+  if (quote) jobVerified = true;
 
-  if (!quote) return Response.json({ error: 'Job not found' }, { status: 404 });
+  if (!jobVerified) {
+    const { data: job } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('id', quote_id)
+      .eq('detailer_id', user.detailer_id)
+      .maybeSingle();
+    if (job) jobVerified = true;
+  }
+
+  if (!jobVerified) {
+    console.log('[crew/photos] Job not found:', quote_id, 'detailer:', user.detailer_id);
+    return Response.json({ error: 'Job not found' }, { status: 404 });
+  }
+
+  // Upload base64 to Supabase Storage if it's a data URL (keeps DB column small)
+  let finalUrl = url;
+  if (url.startsWith('data:')) {
+    try {
+      const matches = url.match(/^data:([^;]+);base64,(.+)$/);
+      if (matches) {
+        const contentType = matches[1];
+        const ext = contentType.split('/')[1] || 'jpg';
+        const buffer = Buffer.from(matches[2], 'base64');
+        const path = `${user.detailer_id}/${quote_id}/${media_type}/${Date.now()}.${ext}`;
+
+        // Ensure bucket exists
+        await supabase.storage.createBucket('job-photos', { public: true }).catch(() => {});
+
+        const { error: uploadErr } = await supabase.storage
+          .from('job-photos')
+          .upload(path, buffer, { contentType, upsert: true });
+
+        if (uploadErr) {
+          console.error('[crew/photos] Storage upload error:', uploadErr.message);
+          // Fall back to storing base64 in DB
+        } else {
+          const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+          finalUrl = urlData.publicUrl;
+          console.log('[crew/photos] Uploaded to storage:', path);
+        }
+      }
+    } catch (storageErr) {
+      console.error('[crew/photos] Storage error:', storageErr.message);
+    }
+  }
 
   let entry = {
     quote_id,
     detailer_id: user.detailer_id,
     media_type,
-    url,
+    url: finalUrl,
     notes: notes || null,
   };
 
