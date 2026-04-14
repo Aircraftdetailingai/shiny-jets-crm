@@ -276,7 +276,7 @@ export default function LandingPage({ t, lang = 'en' }) {
                     ))}
                   </ul>
                   <a
-                    href={i === 0 ? '/signup' : i === 1 ? 'https://shinyjets.com/products/shiny-jets-crm-pro-aircraft-detailing-business-software' : i === 2 ? 'https://shinyjets.com/products/shiny-jets-crm-business-team-aircraft-detailing-software' : '/login'}
+                    href={i === 0 ? '/signup' : i === 1 ? 'https://shinyjets.com/products/aircraft-detailing-crm-pro' : i === 2 ? 'https://shinyjets.com/products/aircraft-detailing-crm-business' : '/login'}
                     target={i > 0 ? '_blank' : undefined}
                     rel={i > 0 ? 'noreferrer' : undefined}
                     className={`w-full py-3 rounded-xl font-semibold text-center block text-sm transition-opacity ${

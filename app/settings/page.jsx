@@ -1967,7 +1967,7 @@ function SettingsContent() {
                   <div className="flex flex-wrap gap-2 mb-4">
                     {user?.plan !== 'pro' && user?.plan !== 'business' && (
                       <a
-                        href={`https://shinyjets.com/products/shiny-jets-crm-pro-aircraft-detailing-business-software?email=${encodeURIComponent(user?.email || '')}`}
+                        href={`https://shinyjets.com/products/aircraft-detailing-crm-pro?email=${encodeURIComponent(user?.email || '')}`}
                         target="_blank"
                         rel="noreferrer"
                         className="px-4 py-2 bg-v-gold text-v-charcoal text-xs uppercase tracking-widest font-semibold hover:bg-v-gold-dim transition-colors"
@@ -1977,7 +1977,7 @@ function SettingsContent() {
                     )}
                     {user?.plan !== 'business' && user?.plan !== 'enterprise' && (
                       <a
-                        href={`https://shinyjets.com/products/shiny-jets-crm-business-team-aircraft-detailing-software?email=${encodeURIComponent(user?.email || '')}`}
+                        href={`https://shinyjets.com/products/aircraft-detailing-crm-business?email=${encodeURIComponent(user?.email || '')}`}
                         target="_blank"
                         rel="noreferrer"
                         className="px-4 py-2 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm"
@@ -1987,7 +1987,7 @@ function SettingsContent() {
                     )}
                     {user?.plan !== 'enterprise' && (
                       <a
-                        href={`https://shinyjets.com/products/shiny-jets-crm-enterprise-white-label-aircraft-detailing-platform?email=${encodeURIComponent(user?.email || '')}`}
+                        href={`https://shinyjets.com/products/aircraft-detailing-crm-enterprise?email=${encodeURIComponent(user?.email || '')}`}
                         target="_blank"
                         rel="noreferrer"
                         className="px-4 py-2 border border-v-gold text-v-gold text-xs uppercase tracking-widest font-semibold hover:bg-v-gold/10 transition-colors"

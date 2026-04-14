@@ -394,7 +394,7 @@ export default function DispatchPage() {
           <p className="text-v-text-secondary text-sm mb-4">Available on Business and Enterprise plans</p>
           <p className="text-xs text-v-text-secondary mb-6">Assign jobs to crew, schedule by date, get smart suggestions, and notify your team automatically.</p>
           <a
-            href="https://shinyjets.com/products/shiny-jets-crm-business-team-aircraft-detailing-software"
+            href="https://shinyjets.com/products/aircraft-detailing-crm-business"
             className="inline-block px-6 py-3 bg-v-gold text-v-charcoal font-semibold uppercase tracking-wider text-xs"
           >
             Upgrade to Business
