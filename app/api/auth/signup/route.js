@@ -187,6 +187,32 @@ export async function POST(request) {
       await supabase.from('prospects').update({ status: 'signed_up' }).eq('email', normalizedEmail);
     } catch {}
 
+    // Check if this email has a 5-day course purchase → grant Pro access
+    if (detailer.plan === 'free') {
+      try {
+        const { data: courseAccess } = await supabase
+          .from('app_access')
+          .select('product_type, status')
+          .eq('email', normalizedEmail)
+          .eq('status', 'active')
+          .in('product_type', ['masterclass_annual'])
+          .maybeSingle();
+
+        if (courseAccess) {
+          await supabase.from('detailers').update({
+            plan: 'pro',
+            subscription_status: 'active',
+            subscription_source: 'course_bundle',
+          }).eq('id', detailer.id);
+          detailer.plan = 'pro';
+          detailer.subscription_source = 'course_bundle';
+          console.log(`[signup] Course purchaser detected, upgraded to Pro: ${normalizedEmail}`);
+        }
+      } catch (e) {
+        console.log('[signup] Course check failed (non-critical):', e.message);
+      }
+    }
+
     // Create default intake flow for new detailer
     try {
       const { buildDefaultFlowData } = await import('@/lib/default-flow');

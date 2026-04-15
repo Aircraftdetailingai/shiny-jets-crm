@@ -1991,15 +1991,17 @@ function SettingsContent() {
                 </>
               )}
             </div>
-            {user?.subscription_status === 'active' && !user?.is_admin && (
+            {user?.subscription_source === 'course_bundle' ? (
+              <p className="text-xs text-cyan-400">Pro access included with your 5-Day Course purchase</p>
+            ) : user?.subscription_status === 'active' && !user?.is_admin ? (
               <a href="https://shinyjets.com/account/subscriptions" target="_blank" rel="noreferrer" className="text-xs text-v-text-secondary hover:text-v-gold transition-colors underline">
                 Manage Subscription
               </a>
-            )}
+            ) : null}
           </div>
 
-          {/* Upgrade options for non-max plans */}
-          {!user?.is_admin && user?.plan !== 'enterprise' && (
+          {/* Upgrade options for non-max plans — hide for course_bundle users */}
+          {!user?.is_admin && user?.plan !== 'enterprise' && user?.subscription_source !== 'course_bundle' && (
             <div className="flex flex-wrap gap-2">
               {user?.plan !== 'pro' && user?.plan !== 'business' && (
                 <a

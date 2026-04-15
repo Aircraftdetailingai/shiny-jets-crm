@@ -208,8 +208,23 @@ async function updatePlan(supabase, detailer, newPlan, extra = {}) {
 }
 
 // ─── Course / training product detection ───
-const COURSE_KEYWORDS = ['course', 'masterclass', 'certification', 'training', '5 day', '5-day'];
+const COURSE_KEYWORDS = ['course', 'masterclass', 'certification', 'training', '5 day', '5-day', 'dominate', 'immersive'];
 const COURSE_HANDLES = ['aircraft-detailing-masterclass', 'online-aircraft-detailing-course'];
+
+// Courses that grant free Pro access (5-day immersive / Dominate tier)
+const PRO_GRANT_KEYWORDS = ['5 day', '5-day', 'masterclass', 'dominate', 'immersive', 'certification'];
+const PRO_GRANT_HANDLES = ['aircraft-detailing-masterclass'];
+const PRO_GRANT_PRODUCT_IDS = [8102938312889]; // 5 Day Aircraft Detailing Certification
+
+function isProGrantCourse(item) {
+  const sku = (item.sku || '').toLowerCase();
+  const title = (item.title || '').toLowerCase();
+  const productId = item.product_id;
+  if (PRO_GRANT_PRODUCT_IDS.includes(productId)) return true;
+  if (PRO_GRANT_HANDLES.some(h => sku.includes(h) || title.includes(h))) return true;
+  if (PRO_GRANT_KEYWORDS.some(k => title.includes(k))) return true;
+  return false;
+}
 
 function isCourseProduct(item) {
   const sku = (item.sku || '').toLowerCase();
@@ -305,12 +320,22 @@ async function handleOrderPaid(supabase, payload) {
   // Check for course products → grant pricing app access
   await handleCoursePricingAccess(supabase, payload);
 
+  // Check if this order includes a Pro-granting course (5-day immersive)
   const items = payload?.line_items || [];
+  const hasCourseProGrant = items.some(isProGrantCourse);
+
   let plan = null;
   for (const item of items) {
     plan = resolvePlan(item);
     if (plan) break;
   }
+
+  // Course purchase = free Pro access even if no CRM subscription SKU
+  if (!plan && hasCourseProGrant) {
+    plan = 'pro';
+    console.log('[shopify-webhook] orders/paid: 5-day course detected, granting Pro access');
+  }
+
   if (!plan) {
     console.log('[shopify-webhook] orders/paid: no matching CRM plan, skipping CRM provisioning');
     return;
@@ -326,11 +351,18 @@ async function handleOrderPaid(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   const shopifyCustomerId = String(payload?.customer?.id || '');
 
+  const subscriptionSource = hasCourseProGrant ? 'course_bundle' : 'shopify';
+
   if (detailer) {
     // Reactivate if suspended
-    const extra = { shopify_customer_id: shopifyCustomerId };
+    const extra = { shopify_customer_id: shopifyCustomerId, subscription_source: subscriptionSource };
     if (detailer.status === 'suspended') extra.status = 'active';
-    await updatePlan(supabase, detailer, plan, extra);
+    // Don't downgrade a paid subscription user if they also buy a course
+    if (hasCourseProGrant && ['pro', 'business', 'enterprise'].includes(detailer.plan)) {
+      console.log(`[shopify-webhook] course purchase by existing ${detailer.plan} user ${email}, keeping current plan`);
+    } else {
+      await updatePlan(supabase, detailer, plan, extra);
+    }
   } else {
     // New customer — create account with temp password
     const tempPassword = generateTempPassword();
@@ -351,7 +383,7 @@ async function handleOrderPaid(supabase, payload) {
         status: 'active',
         plan,
         subscription_status: 'active',
-        subscription_source: 'shopify',
+        subscription_source: subscriptionSource,
         shopify_customer_id: shopifyCustomerId,
       })
       .select()
