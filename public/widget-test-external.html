@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Widget Test (External)</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; background: #f5f5f5; }
+    h1 { color: #333; }
+    p { color: #666; }
+    code { background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Widget Test — External Load</h1>
+  <p>This page loads <code>widget.js</code> from <code>https://crm.shinyjets.com/widget.js</code> — exactly how a detailer's website would load it.</p>
+  <p>You should see a "Get a Quote" button in the bottom right corner.</p>
+  <p>Click it to test the quote flow opens correctly.</p>
+
+  <script>
+    window.ShinyJetsWidget = {
+      detailerId: '9f2b9f6a-a104-4497-a5fc-735ab3a7c170',
+      color: '#0081b8',
+      position: 'right',
+      title: 'Get a Quote'
+    };
+  </script>
+  <script src="https://crm.shinyjets.com/widget.js" async></script>
+</body>
+</html>
