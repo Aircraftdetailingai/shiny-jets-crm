@@ -2906,32 +2906,6 @@ function SettingsContent() {
           </div>
         </div>
 
-        {/* Services & Tools */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <a href="/settings/services" className="bg-v-surface border border-v-border p-4 rounded-sm hover:bg-white/5 transition-colors text-center">
-            <div className="text-2xl mb-1">&#9881;</div>
-            <div className="font-medium text-sm text-v-text-primary">{'Services'}</div>
-            <div className="text-xs text-v-text-secondary">{'Configure rates'}</div>
-          </a>
-          <a href="/settings/embed" className="bg-v-surface border border-v-border p-4 rounded-sm hover:bg-white/5 transition-colors text-center">
-            <div className="text-2xl mb-1">&#128279;</div>
-            <div className="font-medium text-sm text-v-text-primary">{'Embed & QR'}</div>
-            <div className="text-xs text-v-text-secondary">{'Website widget'}</div>
-          </a>
-          <a href="/settings/lead-intake" className="bg-v-surface border border-v-border p-4 rounded-sm hover:bg-white/5 transition-colors text-center">
-            <div className="text-2xl mb-1">&#129302;</div>
-            <div className="font-medium text-sm text-v-text-primary">{'AI Lead Intake'}</div>
-            <div className="text-xs text-v-text-secondary">{'Custom questions'}</div>
-          </a>
-          <a href="/admin/aircraft" className="bg-v-surface border border-v-border p-4 rounded-sm hover:bg-white/5 transition-colors text-center">
-            <div className="text-2xl mb-1">&#9992;</div>
-            <div className="font-medium text-sm text-v-text-primary">{'Aircraft DB'}</div>
-            <div className="text-xs text-v-text-secondary">{'Add/edit models'}</div>
-          </a>
-        </div>
-
-
-
         {/* Minimum Call Out Fee */}
         <div className="pb-6 mb-2">
           <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">{'Minimum Fee'}</h3>
