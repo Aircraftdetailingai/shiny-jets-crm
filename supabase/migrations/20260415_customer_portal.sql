@@ -26,7 +26,8 @@ ALTER TABLE customer_aircraft
   ADD COLUMN IF NOT EXISTS home_airport VARCHAR,
   ADD COLUMN IF NOT EXISTS annual_due_date DATE,
   ADD COLUMN IF NOT EXISTS last_service_date DATE,
-  ADD COLUMN IF NOT EXISTS notes TEXT;
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS share_token VARCHAR;
 
 -- Index for magic token lookups
 CREATE INDEX IF NOT EXISTS idx_customer_accounts_magic_token

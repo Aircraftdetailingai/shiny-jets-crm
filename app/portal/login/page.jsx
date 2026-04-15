@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function PortalLoginPage() {
   const [email, setEmail] = useState('');
@@ -7,12 +7,17 @@ export default function PortalLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Check URL params for errors
-  if (typeof window !== 'undefined') {
+  // Read UTM params and persist for onboarding
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('error') === 'expired' && !error) setError('Link expired. Please request a new one.');
-    if (params.get('error') === 'invalid' && !error) setError('Invalid link. Please request a new one.');
-  }
+    if (params.get('error') === 'expired') setError('Link expired. Please request a new one.');
+    if (params.get('error') === 'invalid') setError('Invalid link. Please request a new one.');
+    // Persist UTM params for onboarding flow
+    if (params.get('role')) localStorage.setItem('portal_ref_role', params.get('role'));
+    if (params.get('detailer')) localStorage.setItem('portal_ref_detailer', params.get('detailer'));
+    if (params.get('ref')) localStorage.setItem('portal_ref_source', params.get('ref'));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -100,6 +100,30 @@ export default function FindADetailerPage() {
         </div>
       </section>
 
+      {/* Owner CTA Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0D1B2A] to-[#162d47] border border-[#007CB1]/20 p-6 sm:p-8">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#007CB1]/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="relative">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Track Every Cleaning. Protect Your Investment.</h2>
+            <p className="text-gray-400 text-sm sm:text-base mb-5 max-w-xl">
+              Free aircraft service history for owners, fleet managers and pilots. Download reports, track intervals, and never lose a cleaning record again.
+            </p>
+            <div className="flex flex-wrap gap-3 mb-4">
+              <a href="/portal/login?role=aircraft_owner&ref=directory"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#007CB1] text-white text-sm font-semibold rounded-lg hover:bg-[#006a9a] transition-colors">
+                {'\u2708\uFE0F'} Add My Aircraft &mdash; It&apos;s Free
+              </a>
+              <a href="/portal/login?role=fleet_manager&ref=directory"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 text-white text-sm font-semibold rounded-lg hover:bg-white/20 transition-colors border border-white/10">
+                {'\uD83D\uDCCB'} Track My Fleet
+              </a>
+            </div>
+            <p className="text-gray-500 text-xs">Join 200+ aircraft owners already tracking their service history &middot; No credit card &middot; No app download</p>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
         <div className="flex flex-col sm:flex-row gap-3">
@@ -216,6 +240,10 @@ export default function FindADetailerPage() {
                       className="block w-full text-center px-4 py-2.5 border border-v-gold/30 text-v-gold text-sm font-medium rounded-lg hover:bg-v-gold/10 transition-colors"
                     >
                       Request a Quote
+                    </a>
+                    <a href={`/portal/login?detailer=${d.id}&ref=directory_card`}
+                      className="block w-full text-center mt-2 text-gray-500 hover:text-[#007CB1] text-xs transition-colors">
+                      {'\uD83D\uDCCB'} View service history for your aircraft{d.company ? ` with ${d.company}` : ''}
                     </a>
                   </div>
                 );

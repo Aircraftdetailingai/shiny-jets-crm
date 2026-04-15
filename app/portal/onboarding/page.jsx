@@ -44,6 +44,11 @@ export default function PortalOnboarding() {
     fetch('/api/portal/me').then(r => {
       if (!r.ok) router.push('/portal/login');
     }).catch(() => router.push('/portal/login'));
+    // Pre-select role from UTM param
+    const refRole = localStorage.getItem('portal_ref_role');
+    if (refRole && ROLES.some(r => r.value === refRole)) {
+      setRole(refRole);
+    }
   }, [router]);
 
   const api = async (path, opts = {}) => {

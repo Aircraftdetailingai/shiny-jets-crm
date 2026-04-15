@@ -26,6 +26,7 @@ export default function PortalDashboard() {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [welcomeMsg, setWelcomeMsg] = useState('');
 
   useEffect(() => {
     fetch('/api/portal/me')
@@ -40,6 +41,16 @@ export default function PortalDashboard() {
           return;
         }
         setData(d);
+        // Show welcome message for directory referrals
+        const ref = localStorage.getItem('portal_ref_source');
+        if (ref === 'directory' || ref === 'directory_card') {
+          const count = d.services?.length || 0;
+          if (count > 0) setWelcomeMsg(`Welcome! We found ${count} service record${count !== 1 ? 's' : ''} for your aircraft.`);
+          else setWelcomeMsg('Welcome! Add your aircraft to start tracking your service history.');
+          localStorage.removeItem('portal_ref_source');
+          localStorage.removeItem('portal_ref_role');
+          localStorage.removeItem('portal_ref_detailer');
+        }
       })
       .catch(() => router.push('/portal/login'))
       .finally(() => setLoading(false));
@@ -78,6 +89,14 @@ export default function PortalDashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Welcome banner for directory referrals */}
+        {welcomeMsg && (
+          <div className="bg-[#007CB1]/10 border border-[#007CB1]/20 rounded-xl p-4 flex items-center justify-between">
+            <p className="text-sm text-[#007CB1] font-medium">{welcomeMsg}</p>
+            <button onClick={() => setWelcomeMsg('')} className="text-[#007CB1]/50 hover:text-[#007CB1] text-lg leading-none">&times;</button>
+          </div>
+        )}
+
         {/* My Aircraft */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -177,6 +196,16 @@ export default function PortalDashboard() {
                 <p className="text-[#999] text-sm col-span-3 text-center py-4">No documents yet</p>
               )}
             </div>
+            {/* Fleet export buttons */}
+            {services.length > 0 && (
+              <div className="flex gap-2 mt-3 pt-3 border-t border-[#e5e7eb]">
+                <a href="/api/portal/fleet-export?format=csv" download
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#007CB1] text-white text-xs font-medium rounded-lg hover:bg-[#006a9a] transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M6 20h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  Export Fleet CSV
+                </a>
+              </div>
+            )}
           </div>
         </section>
 

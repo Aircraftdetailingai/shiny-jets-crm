@@ -1,9 +1,9 @@
 export const metadata = {
-  title: 'Find Aircraft Detailers Near You | Shiny Jets CRM',
-  description: 'Search our directory of professional aircraft detailing companies. Find certified detailers near your airport with online booking, reviews, and instant quotes.',
+  title: 'Find Aircraft Detailers \u00B7 Free Service History Tracking | Shiny Jets',
+  description: 'Find certified aircraft detailers near your airport. Free aircraft cleaning history tracking for owners, fleet managers and pilots. Download your complete service record.',
   openGraph: {
-    title: 'Find Aircraft Detailers Near You | Shiny Jets CRM',
-    description: 'Search our directory of professional aircraft detailing companies near your airport.',
+    title: 'Find Aircraft Detailers \u00B7 Free Service History Tracking | Shiny Jets',
+    description: 'Find certified aircraft detailers near your airport. Free aircraft cleaning history tracking for owners, fleet managers and pilots.',
     url: 'https://crm.shinyjets.com/find-a-detailer',
   },
 };
