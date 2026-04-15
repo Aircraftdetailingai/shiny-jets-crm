@@ -1306,6 +1306,35 @@ export default function JobDetailPage() {
         </div>
       )}
 
+      {/* ─── Customer Portal Access ─── */}
+      {(job?.customer_email || job?.client_email) && (
+        <div className="mb-8 bg-v-surface border border-v-border rounded-lg p-5">
+          <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider mb-3">Customer Portal</h3>
+          <p className="text-sm text-v-text-primary mb-2">{job.customer_email || job.client_email}</p>
+          <div className="flex items-center gap-3">
+            <button onClick={async () => {
+              const token = localStorage.getItem('vector_token');
+              const email = job.customer_email || job.client_email;
+              try {
+                const res = await fetch('/api/portal/auth/send-link', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email }),
+                });
+                if (res.ok) {
+                  alert('Portal invite sent to ' + email);
+                } else {
+                  alert('Failed to send invite');
+                }
+              } catch { alert('Failed to send invite'); }
+            }} className="px-4 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded hover:bg-v-gold-dim transition-colors">
+              Send Portal Invite
+            </button>
+            <span className="text-xs text-v-text-secondary/50">Customer can view service history, photos, and documents</span>
+          </div>
+        </div>
+      )}
+
       {/* Quick Links */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <button onClick={() => router.push(`/jobs/${jobId}/photos`)} className="bg-v-surface border border-v-border rounded-lg p-4 text-center hover:bg-white/5 transition-colors">
