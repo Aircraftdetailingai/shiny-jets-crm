@@ -406,7 +406,7 @@ function DashboardContent() {
                     })()
                   : null;
                 return (
-                  <div key={m.id} className="flex items-center gap-3 p-3 bg-v-surface border border-v-border rounded-sm">
+                  <div key={m.id} onClick={() => router.push(`/team/${m.id}`)} className="flex items-center gap-3 p-3 bg-v-surface border border-v-border rounded-sm cursor-pointer hover:bg-white/[0.03] transition-colors">
                     <div className={m.clocked_in ? 'dot-pulse' : 'w-2 h-2 rounded-full bg-gray-600'} />
                     <div className="flex-1 min-w-0">
                       <p className="text-v-text-primary text-sm truncate">{m.name}</p>

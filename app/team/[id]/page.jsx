@@ -28,6 +28,11 @@ export default function TeamMemberPage() {
   const [availSaving, setAvailSaving] = useState(false);
   const [serviceOptions, setServiceOptions] = useState([]);
 
+  // New: private notes + pay period
+  const [ownerNotes, setOwnerNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [payPeriodResetting, setPayPeriodResetting] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) {
@@ -54,6 +59,7 @@ export default function TeamMemberPage() {
       setEntries(data.time_entries || []);
       setStats(data.stats || { total_hours: 0, total_pay: 0 });
       setEditForm(data.member);
+      setOwnerNotes(data.member?.owner_notes || '');
       // Fetch availability
       try {
         const availRes = await fetch(`/api/team/${params.id}/availability`, {
@@ -636,6 +642,107 @@ export default function TeamMemberPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* ─── Pay Period Summary ─── */}
+        {member && (
+          <div className="mt-8 bg-v-surface border border-v-border rounded-lg p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-white font-medium">Hours This Pay Period</h3>
+                <p className="text-v-text-secondary text-xs">Since {member.pay_period_start || 'account creation'}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    const csv = ['Date,Hours,Service,Notes', ...entries.map(e => `${e.date},${e.hours_worked},${e.service_type || ''},${(e.notes || '').replace(/,/g, ';')}`)].join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = `${member.name}-hours.csv`; a.click(); URL.revokeObjectURL(url);
+                  }}
+                  className="px-3 py-1.5 text-xs border border-v-border text-v-text-secondary rounded hover:bg-white/5"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm('Reset pay period to today? This only changes the start date — no hours are deleted.')) return;
+                    setPayPeriodResetting(true);
+                    const token = localStorage.getItem('vector_token');
+                    await fetch(`/api/team/${params.id}/reset-pay-period`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                    await fetchMember(token);
+                    setPayPeriodResetting(false);
+                  }}
+                  disabled={payPeriodResetting}
+                  className="px-3 py-1.5 text-xs border border-v-gold/30 text-v-gold rounded hover:bg-v-gold/10 disabled:opacity-50"
+                >
+                  {payPeriodResetting ? '...' : 'Reset Pay Period'}
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-v-charcoal/50 rounded p-3 text-center">
+                <p className="text-2xl font-bold text-white">{stats.total_hours?.toFixed(1) || '0'}h</p>
+                <p className="text-[10px] text-v-text-secondary uppercase tracking-wider">Total Hours</p>
+              </div>
+              <div className="bg-v-charcoal/50 rounded p-3 text-center">
+                <p className="text-2xl font-bold text-v-gold">${stats.total_pay?.toFixed(2) || '0.00'}</p>
+                <p className="text-[10px] text-v-text-secondary uppercase tracking-wider">Total Pay</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Performance Stats ─── */}
+        {member && entries.length > 0 && (
+          <div className="mt-4 bg-v-surface border border-v-border rounded-lg p-5">
+            <h3 className="text-white font-medium mb-3">Performance</h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <p className="text-xl font-bold text-white">{entries.length}</p>
+                <p className="text-[10px] text-v-text-secondary uppercase">Entries</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-bold text-white">{entries.length > 0 ? (stats.total_hours / entries.length).toFixed(1) : '0'}h</p>
+                <p className="text-[10px] text-v-text-secondary uppercase">Avg / Entry</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-bold text-white">
+                  {(() => { const types = entries.map(e => e.service_type).filter(Boolean); const freq = {}; types.forEach(t => freq[t] = (freq[t] || 0) + 1); return Object.entries(freq).sort((a,b) => b[1]-a[1])[0]?.[0] || '—'; })()}
+                </p>
+                <p className="text-[10px] text-v-text-secondary uppercase">Top Service</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Private Owner Notes ─── */}
+        {member && (
+          <div className="mt-4 bg-amber-500/5 border border-amber-500/20 rounded-lg p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-amber-400 text-sm">&#128274;</span>
+              <h3 className="text-amber-400 font-medium text-sm">Private Notes — never visible to crew</h3>
+              {notesSaving && <span className="text-amber-400/50 text-[10px]">Saving...</span>}
+            </div>
+            <textarea
+              value={ownerNotes}
+              onChange={e => setOwnerNotes(e.target.value)}
+              onBlur={async () => {
+                if (ownerNotes === (member.owner_notes || '')) return;
+                setNotesSaving(true);
+                const token = localStorage.getItem('vector_token');
+                await fetch(`/api/team/${params.id}/notes`, {
+                  method: 'PATCH',
+                  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ owner_notes: ownerNotes }),
+                }).catch(() => {});
+                setNotesSaving(false);
+              }}
+              placeholder="Add private notes about this team member..."
+              rows={3}
+              className="w-full bg-amber-500/5 border border-amber-500/10 text-white rounded px-3 py-2 text-sm placeholder-amber-400/30 outline-none focus:border-amber-400/40 resize-none"
+            />
           </div>
         )}
       </div>
