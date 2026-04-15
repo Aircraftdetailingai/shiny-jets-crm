@@ -139,11 +139,15 @@ export default function EmbedSettingsPage() {
           </div>
         </div>
 
-        {/* Quote Request Widget Section */}
+        {/* AI Quote Chatbot Section */}
         <div className="bg-v-surface rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Quote Request Widget</h2>
-          <p className="text-v-text-secondary text-sm mb-4">
-            Add a quote request button to your website. Visitors click it to start your quote flow &mdash; opens as a popup on any device.
+          <h2 className="text-lg font-semibold mb-4">AI Quote Chatbot</h2>
+          <p className="text-v-text-secondary text-sm mb-3">
+            Add an AI-powered quote assistant to your website. It answers questions about your services and captures leads automatically.
+          </p>
+          <p className="text-v-text-secondary text-xs mb-4">
+            The chatbot uses your FAQ content and custom intake questions from{' '}
+            <a href="/settings/intake-flow" className="text-v-gold hover:underline">AI Lead Intake settings</a>.
           </p>
 
           {/* Widget Customization */}

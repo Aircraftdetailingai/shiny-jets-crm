@@ -1,17 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Quote Request Widget Test</title>
+  <title>AI Quote Chatbot Test</title>
   <style>
     body { font-family: sans-serif; padding: 40px; background: #f5f5f5; }
     h1 { color: #333; }
-    p { color: #666; }
+    p { color: #666; line-height: 1.6; }
+    code { background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h1>Quote Request Widget Test</h1>
-  <p>You should see a "Get a Quote" button in the bottom right corner.</p>
-  <p>Click it to test the quote flow opens correctly.</p>
+  <h1>AI Quote Chatbot Test</h1>
+  <p>You should see a <strong>"Get a Quote"</strong> button in the bottom right corner with a pulsing glow.</p>
+  <p>Click it to open the AI chatbot. It will greet you and ask about your aircraft, then collect your info through natural conversation.</p>
+  <p>The chatbot uses Claude AI to have a real conversation — not a fixed form.</p>
+
+  <h3 style="margin-top:30px;">Test the full flow:</h3>
+  <ol style="color:#666;">
+    <li>Click the button — chatbot should greet you</li>
+    <li>Tell it your aircraft type (e.g. "Citation CJ3")</li>
+    <li>It will ask about services, date, and your contact info</li>
+    <li>After providing all info, it confirms and creates a lead</li>
+    <li>Close and reopen — conversation should persist</li>
+  </ol>
 
   <script>
     window.ShinyJetsWidget = {
