@@ -128,7 +128,7 @@ Return ONLY the JSON object, no other text.`
       });
     }
 
-    // Store FAQs for the chatbot to use
+    // Store FAQs for the quote widget to use
     if (result.faqs?.length) {
       await supabase
         .from('intake_faqs')

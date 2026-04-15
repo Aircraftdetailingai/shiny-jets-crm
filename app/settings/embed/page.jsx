@@ -139,11 +139,11 @@ export default function EmbedSettingsPage() {
           </div>
         </div>
 
-        {/* Chat Widget Section */}
+        {/* Quote Request Widget Section */}
         <div className="bg-v-surface rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Chat Widget</h2>
+          <h2 className="text-lg font-semibold mb-4">Quote Request Widget</h2>
           <p className="text-v-text-secondary text-sm mb-4">
-            Add an AI-powered quote widget to your website. It appears as a floating chat bubble.
+            Add a quote request button to your website. Visitors click it to start your quote flow &mdash; opens as a popup on any device.
           </p>
 
           {/* Widget Customization */}
@@ -266,7 +266,7 @@ export default function EmbedSettingsPage() {
           <ul className="text-sm text-v-text-secondary space-y-2">
             <li>&#8226; Add the QR code to your business cards and leave them at FBOs</li>
             <li>&#8226; Put a sign with the QR code in hangars you service</li>
-            <li>&#8226; Add the chat widget to your website's homepage and services page</li>
+            <li>&#8226; Add the quote widget to your website's homepage and services page</li>
             <li>&#8226; Include the direct link in your email signature</li>
             <li>&#8226; Share the link on your Google Business profile</li>
           </ul>

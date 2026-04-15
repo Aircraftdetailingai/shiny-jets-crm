@@ -313,7 +313,7 @@ export default function LeadIntakeSettingsPage() {
               <div>
                 <h2 className="text-lg font-semibold">Customize Your Intake Questions</h2>
                 <p className="text-sm text-v-text-secondary">
-                  These questions will be asked by the AI chat widget on your website
+                  These questions will be asked in the quote request widget on your website
                 </p>
               </div>
               <button
@@ -460,7 +460,7 @@ export default function LeadIntakeSettingsPage() {
           <div className="bg-v-surface rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-2">Upload FAQ</h2>
             <p className="text-sm text-v-text-secondary mb-6">
-              Paste your FAQ content and we'll extract Q&A pairs for the AI chatbot
+              Paste your FAQ content and we'll extract Q&A pairs for your quote widget
             </p>
 
             <textarea
@@ -497,7 +497,7 @@ A: Yes, we come to your hangar."
                   ))}
                 </div>
                 <p className="text-sm text-green-600 mt-4">
-                  These FAQs have been saved. The AI chatbot can now answer these questions!
+                  These FAQs have been saved and are available in your quote widget.
                 </p>
               </div>
             )}
@@ -528,9 +528,9 @@ A: Yes, we come to your hangar."
 
         {activeTab === 'widget' && (
           <div className="bg-v-surface rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-2">Embed Chat Widget</h2>
+            <h2 className="text-lg font-semibold mb-2">Embed Quote Widget</h2>
             <p className="text-sm text-v-text-secondary mb-6">
-              Add this code to your website to display the AI chat widget
+              Add this code to your website to display the quote request widget
             </p>
 
             <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-green-400 overflow-x-auto">
