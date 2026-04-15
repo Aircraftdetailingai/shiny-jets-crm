@@ -19,6 +19,9 @@ export default function JobDetailPage() {
   const [newStandingNote, setNewStandingNote] = useState('');
   const [crewNotes, setCrewNotes] = useState('');
   const [crewNotesSaving, setCrewNotesSaving] = useState(false);
+  const [briefingSending, setBriefingSending] = useState(false);
+  const [briefingResult, setBriefingResult] = useState(null);
+  const [deliveryPref, setDeliveryPref] = useState('day_before');
   const [progress, setProgress] = useState(0);
   const progressTimer = useRef(null);
 
@@ -280,6 +283,7 @@ export default function JobDetailPage() {
       // Fetch aircraft standing notes + crew notes
       if (data) {
         setCrewNotes(data.crew_notes || '');
+        setDeliveryPref(data.delivery_preference || 'day_before');
         if (data.tail_number) {
           try {
             const notesRes = await fetch(`/api/aircraft-notes?tail_number=${encodeURIComponent(data.tail_number)}`, { headers });
@@ -1248,6 +1252,59 @@ export default function JobDetailPage() {
             className="w-full bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50 placeholder-v-text-secondary/40 resize-none" />
         </div>
       </div>
+
+      {/* ─── Crew Briefing ─── */}
+      {assignments.length > 0 && (
+        <div className="mb-8 bg-v-surface border border-v-border rounded-lg p-5">
+          <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider mb-3">Crew Briefing</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
+            <label className="text-sm text-v-text-secondary shrink-0">Auto-send:</label>
+            <select value={deliveryPref} onChange={async (e) => {
+              const val = e.target.value;
+              setDeliveryPref(val);
+              const token = localStorage.getItem('vector_token');
+              await fetch(`/api/jobs/${jobId}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ delivery_preference: val }) }).catch(() => {});
+            }} className="bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50">
+              <option value="day_before">Day before job</option>
+              <option value="morning_of">Morning of job</option>
+              <option value="manual">Manual only</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <button disabled={briefingSending} onClick={async () => {
+              setBriefingSending(true);
+              setBriefingResult(null);
+              try {
+                const token = localStorage.getItem('vector_token');
+                const res = await fetch(`/api/jobs/${jobId}/send-briefing`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                const data = await res.json();
+                if (res.ok) {
+                  setBriefingResult({ success: true, count: data.sent });
+                  setTimeout(() => setBriefingResult(null), 5000);
+                } else {
+                  setBriefingResult({ success: false, message: data.error || 'Failed to send' });
+                  setTimeout(() => setBriefingResult(null), 5000);
+                }
+              } catch {
+                setBriefingResult({ success: false, message: 'Network error' });
+                setTimeout(() => setBriefingResult(null), 5000);
+              } finally {
+                setBriefingSending(false);
+              }
+            }} className="px-5 py-2.5 bg-v-gold text-v-charcoal text-sm font-semibold rounded-lg hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
+              {briefingSending ? 'Sending...' : 'Send Briefing Now'}
+            </button>
+            {briefingResult && (
+              <span className={`text-sm ${briefingResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                {briefingResult.success ? `Briefing sent to ${briefingResult.count} crew member${briefingResult.count !== 1 ? 's' : ''}` : briefingResult.message}
+              </span>
+            )}
+            {job?.reminder_sent_at && !briefingResult && (
+              <span className="text-xs text-v-text-secondary/50">Last sent {new Date(job.reminder_sent_at).toLocaleDateString()}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Quick Links */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
