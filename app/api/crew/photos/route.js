@@ -71,8 +71,25 @@ export async function POST(request) {
     return Response.json({ error: 'Photo data corrupted or too large. Try a smaller photo.' }, { status: 400 });
   }
 
-  const { quote_id, job_id, media_type, photo_type, url, notes, captured_at, latitude, longitude, location_name, device_info } = body || {};
+  const { quote_id, job_id, media_type, photo_type, url, notes, captured_at, latitude, longitude, location_name: clientLocationName, device_info } = body || {};
   const refId = job_id || quote_id;
+
+  // Reverse geocode lat/lng to a friendly address (Nominatim, free, no key)
+  let resolvedLocationName = clientLocationName || null;
+  if (typeof latitude === 'number' && typeof longitude === 'number') {
+    try {
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=16`,
+        { headers: { 'User-Agent': 'ShinyJetsCRM/1.0 (brett@shinyjets.com)' }, signal: AbortSignal.timeout(3000) }
+      );
+      if (geoRes.ok) {
+        const geo = await geoRes.json();
+        if (geo?.display_name) resolvedLocationName = geo.display_name;
+      }
+    } catch (e) {
+      console.log('[crew/photos] reverse geocode failed (using fallback):', e.message);
+    }
+  }
 
   if (!refId || !media_type || !url) {
     console.log('[crew/photos] missing fields:', { refId, media_type, hasUrl: !!url });
@@ -170,7 +187,7 @@ export async function POST(request) {
     captured_at: captured_at || new Date().toISOString(),
     latitude: typeof latitude === 'number' ? latitude : null,
     longitude: typeof longitude === 'number' ? longitude : null,
-    location_name: location_name || null,
+    location_name: resolvedLocationName,
     device_info: device_info || null,
   };
 

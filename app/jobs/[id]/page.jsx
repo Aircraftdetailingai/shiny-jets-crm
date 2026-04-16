@@ -19,6 +19,11 @@ export default function JobDetailPage() {
   const [newStandingNote, setNewStandingNote] = useState('');
   const [crewNotes, setCrewNotes] = useState('');
   const [crewNotesSaving, setCrewNotesSaving] = useState(false);
+  // Pre/Post detail state
+  const [preJobNotes, setPreJobNotes] = useState('');
+  const [postJobNotes, setPostJobNotes] = useState('');
+  const [preChecklist, setPreChecklist] = useState({});
+  const [productUsage, setProductUsage] = useState([]);
   const [briefingSending, setBriefingSending] = useState(false);
   const [briefingResult, setBriefingResult] = useState(null);
   const [deliveryPref, setDeliveryPref] = useState('day_before');
@@ -295,6 +300,9 @@ export default function JobDetailPage() {
       if (data) {
         setCrewNotes(data.crew_notes || '');
         setDeliveryPref(data.delivery_preference || 'day_before');
+        setPreJobNotes(data.pre_job_notes || '');
+        setPostJobNotes(data.post_job_notes || '');
+        setPreChecklist(data.pre_job_checklist || {});
         if (data.tail_number) {
           try {
             const notesRes = await fetch(`/api/aircraft-notes?tail_number=${encodeURIComponent(data.tail_number)}`, { headers });
@@ -304,6 +312,14 @@ export default function JobDetailPage() {
             }
           } catch {}
         }
+        // Fetch product usage for this job
+        try {
+          const usageRes = await fetch(`/api/jobs/${jobId}/usage`, { headers });
+          if (usageRes.ok) {
+            const ud = await usageRes.json();
+            setProductUsage(ud.usage || []);
+          }
+        } catch {}
       }
     } catch (err) {
       console.error(err);
@@ -1411,6 +1427,177 @@ export default function JobDetailPage() {
             placeholder="One-time note for this job..."
             rows={2}
             className="w-full bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50 placeholder-v-text-secondary/40 resize-none" />
+        </div>
+      </div>
+
+      {/* ─── Pre & Post Detail ─── */}
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Pre-Job card */}
+        <div className="bg-v-surface border border-v-border rounded-lg p-5">
+          <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider mb-4">Pre-Job</h3>
+
+          {/* Pre-job photos */}
+          {(() => {
+            const preJobPhotos = beforePhotos.filter(p => !p.photo_type || p.photo_type === 'pre_job' || p.media_type?.startsWith('before'));
+            return preJobPhotos.length > 0 ? (
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                {preJobPhotos.slice(0, 6).map(p => (
+                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="aspect-square rounded overflow-hidden bg-v-charcoal">
+                    {p.media_type?.includes('video') ? (
+                      <video src={p.url} className="w-full h-full object-cover" muted preload="metadata" />
+                    ) : (
+                      <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-v-text-secondary/40 mb-3">No pre-job photos yet</p>
+            );
+          })()}
+
+          {/* Pre-job notes */}
+          <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1.5">Pre-job condition notes</label>
+          <textarea
+            value={preJobNotes}
+            onChange={e => setPreJobNotes(e.target.value)}
+            onBlur={async () => {
+              if (preJobNotes === (job?.pre_job_notes || '')) return;
+              const token = localStorage.getItem('vector_token');
+              await fetch(`/api/jobs/${jobId}`, {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pre_job_notes: preJobNotes }),
+              }).catch(() => {});
+              setJob(prev => prev ? { ...prev, pre_job_notes: preJobNotes } : prev);
+            }}
+            placeholder="Document existing damage, surface conditions, customer requests..."
+            rows={3}
+            className="w-full bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50 placeholder-v-text-secondary/40 resize-none mb-4"
+          />
+
+          {/* Checklist */}
+          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary mb-2">Checklist</p>
+          <div className="space-y-1.5">
+            {[
+              { key: 'exterior_documented', label: 'Exterior condition documented' },
+              { key: 'interior_documented', label: 'Interior condition documented' },
+              { key: 'damage_noted', label: 'Existing damage noted' },
+              { key: 'instructions_confirmed', label: 'Customer special instructions confirmed' },
+            ].map(item => (
+              <label key={item.key} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!preChecklist[item.key]}
+                  onChange={async (e) => {
+                    const next = { ...preChecklist, [item.key]: e.target.checked };
+                    setPreChecklist(next);
+                    const token = localStorage.getItem('vector_token');
+                    await fetch(`/api/jobs/${jobId}`, {
+                      method: 'PATCH',
+                      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ pre_job_checklist: next }),
+                    }).catch(() => {});
+                  }}
+                  className="w-4 h-4 rounded accent-v-gold"
+                />
+                <span className={`text-sm ${preChecklist[item.key] ? 'text-v-text-secondary line-through' : 'text-white'}`}>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Post-Job card */}
+        <div className="bg-v-surface border border-v-border rounded-lg p-5">
+          <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider mb-4">Post-Job</h3>
+
+          {/* Post-job photos */}
+          {(() => {
+            const postJobPhotos = afterPhotos.filter(p => !p.photo_type || p.photo_type === 'post_job' || p.media_type?.startsWith('after'));
+            return postJobPhotos.length > 0 ? (
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                {postJobPhotos.slice(0, 6).map(p => (
+                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="aspect-square rounded overflow-hidden bg-v-charcoal">
+                    {p.media_type?.includes('video') ? (
+                      <video src={p.url} className="w-full h-full object-cover" muted preload="metadata" />
+                    ) : (
+                      <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-v-text-secondary/40 mb-3">No post-job photos yet</p>
+            );
+          })()}
+
+          {/* Completion notes */}
+          <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1.5">Completion notes</label>
+          <textarea
+            value={postJobNotes}
+            onChange={e => setPostJobNotes(e.target.value)}
+            onBlur={async () => {
+              if (postJobNotes === (job?.post_job_notes || '')) return;
+              const token = localStorage.getItem('vector_token');
+              await fetch(`/api/jobs/${jobId}`, {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_job_notes: postJobNotes }),
+              }).catch(() => {});
+              setJob(prev => prev ? { ...prev, post_job_notes: postJobNotes } : prev);
+            }}
+            placeholder="Work performed, any issues encountered, customer requests..."
+            rows={3}
+            className="w-full bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50 placeholder-v-text-secondary/40 resize-none mb-4"
+          />
+
+          {/* Products used */}
+          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary mb-2">Products Used</p>
+          {productUsage.length > 0 ? (
+            <div className="space-y-1 mb-4 max-h-40 overflow-y-auto">
+              {productUsage.map(u => (
+                <div key={u.id} className="flex items-center justify-between text-sm bg-v-charcoal/50 rounded px-2 py-1.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white truncate">{u.product_name}</p>
+                    {u.logged_by && <p className="text-[10px] text-v-text-secondary">by {u.logged_by}</p>}
+                  </div>
+                  <span className="text-v-text-secondary text-xs shrink-0 ml-2">{u.quantity} {u.unit}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-v-text-secondary/40 mb-4">No products logged</p>
+          )}
+
+          {/* Total time + Mark Complete */}
+          <div className="border-t border-v-border pt-3 mt-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-v-text-secondary">Total time</span>
+              <span className="text-sm font-medium text-white">{labor?.actual_hours ? `${labor.actual_hours}h` : '—'}</span>
+            </div>
+            {job?.status !== 'completed' && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Mark this job as complete?')) return;
+                  const token = localStorage.getItem('vector_token');
+                  await fetch(`/api/jobs/${jobId}`, {
+                    method: 'PATCH',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'completed', completed_at: new Date().toISOString() }),
+                  });
+                  setJob(prev => prev ? { ...prev, status: 'completed', completed_at: new Date().toISOString() } : prev);
+                }}
+                className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+              >
+                Mark Job Complete
+              </button>
+            )}
+            {job?.status === 'completed' && (
+              <div className="text-center py-2 bg-green-500/10 border border-green-500/20 rounded">
+                <p className="text-green-400 text-sm font-medium">&#10003; Job Complete</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -23,6 +23,12 @@ const ALLOWED_FIELDS = [
   'customer_email',
   'total_price',
   'status',
+  'crew_notes',
+  'delivery_preference',
+  'pre_job_notes',
+  'post_job_notes',
+  'pre_job_checklist',
+  'completed_at',
 ];
 
 // PATCH — update an existing job
