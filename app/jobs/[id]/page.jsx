@@ -421,7 +421,13 @@ export default function JobDetailPage() {
         throw new Error(err.error || 'Failed to create invoice');
       }
 
-      const invoice = await invoiceRes.json();
+      const invoiceData = await invoiceRes.json();
+      // POST /api/invoices returns { invoice: {...} } — unwrap it
+      const invoice = invoiceData.invoice || invoiceData;
+
+      if (!invoice?.id) {
+        throw new Error('Invoice created but ID missing in response');
+      }
 
       const sendRes = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: 'POST',

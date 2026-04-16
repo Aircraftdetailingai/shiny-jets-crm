@@ -23,16 +23,24 @@ export async function POST(request, { params }) {
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
     const { id } = await params;
+    const detailerId = user.detailer_id || user.id;
+    console.log('[invoice/send] invoice_id:', id, 'detailer_id:', detailerId);
+
+    // Reject obviously bad IDs
+    if (!id || id === 'undefined' || id === 'null') {
+      return Response.json({ error: 'Invalid invoice ID' }, { status: 400 });
+    }
 
     // Fetch invoice
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select('*')
       .eq('id', id)
-      .eq('detailer_id', user.id)
+      .eq('detailer_id', detailerId)
       .single();
 
     if (invoiceError || !invoice) {
+      console.error('[invoice/send] query error:', invoiceError?.message, 'invoice:', invoice);
       return Response.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
@@ -44,7 +52,7 @@ export async function POST(request, { params }) {
     const { data: detailer } = await supabase
       .from('detailers')
       .select('company, name, email')
-      .eq('id', user.id)
+      .eq('id', detailerId)
       .single();
 
     const companyName = detailer?.company || detailer?.name || 'Your Service Provider';
@@ -120,7 +128,7 @@ export async function POST(request, { params }) {
       .from('invoices')
       .update(updateFields)
       .eq('id', id)
-      .eq('detailer_id', user.id);
+      .eq('detailer_id', detailerId);
 
     return Response.json({ success: true });
   } catch (err) {
