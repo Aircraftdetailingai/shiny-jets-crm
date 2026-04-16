@@ -41,28 +41,30 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const quoteId = searchParams.get('quote_id');
+    const refId = searchParams.get('quote_id') || searchParams.get('job_id');
 
-    if (!quoteId) {
-      return Response.json({ error: 'quote_id required' }, { status: 400 });
+    if (!refId) {
+      return Response.json({ error: 'quote_id or job_id required' }, { status: 400 });
     }
 
-    // Verify user owns this quote
-    const { data: quote } = await supabase
-      .from('quotes')
-      .select('id')
-      .eq('id', quoteId)
-      .eq('detailer_id', user.id)
-      .single();
+    const detailerId = user.detailer_id || user.id;
 
-    if (!quote) {
-      return Response.json({ error: 'Quote not found' }, { status: 404 });
+    // Verify user owns this job (check both tables)
+    const { data: quote } = await supabase.from('quotes').select('id').eq('id', refId).eq('detailer_id', detailerId).maybeSingle();
+    let owned = !!quote;
+    if (!owned) {
+      const { data: job } = await supabase.from('jobs').select('id').eq('id', refId).eq('detailer_id', detailerId).maybeSingle();
+      owned = !!job;
+    }
+    if (!owned) {
+      return Response.json({ error: 'Job not found' }, { status: 404 });
     }
 
+    // Query by both job_id OR quote_id
     const { data: media, error } = await supabase
       .from('job_media')
       .select('*')
-      .eq('quote_id', quoteId)
+      .or(`job_id.eq.${refId},quote_id.eq.${refId}`)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -103,23 +105,26 @@ export async function POST(request) {
 
     // Accept both FormData (file upload) and JSON (url-based)
     const contentType = request.headers.get('content-type') || '';
-    let quote_id, media_type, url, notes, surface_tag;
+    let quote_id, job_id, media_type, photo_type, url, notes, surface_tag;
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       quote_id = formData.get('quote_id');
+      job_id = formData.get('job_id');
       media_type = formData.get('media_type');
+      photo_type = formData.get('photo_type') || null;
       notes = formData.get('notes') || null;
       surface_tag = formData.get('surface_tag') || null;
       const file = formData.get('file');
+      const refId = job_id || quote_id;
 
-      if (!quote_id || !media_type || !file) {
-        return Response.json({ error: 'quote_id, media_type, and file required' }, { status: 400 });
+      if (!refId || !media_type || !file) {
+        return Response.json({ error: 'job_id (or quote_id), media_type, and file required' }, { status: 400 });
       }
 
       // Upload to Supabase Storage
       const ext = (file.name || 'photo.jpg').split('.').pop() || 'jpg';
-      const path = `${user.id}/${quote_id}/${media_type}_${Date.now()}.${ext}`;
+      const path = `${user.id}/${refId}/${media_type}_${Date.now()}.${ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
 
       const { error: uploadErr } = await supabase.storage
@@ -148,17 +153,19 @@ export async function POST(request) {
     } else {
       const body = await request.json();
       quote_id = body.quote_id;
+      job_id = body.job_id;
       media_type = body.media_type;
+      photo_type = body.photo_type || null;
       url = body.url;
       notes = body.notes || null;
       surface_tag = body.surface_tag || null;
     }
 
-    if (!quote_id || !media_type || !url) {
-      return Response.json({ error: 'quote_id, media_type, and url required' }, { status: 400 });
+    const refId = job_id || quote_id;
+    if (!refId || !media_type || !url) {
+      return Response.json({ error: 'job_id (or quote_id), media_type, and url required' }, { status: 400 });
     }
 
-    // Validate media_type
     const validTypes = ['before_video', 'before_photo', 'after_photo', 'after_video'];
     if (!validTypes.includes(media_type)) {
       return Response.json({ error: 'Invalid media_type' }, { status: 400 });
@@ -166,35 +173,44 @@ export async function POST(request) {
 
     const detailerId = user.detailer_id || user.id;
 
-    // Verify user owns this quote/job (check both tables)
-    const { data: quote } = await supabase
-      .from('quotes').select('id').eq('id', quote_id).eq('detailer_id', detailerId).maybeSingle();
-    if (!quote) {
-      const { data: job } = await supabase
-        .from('jobs').select('id').eq('id', quote_id).eq('detailer_id', detailerId).maybeSingle();
-      if (!job) {
-        return Response.json({ error: 'Job not found' }, { status: 404 });
-      }
+    // Resolve which table the ID belongs to — set the correct column
+    let resolvedJobId = null;
+    let resolvedQuoteId = null;
+    const { data: jobRow } = await supabase.from('jobs').select('id').eq('id', refId).eq('detailer_id', detailerId).maybeSingle();
+    if (jobRow) {
+      resolvedJobId = refId;
+    } else {
+      const { data: quoteRow } = await supabase.from('quotes').select('id').eq('id', refId).eq('detailer_id', detailerId).maybeSingle();
+      if (quoteRow) resolvedQuoteId = refId;
+    }
+    if (!resolvedJobId && !resolvedQuoteId) {
+      return Response.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const { data: media, error } = await supabase
-      .from('job_media')
-      .insert({
-        quote_id,
-        media_type,
-        url,
-        notes: notes || null,
-        surface_tag: surface_tag || null,
-        detailer_id: detailerId,
-      })
-      .select()
-      .single();
+    let entry = {
+      job_id: resolvedJobId,
+      quote_id: resolvedQuoteId,
+      media_type,
+      photo_type: photo_type || (media_type.startsWith('before') ? 'pre_job' : media_type.startsWith('after') ? 'post_job' : 'in_progress'),
+      url,
+      notes: notes || null,
+      surface_tag: surface_tag || null,
+      detailer_id: detailerId,
+      team_member_id: user.id,
+    };
 
-    if (error) {
-      console.error('Failed to create media:', error);
+    // Column-stripping retry
+    let media = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data, error } = await supabase.from('job_media').insert(entry).select().single();
+      if (!error) { media = data; break; }
+      const colMatch = error.message?.match(/column "([^"]+)".*does not exist/) || error.message?.match(/Could not find the '([^']+)' column/);
+      if (colMatch) { delete entry[colMatch[1]]; continue; }
+      console.error('[job-media] insert error:', error.message);
       return Response.json({ error: error.message }, { status: 500 });
     }
 
+    if (!media) return Response.json({ error: 'Failed to create media' }, { status: 500 });
     return Response.json({ media }, { status: 201 });
 
   } catch (err) {

@@ -356,8 +356,9 @@ export default function CrewDashboard() {
           const data = await API('/api/crew/photos', token, {
             method: 'POST',
             body: JSON.stringify({
-              quote_id: selectedJob.id,
+              job_id: selectedJob.id,
               media_type: mediaType,
+              photo_type: mediaType.startsWith('before') ? 'pre_job' : mediaType.startsWith('after') ? 'post_job' : 'in_progress',
               url: reader.result,
             }),
           });
@@ -392,7 +393,7 @@ export default function CrewDashboard() {
     const data = await API('/api/crew/products', token, {
       method: 'POST',
       body: JSON.stringify({
-        quote_id: selectedJob.id,
+        job_id: selectedJob.id,
         product_id: usageForm.product_id,
         amount_used: parseFloat(usageForm.amount_used),
         notes: usageForm.notes,
