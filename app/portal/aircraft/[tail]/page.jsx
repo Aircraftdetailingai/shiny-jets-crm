@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import MediaLightbox from '@/components/MediaLightbox';
 
 const STATUS_COLORS = {
   draft: 'bg-gray-100 text-gray-600',
@@ -22,6 +23,7 @@ export default function AircraftDetailPage() {
   const [photoTab, setPhotoTab] = useState('all');
   const [shareUrl, setShareUrl] = useState(null);
   const [shareLoading, setShareLoading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   useEffect(() => {
     fetch(`/api/portal/aircraft/${encodeURIComponent(tail)}`)
@@ -165,11 +167,25 @@ export default function AircraftDetailPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {filteredPhotos.slice(0, 20).map(p => (
-                <div key={p.id} className="aspect-square rounded-lg overflow-hidden bg-[#eee]">
-                  <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                </div>
-              ))}
+              {filteredPhotos.slice(0, 20).map((p, i) => {
+                const isVideo = p.media_type?.includes('video');
+                return (
+                  <button key={p.id} onClick={() => setLightboxIndex(i)} className="aspect-square rounded-lg overflow-hidden bg-[#eee] relative group cursor-pointer">
+                    {isVideo ? (
+                      <>
+                        <video src={p.url} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}
@@ -224,6 +240,14 @@ export default function AircraftDetailPage() {
           <p className="text-[#ccc] text-xs">Powered by Shiny Jets Aviation</p>
         </footer>
       </main>
+
+      {/* Media Lightbox */}
+      <MediaLightbox
+        items={filteredPhotos.slice(0, 20)}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onNav={setLightboxIndex}
+      />
     </div>
   );
 }

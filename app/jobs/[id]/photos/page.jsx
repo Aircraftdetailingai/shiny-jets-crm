@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import MediaGrid from '@/components/MediaGrid';
+import MediaLightbox from '@/components/MediaLightbox';
 
 export default function JobPhotosPage() {
   const router = useRouter();
@@ -13,33 +15,33 @@ export default function JobPhotosPage() {
   const [beforeMedia, setBeforeMedia] = useState([]);
   const [afterMedia, setAfterMedia] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadType, setUploadType] = useState(null);
-  const [notes, setNotes] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [activeUpload, setActiveUpload] = useState(null); // 'before' | 'after'
   const [error, setError] = useState(null);
+
+  // Lightbox state
+  const [lightboxItems, setLightboxItems] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+
+  // Selection state per section
+  const [beforeSelected, setBeforeSelected] = useState(new Set());
+  const [afterSelected, setAfterSelected] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
+    if (!token) { router.push('/login'); return; }
     fetchData(token);
   }, [router, quoteId]);
 
   const fetchData = async (token) => {
     try {
       const headers = { Authorization: `Bearer ${token}` };
-
-      // Fetch quote details
       const quoteRes = await fetch(`/api/quotes/${quoteId}`, { headers });
-      if (quoteRes.ok) {
-        const data = await quoteRes.json();
-        setQuote(data);
-      }
+      if (quoteRes.ok) setQuote(await quoteRes.json());
 
-      // Fetch existing media
       const mediaRes = await fetch(`/api/job-media?quote_id=${quoteId}`, { headers });
       if (mediaRes.ok) {
         const data = await mediaRes.json();
@@ -54,356 +56,296 @@ export default function JobPhotosPage() {
     }
   };
 
-  const handleUploadClick = (type) => {
-    setUploadType(type);
-    setNotes('');
+  const handleAddMedia = (phase) => {
+    setActiveUpload(phase);
+    setError(null);
     fileInputRef.current?.click();
   };
 
   const handleFileSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !uploadType) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !activeUpload) return;
 
     setUploading(true);
+    setUploadProgress(0);
     setError(null);
 
     try {
       const token = localStorage.getItem('vector_token');
+      let completed = 0;
 
-      // Upload via FormData to avoid Vercel body size limits
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('quote_id', quoteId);
-      formData.append('media_type', uploadType);
-      if (notes) formData.append('notes', notes);
+      for (const file of files) {
+        const isVideo = file.type.startsWith('video/');
+        const mediaType = `${activeUpload}_${isVideo ? 'video' : 'photo'}`;
 
-      const res = await fetch('/api/job-media', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('quote_id', quoteId);
+        formData.append('media_type', mediaType);
 
-      if (res.ok) {
-        await fetchData(token);
-        setUploadType(null);
-        setNotes('');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Upload failed');
+        const res = await fetch('/api/job-media', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || `Upload failed for ${file.name}`);
+        }
+        completed++;
+        setUploadProgress(Math.round((completed / files.length) * 100));
       }
+
+      await fetchData(token);
     } catch (err) {
-      console.error('[photo upload error]', err);
-      setError('Failed to upload: ' + (err.message || 'unknown error'));
+      console.error('[upload]', err);
+      setError('Upload failed: ' + (err.message || 'unknown'));
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setActiveUpload(null);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleDelete = async (mediaId) => {
-    if (!confirm('Delete this media?')) return;
+  const toggleSelect = (id, phase) => {
+    const setter = phase === 'before' ? setBeforeSelected : setAfterSelected;
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
+  const toggleSelectAll = (phase) => {
+    const items = phase === 'before' ? beforeMedia : afterMedia;
+    const setter = phase === 'before' ? setBeforeSelected : setAfterSelected;
+    const current = phase === 'before' ? beforeSelected : afterSelected;
+    if (current.size === items.length) {
+      setter(new Set());
+    } else {
+      setter(new Set(items.map(i => i.id)));
+    }
+  };
+
+  const handleBulkDelete = async (phase) => {
+    const selected = phase === 'before' ? beforeSelected : afterSelected;
+    if (selected.size === 0) return;
+    if (!confirm(`Delete ${selected.size} item${selected.size === 1 ? '' : 's'}?`)) return;
+
+    setDeleting(true);
     try {
       const token = localStorage.getItem('vector_token');
-      const res = await fetch(`/api/job-media?id=${mediaId}`, {
+      const ids = [...selected].join(',');
+      await fetch(`/api/job-media?ids=${ids}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.ok) {
-        await fetchData(token);
-      }
+      await fetchData(token);
+      if (phase === 'before') setBeforeSelected(new Set());
+      else setAfterSelected(new Set());
     } catch (err) {
-      console.error('Delete error:', err);
+      setError('Delete failed');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner message={'Loading photos...'} />;
-  }
+  const openLightbox = (items, index) => {
+    setLightboxItems(items);
+    setLightboxIndex(index);
+  };
+
+  if (loading) return <LoadingSpinner message="Loading photos..." />;
 
   return (
     <div className="min-h-screen bg-v-charcoal p-4">
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelect}
         accept="image/*,video/*"
+        multiple
         className="hidden"
-        capture="environment"
       />
 
       {/* Header */}
-      <header className="text-white flex items-center justify-between mb-6">
+      <header className="text-white flex items-center justify-between mb-6 max-w-3xl mx-auto">
         <div className="flex items-center space-x-4">
-          <a href="/calendar" className="text-2xl hover:text-v-gold">&#8592;</a>
+          <button onClick={() => router.back()} className="text-2xl hover:text-v-gold">&larr;</button>
           <div>
-            <h1 className="text-2xl font-bold">{'Job Documentation'}</h1>
+            <h1 className="text-2xl font-bold">Job Documentation</h1>
             {quote && (
               <p className="text-v-text-secondary text-sm">
                 {quote.aircraft_type} {quote.aircraft_model}
+                {quote.tail_number && ` · ${quote.tail_number}`}
               </p>
             )}
           </div>
         </div>
-        <a href={`/quotes/${quoteId}`} className="text-sm text-v-gold hover:underline">
-          {'View Quote'}
-        </a>
+        <a href={`/jobs/${quoteId}`} className="text-sm text-v-gold hover:underline">View Job</a>
       </header>
 
-      {/* Contact Card */}
-      {quote && (quote.poc_name || quote.emergency_contact_name || quote.client_name) && (
-        <div className="max-w-2xl mx-auto mb-4">
-          <div className="bg-v-surface rounded-xl p-4 shadow">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-v-text-secondary uppercase tracking-wider">{'Contacts'}</h3>
-              {quote.contact_notes && (
-                <span className="text-xs text-v-text-secondary" title={quote.contact_notes}>{'Notes'} &#9432;</span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Point of Contact */}
-              {(quote.poc_name || quote.client_name) && (
-                <div className="bg-v-charcoal rounded-lg p-3">
-                  <p className="text-xs font-semibold text-v-text-secondary uppercase mb-1">
-                    {quote.poc_role ? `${quote.poc_role} (POC)` : 'Point of Contact'}
-                  </p>
-                  <p className="text-sm font-medium text-v-text-primary">{quote.poc_name || quote.client_name}</p>
-                  <div className="mt-1 space-y-0.5">
-                    {(quote.poc_phone || quote.client_phone) && (
-                      <a href={`tel:${quote.poc_phone || quote.client_phone}`} className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-                        <span>&#9742;</span> {quote.poc_phone || quote.client_phone}
-                      </a>
-                    )}
-                    {(quote.poc_email || quote.client_email) && (
-                      <a href={`mailto:${quote.poc_email || quote.client_email}`} className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-                        <span>&#9993;</span> {quote.poc_email || quote.client_email}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-              {/* Emergency Contact */}
-              {quote.emergency_contact_name && (
-                <div className="bg-red-900/20 rounded-lg p-3 border border-red-100">
-                  <p className="text-xs font-semibold text-red-600 uppercase mb-1">{'Emergency Contact'}</p>
-                  <p className="text-sm font-medium text-v-text-primary">{quote.emergency_contact_name}</p>
-                  {quote.emergency_contact_phone && (
-                    <a href={`tel:${quote.emergency_contact_phone}`} className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline mt-1">
-                      <span>&#9742;</span> {quote.emergency_contact_phone}
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-            {quote.contact_notes && (
-              <p className="mt-2 text-xs text-v-text-secondary bg-v-charcoal rounded p-2">{quote.contact_notes}</p>
-            )}
-          </div>
-        </div>
-      )}
-
       {error && (
-        <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="max-w-3xl mx-auto mb-4 bg-red-900/30 border border-red-500/30 text-red-300 px-4 py-3 rounded">
           {error}
           <button onClick={() => setError(null)} className="float-right">&times;</button>
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Before Section */}
-        <div className="bg-v-surface rounded-xl p-6 shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-v-text-primary flex items-center gap-2">
-                <span className="text-2xl">&#128249;</span> {'Before Photos/Video'}
-              </h2>
-              <p className="text-sm text-v-text-secondary">{'Document the aircraft condition before starting'}</p>
-            </div>
-            {beforeMedia.length > 0 && (
-              <span className="text-green-600 text-sm font-medium">
-                &#10003; {beforeMedia.length} {'uploaded'}
-              </span>
-            )}
+      {uploading && (
+        <div className="max-w-3xl mx-auto mb-4 bg-v-gold/10 border border-v-gold/30 text-v-gold px-4 py-3 rounded">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-sm font-medium">Uploading {activeUpload} media...</span>
+            <span className="text-xs">{uploadProgress}%</span>
           </div>
-
-          {/* Before media gallery */}
-          {beforeMedia.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-              {beforeMedia.map((item) => (
-                <div key={item.id} className="relative group">
-                  {item.media_type.includes('video') ? (
-                    <video
-                      src={item.url}
-                      controls
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                  ) : (
-                    <img
-                      src={item.url}
-                      alt="Before"
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                  )}
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="absolute top-1 right-1 bg-red-900/200 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-sm"
-                  >
-                    &times;
-                  </button>
-                  {item.notes && (
-                    <p className="text-xs text-v-text-secondary mt-1 truncate">{item.notes}</p>
-                  )}
-                  <p className="text-xs text-v-text-secondary">
-                    {new Date(item.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Upload buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleUploadClick('before_video')}
-              disabled={uploading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-900/200 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-            >
-              <span>&#127909;</span>
-              {uploading && uploadType === 'before_video' ? 'Uploading...' : 'Record Video'}
-            </button>
-            <button
-              onClick={() => handleUploadClick('before_photo')}
-              disabled={uploading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-900/200 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-            >
-              <span>&#128247;</span>
-              {uploading && uploadType === 'before_photo' ? 'Uploading...' : 'Take Photo'}
-            </button>
+          <div className="w-full h-1.5 bg-v-gold/20 rounded overflow-hidden">
+            <div className="h-full bg-v-gold transition-all" style={{ width: `${uploadProgress}%` }} />
           </div>
         </div>
+      )}
+
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Before Section */}
+        <MediaSection
+          title="Before"
+          subtitle="Document the aircraft condition before starting"
+          items={beforeMedia}
+          selectedIds={beforeSelected}
+          onSelect={(id) => toggleSelect(id, 'before')}
+          onSelectAll={() => toggleSelectAll('before')}
+          onBulkDelete={() => handleBulkDelete('before')}
+          onAddMedia={() => handleAddMedia('before')}
+          onOpen={(i) => openLightbox(beforeMedia, i)}
+          uploading={uploading && activeUpload === 'before'}
+          deleting={deleting}
+          accentColor="#3b82f6"
+        />
 
         {/* After Section */}
-        <div className="bg-v-surface rounded-xl p-6 shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-v-text-primary flex items-center gap-2">
-                <span className="text-2xl">&#128248;</span> {'After Photos'}
-              </h2>
-              <p className="text-sm text-v-text-secondary">{'Document your completed work'}</p>
-            </div>
-            {afterMedia.length > 0 && (
-              <span className="text-green-600 text-sm font-medium">
-                &#10003; {afterMedia.length} {'uploaded'}
+        <MediaSection
+          title="After"
+          subtitle="Document your completed work"
+          items={afterMedia}
+          selectedIds={afterSelected}
+          onSelect={(id) => toggleSelect(id, 'after')}
+          onSelectAll={() => toggleSelectAll('after')}
+          onBulkDelete={() => handleBulkDelete('after')}
+          onAddMedia={() => handleAddMedia('after')}
+          onOpen={(i) => openLightbox(afterMedia, i)}
+          uploading={uploading && activeUpload === 'after'}
+          deleting={deleting}
+          accentColor="#10b981"
+        />
+
+        {/* Status Summary */}
+        <div className="bg-v-surface rounded-xl p-5">
+          <h3 className="font-semibold text-v-text-primary mb-3 text-sm">Documentation Status</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-v-text-secondary">Before</span>
+              <span className={beforeMedia.length > 0 ? 'text-green-400' : 'text-v-text-secondary/50'}>
+                {beforeMedia.length > 0 ? `${beforeMedia.length} items \u2713` : 'None yet'}
               </span>
-            )}
-          </div>
-
-          {/* After media gallery */}
-          {afterMedia.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-              {afterMedia.map((item) => (
-                <div key={item.id} className="relative group">
-                  {item.media_type.includes('video') ? (
-                    <video
-                      src={item.url}
-                      controls
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                  ) : (
-                    <img
-                      src={item.url}
-                      alt="After"
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                  )}
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="absolute top-1 right-1 bg-red-900/200 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-sm"
-                  >
-                    &times;
-                  </button>
-                  {item.notes && (
-                    <p className="text-xs text-v-text-secondary mt-1 truncate">{item.notes}</p>
-                  )}
-                  <p className="text-xs text-v-text-secondary">
-                    {new Date(item.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Upload buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleUploadClick('after_photo')}
-              disabled={uploading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-900/200 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
-            >
-              <span>&#128247;</span>
-              {uploading && uploadType === 'after_photo' ? 'Uploading...' : 'Take Photo'}
-            </button>
-            <button
-              onClick={() => handleUploadClick('after_video')}
-              disabled={uploading}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-900/200 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
-            >
-              <span>&#127909;</span>
-              {uploading && uploadType === 'after_video' ? 'Uploading...' : 'Record Video'}
-            </button>
-          </div>
-        </div>
-
-        {/* Tips Card */}
-        <div className="bg-v-gold-muted/20 border border-v-gold/20 rounded-xl p-4">
-          <h3 className="font-bold text-v-gold-muted mb-2">&#128161; {'Documentation Tips'}</h3>
-          <ul className="text-sm text-v-gold-muted space-y-1">
-            <li>&#8226; {'Capture any existing damage or stains before starting'}</li>
-            <li>&#8226; {'Take wide shots and close-ups of problem areas'}</li>
-            <li>&#8226; {'Video walk-around shows more than photos'}</li>
-            <li>&#8226; {'After photos are great for social media'}</li>
-            <li>&#8226; {'Customers love seeing before/after comparisons'}</li>
-          </ul>
-        </div>
-
-        {/* Completion Summary */}
-        <div className="bg-v-surface rounded-xl p-6 shadow">
-          <h3 className="font-bold text-v-text-primary mb-3">{'Documentation Status'}</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-v-text-secondary">{'Before Documentation'}</span>
-              {beforeMedia.length > 0 ? (
-                <span className="text-green-600 font-medium">&#10003; {'Complete'}</span>
-              ) : (
-                <span className="text-v-gold-dim font-medium">&#9888; {'Missing'}</span>
-              )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-v-text-secondary">{'After Documentation'}</span>
-              {afterMedia.length > 0 ? (
-                <span className="text-green-600 font-medium">&#10003; {'Complete'}</span>
-              ) : (
-                <span className="text-v-gold-dim font-medium">&#9888; {'Missing'}</span>
-              )}
+              <span className="text-v-text-secondary">After</span>
+              <span className={afterMedia.length > 0 ? 'text-green-400' : 'text-v-text-secondary/50'}>
+                {afterMedia.length > 0 ? `${afterMedia.length} items \u2713` : 'None yet'}
+              </span>
             </div>
           </div>
-
           {beforeMedia.length > 0 && afterMedia.length > 0 && (
-            <div className="mt-4 p-3 bg-green-900/20 border border-green-200 rounded-lg">
-              <p className="text-green-800 font-medium">
-                &#127881; {'Great job! Full documentation complete.'}
-              </p>
-              <p className="text-green-600 text-sm">
-                {'Your customer can view these in their portal.'}
-              </p>
+            <div className="mt-4 p-3 bg-green-900/20 border border-green-500/20 rounded">
+              <p className="text-green-400 text-sm font-medium">Full documentation complete. Customer can view in their portal.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Lightbox */}
+      <MediaLightbox
+        items={lightboxItems}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onNav={setLightboxIndex}
+      />
+    </div>
+  );
+}
+
+// Reusable section for each phase
+function MediaSection({ title, subtitle, items, selectedIds, onSelect, onSelectAll, onBulkDelete, onAddMedia, onOpen, uploading, deleting, accentColor }) {
+  const allSelected = items.length > 0 && selectedIds.size === items.length;
+
+  return (
+    <div className="bg-v-surface rounded-xl p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h2 className="text-lg font-bold text-v-text-primary">{title}</h2>
+          <p className="text-sm text-v-text-secondary">{subtitle}</p>
+        </div>
+        {items.length > 0 && (
+          <span className="text-xs text-v-text-secondary">
+            {items.length} item{items.length === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+
+      {/* Selection bar */}
+      {items.length > 0 && (
+        <div className="flex items-center justify-between mb-3 py-2 border-y border-v-border">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-v-text-secondary">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onSelectAll}
+              className="w-4 h-4 rounded accent-v-gold cursor-pointer"
+            />
+            <span>Select all</span>
+            {selectedIds.size > 0 && <span className="text-v-gold">({selectedIds.size} selected)</span>}
+          </label>
+          {selectedIds.size > 0 && (
+            <button
+              onClick={onBulkDelete}
+              disabled={deleting}
+              className="text-xs px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-medium disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : `Delete ${selectedIds.size}`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Media grid */}
+      {items.length > 0 ? (
+        <div className="mb-4">
+          <MediaGrid items={items} selectedIds={selectedIds} onSelect={onSelect} onOpen={onOpen} />
+        </div>
+      ) : (
+        <div className="mb-4 border-2 border-dashed border-v-border rounded-lg p-8 text-center">
+          <svg className="w-10 h-10 text-v-text-secondary/40 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <p className="text-v-text-secondary text-sm">No {title.toLowerCase()} media yet</p>
+        </div>
+      )}
+
+      {/* Add Media button */}
+      <button
+        onClick={onAddMedia}
+        disabled={uploading}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors"
+        style={{ background: uploading ? '#666' : accentColor }}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        {uploading ? 'Uploading...' : `Add ${title} Media`}
+      </button>
+      <p className="text-xs text-v-text-secondary/50 text-center mt-2">Photos and videos accepted</p>
     </div>
   );
 }

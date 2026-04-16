@@ -234,17 +234,21 @@ export async function DELETE(request) {
 
     const { searchParams } = new URL(request.url);
     const mediaId = searchParams.get('id');
+    const idsParam = searchParams.get('ids'); // comma-separated for bulk delete
+    const detailerId = user.detailer_id || user.id;
 
-    if (!mediaId) {
-      return Response.json({ error: 'id required' }, { status: 400 });
+    if (!mediaId && !idsParam) {
+      return Response.json({ error: 'id or ids required' }, { status: 400 });
     }
 
-    // Delete only if user owns it
+    const idList = idsParam ? idsParam.split(',').filter(Boolean) : [mediaId];
+
+    // Delete only if user owns them
     const { error } = await supabase
       .from('job_media')
       .delete()
-      .eq('id', mediaId)
-      .eq('detailer_id', user.id);
+      .in('id', idList)
+      .eq('detailer_id', detailerId);
 
     if (error) {
       console.error('Failed to delete media:', error);
