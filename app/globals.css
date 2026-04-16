@@ -219,6 +219,10 @@ input:focus, textarea:focus, select:focus {
   animation: fadeIn 0.3s ease-out;
 }
 
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
 /* ========== MODAL ANIMATIONS ========== */
 
 @keyframes slideUp {

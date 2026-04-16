@@ -23,10 +23,19 @@ export default function JobDetailPage() {
   const [briefingResult, setBriefingResult] = useState(null);
   const [deliveryPref, setDeliveryPref] = useState('day_before');
   const [progress, setProgress] = useState(0);
+  const [savedProgress, setSavedProgress] = useState(0);
+  const [progressSaving, setProgressSaving] = useState(false);
+  const [progressSaved, setProgressSaved] = useState(false);
+  const [progressError, setProgressError] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const progressTimer = useRef(null);
 
   useEffect(() => {
-    if (job?.progress_percentage !== undefined) setProgress(job.progress_percentage || 0);
+    if (job?.progress_percentage !== undefined) {
+      const val = job.progress_percentage || 0;
+      setProgress(val);
+      setSavedProgress(val);
+    }
   }, [job?.progress_percentage]);
 
   useEffect(() => {
@@ -488,17 +497,49 @@ export default function JobDetailPage() {
   if (loading) return <AppShell title="Job"><div className="p-8 text-v-text-secondary">Loading...</div></AppShell>;
   if (!job) return <AppShell title="Job"><div className="p-8 text-red-400">Job not found</div></AppShell>;
 
-  const saveProgress = (val) => {
+  // Slider just updates local state — Save button commits the change
+  const onSliderChange = (val) => {
     setProgress(val);
-    clearTimeout(progressTimer.current);
-    progressTimer.current = setTimeout(async () => {
+    setProgressSaved(false);
+    setProgressError(false);
+  };
+
+  const saveProgressNow = async () => {
+    // If hitting 100%, show completion confirmation first
+    if (progress === 100 && job?.status !== 'completed') {
+      setShowCompleteConfirm(true);
+      return;
+    }
+    await commitProgress(progress, false);
+  };
+
+  const commitProgress = async (val, markComplete) => {
+    setProgressSaving(true);
+    setProgressError(false);
+    try {
       const token = localStorage.getItem('vector_token');
-      await fetch(`/api/jobs/${jobId}/progress`, {
+      const body = { progress_percentage: val };
+      if (markComplete) {
+        body.status = 'completed';
+        body.completed_at = new Date().toISOString();
+      }
+      const res = await fetch(`/api/jobs/${jobId}/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ progress_percentage: val }),
-      }).catch(() => {});
-    }, 1000);
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setSavedProgress(val);
+      setProgressSaved(true);
+      if (markComplete && job) {
+        setJob(prev => ({ ...prev, status: 'completed', completed_at: body.completed_at, progress_percentage: 100 }));
+      }
+      setTimeout(() => setProgressSaved(false), 2000);
+    } catch {
+      setProgressError(true);
+    } finally {
+      setProgressSaving(false);
+    }
   };
 
   // Services come enriched from the API with hours, rate, price
@@ -637,6 +678,34 @@ export default function JobDetailPage() {
         </div>
       )}
 
+      {/* Completion confirmation modal (when slider hits 100%) */}
+      {showCompleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowCompleteConfirm(false)}>
+          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-semibold mb-2">Mark this job as complete?</h3>
+            <p className="text-v-text-secondary text-sm mb-4">Setting progress to 100% will mark the job as completed and stamp the completion time.</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowCompleteConfirm(false)}
+                className="px-4 py-2 text-sm text-v-text-secondary border border-v-border rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowCompleteConfirm(false);
+                  await commitProgress(100, true);
+                }}
+                disabled={progressSaving}
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {progressSaving ? 'Saving...' : 'Mark Complete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Invoice result modal */}
       {invoiceResult && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setInvoiceResult(null)}>
@@ -734,7 +803,7 @@ export default function JobDetailPage() {
         <input
           type="range" min="0" max="100" step="5"
           value={progress}
-          onChange={e => saveProgress(parseInt(e.target.value))}
+          onChange={e => onSliderChange(parseInt(e.target.value))}
           className="w-full h-2 rounded-lg appearance-none cursor-pointer"
           style={{ background: `linear-gradient(to right, #0081b8 ${progress}%, rgba(255,255,255,0.1) ${progress}%)` }}
         />
@@ -742,6 +811,20 @@ export default function JobDetailPage() {
           <span>Not Started</span>
           <span>Complete</span>
         </div>
+
+        {/* Save button — only shown when value differs from saved */}
+        {progress !== savedProgress && (
+          <button
+            onClick={saveProgressNow}
+            disabled={progressSaving}
+            className={`w-full mt-3 py-2.5 rounded-lg text-sm font-semibold transition-all animate-fade-in ${progressError ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-[#0081b8] text-white hover:bg-[#006a9a]'} disabled:opacity-50`}
+          >
+            {progressSaving ? 'Saving...' : progressError ? 'Save failed — tap to retry' : 'Save Progress'}
+          </button>
+        )}
+        {progressSaved && progress === savedProgress && (
+          <p className="text-xs text-green-400 text-center mt-2 animate-fade-in">Saved &#10003;</p>
+        )}
         {/* Share with customer toggle */}
         <label className="flex items-center justify-between mt-3 pt-3 border-t border-v-border cursor-pointer">
           <span className="text-xs text-v-text-secondary">Share progress with customer</span>
