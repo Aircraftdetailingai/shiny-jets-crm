@@ -20,12 +20,13 @@ export default function TeamPage() {
       return;
     }
     fetchMembers(token);
-    // Fetch live clock status
+    // Fetch live clock status — API returns { members: [{ id, clocked_in, ... }] }
     fetch('/api/team/live-status', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : { statuses: [] })
+      .then(r => r.ok ? r.json() : { members: [] })
       .then(d => {
         const map = {};
-        for (const s of d.statuses || []) map[s.team_member_id] = s;
+        const list = d.members || d.statuses || [];
+        for (const s of list) map[s.id || s.team_member_id] = s;
         setLiveStatus(map);
       })
       .catch(() => {});
