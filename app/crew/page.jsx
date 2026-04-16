@@ -407,27 +407,47 @@ export default function CrewDashboard() {
     });
   };
 
-  // Photo upload with client-side compression
+  // Photo upload with progressive compression and proper error handling
   const handlePhotoUpload = async (e, mediaType) => {
     const file = e.target.files?.[0];
     if (!file || !selectedJob) return;
     setPhotoUploading(true);
+    e.target.value = ''; // allow re-selecting same file
+
     try {
-      // Compress if image is over 3MB
+      // Always compress images — try to keep base64 under ~3MB so JSON body stays under 4MB
       let processedFile = file;
-      if (file.size > 3 * 1024 * 1024 && file.type.startsWith('image/')) {
+      if (file.type.startsWith('image/')) {
         try {
-          processedFile = await compressImage(file);
-        } catch {
-          // Fall back to original file
+          // Progressive compression: try 1600px @ 0.8, then 1200px @ 0.7, then 1000px @ 0.6
+          const tries = [
+            { dim: 2000, q: 0.85 },
+            { dim: 1600, q: 0.8 },
+            { dim: 1200, q: 0.7 },
+            { dim: 1000, q: 0.6 },
+          ];
+          for (const t of tries) {
+            processedFile = await compressImage(file, t.dim, t.q);
+            if (processedFile.size < 2.5 * 1024 * 1024) break;
+          }
+        } catch (compressErr) {
+          console.warn('[upload] compression failed, using original:', compressErr.message);
         }
+      }
+
+      // Hard reject if still too big (will exceed Vercel 4.5MB body limit when base64-encoded)
+      if (processedFile.size > 3.3 * 1024 * 1024) {
+        showMsg('Photo too large — please try a smaller photo', 'error');
+        setPhotoUploading(false);
+        return;
       }
 
       const reader = new FileReader();
       reader.onload = async () => {
         try {
-          const data = await API('/api/crew/photos', token, {
+          const res = await fetch('/api/crew/photos', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               job_id: selectedJob.id,
               media_type: mediaType,
@@ -435,14 +455,26 @@ export default function CrewDashboard() {
               url: reader.result,
             }),
           });
-          if (data.success) {
-            showMsg('Photo uploaded!');
-            fetchPhotos();
+
+          if (res.status === 413) {
+            showMsg('Photo too large — please try a smaller photo', 'error');
+          } else if (res.status === 401) {
+            showMsg('Session expired — please log in again', 'error');
+          } else if (!res.ok) {
+            let msg = 'Upload failed';
+            try { const d = await res.json(); msg = `Upload failed: ${d.error || res.statusText}`; } catch {}
+            showMsg(msg, 'error');
           } else {
-            showMsg(data.error || 'Failed to upload photo', 'error');
+            const data = await res.json();
+            if (data.success) {
+              showMsg('Photo uploaded!');
+              fetchPhotos();
+            } else {
+              showMsg(`Upload failed: ${data.error || 'unknown error'}`, 'error');
+            }
           }
         } catch (err) {
-          showMsg('Upload failed — photo may be too large. Try a smaller image.', 'error');
+          showMsg(err.message?.includes('Failed to fetch') ? 'Connection error — please try again' : `Upload failed: ${err.message || 'unknown'}`, 'error');
         }
         setPhotoUploading(false);
       };
@@ -452,7 +484,7 @@ export default function CrewDashboard() {
       };
       reader.readAsDataURL(processedFile);
     } catch (err) {
-      showMsg('Failed to process photo: ' + (err.message || 'Unknown error'), 'error');
+      showMsg(`Failed to process photo: ${err.message || 'unknown'}`, 'error');
       setPhotoUploading(false);
     }
   };

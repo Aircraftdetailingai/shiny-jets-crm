@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
@@ -15,7 +16,6 @@ async function getCrewUser(request) {
   return payload;
 }
 
-// Resolve which table an ID belongs to (jobs or quotes)
 async function resolveJobOrQuote(supabase, id, detailerId) {
   const { data: job } = await supabase.from('jobs').select('id').eq('id', id).eq('detailer_id', detailerId).maybeSingle();
   if (job) return { job_id: id, quote_id: null };
@@ -24,7 +24,7 @@ async function resolveJobOrQuote(supabase, id, detailerId) {
   return null;
 }
 
-// GET - Get photos for a job (queries by both job_id and quote_id)
+// GET - Get photos for a job
 export async function GET(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -53,59 +53,111 @@ export async function GET(request) {
 
 // POST - Upload a photo for a job
 export async function POST(request) {
-  const user = await getCrewUser(request);
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  console.log('[crew/photos] POST received');
 
-  const body = await request.json();
-  const { quote_id, job_id, media_type, photo_type, url, notes } = body;
+  const user = await getCrewUser(request);
+  if (!user) {
+    console.log('[crew/photos] no crew user — unauthorized');
+    return Response.json({ error: 'Unauthorized — please log in again' }, { status: 401 });
+  }
+  console.log('[crew/photos] user:', { id: user.id, detailer_id: user.detailer_id, name: user.name });
+
+  // Parse body defensively
+  let body;
+  try {
+    body = await request.json();
+  } catch (parseErr) {
+    console.error('[crew/photos] body parse error:', parseErr.message);
+    return Response.json({ error: 'Photo data corrupted or too large. Try a smaller photo.' }, { status: 400 });
+  }
+
+  const { quote_id, job_id, media_type, photo_type, url, notes } = body || {};
   const refId = job_id || quote_id;
 
   if (!refId || !media_type || !url) {
-    return Response.json({ error: 'job_id (or quote_id), media_type, and url are required' }, { status: 400 });
+    console.log('[crew/photos] missing fields:', { refId, media_type, hasUrl: !!url });
+    return Response.json({ error: 'Missing required photo data (job, type, or image)' }, { status: 400 });
   }
 
   const validTypes = ['before_video', 'before_photo', 'after_photo', 'after_video'];
   if (!validTypes.includes(media_type)) {
-    return Response.json({ error: `media_type must be one of: ${validTypes.join(', ')}` }, { status: 400 });
+    return Response.json({ error: `Invalid media type: ${media_type}` }, { status: 400 });
   }
 
   const supabase = getSupabase();
   const ref = await resolveJobOrQuote(supabase, refId, user.detailer_id);
   if (!ref) {
-    console.log('[crew/photos] Job not found:', refId, 'detailer:', user.detailer_id);
-    return Response.json({ error: 'Job not found' }, { status: 404 });
+    console.log('[crew/photos] job not found:', refId, 'detailer:', user.detailer_id);
+    return Response.json({ error: 'Job not found in your account' }, { status: 404 });
   }
 
-  // Upload base64 to Supabase Storage if it's a data URL
+  // Try Supabase Storage upload first
   let finalUrl = url;
+  let storageUploaded = false;
+  let storageErrorMsg = null;
+
   if (url.startsWith('data:')) {
     try {
       const matches = url.match(/^data:([^;]+);base64,(.+)$/);
-      if (matches) {
-        const contentType = matches[1];
-        const ext = contentType.split('/')[1] || 'jpg';
-        const buffer = Buffer.from(matches[2], 'base64');
-        const path = `${user.detailer_id}/${refId}/${media_type}/${Date.now()}.${ext}`;
+      if (!matches) {
+        console.error('[crew/photos] invalid data URL format');
+        return Response.json({ error: 'Invalid photo format' }, { status: 400 });
+      }
 
-        await supabase.storage.createBucket('job-photos', { public: true }).catch(() => {});
+      const contentType = matches[1];
+      const ext = (contentType.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      const buffer = Buffer.from(matches[2], 'base64');
+      const sizeKB = Math.round(buffer.length / 1024);
+      console.log('[crew/photos] image size:', sizeKB, 'KB, type:', contentType);
 
-        const { error: uploadErr } = await supabase.storage
-          .from('job-photos')
-          .upload(path, buffer, { contentType, upsert: true });
+      const path = `${user.detailer_id}/${refId}/${media_type}_${Date.now()}.${ext}`;
 
-        if (!uploadErr) {
-          const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-          finalUrl = urlData.publicUrl;
-        } else {
-          console.error('[crew/photos] storage error:', uploadErr.message, 'size:', buffer.length);
+      const { error: uploadErr } = await supabase.storage
+        .from('job-photos')
+        .upload(path, buffer, { contentType, upsert: true });
+
+      if (uploadErr) {
+        storageErrorMsg = uploadErr.message;
+        console.error('[crew/photos] storage upload failed:', uploadErr.message, 'size:', sizeKB, 'KB');
+
+        // Try to create bucket and retry once
+        try {
+          await supabase.storage.createBucket('job-photos', { public: true });
+          const { error: retryErr } = await supabase.storage.from('job-photos').upload(path, buffer, { contentType, upsert: true });
+          if (!retryErr) {
+            const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+            finalUrl = urlData.publicUrl;
+            storageUploaded = true;
+            console.log('[crew/photos] uploaded after bucket creation:', path);
+          }
+        } catch {}
+
+        // Final fallback: store as base64 in DB if image is small enough
+        if (!storageUploaded) {
+          if (buffer.length > 800 * 1024) {
+            console.error('[crew/photos] base64 fallback rejected — image too large:', sizeKB, 'KB > 800KB');
+            return Response.json({
+              error: `Photo too large to save (${sizeKB}KB). Storage upload failed and image exceeds DB fallback limit.`,
+              storage_error: storageErrorMsg,
+            }, { status: 413 });
+          }
+          // Keep finalUrl as the original data URL — DB will store base64
+          console.log('[crew/photos] using base64 DB fallback, size:', sizeKB, 'KB');
         }
+      } else {
+        const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+        finalUrl = urlData.publicUrl;
+        storageUploaded = true;
+        console.log('[crew/photos] uploaded to storage:', path);
       }
     } catch (storageErr) {
-      console.error('[crew/photos] storage exception:', storageErr.message);
+      console.error('[crew/photos] storage exception:', storageErr.message, storageErr.stack);
+      storageErrorMsg = storageErr.message;
+      // Continue with base64 fallback
     }
   }
 
-  // Build entry — supports both new columns (job_id, photo_type, team_member_id) and legacy (quote_id only)
+  // Insert into job_media
   let entry = {
     job_id: ref.job_id,
     quote_id: ref.quote_id,
@@ -117,8 +169,8 @@ export async function POST(request) {
     notes: notes || null,
   };
 
-  // Column-stripping retry for missing columns
   let inserted = null;
+  let lastError = null;
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data, error } = await supabase
       .from('job_media')
@@ -127,17 +179,27 @@ export async function POST(request) {
       .single();
 
     if (!error) { inserted = data; break; }
+    lastError = error;
     const colMatch = error.message?.match(/column "([^"]+)".*does not exist/) || error.message?.match(/Could not find the '([^']+)' column/);
-    if (colMatch) { delete entry[colMatch[1]]; continue; }
-    console.error('[crew/photos] insert error:', error.message);
-    return Response.json({ error: 'Failed to upload photo' }, { status: 500 });
+    if (colMatch) {
+      console.log('[crew/photos] stripping missing column:', colMatch[1]);
+      delete entry[colMatch[1]];
+      continue;
+    }
+    console.error('[crew/photos] insert error:', error.message, 'code:', error.code, 'details:', error.details);
+    break;
   }
 
   if (!inserted) {
-    return Response.json({ error: 'Failed to upload photo' }, { status: 500 });
+    return Response.json({
+      error: `Database save failed: ${lastError?.message || 'unknown error'}`,
+      storage_error: storageErrorMsg,
+    }, { status: 500 });
   }
 
-  // Write to crew_activity_log (non-blocking)
+  console.log('[crew/photos] photo saved:', inserted.id, 'storage:', storageUploaded ? 'yes' : 'base64-fallback');
+
+  // Activity log (non-blocking)
   try {
     await supabase.from('crew_activity_log').insert({
       detailer_id: user.detailer_id,
@@ -149,12 +211,12 @@ export async function POST(request) {
         media_type,
         photo_type: entry.photo_type,
         photo_id: inserted.id,
-        url: finalUrl,
+        storage_method: storageUploaded ? 'storage' : 'base64',
       },
     });
   } catch (e) {
     console.error('[crew/photos] activity log error:', e.message);
   }
 
-  return Response.json({ success: true, photo: inserted });
+  return Response.json({ success: true, photo: inserted, storage_method: storageUploaded ? 'storage' : 'base64' });
 }
