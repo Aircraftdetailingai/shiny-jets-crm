@@ -40,6 +40,8 @@ export default function JobDetailPage() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceSent, setInvoiceSent] = useState(false);
   const [showInvoicePrompt, setShowInvoicePrompt] = useState(false);
+  const [invoiceResult, setInvoiceResult] = useState(null); // { id, share_link, customer_email, total, error }
+  const [resendingInvoice, setResendingInvoice] = useState(false);
   const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
   const [completionData, setCompletionData] = useState(null);
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
@@ -426,18 +428,45 @@ export default function JobDetailPage() {
         headers,
       });
 
-      if (!sendRes.ok) {
-        throw new Error('Invoice created but failed to send email');
-      }
+      const sendData = await sendRes.json().catch(() => ({}));
 
       setInvoiceSent(true);
       setShowInvoicePrompt(false);
-      alert('Invoice generated and sent successfully.');
+      setInvoiceResult({
+        id: invoice.id,
+        share_link: invoice.share_link,
+        customer_email: job.client_email || job.customer_email,
+        total: displayTotal,
+        invoice_number: invoice.invoice_number || invoice.id?.slice(0, 8).toUpperCase(),
+        error: sendRes.ok ? null : (sendData.error || 'Failed to send email'),
+      });
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Failed to generate invoice');
+      setInvoiceResult({ error: err.message || 'Failed to generate invoice' });
     } finally {
       setInvoiceLoading(false);
+    }
+  };
+
+  const handleResendInvoice = async () => {
+    if (!invoiceResult?.id) return;
+    setResendingInvoice(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/invoices/${invoiceResult.id}/send`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setInvoiceResult(prev => ({ ...prev, error: null, resent: true }));
+      } else {
+        setInvoiceResult(prev => ({ ...prev, error: data.error || 'Resend failed' }));
+      }
+    } catch (e) {
+      setInvoiceResult(prev => ({ ...prev, error: e.message || 'Resend failed' }));
+    } finally {
+      setResendingInvoice(false);
     }
   };
 
@@ -598,6 +627,49 @@ export default function JobDetailPage() {
                 {savingEdit ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice result modal */}
+      {invoiceResult && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setInvoiceResult(null)}>
+          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            {invoiceResult.error && !invoiceResult.id ? (
+              <>
+                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-3">
+                  <span className="text-red-400 text-xl">!</span>
+                </div>
+                <h3 className="text-white font-semibold mb-1">Invoice Failed</h3>
+                <p className="text-v-text-secondary text-sm mb-4">{invoiceResult.error}</p>
+                <button onClick={() => setInvoiceResult(null)} className="w-full py-2.5 bg-v-charcoal border border-v-border text-white text-sm rounded">Close</button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${invoiceResult.error ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+                    <span className={invoiceResult.error ? 'text-amber-400' : 'text-green-400'} style={{ fontSize: 20 }}>{invoiceResult.error ? '!' : '✓'}</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">{invoiceResult.error ? 'Invoice Created' : invoiceResult.resent ? 'Invoice Resent' : 'Invoice Sent'}</h3>
+                    <p className="text-v-text-secondary text-xs">{invoiceResult.error ? 'Email failed — invoice ready to share' : 'Customer received the invoice email'}</p>
+                  </div>
+                </div>
+                <div className="bg-v-charcoal/50 rounded p-4 mb-4 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-v-text-secondary">Invoice #</span><span className="text-white font-mono">{invoiceResult.invoice_number}</span></div>
+                  <div className="flex justify-between"><span className="text-v-text-secondary">Customer</span><span className="text-white">{invoiceResult.customer_email}</span></div>
+                  <div className="flex justify-between"><span className="text-v-text-secondary">Total</span><span className="text-v-gold font-semibold">{currencySymbol()}{formatPrice(invoiceResult.total)}</span></div>
+                </div>
+                {invoiceResult.error && (
+                  <p className="text-amber-400 text-xs mb-3">Error: {invoiceResult.error}</p>
+                )}
+                <div className="flex gap-2">
+                  <a href={`/invoice/${invoiceResult.share_link}`} target="_blank" rel="noreferrer" className="flex-1 py-2.5 bg-v-gold text-v-charcoal text-sm font-semibold rounded text-center hover:bg-v-gold-dim">View Invoice</a>
+                  <button onClick={handleResendInvoice} disabled={resendingInvoice} className="flex-1 py-2.5 bg-v-charcoal border border-v-border text-white text-sm rounded disabled:opacity-50">{resendingInvoice ? 'Sending...' : 'Resend'}</button>
+                </div>
+                <button onClick={() => setInvoiceResult(null)} className="w-full mt-2 text-v-text-secondary text-xs hover:text-white">Close</button>
+              </>
+            )}
           </div>
         </div>
       )}

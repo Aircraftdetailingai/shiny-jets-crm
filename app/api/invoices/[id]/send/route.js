@@ -77,22 +77,37 @@ export async function POST(request, { params }) {
 
     const text = `Hi ${invoice.customer_name || 'there'},\n\nYou have a new invoice from ${companyName} for ${total}.\n\nView & Pay: ${invoiceLink}\n\nThank you.`;
 
+    // Sanitize company name for "from" header (only ASCII, no special chars that break SMTP)
+    const safeName = (companyName || 'Shiny Jets CRM').replace(/[<>"]/g, '').replace(/[^\x20-\x7E]/g, '').trim() || 'Shiny Jets CRM';
     const fromDomain = (FROM_EMAIL.match(/<([^>]+)>/) || [null, FROM_EMAIL])[1];
-    const brandedFrom = `${companyName} <${fromDomain}>`;
+    const brandedFrom = `${safeName} <${fromDomain}>`;
+    const replyToEmail = detailer?.email || 'support@shinyjets.com';
+
+    if (!process.env.RESEND_API_KEY) {
+      console.error('[invoice/send] RESEND_API_KEY not configured');
+      return Response.json({ error: 'Email service not configured' }, { status: 500 });
+    }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error: emailError } = await resend.emails.send({
-      from: brandedFrom,
-      to: invoice.customer_email,
-      subject,
-      html,
-      text,
-      reply_to: detailer?.email || 'support@shinyjets.com',
-    });
+    let emailResult;
+    try {
+      // Resend SDK v3+ uses replyTo (camelCase). Try modern format first, fall back if needed.
+      emailResult = await resend.emails.send({
+        from: brandedFrom,
+        to: invoice.customer_email,
+        subject,
+        html,
+        text,
+        replyTo: replyToEmail,
+      });
+    } catch (sendErr) {
+      console.error('[invoice/send] Resend exception:', sendErr.message);
+      return Response.json({ error: `Email failed: ${sendErr.message}` }, { status: 500 });
+    }
 
-    if (emailError) {
-      console.error('Invoice send email error:', emailError);
-      return Response.json({ error: 'Failed to send email' }, { status: 500 });
+    if (emailResult?.error) {
+      console.error('[invoice/send] Resend returned error:', JSON.stringify(emailResult.error));
+      return Response.json({ error: emailResult.error.message || 'Failed to send email' }, { status: 500 });
     }
 
     // Update invoice status to 'sent', set issued_date if not set

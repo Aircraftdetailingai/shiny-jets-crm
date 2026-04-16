@@ -70,7 +70,12 @@ export default function AircraftDetailPage() {
             <a href={`/api/portal/aircraft/${encodeURIComponent(tail)}/pdf`} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#007CB1] text-white text-xs font-medium rounded-lg hover:bg-[#006a9a] transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Export Cleaning Log
+              Download PDF
+            </a>
+            <a href={`/api/portal/aircraft/${encodeURIComponent(tail)}/csv`} download
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#ddd] text-[#333] text-xs font-medium rounded-lg hover:bg-[#f5f5f5] transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2a4 4 0 014-4h6m0 0l-3-3m3 3l-3 3m-9 0H4" /></svg>
+              Export CSV
             </a>
             <button onClick={async () => {
               setShareLoading(true);
