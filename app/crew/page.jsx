@@ -606,21 +606,14 @@ export default function CrewDashboard() {
       {/* Header */}
       <div className="bg-[#0f172a]/80 border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div>
-          <h1 className="text-white font-bold text-lg flex items-center gap-2">
-            <span>✈️</span> {'Shiny Jets Crew'}
-          </h1>
+          <h1 className="text-white font-bold text-lg">Shiny Jets Crew</h1>
           <p className="text-white/60 text-sm flex items-center gap-1.5">
             {clockStatus?.clocked_in && <span className="dot-pulse" />}
-            {user.name}
-            {user.title && <span className="text-v-gold text-xs ml-1">{user.title}</span>}
-            {!user.title && user.is_lead_tech && <span className="text-v-gold text-xs ml-1">Lead Tech</span>}
-            {clockStatus?.clocked_in && clockStatus?.clock_in_time && (
-              <span className="text-green-400 text-[10px] ml-1">
-                &middot; Clocked in {(() => {
-                  const mins = Math.floor((Date.now() - new Date(clockStatus.clock_in_time).getTime()) / 60000);
-                  return mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`;
-                })()}
-              </span>
+            <span>{user.name}</span>
+            {user.title && <span className="text-v-gold text-xs">{user.title}</span>}
+            {!user.title && user.is_lead_tech && <span className="text-v-gold text-xs">Lead Tech</span>}
+            {clockStatus?.clocked_in && clockStatus?.clock_in_time && clockElapsed && (
+              <span className="text-green-400 text-[10px]">&middot; {clockElapsed}</span>
             )}
           </p>
         </div>
@@ -783,21 +776,38 @@ export default function CrewDashboard() {
             </button>
 
             <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h2 className="text-white font-bold text-xl">{selectedJob.aircraft}</h2>
-                  <p className="text-white/60">{selectedJob.airport || ''}</p>
+              <div className="flex items-start justify-between mb-3 gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-white font-bold text-xl truncate">{selectedJob.aircraft}</h2>
+                  {selectedJob.airport && (
+                    <p className="text-white/60 text-sm">
+                      {selectedJob.airport_name ? `${selectedJob.airport_name} (${selectedJob.airport})` : selectedJob.airport}
+                    </p>
+                  )}
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[selectedJob.status] || 'bg-gray-100 text-gray-800'}`}>
-                  {selectedJob.status?.replace('_', ' ')}
+                <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${statusColors[selectedJob.status] || 'bg-gray-100 text-gray-800'}`}>
+                  {selectedJob.status === 'in_progress' ? 'In Progress' : selectedJob.status?.replace('_', ' ')}
                 </span>
               </div>
 
-              {selectedJob.scheduled_date && (
-                <p className="text-white/70 text-sm mb-2">
-                  {'Scheduled'}: {new Date(selectedJob.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                </p>
-              )}
+              {selectedJob.scheduled_date && (() => {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const sched = new Date(selectedJob.scheduled_date + 'T12:00:00');
+                const isPast = sched < today;
+                const isActive = ['in_progress', 'accepted'].includes(selectedJob.status);
+                if (isPast && isActive) {
+                  return (
+                    <p className="text-white/70 text-sm mb-2">
+                      Started {sched.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  );
+                }
+                return (
+                  <p className="text-white/70 text-sm mb-2">
+                    {sched.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </p>
+                );
+              })()}
 
               {/* Lead tech contact info */}
               {user.is_lead_tech && (selectedJob.client_name || selectedJob.client_phone) && (
@@ -1037,147 +1047,116 @@ export default function CrewDashboard() {
 
             {/* Photo upload section */}
             <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-3">{'Photos'}</h3>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                {['before_photo', 'after_photo'].map(type => (
-                  <label key={type} className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg p-3 text-center transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => handlePhotoUpload(e, type)}
-                      disabled={photoUploading}
-                    />
-                    <div className="text-2xl mb-1">{type === 'before_photo' ? '📸' : '✅'}</div>
-                    <p className="text-white text-xs">{type === 'before_photo' ? 'Before Photo' : 'After Photo'}</p>
-                  </label>
-                ))}
+              <h3 className="text-white font-semibold mb-3">Photos</h3>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[
+                  { type: 'before_photo', label: 'Before', mediaType: 'before_photo' },
+                  { type: 'in_progress', label: 'In Progress', mediaType: 'before_photo' },
+                  { type: 'after_photo', label: 'After', mediaType: 'after_photo' },
+                ].map(({ type, label, mediaType }) => {
+                  const matchPhoto = photos.find(p => p.photo_type === (type === 'before_photo' ? 'pre_job' : type === 'after_photo' ? 'post_job' : 'in_progress'))
+                    || (type === 'before_photo' && photos.find(p => p.media_type === 'before_photo'))
+                    || (type === 'after_photo' && photos.find(p => p.media_type === 'after_photo'));
+                  return (
+                    <label key={type} className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg overflow-hidden transition-colors aspect-square flex flex-col items-center justify-center relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => handlePhotoUpload(e, mediaType)}
+                        disabled={photoUploading}
+                      />
+                      {matchPhoto ? (
+                        <>
+                          <img src={matchPhoto.url} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+                          <span className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] text-center py-1 font-medium">{label}</span>
+                          <span className="absolute top-1 right-1 bg-green-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">&#10003;</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-7 h-7 text-white/40 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <p className="text-white text-[11px] font-medium">{label}</p>
+                        </>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
-              {photoUploading && <p className="text-v-gold text-sm text-center">{'Uploading...'}</p>}
-              {photos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  {photos.map(p => (
-                    <div key={p.id} className="relative rounded-lg overflow-hidden">
-                      <img src={p.url} alt={p.media_type} className="w-full h-20 object-cover" />
-                      <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
-                        {p.media_type?.replace('_', ' ')}
-                      </span>
-                    </div>
-                  ))}
+              {photoUploading && <p className="text-v-gold text-sm text-center">Uploading...</p>}
+              {photos.length > 3 && (
+                <div className="mt-3">
+                  <p className="text-white/40 text-[10px] uppercase tracking-wider mb-2">All Photos ({photos.length})</p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {photos.map(p => (
+                      <div key={p.id} className="relative rounded overflow-hidden aspect-square">
+                        <img src={p.url} alt={p.media_type} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Product usage on this job (if inventory access) */}
-            {user.can_see_inventory && products.length === 0 && tab === 'jobs' && (
-              <button onClick={() => { fetchProducts(); }} className="hidden">load</button>
-            )}
             {user.can_see_inventory && (
               <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-3">{'Log Product Usage'}</h3>
+                <h3 className="text-white font-semibold mb-3">Log Product Usage</h3>
                 {products.length === 0 ? (
-                  <button onClick={fetchProducts} className="text-v-gold text-sm hover:underline">{'Load products'}</button>
+                  <button
+                    onClick={fetchProducts}
+                    className="w-full bg-white/10 hover:bg-white/15 border border-white/15 text-white py-2.5 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Load Products
+                  </button>
                 ) : (
                   <div className="space-y-2">
                     <select
                       value={usageForm.product_id}
                       onChange={e => setUsageForm(f => ({ ...f, product_id: e.target.value }))}
-                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
+                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2.5 text-sm"
                     >
-                      <option value="" className="text-gray-900">{'Select product'}</option>
+                      <option value="" className="text-gray-900">Select product</option>
                       {products.map(p => (
                         <option key={p.id} value={p.id} className="text-gray-900">
-                          {p.name} ({p.current_quantity} {p.unit} {'left'})
+                          {p.name} ({p.quantity} {p.unit} left)
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="number"
-                      placeholder={'Amount used'}
-                      value={usageForm.amount_used}
-                      onChange={e => setUsageForm(f => ({ ...f, amount_used: e.target.value }))}
-                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40"
-                      step="1"
-                      min="0"
-                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Amount"
+                        value={usageForm.amount_used}
+                        onChange={e => setUsageForm(f => ({ ...f, amount_used: e.target.value }))}
+                        className="col-span-2 bg-white/10 text-white border border-white/20 rounded-lg p-2.5 text-sm placeholder-white/40"
+                        step="0.1"
+                        min="0"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Unit"
+                        value={usageForm.unit || (products.find(p => p.id === usageForm.product_id)?.unit || 'oz')}
+                        onChange={e => setUsageForm(f => ({ ...f, unit: e.target.value }))}
+                        className="bg-white/10 text-white border border-white/20 rounded-lg p-2.5 text-sm placeholder-white/40"
+                      />
+                    </div>
                     <button
                       onClick={handleLogUsage}
-                      className="w-full bg-v-gold-dim hover:bg-v-gold-dim text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                      disabled={!usageForm.product_id || !usageForm.amount_used}
+                      className="w-full bg-[#0081b8] hover:bg-[#006a9a] text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                     >
-                      {'Log Usage'}
+                      Log Usage
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Report Missing Item */}
-            {(user.can_see_inventory || user.can_see_equipment) && (
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <h3 className="text-white font-semibold mb-3">{'Report Missing Item'}</h3>
-                <div className="space-y-2">
-                  <select
-                    value={missingReport.type}
-                    onChange={e => setMissingReport(f => ({ ...f, type: e.target.value, item_id: '', item_name: '' }))}
-                    className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
-                  >
-                    <option value="" className="text-gray-900">{'Select type...'}</option>
-                    {user.can_see_inventory && <option value="product" className="text-gray-900">{'Products'}</option>}
-                    {user.can_see_equipment && <option value="equipment" className="text-gray-900">{'Equipment'}</option>}
-                  </select>
-                  {missingReport.type === 'product' && jobMaterials?.products?.length > 0 && (
-                    <select
-                      value={missingReport.item_id}
-                      onChange={e => {
-                        const p = jobMaterials.products.find(x => x.id === e.target.value);
-                        setMissingReport(f => ({ ...f, item_id: e.target.value, item_name: p?.name || '' }));
-                      }}
-                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
-                    >
-                      <option value="" className="text-gray-900">{'Select product'}</option>
-                      {jobMaterials.products.map(p => (
-                        <option key={p.id} value={p.id} className="text-gray-900">{p.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  {missingReport.type === 'equipment' && jobMaterials?.equipment?.length > 0 && (
-                    <select
-                      value={missingReport.item_id}
-                      onChange={e => {
-                        const eq = jobMaterials.equipment.find(x => x.id === e.target.value);
-                        setMissingReport(f => ({ ...f, item_id: e.target.value, item_name: eq?.name || '' }));
-                      }}
-                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm"
-                    >
-                      <option value="" className="text-gray-900">{'Select equipment'}</option>
-                      {jobMaterials.equipment.map(e => (
-                        <option key={e.id} value={e.id} className="text-gray-900">{e.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  <input
-                    type="text"
-                    placeholder={'Item name'}
-                    value={missingReport.item_name}
-                    onChange={e => setMissingReport(f => ({ ...f, item_name: e.target.value }))}
-                    className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40"
-                  />
-                  <textarea
-                    placeholder={'Additional notes (optional)...'}
-                    value={missingReport.notes}
-                    onChange={e => setMissingReport(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-2 text-sm placeholder-white/40 min-h-[60px]"
-                  />
-                  <button
-                    onClick={handleReportMissing}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {'Report Missing Item'}
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Report Missing Item is consolidated into the Report Issue button above */}
           </div>
         )}
 
