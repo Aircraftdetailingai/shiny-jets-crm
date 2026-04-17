@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
@@ -20,8 +20,13 @@ const statusLabels = {
   overdue: 'Overdue',
 };
 
-export default function InvoicesPage() {
+export default function InvoicesPageWrapper() {
+  return <Suspense fallback={<div className="min-h-screen bg-v-charcoal" />}><InvoicesPageInner /></Suspense>;
+}
+
+function InvoicesPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -42,6 +47,13 @@ export default function InvoicesPage() {
     net_terms: 30, notes: '',
   });
   const [customers, setCustomers] = useState([]);
+
+  // Edit invoice state
+  const [editInvoice, setEditInvoice] = useState(null); // full invoice being edited
+  const [editForm, setEditForm] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSavedFlash, setEditSavedFlash] = useState(false);
 
   const sym = currencySymbol();
 
@@ -133,7 +145,109 @@ export default function InvoicesPage() {
     } catch {}
   };
 
-  const createInvoiceFromJob = async () => {
+  // Open edit modal for an invoice — fetches latest data first.
+  const openEdit = async (inv) => {
+    setEditError('');
+    setEditSavedFlash(false);
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}`, { headers: headers() });
+      const data = await res.json().catch(() => ({}));
+      const full = data.invoice || inv;
+      setEditInvoice(full);
+      setEditForm({
+        customer_name: full.customer_name || '',
+        customer_email: full.customer_email || '',
+        customer_phone: full.customer_phone || '',
+        aircraft_model: full.aircraft_model || full.aircraft || '',
+        tail_number: full.tail_number || '',
+        line_items: (full.line_items && full.line_items.length > 0)
+          ? full.line_items.map(li => ({
+              description: li.description || li.service || '',
+              quantity: li.quantity != null ? li.quantity : 1,
+              rate: li.rate != null ? li.rate : (li.price != null ? li.price : (li.amount != null ? li.amount : 0)),
+            }))
+          : [{ description: '', quantity: 1, rate: 0 }],
+        notes: full.notes || '',
+        net_terms: full.net_terms || 30,
+        due_date: full.due_date ? full.due_date.slice(0, 10) : '',
+        status: (full.status === 'paid') ? full.status : (full.status || 'draft'),
+      });
+    } catch (err) {
+      setEditError('Failed to load invoice');
+    }
+  };
+
+  const updateEditLine = (i, field, val) => setEditForm(f => {
+    if (!f) return f;
+    const items = [...f.line_items];
+    items[i] = { ...items[i], [field]: val };
+    return { ...f, line_items: items };
+  });
+  const addEditLine = () => setEditForm(f => f && ({ ...f, line_items: [...f.line_items, { description: '', quantity: 1, rate: 0 }] }));
+  const removeEditLine = (i) => setEditForm(f => f && ({ ...f, line_items: f.line_items.filter((_, j) => j !== i) }));
+
+  const saveEdit = async () => {
+    if (!editInvoice || !editForm) return;
+    setEditSaving(true);
+    setEditError('');
+    try {
+      const lineItems = (editForm.line_items || [])
+        .filter(li => (li.description || '').trim())
+        .map(li => ({
+          description: li.description,
+          quantity: parseFloat(li.quantity) || 1,
+          rate: parseFloat(li.rate) || 0,
+          price: (parseFloat(li.quantity) || 1) * (parseFloat(li.rate) || 0),
+        }));
+      const total = lineItems.reduce((s, li) => s + li.price, 0);
+      const body = {
+        customer_name: editForm.customer_name,
+        customer_email: editForm.customer_email,
+        customer_phone: editForm.customer_phone,
+        aircraft_model: editForm.aircraft_model,
+        tail_number: editForm.tail_number,
+        line_items: lineItems,
+        total,
+        notes: editForm.notes,
+        net_terms: parseInt(editForm.net_terms) || 30,
+        status: editForm.status,
+      };
+      if (editForm.due_date) body.due_date = new Date(editForm.due_date).toISOString();
+      const res = await fetch(`/api/invoices/${editInvoice.id}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEditError(data.error || 'Failed to save');
+        return;
+      }
+      const updated = data.invoice || { ...editInvoice, ...body };
+      setInvoices(prev => prev.map(inv => inv.id === updated.id ? { ...inv, ...updated } : inv));
+      if (viewInvoice?.id === updated.id) setViewInvoice(prev => ({ ...prev, ...updated }));
+      setEditInvoice(updated);
+      setEditSavedFlash(true);
+      setTimeout(() => setEditSavedFlash(false), 2000);
+    } catch (err) {
+      setEditError(err.message || 'Failed to save');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // Auto-open edit when navigated with ?edit=<id> (from job convert flow)
+  useEffect(() => {
+    const editId = searchParams?.get('edit');
+    if (!editId || invoices.length === 0 || editInvoice) return;
+    const inv = invoices.find(i => i.id === editId);
+    if (inv) {
+      openEdit(inv);
+      router.replace('/invoices');
+    }
+  }, [searchParams, invoices]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const createInvoiceFromJob = async ({ send = false } = {}) => {
     if (!selectedQuoteId) return;
     setActionLoading(true);
     setError('');
@@ -145,12 +259,17 @@ export default function InvoicesPage() {
       const res = await fetch('/api/invoices', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
       const data = await res.json();
       if (res.ok || data.invoice) {
+        const created = data.invoice;
         if (data.already_exists) {
           setError('Invoice already exists for this job — showing existing.');
+        }
+        if (send && created?.id) {
+          await fetch(`/api/invoices/${created.id}/send`, { method: 'POST', headers: headers() });
         }
         fetchInvoices();
         setCreateModal(false);
         setSelectedQuoteId('');
+        if (!send && created?.id) openEdit(created);
       } else {
         setError(data.error || 'Failed to create');
       }
@@ -161,7 +280,7 @@ export default function InvoicesPage() {
     }
   };
 
-  const createBlankInvoice = async () => {
+  const createBlankInvoice = async ({ send = false } = {}) => {
     if (!blankForm.customer_name || !blankForm.customer_email) {
       setError('Customer name and email are required');
       return;
@@ -197,6 +316,10 @@ export default function InvoicesPage() {
       });
       const data = await res.json();
       if (res.ok || data.invoice) {
+        const created = data.invoice;
+        if (send && created?.id) {
+          await fetch(`/api/invoices/${created.id}/send`, { method: 'POST', headers: headers() });
+        }
         fetchInvoices();
         setCreateModal(false);
         setBlankForm({ customer_name: '', customer_email: '', aircraft_model: '', tail_number: '', line_items: [{ description: '', quantity: 1, rate: 0 }], net_terms: 30, notes: '' });
@@ -468,7 +591,11 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                         <tr
                           key={inv.id}
                           className="border-b border-v-border-subtle/50 hover:bg-v-surface-light/20 transition-colors cursor-pointer"
-                          onClick={() => inv.job_id ? router.push(`/jobs/${inv.job_id}`) : setViewInvoice(inv)}
+                          onClick={() => {
+                            if (inv.status === 'draft') { openEdit(inv); return; }
+                            if (inv.job_id) router.push(`/jobs/${inv.job_id}`);
+                            else setViewInvoice(inv);
+                          }}
                         >
                           <td className="px-4 py-3">
                             <p className="text-v-text-primary text-sm font-medium">{inv.customer_name || 'Customer'}</p>
@@ -500,6 +627,14 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                              {ds !== 'paid' && (
+                                <button
+                                  onClick={() => openEdit(inv)}
+                                  className="text-xs px-2.5 py-1.5 bg-v-charcoal border border-v-border text-v-text-primary rounded-md hover:bg-white/10 transition-colors"
+                                >
+                                  Edit
+                                </button>
+                              )}
                               {ds === 'draft' && (
                                 <button
                                   onClick={() => sendInvoice(inv)}
@@ -549,7 +684,11 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                     <div
                       key={inv.id}
                       className="bg-v-surface rounded-lg p-4 shadow border border-v-border-subtle"
-                      onClick={() => inv.job_id ? router.push(`/jobs/${inv.job_id}`) : setViewInvoice(inv)}
+                      onClick={() => {
+                        if (inv.status === 'draft') { openEdit(inv); return; }
+                        if (inv.job_id) router.push(`/jobs/${inv.job_id}`);
+                        else setViewInvoice(inv);
+                      }}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div>
@@ -567,7 +706,10 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                         </div>
                         <p className="text-v-text-primary text-base font-semibold">{sym}{formatPrice(inv.total)}</p>
                       </div>
-                      <div className="flex gap-1 mt-2" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-1 mt-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                        {ds !== 'paid' && (
+                          <button onClick={() => openEdit(inv)} className="text-xs px-2 py-1 bg-v-charcoal border border-v-border text-v-text-primary rounded">Edit</button>
+                        )}
                         {ds === 'draft' && (
                           <button onClick={() => sendInvoice(inv)} disabled={!inv.customer_email || actionLoading} className="text-xs px-2 py-1 bg-blue-600 text-white rounded disabled:opacity-40">Send</button>
                         )}
@@ -601,6 +743,12 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                 <span className={`text-xs px-3 py-1 rounded-full font-medium ${statusColors[getDisplayStatus(viewInvoice)] || statusColors.sent}`}>
                   {(statusLabels[getDisplayStatus(viewInvoice)] || viewInvoice.status || 'Sent').toUpperCase()}
                 </span>
+                {viewInvoice.status !== 'paid' && (
+                  <button onClick={() => { openEdit(viewInvoice); setViewInvoice(null); }}
+                    className="text-xs px-2.5 py-1 border border-v-border rounded text-v-text-secondary hover:text-white hover:bg-white/10 transition-colors">
+                    Edit
+                  </button>
+                )}
                 <button onClick={() => setViewInvoice(null)} className="text-v-text-secondary hover:text-v-text-primary text-xl">&times;</button>
               </div>
             </div>
@@ -634,8 +782,15 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                   <tbody>
                     {viewInvoice.line_items.map((item, i) => (
                       <tr key={i} className="border-t border-v-border-subtle/50">
-                        <td className="px-3 py-2 text-v-text-primary">{item.description || item.service || 'Service'}</td>
-                        <td className="px-3 py-2 text-right text-v-text-primary">{sym}{formatPrice(item.amount || item.price || 0)}</td>
+                        <td className="px-3 py-2 text-v-text-primary">
+                          {item.name || item.description || item.service || 'Service'}
+                          {(item.hours || item.quantity) && (item.rate > 0) && (
+                            <span className="text-[10px] text-v-text-secondary ml-1">
+                              ({item.hours || item.quantity}h @ ${item.rate}/hr)
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-v-text-primary font-medium">{sym}{formatPrice(item.price || item.amount || ((parseFloat(item.hours || item.quantity || 0)) * (parseFloat(item.rate) || 0)) || 0)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -702,6 +857,14 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               <button onClick={() => downloadPDF(viewInvoice)} className="px-4 py-2 bg-v-charcoal rounded-lg text-sm font-medium text-v-text-secondary hover:text-v-text-primary transition-colors">
                 Download PDF
               </button>
+              {viewInvoice.status !== 'paid' && (
+                <button
+                  onClick={() => { openEdit(viewInvoice); setViewInvoice(null); }}
+                  className="px-4 py-2 bg-v-charcoal border border-v-border text-v-text-primary rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
+                >
+                  Edit
+                </button>
+              )}
               {getDisplayStatus(viewInvoice) === 'draft' && (
                 <button
                   onClick={() => { sendInvoice(viewInvoice); setViewInvoice(null); }}
@@ -798,7 +961,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                 <span className="text-2xl">&#128221;</span>
                 <div>
                   <p className="text-sm font-semibold text-v-text-primary">Quick Invoice</p>
-                  <p className="text-xs text-v-text-secondary">Add services + send — no job needed</p>
+                  <p className="text-xs text-v-text-secondary">Add services — no job needed. Save draft or send.</p>
                 </div>
               </button>
             </div>
@@ -845,11 +1008,16 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                 })}
               </div>
             )}
+            <p className="text-xs text-v-text-secondary mb-2 text-center">Saving creates a <strong className="text-white">draft</strong> — the customer is not emailed until you click Send.</p>
             <div className="flex gap-2">
-              <button onClick={() => setCreateModal('choose')} className="flex-1 px-4 py-2 border border-v-border rounded-lg text-v-text-secondary hover:bg-white/5 text-sm">Back</button>
-              <button onClick={createInvoiceFromJob} disabled={!selectedQuoteId || actionLoading}
+              <button onClick={() => setCreateModal('choose')} className="px-4 py-2 border border-v-border rounded-lg text-v-text-secondary hover:bg-white/5 text-sm">Back</button>
+              <button onClick={() => createInvoiceFromJob({ send: false })} disabled={!selectedQuoteId || actionLoading}
+                className="flex-1 px-4 py-2 bg-v-charcoal border border-v-border text-v-text-primary rounded-lg font-medium disabled:opacity-50 text-sm hover:bg-white/10">
+                {actionLoading ? 'Saving...' : 'Save Draft'}
+              </button>
+              <button onClick={() => createInvoiceFromJob({ send: true })} disabled={!selectedQuoteId || actionLoading}
                 className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm">
-                {actionLoading ? 'Creating...' : 'Create Invoice'}
+                {actionLoading ? 'Working...' : 'Save &amp; Send'}
               </button>
             </div>
           </div>
@@ -937,12 +1105,158 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
+            <p className="text-xs text-v-text-secondary mb-2 text-center">Saving creates a <strong className="text-white">draft</strong> — the customer is not emailed until you click Send.</p>
             <div className="flex gap-2">
-              <button onClick={() => setCreateModal('choose')} className="flex-1 px-4 py-2 border border-v-border rounded-lg text-v-text-secondary hover:bg-white/5 text-sm">Back</button>
-              <button onClick={createBlankInvoice} disabled={actionLoading}
-                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm">
-                {actionLoading ? 'Creating...' : 'Create Invoice'}
+              <button onClick={() => setCreateModal('choose')} className="px-4 py-2 border border-v-border rounded-lg text-v-text-secondary hover:bg-white/5 text-sm">Back</button>
+              <button onClick={() => createBlankInvoice({ send: false })} disabled={actionLoading}
+                className="flex-1 px-4 py-2 bg-v-charcoal border border-v-border text-v-text-primary rounded-lg font-medium disabled:opacity-50 text-sm hover:bg-white/10">
+                {actionLoading ? 'Saving...' : 'Save Draft'}
               </button>
+              <button onClick={() => createBlankInvoice({ send: true })} disabled={actionLoading}
+                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm">
+                {actionLoading ? 'Working...' : 'Save &amp; Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editInvoice && editForm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => { setEditInvoice(null); setEditForm(null); }}>
+          <div className="bg-v-surface rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-v-text-primary">Edit Invoice</h3>
+                <p className="text-xs text-v-text-secondary font-mono">{editInvoice.invoice_number || editInvoice.id?.slice(0, 8).toUpperCase()}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {editSavedFlash && <span className="text-green-400 text-xs">Saved ✓</span>}
+                <button onClick={() => { setEditInvoice(null); setEditForm(null); }} className="text-v-text-secondary hover:text-white text-xl">&times;</button>
+              </div>
+            </div>
+            {editError && <p className="text-red-400 text-sm mb-3">{editError}</p>}
+
+            {/* Customer */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Customer</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Name</label>
+                <input value={editForm.customer_name} onChange={e => setEditForm(f => ({ ...f, customer_name: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Email</label>
+                <input type="email" value={editForm.customer_email} onChange={e => setEditForm(f => ({ ...f, customer_email: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Phone</label>
+                <input value={editForm.customer_phone} onChange={e => setEditForm(f => ({ ...f, customer_phone: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50">
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="viewed">Viewed</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Aircraft */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Aircraft</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Model</label>
+                <input value={editForm.aircraft_model} onChange={e => setEditForm(f => ({ ...f, aircraft_model: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Tail #</label>
+                <input value={editForm.tail_number} onChange={e => setEditForm(f => ({ ...f, tail_number: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50 uppercase" />
+              </div>
+            </div>
+
+            {/* Line items */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Line Items</p>
+            <div className="space-y-2 mb-2">
+              <div className="flex gap-2 text-[10px] uppercase tracking-wider text-v-text-secondary px-1">
+                <span className="flex-1">Description</span>
+                <span className="w-16 text-center">Hours/Qty</span>
+                <span className="w-24 text-right">Rate</span>
+                <span className="w-24 text-right">Total</span>
+                <span className="w-6" />
+              </div>
+              {editForm.line_items.map((li, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <input value={li.description} onChange={e => updateEditLine(i, 'description', e.target.value)}
+                    placeholder="Service description"
+                    className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none" />
+                  <input type="number" value={li.quantity} onChange={e => updateEditLine(i, 'quantity', e.target.value)}
+                    min="0" step="0.5"
+                    className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none text-center" />
+                  <input type="number" value={li.rate} onChange={e => updateEditLine(i, 'rate', e.target.value)}
+                    step="0.01"
+                    className="w-24 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none text-right" />
+                  <span className="text-sm text-v-text-secondary py-1.5 w-24 text-right">
+                    {sym}{((parseFloat(li.quantity) || 0) * (parseFloat(li.rate) || 0)).toFixed(2)}
+                  </span>
+                  <button onClick={() => removeEditLine(i)} disabled={editForm.line_items.length <= 1}
+                    className="text-red-400 hover:text-red-300 disabled:opacity-30 text-sm py-1.5 w-6">&times;</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={addEditLine} className="text-v-gold text-xs hover:underline mb-4">+ Add line item</button>
+
+            <div className="flex items-center justify-between border-t border-v-border pt-3 mb-4">
+              <span className="text-sm font-semibold text-v-text-primary">Total</span>
+              <span className="text-lg font-bold text-v-gold">
+                {sym}{editForm.line_items.reduce((s, li) => s + (parseFloat(li.quantity) || 0) * (parseFloat(li.rate) || 0), 0).toFixed(2)}
+              </span>
+            </div>
+
+            {/* Terms & notes */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Net Terms (days)</label>
+                <input type="number" value={editForm.net_terms} onChange={e => setEditForm(f => ({ ...f, net_terms: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Due Date</label>
+                <input type="date" value={editForm.due_date} onChange={e => setEditForm(f => ({ ...f, due_date: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none" />
+              </div>
+            </div>
+            <div className="mb-5">
+              <label className="block text-xs text-v-text-secondary mb-1">Notes</label>
+              <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                rows={3}
+                className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none resize-none" />
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={() => { setEditInvoice(null); setEditForm(null); }}
+                className="px-4 py-2 border border-v-border rounded-lg text-v-text-secondary hover:bg-white/5 text-sm">
+                Cancel
+              </button>
+              <button onClick={saveEdit} disabled={editSaving}
+                className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg font-medium disabled:opacity-50 text-sm">
+                {editSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+              {editForm.status === 'draft' && (
+                <button
+                  onClick={async () => { await saveEdit(); await sendInvoice(editInvoice); setEditInvoice(null); setEditForm(null); }}
+                  disabled={editSaving || !editForm.customer_email}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium disabled:opacity-50 text-sm hover:bg-blue-700"
+                >
+                  Save &amp; Send
+                </button>
+              )}
             </div>
           </div>
         </div>
