@@ -21,6 +21,7 @@ export default function NewJobPage() {
   const [manufacturers, setManufacturers] = useState([]);
   const [models, setModels] = useState([]);
   const [selectedAircraft, setSelectedAircraft] = useState(null);
+  const [aircraftHoursRef, setAircraftHoursRef] = useState(null);
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -80,14 +81,53 @@ export default function NewJobPage() {
     if (match?.id) {
       fetch(`/api/aircraft/${match.id}`, { headers })
         .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d) setSelectedAircraft(d); });
+        .then(d => { if (d) setSelectedAircraft(d.aircraft || d); });
     }
   }, [model, models]);
 
+  // Fetch aircraft_hours reference row when make + model are both set.
+  // Clears per-service overrides so auto-filled hours reflect the new aircraft.
+  useEffect(() => {
+    const make = aircraftMode === 'custom' ? customMake : manufacturer;
+    const mdl = aircraftMode === 'custom' ? customModel : model;
+    if (!make || !mdl) { setAircraftHoursRef(null); return; }
+
+    const ctrl = new AbortController();
+    fetch(`/api/aircraft-hours?make=${encodeURIComponent(make)}&model=${encodeURIComponent(mdl)}`, { headers, signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : { hours: null })
+      .then(d => { setAircraftHoursRef(d?.hours || null); setHourOverrides({}); })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [manufacturer, model, customMake, customModel, aircraftMode]);
+
+  // Map a service to the matching aircraft_hours column value.
+  const getRefHours = (svc) => {
+    if (!aircraftHoursRef) return 0;
+    const name = (svc.name || '').toLowerCase();
+    if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(aircraftHoursRef.maintenance_wash_hrs) || 0;
+    if (name.includes('decon')) return parseFloat(aircraftHoursRef.decon_paint_hrs) || 0;
+    if (name.includes('polish')) return parseFloat(aircraftHoursRef.one_step_polish_hrs) || 0;
+    if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(aircraftHoursRef.spray_ceramic_hrs) || 0;
+    if (name.includes('ceramic')) return parseFloat(aircraftHoursRef.ceramic_coating_hrs) || 0;
+    if (name.includes('wax') || name.includes('static guard')) return parseFloat(aircraftHoursRef.wax_hrs) || 0;
+    if (name.includes('leather')) return parseFloat(aircraftHoursRef.leather_hrs) || 0;
+    if (name.includes('carpet') || name.includes('extract')) return parseFloat(aircraftHoursRef.carpet_hrs) || 0;
+    if (name.includes('bronze')) return parseFloat(aircraftHoursRef.bronze_pkg_hrs) || 0;
+    if (name.includes('silver')) return parseFloat(aircraftHoursRef.silver_pkg_hrs) || 0;
+    if (name.includes('gold')) return parseFloat(aircraftHoursRef.gold_pkg_hrs) || 0;
+    if (name.includes('platinum')) return parseFloat(aircraftHoursRef.platinum_pkg_hrs) || 0;
+    if (name.includes('shiny jet')) return parseFloat(aircraftHoursRef.shiny_jet_pkg_hrs) || 0;
+    return 0;
+  };
+
   const getDefaultHours = (svc) => {
-    if (!selectedAircraft) return svc.default_hours || 0;
-    const field = svc.hours_field;
-    return (field && selectedAircraft[field]) ? parseFloat(selectedAircraft[field]) : (svc.default_hours || 0);
+    const refHrs = getRefHours(svc);
+    if (refHrs > 0) return refHrs;
+    if (selectedAircraft) {
+      const field = svc.hours_field;
+      if (field && selectedAircraft[field]) return parseFloat(selectedAircraft[field]);
+    }
+    return svc.default_hours || 0;
   };
 
   const getHours = (svc) => hourOverrides[svc.id] !== undefined ? hourOverrides[svc.id] : getDefaultHours(svc);
@@ -329,11 +369,11 @@ export default function NewJobPage() {
                         return (
                           <div key={svc.id} className={`flex items-center gap-3 p-3 rounded border transition-colors ${sel ? 'border-v-gold/50 bg-v-gold/5' : 'border-v-border bg-v-surface'}`}>
                             <input type="checkbox" checked={sel}
-                              onChange={() => setSelectedServices(prev => sel ? prev.filter(id => id !== svc.id) : [...prev, svc.id])}
+                              onChange={() => { setSelectedServices(prev => sel ? prev.filter(id => id !== svc.id) : [...prev, svc.id]); if (!sel && svc.default_hours > 0) setHourOverrides(prev => ({ ...prev, [svc.id]: svc.default_hours })); }}
                               className="w-4 h-4 rounded accent-v-gold cursor-pointer" />
                             <div className="flex-1 min-w-0">
                               <span className="text-sm text-v-text-primary">{svc.name}</span>
-                              {!selectedAircraft && aircraftMode === 'standard' && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Select aircraft for hours</span>}
+                              {!aircraftHoursRef && aircraftMode === 'standard' && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Select aircraft for hours</span>}
                             </div>
                             {sel && (
                               <div className="flex items-center gap-2 shrink-0">
