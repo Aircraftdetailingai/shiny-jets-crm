@@ -16,6 +16,7 @@ export default function NewJobPage() {
   const [error, setError] = useState('');
 
   // Data
+  const [customLines, setCustomLines] = useState([]); // one-off custom services
   const [customers, setCustomers] = useState([]);
   const [manufacturers, setManufacturers] = useState([]);
   const [models, setModels] = useState([]);
@@ -97,10 +98,12 @@ export default function NewJobPage() {
     return hrs * rate;
   };
 
-  const computedTotal = selectedServices.reduce((sum, svcId) => {
+  const svcTotal = selectedServices.reduce((sum, svcId) => {
     const svc = services.find(s => s.id === svcId);
     return sum + (svc ? getServiceTotal(svc) : 0);
   }, 0);
+  const customTotal = customLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0);
+  const computedTotal = svcTotal + customTotal;
 
   const displayTotal = totalOverride !== '' ? parseFloat(totalOverride) || 0 : computedTotal;
 
@@ -126,11 +129,17 @@ export default function NewJobPage() {
     setSaving(true);
     setError('');
     try {
-      const svcDetails = selectedServices.map(id => {
-        const svc = services.find(s => s.id === id);
-        if (!svc) return null;
-        return { id: svc.id, name: svc.name, hours: getHours(svc), rate: getRate(svc), price: getServiceTotal(svc) };
-      }).filter(Boolean);
+      const svcDetails = [
+        ...selectedServices.map(id => {
+          const svc = services.find(s => s.id === id);
+          if (!svc) return null;
+          return { id: svc.id, name: svc.name, hours: getHours(svc), rate: getRate(svc), price: getServiceTotal(svc) };
+        }).filter(Boolean),
+        ...customLines.filter(cl => cl.name?.trim()).map(cl => ({
+          name: cl.name, hours: parseFloat(cl.hours) || 0, rate: parseFloat(cl.rate) || 0,
+          price: (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), custom: true,
+        })),
+      ];
 
       const res = await fetch('/api/jobs/create', {
         method: 'POST',
@@ -351,6 +360,27 @@ export default function NewJobPage() {
             {selectedServices.length > 0 && (
               <p className="text-xs text-v-text-secondary mt-2">{selectedServices.length} service{selectedServices.length === 1 ? '' : 's'} selected</p>
             )}
+
+            {/* Custom one-off services */}
+            {customLines.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wider text-v-gold/60">Custom Line Items</p>
+                {customLines.map((cl, i) => (
+                  <div key={i} className="flex gap-2 items-center p-2 rounded border border-v-gold/20 bg-v-gold/5">
+                    <input value={cl.name} onChange={e => { const c = [...customLines]; c[i] = { ...c[i], name: e.target.value }; setCustomLines(c); }}
+                      placeholder="Service name" className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                    <input type="number" step="0.5" value={cl.hours} onChange={e => { const c = [...customLines]; c[i] = { ...c[i], hours: e.target.value }; setCustomLines(c); }}
+                      placeholder="Hrs" className="w-14 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-center" />
+                    <input type="number" step="1" value={cl.rate} onChange={e => { const c = [...customLines]; c[i] = { ...c[i], rate: e.target.value }; setCustomLines(c); }}
+                      placeholder="$/hr" className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-right" />
+                    <span className="text-xs text-v-text-secondary w-14 text-right">${((parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0)).toFixed(0)}</span>
+                    <button onClick={() => setCustomLines(customLines.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 text-xs">&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setCustomLines([...customLines, { name: '', hours: '', rate: '' }])}
+              className="text-v-gold text-xs hover:underline mt-2">+ Add custom service</button>
           </div>
 
           {/* Save hours */}

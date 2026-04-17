@@ -206,11 +206,18 @@ export default function JobDetailPage() {
 
   const openEditModal = () => {
     setEditForm({
-      scheduled_date: job.scheduled_date || '',
-      airport: job.airport || '',
+      customer_name: job.customer_name || job.client_name || '',
+      customer_email: job.customer_email || job.client_email || '',
+      aircraft_make: job.aircraft_make || '',
+      aircraft_model: job.aircraft_model || '',
       tail_number: job.tail_number || '',
-      completion_notes: job.completion_notes || job.notes || '',
+      airport: job.airport || '',
+      scheduled_date: job.scheduled_date || '',
+      status: job.status || 'scheduled',
+      services: servicesList,
       total_price: job.total_price || '',
+      completion_notes: job.completion_notes || job.notes || '',
+      share_progress_with_customer: !!job.share_progress_with_customer,
     });
     setShowEditModal(true);
   };
@@ -219,20 +226,28 @@ export default function JobDetailPage() {
     setSavingEdit(true);
     try {
       const token = localStorage.getItem('vector_token');
+      // Stringify services if array (jobs.services is TEXT column)
+      const payload = { ...editForm };
+      if (Array.isArray(payload.services)) {
+        payload.services = JSON.stringify(payload.services);
+      }
       const res = await fetch(`/api/jobs/${jobId}`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        await fetchJob(token);
+        // Optimistic update
+        setJob(prev => prev ? { ...prev, ...editForm } : prev);
         setShowEditModal(false);
+        // Refresh data in background
+        fetchJob(token);
       } else {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || 'Failed to save changes');
+        setError(d.error || 'Failed to save changes');
       }
     } catch (err) {
-      alert(err.message);
+      setError(err.message);
     } finally {
       setSavingEdit(false);
     }
@@ -632,66 +647,120 @@ export default function JobDetailPage() {
       </div>
 
       {/* Edit modal */}
-      {showEditModal && (
+      {showEditModal && (() => {
+        const ecls = 'w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50';
+        // Parse services for editing
+        const editServices = (() => {
+          try {
+            const s = editForm.services;
+            if (!s) return [];
+            const parsed = typeof s === 'string' ? JSON.parse(s) : s;
+            return Array.isArray(parsed) ? parsed : [];
+          } catch { return []; }
+        })();
+        const updateEditService = (i, field, val) => {
+          const copy = [...editServices];
+          copy[i] = { ...copy[i], [field]: val };
+          if (field === 'hours' || field === 'rate') copy[i].price = (parseFloat(copy[i].hours) || 0) * (parseFloat(copy[i].rate) || 0);
+          setEditForm(p => ({ ...p, services: copy }));
+        };
+        const addEditService = () => setEditForm(p => ({ ...p, services: [...editServices, { name: '', hours: 0, rate: 0, price: 0 }] }));
+        const removeEditService = (i) => setEditForm(p => ({ ...p, services: editServices.filter((_, j) => j !== i) }));
+        const editTotal = editServices.reduce((s, sv) => s + (parseFloat(sv.price) || 0), 0);
+        return (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
-          <div onClick={e => e.stopPropagation()} className="bg-v-surface border border-v-border rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div onClick={e => e.stopPropagation()} className="bg-v-surface border border-v-border rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Edit Job</h3>
               <button onClick={() => setShowEditModal(false)} className="text-v-text-secondary hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="space-y-3">
+              {/* Customer */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Customer Name</label>
+                  <input value={editForm.customer_name || ''} onChange={e => setEditForm(p => ({ ...p, customer_name: e.target.value }))} className={ecls} />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Customer Email</label>
+                  <input value={editForm.customer_email || ''} onChange={e => setEditForm(p => ({ ...p, customer_email: e.target.value }))} type="email" className={ecls} />
+                </div>
+              </div>
+
+              {/* Aircraft */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Aircraft Make</label>
+                  <input value={editForm.aircraft_make || ''} onChange={e => setEditForm(p => ({ ...p, aircraft_make: e.target.value }))} className={ecls} />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Aircraft Model</label>
+                  <input value={editForm.aircraft_model || ''} onChange={e => setEditForm(p => ({ ...p, aircraft_model: e.target.value }))} className={ecls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Tail Number</label>
+                  <input value={editForm.tail_number || ''} onChange={e => setEditForm(p => ({ ...p, tail_number: e.target.value.toUpperCase() }))} className={ecls + ' uppercase'} />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Airport</label>
+                  <input value={editForm.airport || ''} onChange={e => setEditForm(p => ({ ...p, airport: e.target.value.toUpperCase() }))} className={ecls + ' uppercase'} />
+                </div>
+              </div>
+
+              {/* Schedule */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Scheduled Date</label>
+                  <input type="date" value={editForm.scheduled_date || ''} onChange={e => setEditForm(p => ({ ...p, scheduled_date: e.target.value || null }))} className={ecls} />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Status</label>
+                  <select value={editForm.status || 'scheduled'} onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))} className={ecls}>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Services */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Scheduled Date</label>
-                <input
-                  type="date"
-                  value={editForm.scheduled_date || ''}
-                  onChange={e => setEditForm(p => ({ ...p, scheduled_date: e.target.value || null }))}
-                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50"
-                />
+                <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Services</label>
+                <div className="space-y-1.5">
+                  {editServices.map((svc, i) => (
+                    <div key={i} className="flex gap-1.5 items-center">
+                      <input value={svc.name || ''} onChange={e => updateEditService(i, 'name', e.target.value)} placeholder="Service" className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                      <input type="number" step="0.5" value={svc.hours || ''} onChange={e => updateEditService(i, 'hours', e.target.value)} placeholder="Hrs" className="w-14 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-center" />
+                      <input type="number" step="1" value={svc.rate || ''} onChange={e => updateEditService(i, 'rate', e.target.value)} placeholder="$/hr" className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-right" />
+                      <span className="text-xs text-v-text-secondary w-14 text-right">${((parseFloat(svc.hours) || 0) * (parseFloat(svc.rate) || 0)).toFixed(0)}</span>
+                      <button onClick={() => removeEditService(i)} className="text-red-400 hover:text-red-300 text-xs">&times;</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={addEditService} className="text-v-gold text-xs hover:underline mt-1">+ Add service</button>
+              </div>
+
+              {/* Total + notes */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Total (${editTotal > 0 ? `calc: $${editTotal.toFixed(0)}` : ''})</label>
+                  <input type="number" step="0.01" value={editForm.total_price || ''} onChange={e => setEditForm(p => ({ ...p, total_price: parseFloat(e.target.value) || 0 }))} placeholder={editTotal.toFixed(2)} className={ecls} />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Progress</label>
+                  <select value={editForm.share_progress_with_customer ? 'yes' : 'no'} onChange={e => setEditForm(p => ({ ...p, share_progress_with_customer: e.target.value === 'yes' }))} className={ecls}>
+                    <option value="no">Hidden from customer</option>
+                    <option value="yes">Shared with customer</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Airport</label>
-                <input
-                  type="text"
-                  value={editForm.airport || ''}
-                  onChange={e => setEditForm(p => ({ ...p, airport: e.target.value.toUpperCase() }))}
-                  placeholder="KCNO"
-                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white uppercase outline-none focus:border-v-gold/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Tail Number</label>
-                <input
-                  type="text"
-                  value={editForm.tail_number || ''}
-                  onChange={e => setEditForm(p => ({ ...p, tail_number: e.target.value.toUpperCase() }))}
-                  placeholder="N12345"
-                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white uppercase outline-none focus:border-v-gold/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Total Price</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editForm.total_price || ''}
-                  onChange={e => setEditForm(p => ({ ...p, total_price: parseFloat(e.target.value) || 0 }))}
-                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1">Notes</label>
-                <textarea
-                  value={editForm.completion_notes || ''}
-                  onChange={e => setEditForm(p => ({ ...p, completion_notes: e.target.value }))}
-                  rows={3}
-                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50 resize-none"
-                />
+                <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Notes</label>
+                <textarea value={editForm.completion_notes || ''} onChange={e => setEditForm(p => ({ ...p, completion_notes: e.target.value }))} rows={2} className={ecls + ' resize-none'} />
               </div>
             </div>
 
@@ -703,7 +772,8 @@ export default function JobDetailPage() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Completion confirmation modal (when slider hits 100%) */}
       {showCompleteConfirm && (

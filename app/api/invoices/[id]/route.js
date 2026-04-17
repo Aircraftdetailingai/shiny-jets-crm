@@ -65,9 +65,9 @@ export async function PATCH(request, { params }) {
 
     // Only allow updating safe fields
     const allowedFields = [
-      'status', 'notes', 'customer_name', 'customer_email',
-      'aircraft_model', 'tail_number', 'line_items', 'total',
-      'net_terms', 'due_date', 'amount_paid', 'balance_due',
+      'status', 'notes', 'customer_name', 'customer_email', 'customer_phone',
+      'aircraft_model', 'tail_number', 'line_items', 'total', 'subtotal',
+      'net_terms', 'due_date', 'issued_date', 'amount_paid', 'balance_due',
     ];
 
     const updates = {};

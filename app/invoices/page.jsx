@@ -797,8 +797,8 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               >
                 <span className="text-2xl">&#128221;</span>
                 <div>
-                  <p className="text-sm font-semibold text-v-text-primary">Blank Invoice</p>
-                  <p className="text-xs text-v-text-secondary">Create from scratch — no job needed</p>
+                  <p className="text-sm font-semibold text-v-text-primary">Quick Invoice</p>
+                  <p className="text-xs text-v-text-secondary">Add services + send — no job needed</p>
                 </div>
               </button>
             </div>
