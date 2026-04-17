@@ -20,6 +20,12 @@ const statusLabels = {
   overdue: 'Overdue',
 };
 
+const CATEGORY_ORDER = ['exterior', 'interior', 'paint_correction', 'coating', 'brightwork', 'other'];
+const CATEGORY_LABELS = {
+  exterior: 'Exterior', interior: 'Interior', paint_correction: 'Paint Correction',
+  coating: 'Coatings & Protection', brightwork: 'Brightwork', other: 'Other',
+};
+
 export default function InvoicesPageWrapper() {
   return <Suspense fallback={<div className="min-h-screen bg-v-charcoal" />}><InvoicesPageInner /></Suspense>;
 }
@@ -54,6 +60,12 @@ function InvoicesPageInner() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
   const [editSavedFlash, setEditSavedFlash] = useState(false);
+  const [editServices, setEditServices] = useState([]);
+  const [editModels, setEditModels] = useState([]);
+  const [editAircraftHoursRef, setEditAircraftHoursRef] = useState(null);
+  const [editSelectedServices, setEditSelectedServices] = useState([]);
+  const [editHourOverrides, setEditHourOverrides] = useState({});
+  const [editCustomLines, setEditCustomLines] = useState([]);
 
   const sym = currencySymbol();
 
@@ -145,42 +157,85 @@ function InvoicesPageInner() {
     } catch {}
   };
 
-  // Open edit modal for an invoice — fetches latest data first.
+  // Match a free-text aircraft_model string (e.g. "Falcon 20") against the models catalog
+  // to recover the make needed for aircraft_hours lookups.
+  const matchModel = (aircraftModel, models) => {
+    if (!aircraftModel || !models?.length) return null;
+    const s = aircraftModel.toLowerCase().trim();
+    const exact = models.find(m => (m.model || '').toLowerCase().trim() === s);
+    if (exact) return { make: exact.manufacturer, model: exact.model };
+    const sub = models.find(m => {
+      const mm = (m.model || '').toLowerCase().trim();
+      return mm && (s.includes(mm) || mm.includes(s));
+    });
+    if (sub) return { make: sub.manufacturer, model: sub.model };
+    return null;
+  };
+
+  // Open edit modal for an invoice — fetches latest invoice, services, and aircraft hours.
   // DB line_items canonical shape: { name, hours, rate, price }.
-  // Edit form shape: { description, hours, rate, total } (descriptive UI names).
+  // Existing line items whose name matches a service row pre-check that service; the rest
+  // become editable custom line items.
   const openEdit = async (inv) => {
     setEditError('');
     setEditSavedFlash(false);
+    setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
+    setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
     try {
-      const res = await fetch(`/api/invoices/${inv.id}`, { headers: headers() });
-      const data = await res.json().catch(() => ({}));
-      const full = data.invoice || inv;
+      const [invJson, svcJson, mdlJson] = await Promise.all([
+        fetch(`/api/invoices/${inv.id}`, { headers: headers() }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/services', { headers: headers() }).then(r => r.ok ? r.json() : { services: [] }).catch(() => ({ services: [] })),
+        fetch('/api/aircraft/models', { headers: headers() }).then(r => r.ok ? r.json() : { models: [] }).catch(() => ({ models: [] })),
+      ]);
+      const full = invJson.invoice || inv;
+      const services = svcJson.services || svcJson || [];
+      const models = mdlJson.models || [];
+      setEditServices(services);
+      setEditModels(models);
+
+      const aircraftModel = full.aircraft_model || '';
+      const lookup = matchModel(aircraftModel, models);
+      let hoursRef = null;
+      if (lookup?.make && lookup?.model) {
+        try {
+          const hrRes = await fetch(`/api/aircraft-hours?make=${encodeURIComponent(lookup.make)}&model=${encodeURIComponent(lookup.model)}`, { headers: headers() });
+          if (hrRes.ok) hoursRef = (await hrRes.json())?.hours || null;
+        } catch {}
+      }
+      setEditAircraftHoursRef(hoursRef);
+
+      // Map existing line_items → selected services + custom lines (case-insensitive name match).
+      const svcByName = new Map();
+      services.forEach(s => svcByName.set((s.name || '').toLowerCase().trim(), s));
+      const selIds = [];
+      const overrides = {};
+      const custom = [];
+      (full.line_items || []).forEach(li => {
+        const rawName = li.name || li.description || li.service || '';
+        const key = rawName.toLowerCase().trim();
+        const hours = li.hours != null ? parseFloat(li.hours)
+          : li.qty != null ? parseFloat(li.qty)
+          : li.quantity != null ? parseFloat(li.quantity)
+          : 0;
+        const svc = svcByName.get(key);
+        if (svc) {
+          selIds.push(svc.id);
+          if (hours) overrides[svc.id] = hours;
+        } else if (rawName) {
+          custom.push({ name: rawName, hours: hours || '', rate: parseFloat(li.rate) || 0 });
+        }
+      });
+      setEditSelectedServices(selIds);
+      setEditHourOverrides(overrides);
+      setEditCustomLines(custom);
+
       setEditInvoice(full);
       setEditForm({
         customer_name: full.customer_name || '',
         customer_email: full.customer_email || '',
         customer_phone: full.customer_phone || '',
-        aircraft_model: full.aircraft_model || full.aircraft || '',
+        aircraft_model: aircraftModel,
         tail_number: full.tail_number || '',
-        line_items: (full.line_items && full.line_items.length > 0)
-          ? full.line_items.map(item => {
-              const rate = parseFloat(item.rate) || 0;
-              const hours = item.hours != null ? parseFloat(item.hours)
-                : item.qty != null ? parseFloat(item.qty)
-                : item.quantity != null ? parseFloat(item.quantity)
-                : 1;
-              const price = item.price != null ? parseFloat(item.price)
-                : item.total != null ? parseFloat(item.total)
-                : item.amount != null ? parseFloat(item.amount)
-                : hours * rate;
-              return {
-                description: item.name || item.description || item.service || '',
-                hours: hours || 1,
-                rate,
-                total: price,
-              };
-            })
-          : [{ description: '', hours: 1, rate: 0, total: 0 }],
         notes: full.notes || '',
         net_terms: full.net_terms || 30,
         due_date: full.due_date ? full.due_date.slice(0, 10) : '',
@@ -191,38 +246,77 @@ function InvoicesPageInner() {
     }
   };
 
-  const updateEditLine = (i, field, val) => setEditForm(f => {
-    if (!f) return f;
-    const items = [...f.line_items];
-    items[i] = { ...items[i], [field]: val };
-    if (field === 'hours' || field === 'rate') {
-      const h = parseFloat(items[i].hours) || 0;
-      const r = parseFloat(items[i].rate) || 0;
-      items[i].total = Math.round(h * r * 100) / 100;
-    }
-    return { ...f, line_items: items };
-  });
-  const addEditLine = () => setEditForm(f => f && ({ ...f, line_items: [...f.line_items, { description: '', hours: 1, rate: 0, total: 0 }] }));
-  const removeEditLine = (i) => setEditForm(f => f && ({ ...f, line_items: f.line_items.filter((_, j) => j !== i) }));
+  // Reset all edit-modal state in one place.
+  const closeEditModal = () => {
+    setEditInvoice(null); setEditForm(null);
+    setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
+    setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
+    setEditError(''); setEditSavedFlash(false);
+  };
+
+  // Re-fetch aircraft_hours when the user edits aircraft_model in the modal.
+  useEffect(() => {
+    if (!editForm) return;
+    const mdl = editForm.aircraft_model;
+    if (!mdl) { setEditAircraftHoursRef(null); return; }
+    const lookup = matchModel(mdl, editModels);
+    if (!lookup?.make || !lookup?.model) { setEditAircraftHoursRef(null); return; }
+    const ctrl = new AbortController();
+    fetch(`/api/aircraft-hours?make=${encodeURIComponent(lookup.make)}&model=${encodeURIComponent(lookup.model)}`, { headers: headers(), signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : { hours: null })
+      .then(d => setEditAircraftHoursRef(d?.hours || null))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [editForm?.aircraft_model, editModels]);
+
+  // Service-row hours helpers — mirror /jobs/new (see commit 642678e).
+  const getEditRefHours = (svc) => {
+    if (!editAircraftHoursRef) return 0;
+    const name = (svc.name || '').toLowerCase();
+    if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(editAircraftHoursRef.maintenance_wash_hrs) || 0;
+    if (name.includes('decon')) return parseFloat(editAircraftHoursRef.decon_paint_hrs) || 0;
+    if (name.includes('polish')) return parseFloat(editAircraftHoursRef.one_step_polish_hrs) || 0;
+    if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(editAircraftHoursRef.spray_ceramic_hrs) || 0;
+    if (name.includes('ceramic')) return parseFloat(editAircraftHoursRef.ceramic_coating_hrs) || 0;
+    if (name.includes('wax') || name.includes('static guard')) return parseFloat(editAircraftHoursRef.wax_hrs) || 0;
+    if (name.includes('leather')) return parseFloat(editAircraftHoursRef.leather_hrs) || 0;
+    if (name.includes('carpet') || name.includes('extract')) return parseFloat(editAircraftHoursRef.carpet_hrs) || 0;
+    return 0;
+  };
+  const getEditDefaultHours = (svc) => {
+    const ref = getEditRefHours(svc);
+    if (ref > 0) return ref;
+    return parseFloat(svc.default_hours) || 0;
+  };
+  const getEditHours = (svc) => editHourOverrides[svc.id] !== undefined ? editHourOverrides[svc.id] : getEditDefaultHours(svc);
+  const getEditRate = (svc) => parseFloat(svc.hourly_rate) || 0;
+  const getEditServiceTotal = (svc) => (parseFloat(getEditHours(svc)) || 0) * getEditRate(svc);
+
+  const toggleEditService = (svcId) => {
+    setEditSelectedServices(prev => prev.includes(svcId) ? prev.filter(id => id !== svcId) : [...prev, svcId]);
+  };
 
   const saveEdit = async () => {
     if (!editInvoice || !editForm) return;
     setEditSaving(true);
     setEditError('');
     try {
-      // Map UI shape back to DB canonical shape: { name, hours, rate, price }.
-      const lineItems = (editForm.line_items || [])
-        .filter(li => (li.description || '').trim())
-        .map(li => {
-          const hours = parseFloat(li.hours) || 1;
-          const rate = parseFloat(li.rate) || 0;
-          return {
-            name: li.description,
-            hours,
-            rate,
-            price: Math.round(hours * rate * 100) / 100,
-          };
+      // Build DB canonical shape { name, hours, rate, price } from the checkbox grid + custom rows.
+      const svcLines = editSelectedServices.map(id => {
+        const svc = editServices.find(s => s.id === id);
+        if (!svc) return null;
+        const hours = parseFloat(getEditHours(svc)) || 0;
+        const rate = getEditRate(svc);
+        return { name: svc.name, hours, rate, price: Math.round(hours * rate * 100) / 100 };
+      }).filter(Boolean);
+      const customLines = editCustomLines
+        .filter(cl => (cl.name || '').trim())
+        .map(cl => {
+          const hours = parseFloat(cl.hours) || 0;
+          const rate = parseFloat(cl.rate) || 0;
+          return { name: cl.name, hours, rate, price: Math.round(hours * rate * 100) / 100 };
         });
+      const lineItems = [...svcLines, ...customLines];
       const total = lineItems.reduce((s, li) => s + li.price, 0);
       const body = {
         customer_name: editForm.customer_name,
@@ -1163,7 +1257,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
 
       {/* Edit Invoice Modal */}
       {editInvoice && editForm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => { setEditInvoice(null); setEditForm(null); }}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={closeEditModal}>
           <div className="bg-v-surface rounded-xl max-w-2xl w-full p-6 shadow-xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1172,7 +1266,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
               <div className="flex items-center gap-2">
                 {editSavedFlash && <span className="text-green-400 text-xs">Saved ✓</span>}
-                <button onClick={() => { setEditInvoice(null); setEditForm(null); }} className="text-v-text-secondary hover:text-white text-xl">&times;</button>
+                <button onClick={closeEditModal} className="text-v-text-secondary hover:text-white text-xl">&times;</button>
               </div>
             </div>
             {editError && <p className="text-red-400 text-sm mb-3">{editError}</p>}
@@ -1221,41 +1315,103 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
-            {/* Line items */}
-            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Line Items</p>
-            <div className="space-y-2 mb-2">
-              <div className="flex gap-2 text-[10px] uppercase tracking-wider text-v-text-secondary px-1">
-                <span className="flex-1">Description</span>
-                <span className="w-20 text-center">Hours</span>
-                <span className="w-24 text-right">Rate/hr</span>
-                <span className="w-24 text-right">Total</span>
-                <span className="w-6" />
-              </div>
-              {editForm.line_items.map((li, i) => (
-                <div key={i} className="flex gap-2 items-start">
-                  <input value={li.description} onChange={e => updateEditLine(i, 'description', e.target.value)}
-                    placeholder="Service description"
-                    className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none" />
-                  <input type="number" value={li.hours} onChange={e => updateEditLine(i, 'hours', e.target.value)}
-                    min="0" step="0.01"
-                    className="w-20 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none text-center" />
-                  <input type="number" value={li.rate} onChange={e => updateEditLine(i, 'rate', e.target.value)}
-                    step="0.01"
-                    className="w-24 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none text-right" />
-                  <span className="text-sm text-v-text-secondary py-1.5 w-24 text-right">
-                    {sym}{((parseFloat(li.hours) || 0) * (parseFloat(li.rate) || 0)).toFixed(2)}
-                  </span>
-                  <button onClick={() => removeEditLine(i)} disabled={editForm.line_items.length <= 1}
-                    className="text-red-400 hover:text-red-300 disabled:opacity-30 text-sm py-1.5 w-6">&times;</button>
+            {/* Services */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Services</p>
+            {(() => {
+              const grouped = {};
+              editServices.forEach(svc => {
+                const cat = svc.category || 'other';
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(svc);
+              });
+              const cats = CATEGORY_ORDER.filter(c => grouped[c]?.length);
+              Object.keys(grouped).forEach(c => { if (!cats.includes(c)) cats.push(c); });
+              if (cats.length === 0) {
+                return <p className="text-xs text-v-text-secondary/60 italic mb-3">Loading services…</p>;
+              }
+              return (
+                <div className="space-y-4 mb-4">
+                  {cats.map(cat => (
+                    <div key={cat}>
+                      <p className="text-[10px] uppercase tracking-wider text-v-gold/60 mb-1.5">{CATEGORY_LABELS[cat] || cat}</p>
+                      <div className="space-y-1">
+                        {grouped[cat].map(svc => {
+                          const sel = editSelectedServices.includes(svc.id);
+                          const hrs = getEditHours(svc);
+                          const rate = getEditRate(svc);
+                          const svcTotal = getEditServiceTotal(svc);
+                          return (
+                            <div key={svc.id} className={`flex items-center gap-3 p-3 rounded border transition-colors ${sel ? 'border-v-gold/50 bg-v-gold/5' : 'border-v-border bg-v-charcoal'}`}>
+                              <input type="checkbox" checked={sel}
+                                onChange={() => toggleEditService(svc.id)}
+                                className="w-4 h-4 rounded accent-v-gold cursor-pointer" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm text-v-text-primary">{svc.name}</span>
+                                {!editAircraftHoursRef && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Set aircraft for auto hours</span>}
+                              </div>
+                              {sel && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <input type="number" step="0.01" min="0"
+                                    value={editHourOverrides[svc.id] !== undefined ? editHourOverrides[svc.id] : (getEditDefaultHours(svc) || '')}
+                                    onChange={e => setEditHourOverrides(prev => ({ ...prev, [svc.id]: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 }))}
+                                    className="w-16 bg-v-surface border border-v-border text-v-text-primary rounded px-2 py-1 text-xs text-center outline-none focus:border-v-gold/50" />
+                                  <span className="text-[10px] text-v-text-secondary">hrs</span>
+                                </div>
+                              )}
+                              <div className="text-right shrink-0 w-24">
+                                {svcTotal > 0 && <span className="text-sm text-v-text-primary font-medium">{sym}{svcTotal.toFixed(2)}</span>}
+                                {rate > 0 && parseFloat(hrs) > 0 && <span className="text-[10px] text-v-text-secondary block">@ {sym}{rate}/hr</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button onClick={addEditLine} className="text-v-gold text-xs hover:underline mb-4">+ Add line item</button>
+              );
+            })()}
+
+            {/* Custom line items */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Custom Line Items</p>
+            {editCustomLines.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {editCustomLines.map((cl, i) => (
+                  <div key={i} className="flex gap-2 items-center p-2 rounded border border-v-gold/20 bg-v-gold/5">
+                    <input value={cl.name}
+                      onChange={e => setEditCustomLines(prev => { const c = [...prev]; c[i] = { ...c[i], name: e.target.value }; return c; })}
+                      placeholder="Description"
+                      className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                    <input type="number" step="0.01" value={cl.hours}
+                      onChange={e => setEditCustomLines(prev => { const c = [...prev]; c[i] = { ...c[i], hours: e.target.value }; return c; })}
+                      placeholder="Hrs"
+                      className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-center" />
+                    <input type="number" step="0.01" value={cl.rate}
+                      onChange={e => setEditCustomLines(prev => { const c = [...prev]; c[i] = { ...c[i], rate: e.target.value }; return c; })}
+                      placeholder="Rate"
+                      className="w-20 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-right" />
+                    <span className="text-xs text-v-text-secondary w-20 text-right">
+                      {sym}{((parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0)).toFixed(2)}
+                    </span>
+                    <button onClick={() => setEditCustomLines(prev => prev.filter((_, j) => j !== i))}
+                      className="text-red-400 hover:text-red-300 text-sm w-6">&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setEditCustomLines(prev => [...prev, { name: '', hours: '', rate: '' }])}
+              className="text-v-gold text-xs hover:underline mb-4">+ Add custom line item</button>
 
             <div className="flex items-center justify-between border-t border-v-border pt-3 mb-4">
               <span className="text-sm font-semibold text-v-text-primary">Total</span>
               <span className="text-lg font-bold text-v-gold">
-                {sym}{editForm.line_items.reduce((s, li) => s + (parseFloat(li.hours) || 0) * (parseFloat(li.rate) || 0), 0).toFixed(2)}
+                {sym}{(
+                  editSelectedServices.reduce((s, id) => {
+                    const svc = editServices.find(x => x.id === id);
+                    return s + (svc ? getEditServiceTotal(svc) : 0);
+                  }, 0) +
+                  editCustomLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0)
+                ).toFixed(2)}
               </span>
             </div>
 
@@ -1280,7 +1436,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
             </div>
 
             <div className="flex gap-2">
-              <button onClick={() => { setEditInvoice(null); setEditForm(null); }}
+              <button onClick={closeEditModal}
                 className="px-4 py-2 border border-v-border rounded-lg text-v-text-secondary hover:bg-white/5 text-sm">
                 Cancel
               </button>
@@ -1290,7 +1446,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </button>
               {editForm.status === 'draft' && (
                 <button
-                  onClick={async () => { await saveEdit(); await sendInvoice(editInvoice); setEditInvoice(null); setEditForm(null); }}
+                  onClick={async () => { await saveEdit(); await sendInvoice(editInvoice); closeEditModal(); }}
                   disabled={editSaving || !editForm.customer_email}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium disabled:opacity-50 text-sm hover:bg-blue-700"
                 >
