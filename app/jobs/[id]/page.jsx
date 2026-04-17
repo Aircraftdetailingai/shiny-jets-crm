@@ -434,6 +434,8 @@ export default function JobDetailPage() {
     }
   };
 
+  // Convert job to invoice — ALWAYS saves as draft, never auto-sends.
+  // After conversion, the modal shows [Review & Edit] and [Send Now] buttons.
   const handleGenerateInvoice = async () => {
     setInvoiceLoading(true);
     try {
@@ -473,20 +475,6 @@ export default function JobDetailPage() {
         throw new Error('Invoice created but ID missing in response');
       }
 
-      // Only send if it's a new invoice or a draft — skip if already sent/viewed
-      let sendOk = false;
-      let sendError = null;
-      if (!alreadyExists || invoice.status === 'draft') {
-        const sendRes = await fetch(`/api/invoices/${invoice.id}/send`, { method: 'POST', headers });
-        const sendData = await sendRes.json().catch(() => ({}));
-        sendOk = sendRes.ok;
-        sendError = sendRes.ok ? null : (sendData.error || 'Failed to send email');
-      } else {
-        // Already sent/viewed — just show the existing invoice
-        sendOk = true;
-      }
-
-      setInvoiceSent(true);
       setShowInvoicePrompt(false);
       setInvoiceResult({
         id: invoice.id,
@@ -494,7 +482,7 @@ export default function JobDetailPage() {
         customer_email: job.client_email || job.customer_email,
         total: displayTotal,
         invoice_number: invoice.invoice_number || invoice.id?.slice(0, 8).toUpperCase(),
-        error: sendError,
+        status: invoice.status || 'draft',
         already_existed: alreadyExists,
       });
     } catch (err) {
@@ -505,7 +493,8 @@ export default function JobDetailPage() {
     }
   };
 
-  const handleResendInvoice = async () => {
+  // Send the draft invoice — only called when user explicitly clicks "Send Now".
+  const handleSendInvoiceNow = async () => {
     if (!invoiceResult?.id) return;
     setResendingInvoice(true);
     try {
@@ -516,16 +505,19 @@ export default function JobDetailPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setInvoiceResult(prev => ({ ...prev, error: null, resent: true }));
+        setInvoiceSent(true);
+        setInvoiceResult(prev => ({ ...prev, status: 'sent', error: null, sentNow: true }));
       } else {
-        setInvoiceResult(prev => ({ ...prev, error: data.error || 'Resend failed' }));
+        setInvoiceResult(prev => ({ ...prev, error: data.error || 'Send failed' }));
       }
     } catch (e) {
-      setInvoiceResult(prev => ({ ...prev, error: e.message || 'Resend failed' }));
+      setInvoiceResult(prev => ({ ...prev, error: e.message || 'Send failed' }));
     } finally {
       setResendingInvoice(false);
     }
   };
+
+  const handleResendInvoice = handleSendInvoiceNow;
 
   const statusColors = {
     paid: 'bg-green-500/20 text-green-400',
@@ -804,7 +796,12 @@ export default function JobDetailPage() {
       )}
 
       {/* Invoice result modal */}
-      {invoiceResult && (
+      {invoiceResult && (() => {
+        const isDraft = !invoiceResult.error && invoiceResult.status === 'draft' && !invoiceResult.sentNow;
+        const isSent = !invoiceResult.error && (invoiceResult.status === 'sent' || invoiceResult.status === 'viewed' || invoiceResult.sentNow);
+        const headerTitle = invoiceResult.sentNow ? 'Invoice Sent' : isDraft ? 'Draft Invoice Created' : isSent ? 'Invoice Already Sent' : 'Invoice Created';
+        const headerSub = invoiceResult.sentNow ? `Customer received the email` : isDraft ? 'Saved as draft — not yet sent to customer' : isSent ? 'This invoice was previously sent to the customer' : 'Invoice ready';
+        return (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setInvoiceResult(null)}>
           <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             {invoiceResult.error && !invoiceResult.id ? (
@@ -819,32 +816,60 @@ export default function JobDetailPage() {
             ) : (
               <>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${invoiceResult.error ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
-                    <span className={invoiceResult.error ? 'text-amber-400' : 'text-green-400'} style={{ fontSize: 20 }}>{invoiceResult.error ? '!' : '✓'}</span>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDraft ? 'bg-blue-500/10' : 'bg-green-500/10'}`}>
+                    <span className={isDraft ? 'text-blue-400' : 'text-green-400'} style={{ fontSize: 20 }}>{isDraft ? '✎' : '✓'}</span>
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">{invoiceResult.error ? 'Invoice Created' : invoiceResult.resent ? 'Invoice Resent' : 'Invoice Sent'}</h3>
-                    <p className="text-v-text-secondary text-xs">{invoiceResult.error ? 'Email failed — invoice ready to share' : 'Customer received the invoice email'}</p>
+                    <h3 className="text-white font-semibold">{headerTitle}</h3>
+                    <p className="text-v-text-secondary text-xs">{headerSub}</p>
                   </div>
                 </div>
                 <div className="bg-v-charcoal/50 rounded p-4 mb-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-v-text-secondary">Invoice #</span><span className="text-white font-mono">{invoiceResult.invoice_number}</span></div>
                   <div className="flex justify-between"><span className="text-v-text-secondary">Customer</span><span className="text-white">{invoiceResult.customer_email}</span></div>
                   <div className="flex justify-between"><span className="text-v-text-secondary">Total</span><span className="text-v-gold font-semibold">{currencySymbol()}{formatPrice(invoiceResult.total)}</span></div>
+                  <div className="flex justify-between">
+                    <span className="text-v-text-secondary">Status</span>
+                    <span className={`font-mono uppercase text-xs ${isDraft ? 'text-blue-400' : 'text-green-400'}`}>{invoiceResult.status || 'draft'}</span>
+                  </div>
                 </div>
                 {invoiceResult.error && (
                   <p className="text-amber-400 text-xs mb-3">Error: {invoiceResult.error}</p>
                 )}
-                <div className="flex gap-2">
-                  <a href={`/invoice/${invoiceResult.share_link}`} target="_blank" rel="noreferrer" className="flex-1 py-2.5 bg-v-gold text-v-charcoal text-sm font-semibold rounded text-center hover:bg-v-gold-dim">View Invoice</a>
-                  <button onClick={handleResendInvoice} disabled={resendingInvoice} className="flex-1 py-2.5 bg-v-charcoal border border-v-border text-white text-sm rounded disabled:opacity-50">{resendingInvoice ? 'Sending...' : 'Resend'}</button>
-                </div>
+                {isDraft ? (
+                  <>
+                    <p className="text-v-text-secondary text-xs mb-3">
+                      The invoice is saved as a draft. Review and edit it, or send it to the customer now.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => router.push(`/invoices?edit=${invoiceResult.id}`)}
+                        className="flex-1 py-2.5 bg-v-charcoal border border-v-border text-white text-sm font-semibold rounded hover:bg-white/10"
+                      >
+                        Review &amp; Edit
+                      </button>
+                      <button
+                        onClick={handleSendInvoiceNow}
+                        disabled={resendingInvoice}
+                        className="flex-1 py-2.5 bg-v-gold text-v-charcoal text-sm font-semibold rounded hover:bg-v-gold-dim disabled:opacity-50"
+                      >
+                        {resendingInvoice ? 'Sending...' : 'Send Now'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <a href={`/invoice/${invoiceResult.share_link}`} target="_blank" rel="noreferrer" className="flex-1 py-2.5 bg-v-gold text-v-charcoal text-sm font-semibold rounded text-center hover:bg-v-gold-dim">View Invoice</a>
+                    <button onClick={handleSendInvoiceNow} disabled={resendingInvoice} className="flex-1 py-2.5 bg-v-charcoal border border-v-border text-white text-sm rounded disabled:opacity-50">{resendingInvoice ? 'Sending...' : 'Resend'}</button>
+                  </div>
+                )}
                 <button onClick={() => setInvoiceResult(null)} className="w-full mt-2 text-v-text-secondary text-xs hover:text-white">Close</button>
               </>
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (
@@ -1044,7 +1069,7 @@ export default function JobDetailPage() {
                 disabled={invoiceLoading || invoiceSent}
                 className="px-6 py-3 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
               >
-                {invoiceLoading ? 'Sending...' : invoiceSent ? 'Invoice Sent' : 'Generate & Send Invoice'}
+                {invoiceLoading ? 'Converting...' : invoiceSent ? 'Invoice Sent' : 'Convert to Invoice'}
               </button>
             </div>
           </div>
@@ -1085,7 +1110,7 @@ export default function JobDetailPage() {
                 disabled={invoiceLoading || invoiceSent}
                 className="px-6 py-3 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
               >
-                {invoiceLoading ? 'Sending...' : invoiceSent ? 'Invoice Sent' : 'Generate & Send Invoice'}
+                {invoiceLoading ? 'Converting...' : invoiceSent ? 'Invoice Sent' : 'Convert to Invoice'}
               </button>
             </div>
           </div>
@@ -1100,14 +1125,14 @@ export default function JobDetailPage() {
 
             {showInvoicePrompt && !invoiceSent && (
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
-                <p className="text-blue-400 font-medium text-sm mb-3">Job complete! Generate invoice?</p>
+                <p className="text-blue-400 font-medium text-sm mb-3">Job complete! Convert to invoice?</p>
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={handleGenerateInvoice}
                     disabled={invoiceLoading}
                     className="px-5 py-2 border border-blue-500/30 text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
                   >
-                    {invoiceLoading ? 'Sending...' : 'Generate & Send Invoice'}
+                    {invoiceLoading ? 'Converting...' : 'Convert to Invoice'}
                   </button>
                   <button
                     onClick={() => setShowInvoicePrompt(false)}
@@ -1129,7 +1154,7 @@ export default function JobDetailPage() {
                 disabled={invoiceLoading}
                 className="px-6 py-3 border border-blue-500/30 text-blue-400 rounded-lg font-medium hover:bg-blue-500/10 transition-colors disabled:opacity-50"
               >
-                {invoiceLoading ? 'Sending...' : 'Generate & Send Invoice'}
+                {invoiceLoading ? 'Converting...' : 'Convert to Invoice'}
               </button>
             )}
 
