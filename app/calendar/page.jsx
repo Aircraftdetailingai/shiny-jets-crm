@@ -325,6 +325,9 @@ export default function CalendarPage() {
                             style={evt.customColor ? { backgroundColor: evt.customColor } : undefined}
                             title={evt.label}
                           >
+                            {evt.type === 'job' && evt.data?.schedule_override && (
+                              <span className="inline-block text-[8px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 mr-1 rounded">AH</span>
+                            )}
                             {evt.label}
                           </div>
                         ))}
@@ -366,7 +369,12 @@ export default function CalendarPage() {
                             className={`text-xs p-1.5 rounded text-white ${evt.customColor ? '' : evt.color} ${evt.type === 'job' ? 'cursor-pointer' : ''}`}
                             style={evt.customColor ? { backgroundColor: evt.customColor } : undefined}
                           >
-                            <div className="font-medium truncate">{evt.label}</div>
+                            <div className="font-medium truncate flex items-center gap-1">
+                              {evt.type === 'job' && evt.data?.schedule_override && (
+                                <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 rounded shrink-0">After Hours</span>
+                              )}
+                              <span className="truncate">{evt.label}</span>
+                            </div>
                             {evt.type === 'job' && <div className="text-[10px] opacity-80">{evt.data.aircraft_model || evt.data.aircraft_type}</div>}
                           </div>
                         ))}
