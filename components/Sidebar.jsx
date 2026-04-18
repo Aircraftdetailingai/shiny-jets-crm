@@ -8,11 +8,9 @@ import { applyFullTheme } from '@/lib/theme';
 
 const NAV_GROUPS = [
   {
-    label: 'Business',
+    label: 'Home',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-      { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon },
-      { href: '/reports', label: 'Reports', icon: ReportsIcon },
     ],
   },
   {
@@ -27,26 +25,25 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Customers',
+    label: 'Operations',
+    items: [
+      { href: '/equipment', label: 'Equipment', icon: EquipmentIcon },
+      { href: '/products', label: 'Products', icon: ProductsIcon },
+    ],
+  },
+  {
+    label: 'Relationships',
     items: [
       { href: '/customers', label: 'Customers', icon: CustomersIcon },
       { href: '/reviews', label: 'Reviews', icon: ReviewsIcon },
-    ],
-  },
-  {
-    label: 'Resources',
-    items: [
       { href: '/team', label: 'Team', icon: TeamIcon },
-      { href: '/equipment', label: 'Equipment', icon: EquipmentIcon },
-      { href: '/products', label: 'Products', icon: ProductsIcon },
-      { href: '/settings/locations', label: 'Locations', icon: LocationsIcon },
     ],
   },
   {
-    label: 'Settings',
+    label: 'Insights',
     items: [
-      { href: '/settings', label: 'Settings', icon: SettingsIcon },
-      { href: '/referrals', label: 'Referrals', icon: ReferralsIcon },
+      { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon },
+      { href: '/reports', label: 'Reports', icon: ReportsIcon },
     ],
   },
 ];
@@ -75,9 +72,6 @@ function DispatchIcon() {
 function ReviewsIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>;
 }
-function ReferralsIcon() {
-  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>;
-}
 function AnalyticsIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
 }
@@ -95,9 +89,6 @@ function RequestsIcon() {
 }
 function EquipmentIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M11.42 15.17l-5.6 5.6a2.12 2.12 0 01-3-3l5.6-5.6m2.83 2.83l3.18-3.18a2.12 2.12 0 000-3L14.3 5.7a2.12 2.12 0 00-3 0L8.12 8.88m3.3 6.29l-3.3-3.3" /><path d="M19.07 4.93a2 2 0 010 2.83l-1.42 1.42" /></svg>;
-}
-function LocationsIcon() {
-  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 }
 function SettingsIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg>;
@@ -185,8 +176,7 @@ export default function Sidebar() {
 
   const isActive = (href) => {
     if (href === '/dashboard') return pathname === '/dashboard';
-    if (href === '/settings') return pathname === '/settings' || (pathname.startsWith('/settings/') && pathname !== '/settings/locations');
-    if (href === '/settings/locations') return pathname === '/settings/locations';
+    if (href === '/settings') return pathname === '/settings' || pathname.startsWith('/settings/');
     if (href === '/team') return pathname === '/team' || pathname.startsWith('/team/');
     return pathname.startsWith(href);
   };
@@ -241,6 +231,24 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* Settings (bottom-anchored, above user area) */}
+      <div className="border-t border-v-border-subtle">
+        <a
+          href="/settings"
+          onClick={() => setMobileOpen(false)}
+          className={`sidebar-nav-item flex items-center gap-3 h-12 px-7 text-xs uppercase transition-colors relative ${
+            isActive('/settings')
+              ? 'text-v-gold bg-v-surface-light/30'
+              : 'text-v-text-secondary hover:text-v-text-primary'
+          }`}
+          style={{ letterSpacing: '0.15em' }}
+        >
+          {isActive('/settings') && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
+          <SettingsIcon />
+          <span>Settings</span>
+        </a>
+      </div>
 
       {/* Bottom user area */}
       <div className="border-t border-v-border-subtle px-5 py-4">

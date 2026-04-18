@@ -27,14 +27,10 @@ function IntegrationsContent() {
   const [icsImporting, setIcsImporting] = useState(false);
   const [icsResult, setIcsResult] = useState(null);
 
-  // Stripe state
-  const [stripeStatus, setStripeStatus] = useState({ connected: false, status: 'UNKNOWN' });
-  const [stripePk, setStripePk] = useState('');
-  const [stripeSk, setStripeSk] = useState('');
-  const [stripeKeySaving, setStripeKeySaving] = useState(false);
-  const [stripeKeyMsg, setStripeKeyMsg] = useState(null);
-  const [showUpdateKeys, setShowUpdateKeys] = useState(false);
-  const [stripeConnecting, setStripeConnecting] = useState(false);
+  // Google Business Profile state
+  const [googleBusinessUrl, setGoogleBusinessUrl] = useState('');
+  const [gbpSaving, setGbpSaving] = useState(false);
+  const [gbpDirty, setGbpDirty] = useState(false);
 
   // QuickBooks state
   const [qbStatus, setQbStatus] = useState({ connected: false, status: 'UNKNOWN' });
@@ -73,7 +69,7 @@ function IntegrationsContent() {
   });
 
   const loadAll = async () => {
-    await Promise.all([loadCalendly(), checkGCalStatus(), checkStripeStatus(), checkQBStatus()]);
+    await Promise.all([loadCalendly(), checkGCalStatus(), checkQBStatus(), loadGoogleBusiness()]);
     setLoading(false);
   };
 
@@ -204,26 +200,36 @@ function IntegrationsContent() {
     } catch { toastError('Failed to disconnect'); }
   };
 
-  // === STRIPE ===
-  const checkStripeStatus = async () => {
+  // === GOOGLE BUSINESS PROFILE ===
+  const loadGoogleBusiness = async () => {
     try {
-      const res = await fetch('/api/stripe/status', { headers: getHeaders() });
-      if (res.ok) setStripeStatus(await res.json());
+      const res = await fetch('/api/user/me', { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const u = data.user || data;
+        setGoogleBusinessUrl(u.google_business_url || '');
+      }
     } catch {}
   };
 
-  const handleStripeConnect = async () => {
-    setStripeConnecting(true); setStripeKeyMsg(null);
+  const saveGoogleBusiness = async () => {
+    setGbpSaving(true);
     try {
-      const res = await fetch('/api/stripe/connect', { method: 'POST', headers: getHeaders() });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setStripeKeyMsg({ type: 'error', text: data.error || 'Failed to start Stripe Connect' });
-      }
-    } catch (err) { setStripeKeyMsg({ type: 'error', text: err.message }); }
-    finally { setStripeConnecting(false); }
+      const res = await fetch('/api/user/profile', {
+        method: 'POST', headers: getHeaders(),
+        body: JSON.stringify({ google_business_url: googleBusinessUrl || null }),
+      });
+      if (res.ok) {
+        toastSuccess('Saved');
+        setGbpDirty(false);
+        try {
+          const u = JSON.parse(localStorage.getItem('vector_user') || '{}');
+          u.google_business_url = googleBusinessUrl || null;
+          localStorage.setItem('vector_user', JSON.stringify(u));
+        } catch {}
+      } else toastError('Failed to save');
+    } catch { toastError('Failed to save'); }
+    finally { setGbpSaving(false); }
   };
 
   // === QUICKBOOKS ===
@@ -272,8 +278,8 @@ function IntegrationsContent() {
   const gcalNeedsReconnect = oauthConnected && gcalStatus?.needsReconnect;
   const gcalConnected = (icsConnected || oauthConnected) && !gcalNeedsReconnect;
   const calendlyConnected = !!calendlyUrl && calendlyUrl.includes('calendly.com');
-  const stripeConnected = (stripeStatus.connected && stripeStatus.status === 'ACTIVE') || stripeStatus.hasKeys;
   const qbConnected = qbStatus.connected && qbStatus.status === 'ACTIVE';
+  const gbpConnected = !!googleBusinessUrl && (googleBusinessUrl.includes('google.com') || googleBusinessUrl.includes('maps.google'));
 
   return (
     <div className="space-y-8">
@@ -454,187 +460,60 @@ function IntegrationsContent() {
         </div>
       </div>
 
-      {/* ━━━ PAYMENTS ━━━ */}
+      {/* ━━━ REVIEWS ━━━ */}
       <div>
-        <h3 className="text-xs font-medium uppercase tracking-widest text-v-text-secondary mb-4">Payments</h3>
+        <h3 className="text-xs font-medium uppercase tracking-widest text-v-text-secondary mb-4">Reviews</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-          {/* STRIPE CARD */}
-          <div className="border border-v-border p-5">
+          {/* GOOGLE BUSINESS PROFILE CARD */}
+          <div className="border border-v-border p-5 flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 border border-v-border flex items-center justify-center rounded-sm">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                    <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.918 3.757 7.11c0 3.723 2.249 5.353 5.864 6.744 2.368.911 3.182 1.557 3.182 2.536 0 .954-.839 1.575-2.379 1.575-1.946 0-4.836-.963-6.778-2.186L2.758 21.3C4.458 22.421 7.764 23.4 10.784 23.4c2.607 0 4.765-.654 6.293-1.885 1.623-1.303 2.445-3.176 2.445-5.56.03-3.817-2.293-5.414-5.546-6.805z" fill="#635BFF"/>
-                  </svg>
+                <div className="w-10 h-10 border border-v-border flex items-center justify-center text-v-text-primary rounded-sm">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-v-text-primary text-sm">Stripe</h4>
-                  <p className="text-xs text-v-text-secondary">Accept customer payments</p>
+                  <h4 className="font-semibold text-v-text-primary text-sm">Google Business Profile</h4>
+                  <p className="text-xs text-v-text-secondary">Import reviews to your listing</p>
                 </div>
               </div>
-              {stripeConnected ? (
-                <span className="text-xs text-green-400 border border-green-400/30 px-2 py-0.5 uppercase tracking-wider">Active</span>
+              {gbpConnected ? (
+                <span className="text-xs text-green-400 border border-green-400/30 px-2 py-0.5 uppercase tracking-wider">Connected</span>
               ) : (
-                <span className="text-xs text-v-text-secondary border border-v-border px-2 py-0.5 uppercase tracking-wider">Not Set Up</span>
+                <span className="text-xs text-v-text-secondary border border-v-border px-2 py-0.5 uppercase tracking-wider">Not Connected</span>
               )}
             </div>
 
-            {stripeKeyMsg && (
-              <div className={`mb-3 p-2 text-xs rounded ${stripeKeyMsg.type === 'error' ? 'bg-red-900/20 border border-red-500/30 text-red-400' : 'bg-green-900/20 border border-green-500/30 text-green-400'}`}>
-                {stripeKeyMsg.text}
-              </div>
-            )}
-
-            {stripeConnected ? (
+            <div className="space-y-3 flex-1">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-500">&#10003;</span>
-                    <span className="text-green-400 text-xs font-medium">
-                      {stripeStatus.connectAccountId ? 'Stripe Connect active' : 'Stripe keys saved'}
-                    </span>
-                  </div>
-                  <button onClick={() => setShowUpdateKeys(v => !v)} className="text-xs text-v-text-secondary hover:text-v-gold transition-colors">
-                    {showUpdateKeys ? 'Cancel' : 'Update API Keys'}
-                  </button>
-                </div>
-                {!showUpdateKeys && !stripeStatus.connectAccountId && (
-                  <div className="mb-3 p-3 bg-blue-900/10 border border-blue-500/20 rounded">
-                    <p className="text-xs text-blue-400 mb-2">Upgrade to Stripe Connect for seamless onboarding and automatic payments.</p>
-                    <button onClick={handleStripeConnect} disabled={stripeConnecting}
-                      className="px-4 py-2 bg-[#635BFF] text-white text-xs font-semibold rounded hover:bg-[#5549e0] disabled:opacity-50 transition-colors">
-                      {stripeConnecting ? 'Connecting...' : 'Connect with Stripe'}
-                    </button>
-                  </div>
-                )}
-                {!showUpdateKeys && (
-                  <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" className="text-xs text-v-gold hover:text-v-gold-dim transition-colors">
-                    Manage in Stripe Dashboard &rarr;
-                  </a>
-                )}
-                {showUpdateKeys && (
-                  <div className="mt-3">
-                    <div className="space-y-2">
-                      <input type="text" value={stripePk} onChange={e => setStripePk(e.target.value)} placeholder="pk_live_..."
-                        className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50" />
-                      <input type="password" value={stripeSk} onChange={e => setStripeSk(e.target.value)} placeholder="sk_live_..."
-                        className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50" />
-                      <button
-                        onClick={async () => {
-                          const pkVal = stripePk.trim();
-                          const skVal = stripeSk.trim();
-                          const validPK = pkVal.startsWith('pk_live_') || pkVal.startsWith('pk_test_');
-                          const validSK = skVal.startsWith('sk_live_') || skVal.startsWith('sk_test_') || skVal.startsWith('rk_live_') || skVal.startsWith('rk_test_') || skVal.startsWith('mk_live_') || skVal.startsWith('mk_test_') || skVal.startsWith('mk_');
-                          if (!validPK || !validSK) {
-                            setStripeKeyMsg({ type: 'error', text: `Invalid key format. Expected pk_live_/pk_test_ and sk_live_/sk_test_.` });
-                            return;
-                          }
-                          setStripeKeySaving(true); setStripeKeyMsg(null);
-                          try {
-                            const res = await fetch('/api/user/settings', {
-                              method: 'POST', headers: getHeaders(),
-                              body: JSON.stringify({ stripe_publishable_key: pkVal, stripe_secret_key: skVal }),
-                            });
-                            if (res.ok) {
-                              setStripeKeyMsg({ type: 'success', text: 'Stripe keys updated!' });
-                              setShowUpdateKeys(false); checkStripeStatus();
-                            } else {
-                              const d = await res.json(); setStripeKeyMsg({ type: 'error', text: d.error || 'Failed to save' });
-                            }
-                          } catch (err) { setStripeKeyMsg({ type: 'error', text: err.message }); }
-                          finally { setStripeKeySaving(false); }
-                        }}
-                        disabled={stripeKeySaving || !stripePk || !stripeSk}
-                        className="w-full py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
-                      >
-                        {stripeKeySaving ? 'Saving...' : 'Update Keys'}
-                      </button>
-                      <p className="text-[10px] text-v-text-secondary">
-                        Find keys at{' '}
-                        <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className="text-v-gold underline">stripe.com/apikeys</a>
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <label className="block text-xs text-v-text-secondary mb-1">Your Google Business Profile URL</label>
+                <input
+                  type="url"
+                  value={googleBusinessUrl}
+                  onChange={(e) => { setGoogleBusinessUrl(e.target.value); setGbpDirty(true); }}
+                  placeholder="https://maps.google.com/?cid=XXXXXXXXX"
+                  className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-sm placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+                />
+                <p className="text-[10px] text-v-text-secondary/60 mt-1">
+                  Search your business on Google, click the business card, then copy the URL from your browser.
+                </p>
               </div>
-            ) : (
-              <div>
-                {/* Primary: Connect with Stripe */}
-                <button onClick={handleStripeConnect} disabled={stripeConnecting}
-                  className="w-full py-3 mb-3 bg-[#635BFF] text-white text-xs font-semibold uppercase tracking-widest rounded hover:bg-[#5549e0] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.918 3.757 7.11c0 3.723 2.249 5.353 5.864 6.744 2.368.911 3.182 1.557 3.182 2.536 0 .954-.839 1.575-2.379 1.575-1.946 0-4.836-.963-6.778-2.186L2.758 21.3C4.458 22.421 7.764 23.4 10.784 23.4c2.607 0 4.765-.654 6.293-1.885 1.623-1.303 2.445-3.176 2.445-5.56.03-3.817-2.293-5.414-5.546-6.805z" fill="white"/>
-                  </svg>
-                  {stripeConnecting ? 'Connecting...' : 'Connect with Stripe'}
-                </button>
-                <p className="text-xs text-v-text-secondary mb-3">Connect your Stripe account to accept payments. Quick setup, no API keys needed.</p>
+            </div>
 
-                {/* Divider */}
-                <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 border-t border-v-border" />
-                  <span className="text-[10px] text-v-text-secondary uppercase">Or enter keys manually</span>
-                  <div className="flex-1 border-t border-v-border" />
-                </div>
-
-                {/* Secondary: Manual keys */}
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={stripePk}
-                    onChange={(e) => setStripePk(e.target.value)}
-                    placeholder="pk_live_..."
-                    className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
-                  />
-                  <input
-                    type="password"
-                    value={stripeSk}
-                    onChange={(e) => setStripeSk(e.target.value)}
-                    placeholder="sk_live_..."
-                    className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-xs font-mono placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
-                  />
-                  <button
-                    onClick={async () => {
-                      const pkTrimmed = stripePk.trim();
-                      const skTrimmed = stripeSk.trim();
-                      const pkOk = pkTrimmed.startsWith('pk_live_') || pkTrimmed.startsWith('pk_test_');
-                      const skOk = skTrimmed.startsWith('sk_live_') || skTrimmed.startsWith('sk_test_') || skTrimmed.startsWith('rk_live_') || skTrimmed.startsWith('rk_test_') || skTrimmed.startsWith('mk_live_') || skTrimmed.startsWith('mk_test_') || skTrimmed.startsWith('mk_');
-                      if (!pkOk || !skOk) {
-                        setStripeKeyMsg({ type: 'error', text: `Invalid key format. Expected pk_live_/pk_test_ and sk_live_/sk_test_.` });
-                        return;
-                      }
-                      setStripePk(pkTrimmed);
-                      setStripeSk(skTrimmed);
-                      setStripeKeySaving(true); setStripeKeyMsg(null);
-                      try {
-                        const res = await fetch('/api/user/settings', {
-                          method: 'POST', headers: getHeaders(),
-                          body: JSON.stringify({ stripe_publishable_key: stripePk.trim(), stripe_secret_key: stripeSk.trim() }),
-                        });
-                        if (res.ok) {
-                          setStripeKeyMsg({ type: 'success', text: 'Stripe keys saved!' });
-                          setStripeStatus({ connected: true, hasKeys: true, status: 'ACTIVE' });
-                        } else {
-                          const d = await res.json(); setStripeKeyMsg({ type: 'error', text: d.error || 'Failed to save' });
-                        }
-                      } catch (err) { setStripeKeyMsg({ type: 'error', text: err.message }); }
-                      finally { setStripeKeySaving(false); }
-                    }}
-                    disabled={stripeKeySaving || !stripePk || !stripeSk}
-                    className="w-full py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
-                  >
-                    {stripeKeySaving ? 'Saving...' : 'Save & Connect'}
-                  </button>
-                  <p className="text-[10px] text-v-text-secondary">
-                    Find keys at{' '}
-                    <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className="text-v-gold underline">
-                      stripe.com/apikeys
-                    </a>
-                  </p>
-                </div>
-              </div>
+            {gbpDirty && (
+              <button onClick={saveGoogleBusiness} disabled={gbpSaving}
+                className="mt-4 w-full py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim disabled:opacity-50 transition-colors">
+                {gbpSaving ? 'Saving...' : 'Save'}
+              </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* ━━━ ACCOUNTING ━━━ */}
+      <div>
+        <h3 className="text-xs font-medium uppercase tracking-widest text-v-text-secondary mb-4">Accounting</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* QUICKBOOKS CARD */}
           <div className="border border-v-border p-5">

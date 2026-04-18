@@ -87,13 +87,6 @@ function SettingsContent() {
   const [reviewRequestEnabled, setReviewRequestEnabled] = useState(true);
   const [reviewRequestDelay, setReviewRequestDelay] = useState(1);
 
-  // Google Business Profile
-  const [googleBusinessUrl, setGoogleBusinessUrl] = useState('');
-  const [googleReviewsImporting, setGoogleReviewsImporting] = useState(false);
-  const [googleReviewsResult, setGoogleReviewsResult] = useState(null);
-  const [googleReviewsLastSynced, setGoogleReviewsLastSynced] = useState(null);
-  const [googleReviewCount, setGoogleReviewCount] = useState(0);
-
   // Smart follow-up settings
   const [autoDiscountEnabled, setAutoDiscountEnabled] = useState(false);
   const [followupDiscountPercent, setFollowupDiscountPercent] = useState(10);
@@ -246,8 +239,6 @@ function SettingsContent() {
     setNotifyWeeklyDigest(u.notify_weekly_digest !== false);
     setReviewRequestEnabled(u.review_request_enabled !== false);
     setReviewRequestDelay(u.review_request_delay_days || 1);
-    setGoogleBusinessUrl(u.google_business_url || '');
-    setGoogleReviewsLastSynced(u.google_reviews_last_synced || null);
     setAutoDiscountEnabled(u.notification_settings?.autoDiscountEnabled || false);
     setMonthlyReportEnabled(u.notification_settings?.monthlyReportEnabled || false);
     if (u.notification_settings?.followups) {
@@ -1097,50 +1088,6 @@ function SettingsContent() {
     setUser(newUser);
   };
 
-  const saveGoogleBusinessUrl = async () => {
-    try {
-      await fetch('/api/user/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
-        },
-        body: JSON.stringify({ google_business_url: googleBusinessUrl }),
-      });
-      const newUser = { ...user, google_business_url: googleBusinessUrl };
-      localStorage.setItem('vector_user', JSON.stringify(newUser));
-      setUser(newUser);
-    } catch {}
-  };
-
-  const importGoogleReviews = async () => {
-    if (!googleBusinessUrl) return;
-    setGoogleReviewsImporting(true);
-    setGoogleReviewsResult(null);
-    try {
-      const res = await fetch('/api/integrations/google-reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('vector_token')}`,
-        },
-        body: JSON.stringify({ google_url: googleBusinessUrl }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setGoogleReviewsResult({ success: true, ...data });
-        setGoogleReviewsLastSynced(new Date().toISOString());
-        setGoogleReviewCount(data.imported_count || 0);
-      } else {
-        setGoogleReviewsResult({ success: false, error: data.error });
-      }
-    } catch (err) {
-      setGoogleReviewsResult({ success: false, error: err.message });
-    } finally {
-      setGoogleReviewsImporting(false);
-    }
-  };
-
   const saveNotifications = async (settings) => {
     await fetch('/api/user/notification-settings', {
       method: 'POST',
@@ -1347,7 +1294,6 @@ function SettingsContent() {
     try {
       const promises = [];
       if (pendingChanges.has('profile')) promises.push(saveProfile());
-      if (pendingChanges.has('googleBusiness')) promises.push(saveGoogleBusinessUrl());
       if (pendingChanges.has('laborRate')) promises.push(saveLaborRate(parseFloat(laborRate) || 0));
       if (pendingChanges.has('efficiencyFactor')) promises.push(saveEfficiencyFactor(efficiencyFactor));
       if (pendingChanges.has('minimumFee')) promises.push(saveMinimumFee(parseFloat(minimumFee) || 0, minimumFeeLocations));
@@ -2911,52 +2857,6 @@ function SettingsContent() {
           <a href="/reviews" className="inline-block mt-3 text-sm text-v-gold hover:text-v-gold-dim">
             View all reviews &rarr;
           </a>
-        </div>
-
-        {/* Google Business Profile */}
-        <div className="pb-6 mb-2">
-          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Google Business Profile</h3>
-          <p className="text-xs text-v-text-secondary mb-3">
-            Import reviews from your Google Business Profile to display on your directory listing.
-          </p>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-v-text-primary mb-1">Your Google Business Profile URL</label>
-              <input
-                type="url"
-                value={googleBusinessUrl}
-                onChange={(e) => { setGoogleBusinessUrl(e.target.value); markDirty('googleBusiness'); }}
-                placeholder="https://maps.google.com/?cid=XXXXXXXXX"
-                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-sm px-3 py-2 text-sm focus:border-v-gold/50 outline-none"
-              />
-              <p className="text-[10px] text-v-text-secondary/60 mt-1">
-                Find it by searching your business on Google, click your business card, then copy the URL from your browser.
-              </p>
-            </div>
-            {googleBusinessUrl && (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={importGoogleReviews}
-                  disabled={googleReviewsImporting}
-                  className="px-4 py-2 text-xs uppercase tracking-widest text-v-charcoal bg-v-gold hover:bg-v-gold-dim transition-colors disabled:opacity-50"
-                >
-                  {googleReviewsImporting ? 'Importing...' : googleReviewsLastSynced ? 'Sync Reviews' : 'Import Reviews'}
-                </button>
-                {googleReviewsLastSynced && (
-                  <span className="text-[10px] text-v-text-secondary">
-                    Last synced: {new Date(googleReviewsLastSynced).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                )}
-              </div>
-            )}
-            {googleReviewsResult && (
-              <div className={`p-3 rounded-sm text-sm ${googleReviewsResult.success ? 'bg-green-900/20 border border-green-500/30 text-green-400' : 'bg-red-900/20 border border-red-500/30 text-red-400'}`}>
-                {googleReviewsResult.success
-                  ? `Imported ${googleReviewsResult.imported_count} reviews${googleReviewsResult.business_name ? ` from ${googleReviewsResult.business_name}` : ''}${googleReviewsResult.overall_rating ? ` (${googleReviewsResult.overall_rating} avg rating)` : ''}`
-                  : googleReviewsResult.error}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Automation */}
