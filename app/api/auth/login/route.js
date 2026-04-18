@@ -26,10 +26,12 @@ export async function POST(request) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Look up the detailer
+    // Look up the detailer — only columns needed for the login flow.
+    // Profile fields (phone, company, rates, theme, etc.) are fetched via
+    // /api/user/me so we don't pull ACH and other sensitive columns on login.
     const { data, error } = await supabase
       .from('detailers')
-      .select('*')
+      .select('id, email, password_hash, name, status, plan, is_admin, must_change_password, onboarding_complete')
       .eq('email', normalizedEmail)
       .single();
     if (error || !data) {
