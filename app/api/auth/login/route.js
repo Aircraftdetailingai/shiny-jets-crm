@@ -72,6 +72,9 @@ export async function POST(request) {
     // Set auth cookie for server-side auth
     try {
       const cookieStore = await cookies();
+      // Explicitly delete any stale auth_token cookie before issuing a fresh one
+      // so a prior session can't shadow the new login.
+      cookieStore.delete('auth_token');
       cookieStore.set('auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

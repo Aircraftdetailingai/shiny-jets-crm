@@ -152,6 +152,11 @@ export default function Sidebar() {
   }, []);
 
   const handleLogout = async () => {
+    // Clear the httpOnly auth_token cookie server-side — document.cookie
+    // cannot remove httpOnly cookies, so skipping this leaves a stale session.
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
     // Clear all app data from localStorage
     localStorage.removeItem('vector_token');
     localStorage.removeItem('vector_user');
