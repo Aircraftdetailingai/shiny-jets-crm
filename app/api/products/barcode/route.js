@@ -1,17 +1,8 @@
 // Barcode lookup — accepts UPC/EAN, returns normalized product info
 // Used by both crew and owner Add Product modals
-import { verifyToken } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
-
-async function getUser(request) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    const payload = await verifyToken(authHeader.slice(7));
-    if (payload) return payload;
-  }
-  return null;
-}
 
 function inferCategory(title = '', categoryString = '') {
   const text = `${title} ${categoryString}`.toLowerCase();
@@ -41,7 +32,7 @@ function parseSize(text = '') {
 
 export async function GET(request) {
   // Require any authenticated user (detailer or crew)
-  const user = await getUser(request);
+  const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);

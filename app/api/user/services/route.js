@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,32 +10,9 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// Get user from either cookie or Authorization header
-async function getUser(request) {
-  // Try cookie first (browser requests)
-  try {
-    const cookieStore = await cookies();
-    const authCookie = cookieStore.get('auth_token')?.value;
-    if (authCookie) {
-      const user = await verifyToken(authCookie);
-      if (user) return user;
-    }
-  } catch (e) {
-    // cookies() might fail in some contexts
-  }
-
-  // Try Authorization header (API requests)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return await verifyToken(authHeader.slice(7));
-  }
-
-  return null;
-}
-
 export async function GET(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -70,7 +46,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -132,7 +108,7 @@ export async function POST(request) {
 // Bulk create services (for importing defaults)
 export async function PUT(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }

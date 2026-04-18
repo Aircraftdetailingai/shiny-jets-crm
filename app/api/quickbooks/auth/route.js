@@ -1,28 +1,11 @@
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { getAuthUser } from '@/lib/auth';
 import { getAuthorizationUrl } from '@/lib/quickbooks';
 
 export const dynamic = 'force-dynamic';
 
-async function getUser(request) {
-  try {
-    const cookieStore = await cookies();
-    const authCookie = cookieStore.get('auth_token')?.value;
-    if (authCookie) {
-      const user = await verifyToken(authCookie);
-      if (user) return user;
-    }
-  } catch (e) {}
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return await verifyToken(authHeader.slice(7));
-  }
-  return null;
-}
-
 export async function POST(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }

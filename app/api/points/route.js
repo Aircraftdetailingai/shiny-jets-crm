@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { getAuthUser } from '@/lib/auth';
 import { POINTS_ACTIONS, calculatePoints, TIER_MULTIPLIERS } from '@/lib/points';
 
 export const dynamic = 'force-dynamic';
@@ -9,23 +8,9 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
 
-async function getUser(request) {
-  const cookieStore = await cookies();
-  const authCookie = cookieStore.get('auth_token')?.value;
-  if (authCookie) {
-    const user = await verifyToken(authCookie);
-    if (user) return user;
-  }
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return await verifyToken(authHeader.slice(7));
-  }
-  return null;
-}
-
 // GET - Get user's points balance, recent history, and week stats
 export async function GET(request) {
-  const user = await getUser(request);
+  const user = await getAuthUser(request);
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -88,7 +73,7 @@ export async function GET(request) {
 
 // POST - Award points (kept for backward compat, prefer /api/points/earn)
 export async function POST(request) {
-  const user = await getUser(request);
+  const user = await getAuthUser(request);
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }

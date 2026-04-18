@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,26 +10,10 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-async function getUser(request) {
-  try {
-    const cookieStore = await cookies();
-    const authCookie = cookieStore.get('auth_token')?.value;
-    if (authCookie) {
-      const user = await verifyToken(authCookie);
-      if (user) return user;
-    }
-  } catch (e) {}
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return await verifyToken(authHeader.slice(7));
-  }
-  return null;
-}
-
 // GET - Get linked products for a service (or all services)
 export async function GET(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const supabase = getSupabase();
@@ -68,7 +51,7 @@ export async function GET(request) {
 // POST - Link a product to a service
 export async function POST(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const supabase = getSupabase();
@@ -120,7 +103,7 @@ export async function POST(request) {
 // PUT - Update a product link
 export async function PUT(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const supabase = getSupabase();
@@ -171,7 +154,7 @@ export async function PUT(request) {
 // DELETE - Remove a product link
 export async function DELETE(request) {
   try {
-    const user = await getUser(request);
+    const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const supabase = getSupabase();
