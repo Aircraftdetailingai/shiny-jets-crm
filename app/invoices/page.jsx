@@ -596,10 +596,7 @@ function InvoicesPageInner() {
         : item.amount != null ? parseFloat(item.amount)
         : (parseFloat(hrs) || 0) * rate;
       const label = item.name || item.description || item.service || 'Service';
-      const detail = (hrs != null && rate > 0)
-        ? ` <span style="color:#9ca3af;font-size:12px">${parseFloat(hrs)}h @ ${sym}${rate}/hr</span>`
-        : '';
-      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${label}${detail}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${sym}${formatPrice(price)}</td></tr>`;
+      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${label}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${sym}${formatPrice(price)}</td></tr>`;
     }).join('');
     const addonRows = addons.map(a =>
       `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">${a.name || 'Add-on'}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#666">${sym}${formatPrice(a.calculated || a.amount || 0)}</td></tr>`
@@ -642,10 +639,24 @@ th:last-child{text-align:right}
 </div>
 ${invoice.aircraft ? `<p style="color:#6b7280;margin:0 0 4px">Aircraft: <strong style="color:#1f2937">${invoice.aircraft}</strong></p>` : ''}
 <table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody>${lineRows}${addonRows}</tbody></table>
-${(parseFloat(invoice.discount_amount) > 0 || parseFloat(invoice.discount_value) > 0) ? `
-<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#6b7280;margin-top:8px"><span>Subtotal</span><span>${sym}${formatPrice(parseFloat(invoice.subtotal) || (parseFloat(invoice.total) + parseFloat(invoice.discount_amount) || 0))}</span></div>
-<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#dc2626;margin-top:4px"><span>Discount (${invoice.discount_type === 'flat' ? `${sym}${formatPrice(invoice.discount_value)} off` : `${parseFloat(invoice.discount_value) || 0}% off`}${invoice.discount_reason ? ` &mdash; ${invoice.discount_reason}` : ''})</span><span>-${sym}${formatPrice(invoice.discount_amount)}</span></div>
-` : ''}
+${(() => {
+  const lineSub = (invoice.line_items || []).reduce((s, li) => {
+    const hrs = li.hours != null ? li.hours : li.quantity;
+    const rate = parseFloat(li.rate) || 0;
+    const price = li.price != null ? parseFloat(li.price)
+      : li.amount != null ? parseFloat(li.amount)
+      : (parseFloat(hrs) || 0) * rate;
+    return s + (isFinite(price) ? price : 0);
+  }, 0);
+  const storedSub = parseFloat(invoice.subtotal);
+  const discAmt = parseFloat(invoice.discount_amount) || 0;
+  const totalNum = parseFloat(invoice.total) || 0;
+  const sub = isFinite(storedSub) && storedSub > 0 ? storedSub : (lineSub > 0 ? lineSub : totalNum + discAmt);
+  const discRow = discAmt > 0 || parseFloat(invoice.discount_value) > 0
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#dc2626;margin-top:4px"><span>Discount (${invoice.discount_type === 'flat' ? `${sym}${formatPrice(invoice.discount_value)} off` : `${parseFloat(invoice.discount_value) || 0}% off`}${invoice.discount_reason ? ` &mdash; ${invoice.discount_reason}` : ''})</span><span>-${sym}${formatPrice(discAmt)}</span></div>`
+    : '';
+  return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#6b7280;margin-top:8px"><span>Subtotal</span><span style="color:#1f2937;font-weight:600">${sym}${formatPrice(sub)}</span></div>${discRow}`;
+})()}
 <div class="total-row"><span class="total-label">Total</span><span class="total-amount">${sym}${formatPrice(invoice.total)}</span></div>
 ${invoice.status !== 'paid' && invoice.due_date ? `<p style="color:#d97706;margin-top:16px">Due by ${new Date(invoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
 ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
@@ -975,11 +986,6 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                         <tr key={i} className="border-t border-v-border-subtle/50">
                           <td className="px-3 py-2 text-v-text-primary">
                             {item.name || item.description || item.service || 'Service'}
-                            {hrs != null && rate > 0 && (
-                              <span className="text-[11px] text-v-text-secondary ml-2">
-                                {parseFloat(hrs)}h @ {sym}{rate}/hr
-                              </span>
-                            )}
                           </td>
                           <td className="px-3 py-2 text-right text-v-text-primary font-medium">{sym}{formatPrice(price)}</td>
                         </tr>
@@ -1003,50 +1009,66 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
             )}
 
             {/* Total */}
-            <div className="border-t-2 border-v-border pt-3">
-              {(parseFloat(viewInvoice.discount_amount) > 0 || parseFloat(viewInvoice.discount_value) > 0) && (
-                <>
+            {(() => {
+              const lineSub = (viewInvoice.line_items || []).reduce((s, li) => {
+                const hrs = li.hours != null ? li.hours : li.quantity;
+                const rate = parseFloat(li.rate) || 0;
+                const price = li.price != null ? parseFloat(li.price)
+                  : li.amount != null ? parseFloat(li.amount)
+                  : (parseFloat(hrs) || 0) * rate;
+                return s + (isFinite(price) ? price : 0);
+              }, 0);
+              const storedSub = parseFloat(viewInvoice.subtotal);
+              const discAmt = parseFloat(viewInvoice.discount_amount) || 0;
+              const totalNum = parseFloat(viewInvoice.total) || 0;
+              const subtotal = isFinite(storedSub) && storedSub > 0
+                ? storedSub
+                : (lineSub > 0 ? lineSub : totalNum + discAmt);
+              return (
+                <div className="border-t-2 border-v-border pt-3">
                   <div className="flex justify-between items-center text-sm mb-1">
                     <span className="text-v-text-secondary">Subtotal</span>
-                    <span className="text-v-text-primary">{sym}{formatPrice(parseFloat(viewInvoice.subtotal) || (parseFloat(viewInvoice.total) + parseFloat(viewInvoice.discount_amount) || 0))}</span>
+                    <span className="text-v-text-primary">{sym}{formatPrice(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm mb-2">
-                    <span className="text-v-text-secondary">
-                      Discount ({viewInvoice.discount_type === 'flat'
-                        ? `${sym}${formatPrice(viewInvoice.discount_value)} off`
-                        : `${parseFloat(viewInvoice.discount_value) || 0}% off`}
-                      {viewInvoice.discount_reason ? ` — ${viewInvoice.discount_reason}` : ''})
-                    </span>
-                    <span className="text-red-400">-{sym}{formatPrice(viewInvoice.discount_amount)}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-v-text-primary">Total</span>
-                <span className="text-2xl font-bold text-v-gold">{sym}{formatPrice(viewInvoice.total)}</span>
-              </div>
-              {(parseFloat(viewInvoice.amount_paid) > 0 || parseFloat(viewInvoice.deposit_amount) > 0) && viewInvoice.status !== 'paid' && (
-                <div className="mt-2 pt-2 border-t border-v-border space-y-1">
-                  {parseFloat(viewInvoice.amount_paid) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-green-400">Amount Paid</span>
-                      <span className="text-green-400 font-semibold">{sym}{formatPrice(viewInvoice.amount_paid)}</span>
+                  {(discAmt > 0 || parseFloat(viewInvoice.discount_value) > 0) && (
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <span className="text-v-text-secondary">
+                        Discount ({viewInvoice.discount_type === 'flat'
+                          ? `${sym}${formatPrice(viewInvoice.discount_value)} off`
+                          : `${parseFloat(viewInvoice.discount_value) || 0}% off`}
+                        {viewInvoice.discount_reason ? ` — ${viewInvoice.discount_reason}` : ''})
+                      </span>
+                      <span className="text-red-400">-{sym}{formatPrice(discAmt)}</span>
                     </div>
                   )}
-                  {parseFloat(viewInvoice.balance_due) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-red-400 font-semibold">Balance Due</span>
-                      <span className="text-red-400 font-bold text-base">{sym}{formatPrice(viewInvoice.balance_due)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-v-text-primary">Total</span>
+                    <span className="text-2xl font-bold text-v-gold">{sym}{formatPrice(totalNum)}</span>
+                  </div>
                 </div>
-              )}
-              {viewInvoice.due_date && viewInvoice.status !== 'paid' && (
-                <p className={`text-sm mt-2 ${getDisplayStatus(viewInvoice) === 'overdue' ? 'text-red-400 font-semibold' : 'text-v-gold'}`}>
-                  {getDisplayStatus(viewInvoice) === 'overdue' ? 'Overdue \u2014 was due' : 'Due by'} {new Date(viewInvoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-              )}
-            </div>
+              );
+            })()}
+            {(parseFloat(viewInvoice.amount_paid) > 0 || parseFloat(viewInvoice.deposit_amount) > 0) && viewInvoice.status !== 'paid' && (
+              <div className="mt-2 pt-2 border-t border-v-border space-y-1">
+                {parseFloat(viewInvoice.amount_paid) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-green-400">Amount Paid</span>
+                    <span className="text-green-400 font-semibold">{sym}{formatPrice(viewInvoice.amount_paid)}</span>
+                  </div>
+                )}
+                {parseFloat(viewInvoice.balance_due) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-red-400 font-semibold">Balance Due</span>
+                    <span className="text-red-400 font-bold text-base">{sym}{formatPrice(viewInvoice.balance_due)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {viewInvoice.due_date && viewInvoice.status !== 'paid' && (
+              <p className={`text-sm mt-2 ${getDisplayStatus(viewInvoice) === 'overdue' ? 'text-red-400 font-semibold' : 'text-v-gold'}`}>
+                {getDisplayStatus(viewInvoice) === 'overdue' ? 'Overdue \u2014 was due' : 'Due by'} {new Date(viewInvoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            )}
 
             {viewInvoice.notes && (
               <div className="mt-3 p-3 bg-v-gold/10 rounded-lg border border-v-gold/30 text-sm text-v-gold">
