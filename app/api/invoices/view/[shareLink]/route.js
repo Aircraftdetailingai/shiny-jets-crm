@@ -43,20 +43,25 @@ export async function GET(request, { params }) {
         .eq('id', invoice.id);
     }
 
-    // Fetch detailer branding
+    // Fetch detailer branding — explicit list of only what the customer-facing
+    // invoice page renders. Never select password_hash, stripe_secret_key,
+    // stripe_publishable_key, ach_routing_number, ach_account_number, or
+    // webauthn_challenge — this response ships to the public share link.
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('company, theme_primary, logo_url')
+      .select([
+        'company', 'phone', 'email',
+        'logo_url', 'theme_logo_url',
+        'portal_theme', 'theme_primary', 'theme_accent', 'theme_bg', 'theme_surface',
+        'font_embed_url', 'font_heading', 'font_body',
+        'quote_display_mode', 'quote_package_name', 'quote_show_breakdown',
+      ].join(', '))
       .eq('id', invoice.detailer_id)
       .single();
 
     return Response.json({
       invoice: { ...invoice, ...updates },
-      detailer: {
-        company: detailer?.company || '',
-        theme_primary: detailer?.theme_primary || '',
-        logo_url: detailer?.logo_url || '',
-      },
+      detailer: detailer || {},
     });
   } catch (err) {
     console.error('Invoice view error:', err);

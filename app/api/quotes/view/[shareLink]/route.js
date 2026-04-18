@@ -24,10 +24,30 @@ export async function GET(request, { params }) {
     return new Response(JSON.stringify({ error: 'Quote not found' }), { status: 404 });
   }
 
-  // Fetch detailer info
+  // Fetch detailer info — explicit column list. The public-facing branches
+  // below read these fields; server-only fields (fcm_token, notify_quote_viewed,
+  // stripe_secret_key, stripe_account_id) are selected because the route logic
+  // needs them, but they are scrubbed from the response shape below.
+  // Never select password_hash, stripe_publishable_key, ach_routing_number,
+  // ach_account_number, or webauthn_challenge into a public response.
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('*')
+    .select([
+      // public — used by app/q/[shareLink]/page.jsx
+      'id', 'company', 'phone', 'email',
+      'logo_url', 'theme_logo_url',
+      'portal_theme', 'theme_primary', 'theme_accent', 'theme_bg', 'theme_surface',
+      'font_embed_url', 'font_heading', 'font_body',
+      'preferred_currency',
+      'booking_mode', 'deposit_percentage',
+      'availability', 'calendly_url', 'use_calendly_scheduling',
+      'quote_display_mode', 'quote_package_name', 'quote_show_breakdown',
+      'quote_display_preference',
+      'plan', 'pass_fee_to_customer', 'cc_fee_mode',
+      'disclaimer_text', 'terms_text', 'terms_pdf_url',
+      // server-only — stripped from the response shape
+      'fcm_token', 'notify_quote_viewed', 'stripe_secret_key', 'stripe_account_id',
+    ].join(', '))
     .eq('id', quote.detailer_id)
     .single();
 
@@ -100,8 +120,15 @@ export async function GET(request, { params }) {
     }
   }
 
-  // Remove sensitive data from response
-  const { fcm_token, stripe_account_id, notify_quote_viewed, password_hash, ...detailerPublic } = detailer || {};
+  // Strip every server-only / sensitive field before shipping to the public
+  // share-link response. stripe_secret_key and stripe_account_id were being
+  // leaked before; we also guard against any future columns by only returning
+  // the allowlisted public fields.
+  const {
+    fcm_token, stripe_account_id, stripe_secret_key, notify_quote_viewed,
+    password_hash,
+    ...detailerPublic
+  } = detailer || {};
 
   return new Response(JSON.stringify({
     quote: {
