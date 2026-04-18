@@ -68,6 +68,7 @@ export async function PATCH(request, { params }) {
       'status', 'notes', 'customer_name', 'customer_email', 'customer_phone',
       'aircraft_model', 'tail_number', 'line_items', 'total', 'subtotal',
       'net_terms', 'due_date', 'issued_date', 'amount_paid', 'balance_due',
+      'discount_type', 'discount_value', 'discount_amount', 'discount_reason',
     ];
 
     const updates = {};

@@ -66,8 +66,21 @@ function InvoicesPageInner() {
   const [editSelectedServices, setEditSelectedServices] = useState([]);
   const [editHourOverrides, setEditHourOverrides] = useState({});
   const [editCustomLines, setEditCustomLines] = useState([]);
+  const [editDiscount, setEditDiscount] = useState({ type: 'percent', value: '', reason: '' });
 
   const sym = currencySymbol();
+
+  // Given a pre-discount subtotal and a discount {type, value}, compute the dollar
+  // amount that should be subtracted from the invoice total.
+  // - percent: subtotal * (value / 100), capped at subtotal
+  // - flat:    value, capped at subtotal
+  // Returns 0 for invalid/zero discounts.
+  const computeDiscountAmount = (subtotal, discount) => {
+    const value = parseFloat(discount?.value);
+    if (!isFinite(value) || value <= 0 || subtotal <= 0) return 0;
+    const raw = discount?.type === 'flat' ? value : subtotal * (value / 100);
+    return Math.min(Math.max(raw, 0), subtotal);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -181,6 +194,7 @@ function InvoicesPageInner() {
     setEditSavedFlash(false);
     setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
     setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
+    setEditDiscount({ type: 'percent', value: '', reason: '' });
     try {
       const [invJson, svcJson, mdlJson] = await Promise.all([
         fetch(`/api/invoices/${inv.id}`, { headers: headers() }).then(r => r.json()).catch(() => ({})),
@@ -229,6 +243,12 @@ function InvoicesPageInner() {
       setEditHourOverrides(overrides);
       setEditCustomLines(custom);
 
+      setEditDiscount({
+        type: full.discount_type === 'flat' ? 'flat' : 'percent',
+        value: (parseFloat(full.discount_value) || 0) > 0 ? String(full.discount_value) : '',
+        reason: full.discount_reason || '',
+      });
+
       setEditInvoice(full);
       setEditForm({
         customer_name: full.customer_name || '',
@@ -251,6 +271,7 @@ function InvoicesPageInner() {
     setEditInvoice(null); setEditForm(null);
     setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
     setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
+    setEditDiscount({ type: 'percent', value: '', reason: '' });
     setEditError(''); setEditSavedFlash(false);
   };
 
@@ -317,7 +338,11 @@ function InvoicesPageInner() {
           return { name: cl.name, hours, rate, price: Math.round(hours * rate * 100) / 100 };
         });
       const lineItems = [...svcLines, ...customLines];
-      const total = lineItems.reduce((s, li) => s + li.price, 0);
+      const subtotal = lineItems.reduce((s, li) => s + li.price, 0);
+      const discountAmount = Math.round(computeDiscountAmount(subtotal, editDiscount) * 100) / 100;
+      const total = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+      const discountValueNum = parseFloat(editDiscount.value);
+      const discountValue = isFinite(discountValueNum) && discountValueNum > 0 ? discountValueNum : 0;
       const body = {
         customer_name: editForm.customer_name,
         customer_email: editForm.customer_email,
@@ -325,7 +350,12 @@ function InvoicesPageInner() {
         aircraft_model: editForm.aircraft_model,
         tail_number: editForm.tail_number,
         line_items: lineItems,
+        subtotal,
         total,
+        discount_type: editDiscount.type === 'flat' ? 'flat' : 'percent',
+        discount_value: discountValue,
+        discount_amount: discountAmount,
+        discount_reason: (editDiscount.reason || '').trim() || null,
         notes: editForm.notes,
         net_terms: parseInt(editForm.net_terms) || 30,
         status: editForm.status,
@@ -591,6 +621,10 @@ th:last-child{text-align:right}
 </div>
 ${invoice.aircraft ? `<p style="color:#6b7280;margin:0 0 4px">Aircraft: <strong style="color:#1f2937">${invoice.aircraft}</strong></p>` : ''}
 <table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody>${lineRows}${addonRows}</tbody></table>
+${(parseFloat(invoice.discount_amount) > 0 || parseFloat(invoice.discount_value) > 0) ? `
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#6b7280;margin-top:8px"><span>Subtotal</span><span>${sym}${formatPrice(parseFloat(invoice.subtotal) || (parseFloat(invoice.total) + parseFloat(invoice.discount_amount) || 0))}</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:#dc2626;margin-top:4px"><span>Discount (${invoice.discount_type === 'flat' ? `${sym}${formatPrice(invoice.discount_value)} off` : `${parseFloat(invoice.discount_value) || 0}% off`}${invoice.discount_reason ? ` &mdash; ${invoice.discount_reason}` : ''})</span><span>-${sym}${formatPrice(invoice.discount_amount)}</span></div>
+` : ''}
 <div class="total-row"><span class="total-label">Total</span><span class="total-amount">${sym}${formatPrice(invoice.total)}</span></div>
 ${invoice.status !== 'paid' && invoice.due_date ? `<p style="color:#d97706;margin-top:16px">Due by ${new Date(invoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
 ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
@@ -946,6 +980,23 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
 
             {/* Total */}
             <div className="border-t-2 border-v-border pt-3">
+              {(parseFloat(viewInvoice.discount_amount) > 0 || parseFloat(viewInvoice.discount_value) > 0) && (
+                <>
+                  <div className="flex justify-between items-center text-sm mb-1">
+                    <span className="text-v-text-secondary">Subtotal</span>
+                    <span className="text-v-text-primary">{sym}{formatPrice(parseFloat(viewInvoice.subtotal) || (parseFloat(viewInvoice.total) + parseFloat(viewInvoice.discount_amount) || 0))}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm mb-2">
+                    <span className="text-v-text-secondary">
+                      Discount ({viewInvoice.discount_type === 'flat'
+                        ? `${sym}${formatPrice(viewInvoice.discount_value)} off`
+                        : `${parseFloat(viewInvoice.discount_value) || 0}% off`}
+                      {viewInvoice.discount_reason ? ` — ${viewInvoice.discount_reason}` : ''})
+                    </span>
+                    <span className="text-red-400">-{sym}{formatPrice(viewInvoice.discount_amount)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-lg font-bold text-v-text-primary">Total</span>
                 <span className="text-2xl font-bold text-v-gold">{sym}{formatPrice(viewInvoice.total)}</span>
@@ -1402,18 +1453,72 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
             <button onClick={() => setEditCustomLines(prev => [...prev, { name: '', hours: '', rate: '' }])}
               className="text-v-gold text-xs hover:underline mb-4">+ Add custom line item</button>
 
-            <div className="flex items-center justify-between border-t border-v-border pt-3 mb-4">
-              <span className="text-sm font-semibold text-v-text-primary">Total</span>
-              <span className="text-lg font-bold text-v-gold">
-                {sym}{(
-                  editSelectedServices.reduce((s, id) => {
-                    const svc = editServices.find(x => x.id === id);
-                    return s + (svc ? getEditServiceTotal(svc) : 0);
-                  }, 0) +
-                  editCustomLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0)
-                ).toFixed(2)}
-              </span>
+            {/* Discount */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Discount</p>
+            <div className="flex flex-wrap gap-2 items-center mb-4">
+              <div className="inline-flex rounded border border-v-border overflow-hidden">
+                <button type="button"
+                  onClick={() => setEditDiscount(d => ({ ...d, type: 'percent' }))}
+                  className={`px-3 py-1.5 text-xs ${editDiscount.type === 'percent' ? 'bg-v-gold text-white' : 'bg-v-charcoal text-v-text-secondary'}`}>
+                  % percent
+                </button>
+                <button type="button"
+                  onClick={() => setEditDiscount(d => ({ ...d, type: 'flat' }))}
+                  className={`px-3 py-1.5 text-xs ${editDiscount.type === 'flat' ? 'bg-v-gold text-white' : 'bg-v-charcoal text-v-text-secondary'}`}>
+                  $ flat
+                </button>
+              </div>
+              <input type="number" step="0.01" min="0" value={editDiscount.value}
+                onChange={e => setEditDiscount(d => ({ ...d, value: e.target.value }))}
+                placeholder={editDiscount.type === 'percent' ? '0' : '0.00'}
+                className="w-24 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-right" />
+              <input type="text" value={editDiscount.reason}
+                onChange={e => setEditDiscount(d => ({ ...d, reason: e.target.value }))}
+                placeholder="Reason (optional)"
+                className="flex-1 min-w-[140px] bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+              <button type="button"
+                onClick={() => setEditDiscount({ type: 'percent', value: '', reason: '' })}
+                className="text-red-400 hover:text-red-300 text-sm w-6"
+                aria-label="Clear discount"
+              >&times;</button>
             </div>
+
+            {(() => {
+              const svcSub = editSelectedServices.reduce((s, id) => {
+                const svc = editServices.find(x => x.id === id);
+                return s + (svc ? getEditServiceTotal(svc) : 0);
+              }, 0);
+              const customSub = editCustomLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0);
+              const subtotal = svcSub + customSub;
+              const discAmt = computeDiscountAmount(subtotal, editDiscount);
+              const total = Math.max(0, subtotal - discAmt);
+              const discValue = parseFloat(editDiscount.value);
+              const discLabel = editDiscount.type === 'flat'
+                ? `${sym}${(isFinite(discValue) ? discValue : 0).toFixed(2)} off`
+                : `${isFinite(discValue) ? discValue : 0}% off`;
+              return (
+                <div className="border-t border-v-border pt-3 mb-4 space-y-1">
+                  {discAmt > 0 && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-v-text-secondary">Subtotal</span>
+                        <span className="text-v-text-primary">{sym}{subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-v-text-secondary">
+                          Discount ({discLabel}{editDiscount.reason?.trim() ? ` — ${editDiscount.reason.trim()}` : ''})
+                        </span>
+                        <span className="text-red-400">-{sym}{discAmt.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-v-text-primary">Total</span>
+                    <span className="text-lg font-bold text-v-gold">{sym}{total.toFixed(2)}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Terms & notes */}
             <div className="grid grid-cols-2 gap-3 mb-4">
