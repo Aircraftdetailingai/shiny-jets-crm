@@ -38,6 +38,10 @@ function buildUserResponse(data, isAdmin, { includeRemit = false } = {}) {
     notification_settings: data.notification_settings || {},
     price_reminder_months: data.price_reminder_months || 6,
     quote_display_preference: data.quote_display_preference || 'package',
+    quote_display_mode: data.quote_display_mode || 'itemized',
+    quote_package_name: data.quote_package_name || 'Aircraft Detail Package',
+    quote_show_breakdown: data.quote_show_breakdown || false,
+    quote_itemized_checkout: data.quote_itemized_checkout !== false,
     efficiency_factor: data.efficiency_factor || 1.0,
     default_labor_rate: data.default_labor_rate || 25,
     sms_enabled: isAdmin ? true : (data.sms_enabled !== false),
@@ -102,7 +106,7 @@ export async function GET(request) {
   // Explicit allowlist — never select password_hash, stripe_secret_key,
   // stripe_publishable_key, or webauthn_challenge. ACH fields are added below
   // only when includeRemit is requested.
-  const baseCols = 'id, email, name, phone, company, plan, status, rates, notification_settings, price_reminder_months, quote_display_preference, efficiency_factor, default_labor_rate, sms_enabled, preferred_currency, country, home_airport, airports_served, listed_in_directory, notify_quote_viewed, cc_fee_mode, pass_fee_to_customer, followup_discount_percent, logo_url, logo_light_url, logo_dark_url, terms_accepted_version, subscription_status, subscription_source, created_at, onboarding_completed, availability, notify_weekly_digest, review_request_enabled, review_request_delay_days, theme_primary, portal_theme, theme_logo_url, booking_mode, deposit_percentage, google_business_url, google_reviews_last_synced, calendly_url, use_calendly_scheduling, website_url, insurance_url, insurance_expiry_date, insurance_verified, insurance_insurer, mailing_address_line1, mailing_address_line2, mailing_city, mailing_state, mailing_zip, mailing_country, certifications, directory_description, has_online_booking, verified_finish';
+  const baseCols = 'id, email, name, phone, company, plan, status, rates, notification_settings, price_reminder_months, quote_display_preference, quote_display_mode, quote_package_name, quote_show_breakdown, quote_itemized_checkout, efficiency_factor, default_labor_rate, sms_enabled, preferred_currency, country, home_airport, airports_served, listed_in_directory, notify_quote_viewed, cc_fee_mode, pass_fee_to_customer, followup_discount_percent, logo_url, logo_light_url, logo_dark_url, terms_accepted_version, subscription_status, subscription_source, created_at, onboarding_completed, availability, notify_weekly_digest, review_request_enabled, review_request_delay_days, theme_primary, portal_theme, theme_logo_url, booking_mode, deposit_percentage, google_business_url, google_reviews_last_synced, calendly_url, use_calendly_scheduling, website_url, insurance_url, insurance_expiry_date, insurance_verified, insurance_insurer, mailing_address_line1, mailing_address_line2, mailing_city, mailing_state, mailing_zip, mailing_country, certifications, directory_description, has_online_booking, verified_finish';
   const select = includeRemit
     ? `${baseCols}, ach_routing_number, ach_account_number, ach_account_name, ach_bank_name`
     : baseCols;

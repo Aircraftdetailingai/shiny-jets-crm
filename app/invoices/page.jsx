@@ -597,18 +597,59 @@ function InvoicesPageInner() {
   const downloadPDF = (invoice) => {
     const items = invoice.line_items || [];
     const addons = invoice.addon_fees || [];
-    const lineRows = items.map(item => {
-      const hrs = item.hours != null ? item.hours : (item.quantity != null ? item.quantity : null);
-      const rate = parseFloat(item.rate) || 0;
-      const price = item.price != null ? parseFloat(item.price)
-        : item.amount != null ? parseFloat(item.amount)
-        : (parseFloat(hrs) || 0) * rate;
-      const label = item.name || item.description || item.service || 'Service';
-      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${label}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${sym}${formatPrice(price)}</td></tr>`;
-    }).join('');
-    const addonRows = addons.map(a =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">${a.name || 'Add-on'}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#666">${sym}${formatPrice(a.calculated || a.amount || 0)}</td></tr>`
-    ).join('');
+    // Match the customer-facing web view at app/invoice/[shareLink]/page.jsx.
+    // Three modes: 'package' collapses everything into one line, 'hours_only'
+    // shows hours without rates, 'itemized' shows hours + rate + amount.
+    const displayMode = detailer?.quote_display_mode || 'itemized';
+    const packageName = detailer?.quote_package_name || 'Aircraft Detail Package';
+    const total = parseFloat(invoice.total) || 0;
+    const hasAnyHours = items.some(i => i.hours);
+    const hasAnyRate = items.some(i => i.rate);
+
+    const itemRows = (() => {
+      if (items.length === 0) return '';
+
+      if (displayMode === 'package') {
+        return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${packageName}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${sym}${formatPrice(total)}</td></tr>`;
+      }
+
+      if (displayMode === 'hours_only') {
+        return items.map(item => {
+          const label = item.description || item.name || item.service || 'Service';
+          const hrs = item.hours != null ? parseFloat(item.hours).toFixed(1) : '';
+          return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${label}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#6b7280">${hrs ? `${hrs}h estimated` : ''}</td></tr>`;
+        }).join('');
+      }
+
+      // itemized — show hours and rate columns only when any row has them
+      return items.map(item => {
+        const hrs = item.hours != null ? item.hours : (item.quantity != null ? item.quantity : null);
+        const rate = parseFloat(item.rate) || 0;
+        const price = item.price != null ? parseFloat(item.price)
+          : item.amount != null ? parseFloat(item.amount)
+          : (parseFloat(hrs) || 0) * rate;
+        const label = item.description || item.name || item.service || 'Service';
+        const hrsCell = hasAnyHours ? `<td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#6b7280;width:60px">${hrs != null ? parseFloat(hrs).toFixed(1) : ''}</td>` : '';
+        const rateCell = hasAnyRate ? `<td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#6b7280;width:80px">${rate ? `${sym}${formatPrice(rate)}` : ''}</td>` : '';
+        return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${label}</td>${hrsCell}${rateCell}<td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${sym}${formatPrice(price)}</td></tr>`;
+      }).join('');
+    })();
+    const lineRows = itemRows;
+    // Add-ons only render in itemized mode; package mode already rolls them
+    // into the total and hours_only is an estimate-only view.
+    const addonRows = displayMode === 'itemized'
+      ? addons.map(a => {
+          const hrsCell = hasAnyHours ? '<td style="padding:8px;border-bottom:1px solid #eee"></td>' : '';
+          const rateCell = hasAnyRate ? '<td style="padding:8px;border-bottom:1px solid #eee"></td>' : '';
+          return `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666">${a.name || 'Add-on'}</td>${hrsCell}${rateCell}<td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#666">${sym}${formatPrice(a.calculated || a.amount || 0)}</td></tr>`;
+        }).join('')
+      : '';
+    // Table header columns adapt to the same mode branches
+    const tableHeader = displayMode === 'hours_only'
+      ? '<tr><th>Description</th><th style="text-align:right">Hours</th></tr>'
+      : displayMode === 'package'
+        ? '<tr><th>Description</th><th style="text-align:right">Amount</th></tr>'
+        : `<tr><th>Description</th>${hasAnyHours ? '<th style="text-align:right">Hours</th>' : ''}${hasAnyRate ? '<th style="text-align:right">Rate</th>' : ''}<th style="text-align:right">Amount</th></tr>`;
     const label = invoiceLabel(invoice);
     const d = detailer || {};
     const logoSrc = d.logo_light_url || d.logo_url || '';
@@ -670,7 +711,7 @@ ${((invoice.show_mailing_address && d.mailing_address_line1) || (invoice.show_ac
 </div>
 ` : ''}
 ${invoice.aircraft ? `<p style="color:#6b7280;margin:0 0 4px">Aircraft: <strong style="color:#1f2937">${invoice.aircraft}</strong></p>` : ''}
-<table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody>${lineRows}${addonRows}</tbody></table>
+<table><thead>${tableHeader}</thead><tbody>${lineRows}${addonRows}</tbody></table>
 ${(() => {
   const lineSub = (invoice.line_items || []).reduce((s, li) => {
     const hrs = li.hours != null ? li.hours : li.quantity;
