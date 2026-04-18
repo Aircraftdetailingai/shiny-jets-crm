@@ -28,18 +28,21 @@ function getSupabase() {
 }
 
 async function getUser(request) {
+  // Prefer the Bearer header (fresh token from client localStorage) over the
+  // cookie — a stale httpOnly auth_token cookie from a previous session would
+  // otherwise shadow the current login and return a different detailer's data.
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const user = await verifyToken(authHeader.slice(7));
+    if (user) return user;
+  }
   try {
     const cookieStore = await cookies();
     const authCookie = cookieStore.get('auth_token')?.value;
     if (authCookie) {
-      const user = await verifyToken(authCookie);
-      if (user) return user;
+      return await verifyToken(authCookie);
     }
   } catch (e) {}
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return await verifyToken(authHeader.slice(7));
-  }
   return null;
 }
 
