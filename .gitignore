@@ -1,4 +1,5 @@
 .vercel
+.env.production
 .env*.local
 .env.local.prod
 .env.sms-test
