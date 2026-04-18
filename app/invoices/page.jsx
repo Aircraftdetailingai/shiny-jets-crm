@@ -1492,9 +1492,22 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                   $ flat
                 </button>
               </div>
-              <input type="number" step="0.01" min="0" value={editDiscount.value}
-                onChange={e => setEditDiscount(d => ({ ...d, value: e.target.value }))}
-                placeholder={editDiscount.type === 'percent' ? '0' : '0.00'}
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max={editDiscount.type === 'percent' ? 100 : undefined}
+                value={editDiscount.value}
+                onChange={e => {
+                  const raw = e.target.value;
+                  if (raw === '') { setEditDiscount(d => ({ ...d, value: '' })); return; }
+                  let n = parseFloat(raw);
+                  if (!isFinite(n)) return;
+                  if (n < 0) n = 0;
+                  if (editDiscount.type === 'percent' && n > 100) n = 100;
+                  setEditDiscount(d => ({ ...d, value: String(n) }));
+                }}
+                placeholder="0"
                 className="w-24 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-right" />
               <input type="text" value={editDiscount.reason}
                 onChange={e => setEditDiscount(d => ({ ...d, reason: e.target.value }))}
