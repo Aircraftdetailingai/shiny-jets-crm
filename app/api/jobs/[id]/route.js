@@ -13,6 +13,7 @@ function getSupabase() {
 const ALLOWED_FIELDS = [
   'scheduled_date',
   'scheduled_time',
+  'schedule_override',
   'airport',
   'completion_notes',
   'services',

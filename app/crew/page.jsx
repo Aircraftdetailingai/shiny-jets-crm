@@ -777,7 +777,12 @@ export default function CrewDashboard() {
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-white font-medium">{job.aircraft}{job.tail_number ? ` · ${job.tail_number}` : ''}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-white font-medium">{job.aircraft}{job.tail_number ? ` · ${job.tail_number}` : ''}</p>
+                      {job.schedule_override && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-400 border border-amber-400/40 px-1.5 py-0.5 rounded">After Hours</span>
+                      )}
+                    </div>
                     <p className="text-white/60 text-sm">{job.airport || ''}</p>
                     {job.scheduled_date && (
                       <p className="text-white/50 text-xs mt-1">

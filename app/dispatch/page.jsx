@@ -86,9 +86,14 @@ function JobCard({ job, onOpen, onDragStart }) {
     >
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="min-w-0">
-          <p className="text-v-text-primary text-sm font-medium truncate">
-            {job.aircraft_model || 'Aircraft'}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-v-text-primary text-sm font-medium truncate">
+              {job.aircraft_model || 'Aircraft'}
+            </p>
+            {job.schedule_override && (
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-400 border border-amber-400/40 px-1.5 py-0.5 rounded whitespace-nowrap">After Hours</span>
+            )}
+          </div>
           <p className="text-v-text-secondary text-xs truncate">
             {job.tail_number || ''}
           </p>

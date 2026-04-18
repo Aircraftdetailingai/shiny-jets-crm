@@ -71,7 +71,7 @@ export async function GET(request) {
     try {
       let jobQuery = supabase
         .from('jobs')
-        .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, created_at, completion_notes')
+        .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, schedule_override, created_at, completion_notes')
         .in('status', ['scheduled', 'in_progress']);
 
       if (assignedJobIds.size > 0 && !isLead) {
@@ -91,6 +91,7 @@ export async function GET(request) {
           aircraft_type: mj.aircraft_make,
           airport: mj.airport,
           scheduled_date: mj.scheduled_date,
+          schedule_override: !!mj.schedule_override,
           status: mj.status,
           line_items: [],
           notes: mj.completion_notes,
@@ -141,6 +142,7 @@ export async function GET(request) {
       tail_number: job.tail_number || null,
       airport: job.airport,
       scheduled_date: job.scheduled_date,
+      schedule_override: !!job.schedule_override,
       status: job.status,
       services: sanitizedLineItems.length > 0 ? sanitizedLineItems : (Array.isArray(servicesText) ? servicesText.map(s => typeof s === 'string' ? { description: s } : { description: s.name || s.description || 'Service' }) : []),
       notes: job.notes,

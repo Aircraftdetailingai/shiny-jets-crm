@@ -40,6 +40,7 @@ export default function NewJobPage() {
   const [selectedServices, setSelectedServices] = useState([]);
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('08:00');
+  const [scheduleOverride, setScheduleOverride] = useState(false);
   const [assignedCrew, setAssignedCrew] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('unpaid');
   const [notes, setNotes] = useState('');
@@ -196,6 +197,7 @@ export default function NewJobPage() {
           services: svcDetails,
           scheduled_date: scheduledDate || null,
           scheduled_time: scheduledTime || null,
+          schedule_override: scheduleOverride,
           assigned_crew: assignedCrew,
           payment_method: paymentMethod,
           total_price: displayTotal,
@@ -442,6 +444,19 @@ export default function NewJobPage() {
               <input type="time" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} className={cls} />
             </div>
           </div>
+
+          <label className="flex items-start gap-2 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={scheduleOverride}
+              onChange={(e) => setScheduleOverride(e.target.checked)}
+              className="mt-0.5 accent-v-gold"
+            />
+            <span className="flex-1">
+              <span className="block text-sm text-v-text-primary">Override schedule (weekend / after-hours / outside normal availability)</span>
+              <span className="block text-xs text-v-text-secondary">Job will appear on all assigned crew dashboards regardless of their weekly schedule.</span>
+            </span>
+          </label>
 
           {/* Crew */}
           {teamMembers.length > 0 && (

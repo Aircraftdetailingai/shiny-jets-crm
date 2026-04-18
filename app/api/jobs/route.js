@@ -50,7 +50,7 @@ export async function GET(request) {
   try {
     const { data: manualJobs } = await supabase
       .from('jobs')
-      .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, created_at, completed_at, completion_notes')
+      .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, schedule_override, created_at, completed_at, completion_notes')
       .eq('detailer_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -70,6 +70,7 @@ export async function GET(request) {
           total_price: mj.total_price,
           status: mj.status || 'scheduled',
           scheduled_date: mj.scheduled_date,
+          schedule_override: !!mj.schedule_override,
           created_at: mj.created_at,
           completed_at: mj.completed_at,
           services: typeof mj.services === 'string' ? (() => { try { return JSON.parse(mj.services); } catch { return mj.services; } })() : mj.services,

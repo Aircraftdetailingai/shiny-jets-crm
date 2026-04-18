@@ -214,6 +214,7 @@ export default function JobDetailPage() {
       tail_number: job.tail_number || '',
       airport: job.airport || '',
       scheduled_date: job.scheduled_date || '',
+      schedule_override: !!job.schedule_override,
       status: job.status || 'scheduled',
       services: servicesList,
       total_price: job.total_price || '',
@@ -723,6 +724,19 @@ export default function JobDetailPage() {
                   </select>
                 </div>
               </div>
+
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!editForm.schedule_override}
+                  onChange={(e) => setEditForm(p => ({ ...p, schedule_override: e.target.checked }))}
+                  className="mt-0.5 accent-v-gold"
+                />
+                <span className="flex-1">
+                  <span className="block text-xs text-white">Override schedule (weekend / after-hours / outside normal availability)</span>
+                  <span className="block text-[10px] text-v-text-secondary">Job will appear on all assigned crew dashboards regardless of their weekly schedule.</span>
+                </span>
+              </label>
 
               {/* Services */}
               <div>

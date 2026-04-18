@@ -19,6 +19,7 @@ export async function POST(request) {
     customer_id, customer_name, customer_email,
     aircraft_make, aircraft_model, tail_number, airport,
     services, scheduled_date, scheduled_time,
+    schedule_override,
     assigned_crew, payment_method, total_price, notes,
   } = body;
 
@@ -43,6 +44,7 @@ export async function POST(request) {
     airport: airport || null,
     services: services ? JSON.stringify(services) : null,
     scheduled_date: scheduled_date || null,
+    schedule_override: !!schedule_override,
     total_price: parseFloat(total_price) || 0,
     status: isPaid ? 'scheduled' : 'scheduled',
     completion_notes: notes || null,

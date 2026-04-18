@@ -579,7 +579,12 @@ function DashboardContent() {
                 {upcomingJobs.filter(j => new Date(j.scheduled_date).toDateString() === new Date().toDateString()).map(job => (
                   <div key={job.id} className="flex items-center justify-between py-2.5 border-b border-v-border-subtle/50">
                     <a href={job.share_link ? `/q/${job.share_link}` : '/jobs'} className="min-w-0 hover:opacity-80 transition-opacity">
-                      <p className="text-white text-sm truncate">{job.aircraft_name || job.aircraft_model || 'Aircraft'}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-white text-sm truncate">{job.aircraft_name || job.aircraft_model || 'Aircraft'}</p>
+                        {job.schedule_override && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-400 border border-amber-400/40 px-1.5 py-0.5 rounded">After Hours</span>
+                        )}
+                      </div>
                       <p className="text-v-text-secondary text-xs truncate">{job.customer_name || job.client_name || ''}</p>
                     </a>
                     <div className="flex items-center gap-3 ml-3 shrink-0">
@@ -608,7 +613,12 @@ function DashboardContent() {
                     className="block bg-white/[0.02] border border-v-border-subtle rounded-lg px-4 py-3 hover:bg-white/[0.04] transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0">
-                        <p className="text-white text-sm truncate">{job.aircraft_name || job.aircraft_model || 'Aircraft'}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-white text-sm truncate">{job.aircraft_name || job.aircraft_model || 'Aircraft'}</p>
+                          {job.schedule_override && (
+                            <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-400 border border-amber-400/40 px-1.5 py-0.5 rounded">After Hours</span>
+                          )}
+                        </div>
                         <p className="text-v-text-secondary text-xs truncate">{job.customer_name || job.client_name || ''}{job.airport ? ` \u00B7 ${job.airport}` : ''}</p>
                       </div>
                       <div className="text-right ml-3 shrink-0">
