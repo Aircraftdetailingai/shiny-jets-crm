@@ -69,6 +69,13 @@ export default function QuotesPage() {
   const [bulkConfirm, setBulkConfirm] = useState(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
 
+  // Success flash
+  const [savedFlash, setSavedFlash] = useState('');
+  const flashSaved = (msg = 'Saved') => {
+    setSavedFlash(msg);
+    setTimeout(() => setSavedFlash(''), 2000);
+  };
+
   const statusLabels = {
     draft: 'Draft',
     sent: 'Sent',
@@ -255,6 +262,7 @@ export default function QuotesPage() {
       const newQuote = await res.json();
       setQuotes(prev => [{ ...newQuote, aircraft_name: newQuote.aircraft_model ? `${newQuote.aircraft_type || ''} ${newQuote.aircraft_model}`.trim() : newQuote.aircraft_type || 'Unknown Aircraft' }, ...prev]);
       setDuplicateModal(null);
+      flashSaved('Duplicated');
     } catch (err) { alert('Failed to duplicate quote'); }
     finally { setDuplicating(false); }
   };
@@ -277,7 +285,7 @@ export default function QuotesPage() {
           issues: completionData.issues, product_estimates: completeModal.product_estimates || [],
         }),
       });
-      if (res.ok) { setQuotes(quotes.map(q => q.id === completeModal.id ? { ...q, status: 'completed' } : q)); setCompleteModal(null); }
+      if (res.ok) { setQuotes(quotes.map(q => q.id === completeModal.id ? { ...q, status: 'completed' } : q)); setCompleteModal(null); flashSaved('Job completed'); }
       else { const data = await res.json(); alert(data.error || 'Failed to complete job'); }
     } catch (err) { alert('Failed to complete job'); }
     finally { setCompleting(false); }
@@ -301,6 +309,7 @@ export default function QuotesPage() {
       if (res.ok) {
         setQuotes(quotes.map(q => q.id === scheduleModal.id ? { ...q, status: 'scheduled', scheduled_date: scheduleDate } : q));
         setScheduleModal(null);
+        flashSaved('Scheduled');
       } else {
         const data = await res.json();
         alert(data.error || 'Failed to schedule job');
@@ -369,11 +378,12 @@ export default function QuotesPage() {
       const res = await fetch('/api/quotes/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ action, ids: Array.from(selectedIds) }) });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Bulk action failed'); return; }
-      if (action === 'delete') setQuotes(prev => prev.filter(q => !selectedIds.has(q.id)));
-      else if (action === 'expire') setQuotes(prev => prev.map(q => selectedIds.has(q.id) ? { ...q, status: 'expired' } : q));
+      if (action === 'delete') { setQuotes(prev => prev.filter(q => !selectedIds.has(q.id))); flashSaved('Deleted'); }
+      else if (action === 'expire') { setQuotes(prev => prev.map(q => selectedIds.has(q.id) ? { ...q, status: 'expired' } : q)); flashSaved('Archived'); }
       else if (action === 'send') {
         setQuotes(prev => prev.map(q => selectedIds.has(q.id) && ['draft', 'sent'].includes(q.status) && q.client_email ? { ...q, status: 'sent' } : q));
         if (data.emailsSent !== undefined) alert(`Sent ${data.emailsSent} email${data.emailsSent !== 1 ? 's' : ''} (${data.updated} quotes updated)`);
+        else flashSaved('Sent');
       }
       clearSelection();
     } catch (err) { console.error('Bulk action error:', err); alert('Bulk action failed'); }
@@ -406,6 +416,9 @@ export default function QuotesPage() {
   return (
     <AppShell title="Quotes">
       <div className="page-transition min-h-screen bg-v-charcoal">
+        {savedFlash && (
+          <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
+        )}
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 bg-v-charcoal/95 backdrop-blur-sm border-b border-[#1A2236]">
           <div className="px-6 pt-5 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -764,6 +777,7 @@ export default function QuotesPage() {
                     if (res.ok) {
                       setQuotes(qs => qs.map(q => q.id === markPaidModal.id ? { ...q, status: 'paid' } : q));
                       setMarkPaidModal(null);
+                      flashSaved('Marked paid');
                     } else {
                       const d = await res.json().catch(() => ({}));
                       alert(d.error || 'Failed');

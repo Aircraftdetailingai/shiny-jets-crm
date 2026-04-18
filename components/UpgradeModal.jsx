@@ -81,6 +81,7 @@ export default function UpgradeModal({ isOpen, onClose, detailerId, existingServ
       } catch {
         window.open(url, '_blank');
       }
+      onClose?.();
     }
   };
 

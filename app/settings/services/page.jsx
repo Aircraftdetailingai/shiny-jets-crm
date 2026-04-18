@@ -250,6 +250,8 @@ export default function ServicesPage() {
 
   // Error state
   const [error, setError] = useState('');
+  const [savedFlash, setSavedFlash] = useState('');
+  const flashSaved = (msg = 'Saved') => { setSavedFlash(msg); setTimeout(() => setSavedFlash(''), 2000); };
 
   // Drag state (for package builder)
   const [draggedService, setDraggedService] = useState(null);
@@ -506,6 +508,7 @@ export default function ServicesPage() {
       setNewService({ name: '', description: '', hourly_rate: '', category: 'other' });
       setShowServiceModal(false);
       setError('');
+      flashSaved('Service added');
 
       // Check if service name matches aircraft hours database
       const dismissed = JSON.parse(localStorage.getItem('vector_svc_tips_dismissed') || '[]');
@@ -547,6 +550,7 @@ export default function ServicesPage() {
       setServices(services.map(s => s.id === data.service.id ? data.service : s));
       setEditingService(null);
       setError('');
+      flashSaved('Service updated');
     } catch (err) {
       setError('Network error. Please try again.');
     } finally {
@@ -598,6 +602,7 @@ export default function ServicesPage() {
         setPackages([...packages, data.package]);
         setNewPackage({ name: '', description: '', discount_percent: '', service_ids: [] });
         setShowPackageBuilder(false);
+        flashSaved('Package added');
       }
     } catch (err) { console.error('Failed to add package:', err); }
     finally { setSaving(false); }
@@ -621,6 +626,7 @@ export default function ServicesPage() {
         const data = await res.json();
         setPackages(packages.map(p => p.id === data.package.id ? data.package : p));
         setEditingPackage(null);
+        flashSaved('Package updated');
       }
     } catch (err) { console.error('Failed to update package:', err); }
     finally { setSaving(false); }
@@ -656,6 +662,7 @@ export default function ServicesPage() {
       setNewAddon({ name: '', description: '', fee_type: 'flat', amount: '' });
       setShowAddonModal(false);
       setError('');
+      flashSaved('Add-on added');
     } catch (err) {
       setError('Network error. Please try again.');
     } finally { setSaving(false); }
@@ -681,6 +688,7 @@ export default function ServicesPage() {
       setAddonFees(addonFees.map(f => f.id === data.fee.id ? data.fee : f));
       setEditingAddon(null);
       setError('');
+      flashSaved('Add-on updated');
     } catch (err) {
       setError('Network error. Please try again.');
     } finally { setSaving(false); }
@@ -863,6 +871,9 @@ export default function ServicesPage() {
         <div className="fixed top-4 right-4 z-50 bg-green-900/90 border border-green-500/50 text-green-200 px-4 py-2 rounded-lg shadow-lg text-sm animate-pulse">
           Order saved
         </div>
+      )}
+      {savedFlash && (
+        <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
       )}
 
       {/* Header */}

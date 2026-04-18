@@ -43,6 +43,9 @@ export default function CalendarPage() {
   // Filters
   const [filters, setFilters] = useState({ job: true, google: true, blocked: true, team: true });
 
+  // Success flash
+  const [savedFlash, setSavedFlash] = useState('');
+
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     const stored = localStorage.getItem('vector_user');
@@ -199,6 +202,8 @@ export default function CalendarPage() {
         setJobs(jobs.map(j => j.id === scheduleModal.id ? { ...j, scheduled_date: scheduledDateTime.toISOString(), status: 'scheduled' } : j));
         setScheduleModal(null);
         setScheduleDate('');
+        setSavedFlash('Scheduled');
+        setTimeout(() => setSavedFlash(''), 2000);
       }
     } catch {}
   };
@@ -242,6 +247,9 @@ export default function CalendarPage() {
   return (
     <AppShell title="Calendar">
     <div className="px-6 md:px-10 py-8 pb-40">
+      {savedFlash && (
+        <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
+      )}
       {/* Header */}
       <header className="flex justify-between items-center mb-4 text-white">
         <h1 className="font-heading text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>CALENDAR</h1>

@@ -343,6 +343,8 @@ export default function ProductsPage() {
         fetchProducts();
         setShowAdjustModal(null);
         setAdjustAmount('');
+        setSuccessMsg(isAdd ? 'Inventory added' : 'Inventory removed');
+        setTimeout(() => setSuccessMsg(''), 3000);
       }
     } catch (err) {
       console.error('Failed to adjust inventory:', err);

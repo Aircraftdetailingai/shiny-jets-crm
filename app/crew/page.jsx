@@ -1675,6 +1675,7 @@ export default function CrewDashboard() {
                       setProducts(prev => [...prev, d.product]);
                       setNewProduct({ name: '', brand: '', quantity: '', unit: 'oz', category: 'cleaner', size: '', url: '', image_url: '' });
                       setShowAddProduct(false);
+                      showMsg('Product added');
                     }
                   }}
                   className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold text-sm disabled:opacity-50 transition-colors">

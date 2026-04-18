@@ -82,6 +82,7 @@ export default function JobDetailPage() {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchedToast, setDispatchedToast] = useState(false);
   const [planRequired, setPlanRequired] = useState(false);
+  const [savedFlash, setSavedFlash] = useState('');
 
   // Fetch dispatch board data scoped to this job
   const fetchAssignments = async (token) => {
@@ -240,6 +241,8 @@ export default function JobDetailPage() {
         // Optimistic update
         setJob(prev => prev ? { ...prev, ...editForm } : prev);
         setShowEditModal(false);
+        setSavedFlash('Saved');
+        setTimeout(() => setSavedFlash(''), 2000);
         // Refresh data in background
         fetchJob(token);
       } else {
@@ -607,6 +610,9 @@ export default function JobDetailPage() {
   return (
     <AppShell title={`Job — ${job.tail_number || job.aircraft_model || 'Detail'}`}>
     <div className="px-6 md:px-10 py-8 pb-40 max-w-4xl">
+      {savedFlash && (
+        <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

@@ -6,6 +6,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
   const [form, setForm] = useState({ name: '', email: '', phone: '', company_name: '', airport: '', notes: '', contactPref: 'email', tags: [] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [savedFlash, setSavedFlash] = useState(false);
 
   const resetForm = () => {
     setForm({ name: '', email: '', phone: '', company_name: '', airport: '', notes: '', contactPref: 'email', tags: [] });
@@ -40,6 +41,8 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
         setError(data.error || 'Customer was not saved. Please try again.');
         return;
       }
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2000);
       resetForm();
       if (onSuccess) onSuccess(data);
       onClose();
@@ -61,6 +64,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
         </div>
 
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+        {savedFlash && <p className="text-green-400 text-xs mb-3">✓ Saved</p>}
 
         <div className="space-y-3">
           <div>

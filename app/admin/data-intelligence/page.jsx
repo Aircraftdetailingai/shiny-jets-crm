@@ -55,6 +55,7 @@ export default function DataIntelligencePage() {
   const [newValue, setNewValue] = useState('');
   const [reason, setReason] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [savedFlash, setSavedFlash] = useState('');
 
   // Bulk update
   const [selectedRows, setSelectedRows] = useState({});
@@ -190,6 +191,8 @@ export default function DataIntelligencePage() {
       const json = await res.json();
       if (json.success) {
         setShowModal(false);
+        setSavedFlash('Updated');
+        setTimeout(() => setSavedFlash(''), 2000);
         fetchData();
       }
     } catch (err) {
@@ -226,6 +229,8 @@ export default function DataIntelligencePage() {
       if (json.success) {
         setShowBulkModal(false);
         setSelectedRows({});
+        setSavedFlash('Updated');
+        setTimeout(() => setSavedFlash(''), 2000);
         fetchData();
       }
     } catch (err) {
@@ -257,6 +262,9 @@ export default function DataIntelligencePage() {
 
   return (
     <div className="min-h-screen bg-v-charcoal p-4">
+      {savedFlash && (
+        <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
+      )}
       {/* Header */}
       <header className="text-white flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">

@@ -374,6 +374,7 @@ export default function CustomersPage() {
           c.id === customerId ? { ...c, tags } : c
         ));
         setEditCustomer(null);
+        toastSuccess('Tags saved');
       }
     } catch (err) {
       console.error('Failed to save tags:', err);
@@ -416,6 +417,7 @@ export default function CustomersPage() {
         setSelectedIds(new Set());
         setBulkTagModal(false);
         setBulkTagSelection([]);
+        toastSuccess('Tags updated');
       }
     } catch (err) {
       console.error('Bulk tag error:', err);

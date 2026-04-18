@@ -43,6 +43,7 @@ export default function AdminAircraftPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingAircraft, setEditingAircraft] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState('');
   const [bulkImport, setBulkImport] = useState('');
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -389,6 +390,8 @@ export default function AdminAircraftPage() {
 
       if (res.ok) {
         setShowModal(false);
+        setSavedFlash(editingAircraft ? 'Aircraft updated' : 'Aircraft added');
+        setTimeout(() => setSavedFlash(''), 2000);
         fetchAircraft();
         fetchManufacturers();
       } else {
@@ -475,6 +478,9 @@ export default function AdminAircraftPage() {
 
   return (
     <div className="min-h-screen bg-v-charcoal p-4">
+      {savedFlash && (
+        <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
+      )}
       {/* Header */}
       <div className="max-w-[1600px] mx-auto mb-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
