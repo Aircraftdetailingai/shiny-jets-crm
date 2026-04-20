@@ -2274,9 +2274,14 @@ function SettingsShell({ bucket: activeBucket = null }) {
                   {stripeKeyError}
                 </div>
               )}
+              {stripeKeySaving && (
+                <div className="mb-3 p-2 bg-v-gold/10 border border-v-gold/30 text-v-gold text-xs rounded">
+                  Verifying keys with Stripe...
+                </div>
+              )}
               {stripeKeySuccess && (
                 <div className="mb-3 p-2 bg-green-900/20 border border-green-500/30 text-green-400 text-xs rounded">
-                  Stripe keys saved successfully!
+                  Stripe keys verified and saved.
                 </div>
               )}
 
@@ -2317,15 +2322,24 @@ function SettingsShell({ bucket: activeBucket = null }) {
                         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ stripe_publishable_key: stripePk.trim(), stripe_secret_key: stripeSk.trim() }),
                       });
-                      if (res.ok) {
-                        setStripeKeySuccess(true);
-                        setStripeStatus({ connected: true, hasKeys: true, status: 'ACTIVE' });
-                        setStripePk('');
-                        setStripeSk('');
-                      } else {
-                        const d = await res.json();
-                        setStripeKeyError(d.error || 'Failed to save');
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        // Keep inputs populated so the user can correct the key
+                        setStripeKeyError(data.error || 'Failed to save');
+                        return;
                       }
+                      // Only trust verified state from the server response — no optimistic flap.
+                      setStripeKeySuccess(true);
+                      setStripeStatus({
+                        connected: !!data.has_keys,
+                        hasKeys: !!data.has_keys,
+                        status: data.stripe_onboarding_complete ? 'ACTIVE' : 'PENDING',
+                        stripe_mode: data.stripe_mode,
+                        account_email: data.account_email || null,
+                      });
+                      setStripeMode(data.stripe_mode || stripeMode);
+                      setStripePk('');
+                      setStripeSk('');
                     } catch (err) {
                       setStripeKeyError('Network error: ' + err.message);
                     } finally {
@@ -2335,7 +2349,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                   disabled={stripeKeySaving || !stripePk || !stripeSk}
                   className="w-full py-2.5 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
-                  {stripeKeySaving ? 'Saving...' : 'Save Stripe Keys'}
+                  {stripeKeySaving ? 'Verifying with Stripe...' : 'Save Stripe Keys'}
                 </button>
               </div>
             </div>
