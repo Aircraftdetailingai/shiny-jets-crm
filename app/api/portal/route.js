@@ -31,10 +31,25 @@ export async function GET(request) {
     return Response.json({ error: 'Quote not found' }, { status: 404 });
   }
 
-  // Fetch detailer info
+  // Fetch detailer info — explicit allowlist sized to the fields the portal
+  // token page actually renders. Never select password_hash,
+  // stripe_secret_key, stripe_publishable_key, ach_routing_number,
+  // ach_account_number, ach_account_name, ach_bank_name, or
+  // webauthn_challenge into this response. stripe_account_id is fetched
+  // server-side for Connect validation and stripped before the reply.
+  const PORTAL_DETAILER_FIELDS = [
+    'id', 'name', 'email', 'phone', 'company', 'plan',
+    'preferred_currency', 'cc_fee_mode',
+    'logo_url', 'theme_logo_url',
+    'portal_theme', 'theme_primary', 'theme_accent', 'theme_bg', 'theme_surface',
+    'font_embed_url', 'font_heading', 'font_body',
+    'disclaimer_text', 'terms_text', 'terms_pdf_url',
+    // server-only fields below — stripped from the response shape
+    'stripe_account_id',
+  ].join(', ');
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('*')
+    .select(PORTAL_DETAILER_FIELDS)
     .eq('id', quote.detailer_id)
     .single();
 

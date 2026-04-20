@@ -321,6 +321,44 @@ export async function POST(request) {
       break;
     }
 
+    case 'account.updated': {
+      // Stripe Connect onboarding progress signal. When Stripe reports the
+      // account is fully enabled, flip stripe_onboarding_complete so the
+      // client can finally render "connected". This is the ONLY place the
+      // column is ever set to true — the audit found 0 rows with it flipped
+      // because no code subscribed to this event before.
+      const account = event.data.object;
+      const acctId = account?.id;
+      if (!acctId) break;
+
+      const { data: detailer } = await supabase
+        .from('detailers')
+        .select('id, stripe_onboarding_complete')
+        .eq('stripe_account_id', acctId)
+        .maybeSingle();
+
+      if (!detailer) {
+        console.log(`[webhook account.updated] No detailer found for stripe_account_id=${acctId}`);
+        break;
+      }
+
+      const fullyEnabled = account.charges_enabled === true && account.payouts_enabled === true;
+      if (fullyEnabled) {
+        const { error } = await supabase
+          .from('detailers')
+          .update({ stripe_onboarding_complete: true })
+          .eq('id', detailer.id);
+        if (error) {
+          console.error(`[webhook account.updated] Failed to flip onboarding_complete for ${detailer.id}:`, error.message);
+        } else {
+          console.log(`[webhook account.updated] Onboarding complete for detailer ${detailer.id} (account=${acctId})`);
+        }
+      } else {
+        console.log(`[webhook account.updated] Partial state for detailer ${detailer.id} — charges_enabled=${account.charges_enabled} payouts_enabled=${account.payouts_enabled}`);
+      }
+      break;
+    }
+
     default:
       // Unexpected event type
       console.log(`Unhandled event type: ${event.type}`);
