@@ -40,7 +40,11 @@ export async function GET(request, { params }) {
       'portal_theme', 'theme_primary', 'theme_accent', 'theme_bg', 'theme_surface',
       'font_embed_url', 'font_heading', 'font_body',
       'preferred_currency',
-      'booking_mode', 'deposit_percentage', 'deposit_amount', 'payment_method',
+      // deposit_amount and payment_method are quote-only columns — not on
+      // detailers. Only booking_mode and deposit_percentage exist at the
+      // detailer level. Including the quote-only columns here makes the
+      // whole SELECT 400 and the public response ships an empty detailer.
+      'booking_mode', 'deposit_percentage',
       'availability', 'calendly_url', 'use_calendly_scheduling',
       'quote_display_mode', 'quote_package_name', 'quote_show_breakdown',
       'quote_display_preference',
