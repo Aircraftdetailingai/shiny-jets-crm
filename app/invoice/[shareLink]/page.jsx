@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
+import { calculateCcFee } from '@/lib/cc-fee';
 
 export default function InvoiceViewPage() {
   const params = useParams();
@@ -415,24 +416,34 @@ export default function InvoiceViewPage() {
         )}
 
         {/* Pay buttons (only if unpaid) */}
-        {!isPaid && (
-          <div className="mt-6 space-y-2">
-            <button
-              onClick={() => handlePayInvoice('card')}
-              disabled={paymentLoading}
-              className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-50 transition-colors"
-            >
-              {paymentLoading ? 'Processing...' : `Pay by Card \u2014 ${sym}${formatPrice(parseFloat(invoice.balance_due) || total)}`}
-            </button>
-            <button
-              onClick={() => handlePayInvoice('us_bank_account')}
-              disabled={paymentLoading}
-              className="w-full py-3 border border-[var(--brand-primary,#007CB1)] text-[var(--brand-primary,#007CB1)] text-xs tracking-[0.2em] uppercase font-medium hover:bg-[var(--brand-primary,#007CB1)]/10 disabled:opacity-50 transition-colors"
-            >
-              Pay by ACH Bank Transfer
-            </button>
-          </div>
-        )}
+        {!isPaid && (() => {
+          const ccMode = detailer?.cc_fee_mode;
+          const balanceDollars = parseFloat(invoice.balance_due) || total;
+          const ccFee = (ccMode === 'pass' || ccMode === 'customer_choice') ? calculateCcFee(balanceDollars) : 0;
+          return (
+            <div className="mt-6 space-y-2">
+              <button
+                onClick={() => handlePayInvoice('card')}
+                disabled={paymentLoading}
+                className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-50 transition-colors"
+              >
+                {paymentLoading ? 'Processing...' : `Pay by Card \u2014 ${sym}${formatPrice(balanceDollars)}`}
+              </button>
+              {ccFee > 0 && (
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-[11px] text-center">
+                  Card payment adds a {sym}{formatPrice(ccFee)} processing fee &middot; ACH has no fee
+                </p>
+              )}
+              <button
+                onClick={() => handlePayInvoice('us_bank_account')}
+                disabled={paymentLoading}
+                className="w-full py-3 border border-[var(--brand-primary,#007CB1)] text-[var(--brand-primary,#007CB1)] text-xs tracking-[0.2em] uppercase font-medium hover:bg-[var(--brand-primary,#007CB1)]/10 disabled:opacity-50 transition-colors"
+              >
+                Pay by ACH Bank Transfer
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Payment disclaimer */}
         {!isPaid && (

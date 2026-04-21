@@ -55,6 +55,10 @@ export async function GET(request, { params }) {
         'portal_theme', 'theme_primary', 'theme_accent', 'theme_bg', 'theme_surface',
         'font_embed_url', 'font_heading', 'font_body',
         'quote_display_mode', 'quote_package_name', 'quote_show_breakdown',
+        // cc_fee_mode is needed so the share page can disclose the card-only
+        // processing fee near the Pay by Card button. Safe to expose — it's
+        // non-secret policy state and the fee itself is added at Stripe.
+        'cc_fee_mode',
       ].join(', '))
       .eq('id', invoice.detailer_id)
       .single();
