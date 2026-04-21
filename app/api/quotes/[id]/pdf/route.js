@@ -378,11 +378,14 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
           <Text style={s.totalLabel}>Total</Text>
           <Text style={s.totalValue}>{fmt(displayTotal)}</Text>
         </View>
-        {ccFee > 0 && (
+        {ccFeeMode === 'pass' && (
           <Text style={s.ccFeeDisclosure}>
-            {ccFeeMode === 'pass'
-              ? `Card payment adds a ${fmt(ccFee)} processing fee`
-              : `Card payment includes +${fmt(ccFee)} processing fee`}
+            Card payments are subject to a processing fee.
+          </Text>
+        )}
+        {ccFeeMode === 'customer_choice' && ccFee > 0 && (
+          <Text style={s.ccFeeDisclosure}>
+            Card payment includes +{fmt(ccFee)} processing fee
           </Text>
         )}
 
