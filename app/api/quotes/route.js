@@ -206,7 +206,30 @@ export async function POST(request) {
       discount_value,
       discount_reason,
       discounted_total,
+      booking_mode,
+      deposit_percentage,
+      deposit_amount,
+      payment_method,
     } = body;
+
+    // Inherit booking terms from the detailer's current defaults at quote
+    // create time. Body wins if the caller explicitly sent a value; otherwise
+    // we lock in whatever the detailer has configured so the quote carries
+    // its own booking contract from the moment it's created.
+    // Note: detailers table only stores booking_mode and deposit_percentage
+    // as defaults. deposit_amount and payment_method live only on the quote
+    // (computed/selected per-quote) and have no detailer-level fallback.
+    const { data: detailerDefaults } = await supabase
+      .from('detailers')
+      .select('booking_mode, deposit_percentage')
+      .eq('id', user.id)
+      .maybeSingle();
+    const effectiveBookingMode = booking_mode ?? detailerDefaults?.booking_mode ?? null;
+    const effectiveDepositPct = deposit_percentage != null
+      ? parseInt(deposit_percentage, 10)
+      : (detailerDefaults?.deposit_percentage ?? null);
+    const effectiveDepositAmt = deposit_amount != null ? parseFloat(deposit_amount) : null;
+    const effectivePaymentMethod = payment_method ?? null;
 
     // Validate: need at minimum an aircraft type or model, and some price
     const hasAircraft = aircraft_type || aircraft_model;
@@ -296,6 +319,10 @@ export async function POST(request) {
       emergency_contact_name: emergency_contact_name || null,
       emergency_contact_phone: emergency_contact_phone || null,
       contact_notes: contact_notes || null,
+      booking_mode: effectiveBookingMode,
+      deposit_percentage: effectiveDepositPct,
+      deposit_amount: effectiveDepositAmt,
+      payment_method: effectivePaymentMethod,
     };
 
     // Try full insert first, then strip failing columns

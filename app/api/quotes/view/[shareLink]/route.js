@@ -39,7 +39,7 @@ export async function GET(request, { params }) {
       'portal_theme', 'theme_primary', 'theme_accent', 'theme_bg', 'theme_surface',
       'font_embed_url', 'font_heading', 'font_body',
       'preferred_currency',
-      'booking_mode', 'deposit_percentage',
+      'booking_mode', 'deposit_percentage', 'deposit_amount', 'payment_method',
       'availability', 'calendly_url', 'use_calendly_scheduling',
       'quote_display_mode', 'quote_package_name', 'quote_show_breakdown',
       'quote_display_preference',
