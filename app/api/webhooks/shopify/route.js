@@ -190,6 +190,7 @@ async function updatePlan(supabase, detailer, newPlan, extra = {}) {
     plan: newPlan,
     subscription_status: 'active',
     subscription_source: 'shopify',
+    plan_updated_at: new Date().toISOString(),
     ...extra,
   }).eq('id', detailer.id);
 
@@ -501,6 +502,7 @@ async function handleSubscriptionCancel(supabase, payload) {
     plan: 'free',
     subscription_status: 'cancelled',
     subscription_source: 'shopify',
+    plan_updated_at: new Date().toISOString(),
   }).eq('id', detailer.id);
 
   if (oldPlan !== 'free') {
