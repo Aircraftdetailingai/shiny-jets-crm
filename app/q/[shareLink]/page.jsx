@@ -1131,13 +1131,20 @@ export default function QuoteViewPage() {
               </p>
             </div>
           ) : (
-            <button
-              onClick={handlePayment}
-              disabled={paymentLoading || !agreedToTerms}
-              className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
-            >
-              {paymentLoading ? 'Processing...' : 'Accept & Pay'}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handlePayment}
+                disabled={paymentLoading || !agreedToTerms}
+                className="w-full py-4 bg-[var(--brand-primary,#007CB1)] text-[var(--brand-btn-text,#0A0E17)] text-sm tracking-[0.2em] uppercase font-medium hover:brightness-110 disabled:opacity-40 transition-colors"
+              >
+                {paymentLoading ? 'Processing...' : 'Accept & Pay'}
+              </button>
+              {detailer?.cc_fee_mode === 'pass' && (
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs text-center">
+                  Card payments are subject to a processing fee.
+                </p>
+              )}
+            </div>
           )
         ) : (
           <div className="border border-[var(--brand-border-strong,#2A3A50)] p-6 text-center">
