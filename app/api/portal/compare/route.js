@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { isStripeConnected } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,19 +36,24 @@ export async function GET(request) {
   // Fetch detailer info
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('id, name, email, phone, company, plan, pass_fee_to_customer, quote_display_preference, stripe_account_id, preferred_currency')
+    .select('id, name, email, phone, company, plan, pass_fee_to_customer, quote_display_preference, preferred_currency, stripe_account_id, stripe_secret_key, stripe_mode, stripe_onboarding_complete')
     .eq('id', quote.detailer_id)
     .single();
 
-  // Check Stripe connection
-  let stripeConnected = false;
-  if (detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
-    try {
-      const Stripe = (await import('stripe')).default;
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-      const account = await stripe.accounts.retrieve(detailer.stripe_account_id);
-      stripeConnected = account.charges_enabled && account.payouts_enabled;
-    } catch (e) {}
+  // Stripe connection — direct keys (with mode/prefix match) OR Connect with
+  // stripe_onboarding_complete. Centralized in lib/stripe.isStripeConnected.
+  // Pre-F8 only checked the Connect path, so direct-key detailers always
+  // showed as not connected on the comparison page.
+  const stripeConnected = isStripeConnected(detailer);
+  if (!stripeConnected && detailer?.stripe_secret_key) {
+    const sk = detailer.stripe_secret_key;
+    const keyMode = sk.startsWith('sk_live_') ? 'live'
+      : sk.startsWith('sk_test_') ? 'test'
+      : null;
+    const accountMode = detailer?.stripe_mode || 'test';
+    if (keyMode && keyMode !== accountMode) {
+      console.error(`[portal/compare] Stripe mode/key mismatch for detailer ${detailer.id} — key=${keyMode} account=${accountMode}; treating as not connected`);
+    }
   }
 
   // Fetch all comparable quotes for this customer from the same detailer
@@ -85,7 +91,11 @@ export async function GET(request) {
   }
 
   // Remove sensitive fields from detailer
-  const { stripe_account_id, ...detailerPublic } = detailer || {};
+  const {
+    stripe_account_id, stripe_secret_key, stripe_mode,
+    stripe_onboarding_complete,
+    ...detailerPublic
+  } = detailer || {};
 
   return Response.json({
     quotes: comparableQuotes,

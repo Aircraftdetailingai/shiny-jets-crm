@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notifyQuoteViewed } from '@/lib/push';
 import { sendQuoteViewedEmail } from '@/lib/email';
 import { notifyQuoteViewedInApp } from '@/lib/notifications';
+import { isStripeConnected } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,7 @@ export async function GET(request, { params }) {
       'disclaimer_text', 'terms_text', 'terms_pdf_url',
       // server-only — stripped from the response shape
       'fcm_token', 'notify_quote_viewed', 'stripe_secret_key', 'stripe_account_id',
+      'stripe_mode', 'stripe_onboarding_complete',
     ].join(', '))
     .eq('id', quote.detailer_id)
     .single();
@@ -101,13 +103,13 @@ export async function GET(request, { params }) {
     }
   }
 
-  // Check if detailer has active Stripe connection
-  let stripeConnected = false;
-  // If detailer has their own Stripe API keys, treat as connected (direct
-  // charges) — but only when the key prefix agrees with the account's
-  // stripe_mode. A mismatch means checkout will fail, so we should not
-  // advertise "connected" to the customer.
-  if (detailer?.stripe_secret_key) {
+  // Check if detailer has active Stripe connection. Centralized in
+  // lib/stripe.isStripeConnected — direct keys (with mode/prefix match) OR
+  // Connect with stripe_onboarding_complete === true. Both paths skip the
+  // live Stripe accounts.retrieve() call this route used to make on every
+  // share-link load.
+  const stripeConnected = isStripeConnected(detailer);
+  if (!stripeConnected && detailer?.stripe_secret_key) {
     const sk = detailer.stripe_secret_key;
     const keyMode = sk.startsWith('sk_live_') ? 'live'
       : sk.startsWith('sk_test_') ? 'test'
@@ -115,21 +117,6 @@ export async function GET(request, { params }) {
     const accountMode = detailer?.stripe_mode || 'test';
     if (keyMode && keyMode !== accountMode) {
       console.error(`[quote-view] Stripe mode/key mismatch for detailer ${detailer.id} — key=${keyMode} account=${accountMode}; treating as not connected`);
-      stripeConnected = false;
-    } else {
-      stripeConnected = true;
-      console.log(`[quote-view] Stripe: detailer has own API keys — connected`);
-    }
-  } else if (detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
-    // Connect account — verify via platform key
-    try {
-      const Stripe = (await import('stripe')).default;
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-      const account = await stripe.accounts.retrieve(detailer.stripe_account_id);
-      console.log(`[quote-view] Stripe Connect ${detailer.stripe_account_id}: charges=${account.charges_enabled} payouts=${account.payouts_enabled}`);
-      stripeConnected = account.charges_enabled && account.payouts_enabled;
-    } catch (e) {
-      console.error('Stripe account check failed:', e.message);
     }
   }
 
@@ -138,7 +125,8 @@ export async function GET(request, { params }) {
   // leaked before; we also guard against any future columns by only returning
   // the allowlisted public fields.
   const {
-    fcm_token, stripe_account_id, stripe_secret_key, notify_quote_viewed,
+    fcm_token, stripe_account_id, stripe_secret_key, stripe_mode,
+    stripe_onboarding_complete, notify_quote_viewed,
     password_hash,
     ...detailerPublic
   } = detailer || {};

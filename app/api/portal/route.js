@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { isStripeConnected } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,8 @@ export async function GET(request) {
     'font_embed_url', 'font_heading', 'font_body',
     'disclaimer_text', 'terms_text', 'terms_pdf_url',
     // server-only fields below — stripped from the response shape
-    'stripe_account_id',
+    'stripe_account_id', 'stripe_secret_key', 'stripe_mode',
+    'stripe_onboarding_complete',
   ].join(', ');
   const { data: detailer } = await supabase
     .from('detailers')
@@ -53,16 +55,19 @@ export async function GET(request) {
     .eq('id', quote.detailer_id)
     .single();
 
-  // Check Stripe connection
-  let stripeConnected = false;
-  if (detailer?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
-    try {
-      const Stripe = (await import('stripe')).default;
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-      const account = await stripe.accounts.retrieve(detailer.stripe_account_id);
-      stripeConnected = account.charges_enabled && account.payouts_enabled;
-    } catch (e) {
-      // Stripe check failed
+  // Stripe connection — direct keys (with mode/prefix match) OR Connect with
+  // stripe_onboarding_complete. Centralized in lib/stripe.isStripeConnected.
+  // Pre-F8 only checked the Connect path, so direct-key detailers always
+  // showed as not connected on the portal.
+  const stripeConnected = isStripeConnected(detailer);
+  if (!stripeConnected && detailer?.stripe_secret_key) {
+    const sk = detailer.stripe_secret_key;
+    const keyMode = sk.startsWith('sk_live_') ? 'live'
+      : sk.startsWith('sk_test_') ? 'test'
+      : null;
+    const accountMode = detailer?.stripe_mode || 'test';
+    if (keyMode && keyMode !== accountMode) {
+      console.error(`[portal] Stripe mode/key mismatch for detailer ${detailer.id} — key=${keyMode} account=${accountMode}; treating as not connected`);
     }
   }
 
@@ -116,8 +121,12 @@ export async function GET(request) {
     }
   }
 
-  // Remove sensitive fields
-  const { stripe_account_id, password_hash, ...detailerPublic } = detailer || {};
+  // Remove sensitive / server-only fields before returning to the client
+  const {
+    stripe_account_id, stripe_secret_key, stripe_mode,
+    stripe_onboarding_complete, password_hash,
+    ...detailerPublic
+  } = detailer || {};
 
   return Response.json({
     quote,
