@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { PLATFORM_FEES } from '@/lib/pricing-tiers';
+import { calculateCcFee } from '@/lib/cc-fee';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,10 +45,10 @@ export async function POST(request, { params }) {
       return Response.json({ error: 'Invoice already paid' }, { status: 400 });
     }
 
-    // Fetch detailer for Stripe keys and plan
+    // Fetch detailer for Stripe keys, plan, and CC fee pass-through mode
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_secret_key, stripe_mode, stripe_account_id, company, plan')
+      .select('stripe_secret_key, stripe_mode, stripe_account_id, company, plan, cc_fee_mode')
       .eq('id', invoice.detailer_id)
       .single();
 
@@ -103,7 +104,29 @@ export async function POST(request, { params }) {
       }];
     }
 
-    const totalAmountCents = Math.round((invoice.total || 0) * 100);
+    // Append the CC processing fee as its own Stripe line item when the
+    // detailer opts to pass it through ('pass' or 'customer_choice'). We skip
+    // this for ACH payments — ACH doesn't carry the card-processing fee.
+    const ccFeeMode = detailer?.cc_fee_mode || 'absorb';
+    const isCardCheckout = method !== 'us_bank_account';
+    if (isCardCheckout && (ccFeeMode === 'pass' || ccFeeMode === 'customer_choice')) {
+      const baseDollars = parseFloat(invoice.total) || 0;
+      const ccFeeDollars = calculateCcFee(baseDollars);
+      if (ccFeeDollars > 0) {
+        stripeLineItems.push({
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Credit Card Processing Fee' },
+            unit_amount: Math.round(ccFeeDollars * 100),
+          },
+          quantity: 1,
+        });
+      }
+    }
+
+    // Recompute total after potentially appending the CC fee line so the
+    // platform fee below is calculated against the actual charged amount.
+    const totalAmountCents = stripeLineItems.reduce((sum, li) => sum + (li.price_data?.unit_amount || 0) * (li.quantity || 1), 0);
 
     // Payment methods: card by default; customer can request ACH via `method`
     // in the POST body. ACH (us_bank_account) requires the detailer's Stripe
