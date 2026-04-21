@@ -93,7 +93,7 @@ export async function POST(request) {
 
       const { data: updated } = await supabase
         .from('detailers')
-        .select('id, email, name, company, phone, plan, status')
+        .select('id, email, name, company, phone, plan, subscription_status, subscription_source, status')
         .eq('id', user.id)
         .single();
 
@@ -119,7 +119,7 @@ export async function POST(request) {
 
       const { data: updated } = await supabase
         .from('detailers')
-        .select('id, email, name, company, phone, plan, status')
+        .select('id, email, name, company, phone, plan, subscription_status, subscription_source, status')
         .eq('id', user.id)
         .single();
 

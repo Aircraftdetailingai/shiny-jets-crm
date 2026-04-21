@@ -116,6 +116,8 @@ export async function POST(request) {
       phone: detailer.phone || null,
       company: detailer.company || '',
       plan: isAdmin ? 'enterprise' : (detailer.plan || 'free'),
+      subscription_status: detailer.subscription_status || null,
+      subscription_source: detailer.subscription_source || null,
       is_admin: isAdmin,
       status: detailer.status || 'active',
       theme_primary: detailer.theme_primary || '#007CB1',

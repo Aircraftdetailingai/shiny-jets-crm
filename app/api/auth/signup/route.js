@@ -302,6 +302,8 @@ export async function POST(request) {
       name: detailer.name,
       company: detailer.company,
       plan: detailer.plan,
+      subscription_status: detailer.subscription_status || null,
+      subscription_source: detailer.subscription_source || null,
       status: detailer.status,
       is_admin: false,
     };

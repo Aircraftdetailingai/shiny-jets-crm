@@ -35,9 +35,10 @@ export async function POST(request) {
     //   ach_routing_number, ach_account_number, ach_account_name, ach_bank_name,
     //   webauthn_challenge.
     const LOGIN_SELECT = [
-      // auth
+      // auth + plan/subscription state
       'id', 'email', 'password_hash', 'must_change_password',
       'status', 'plan', 'is_admin', 'onboarding_complete', 'onboarding_completed',
+      'subscription_status', 'subscription_source',
       // profile
       'name', 'phone', 'company',
       'created_at',
@@ -130,6 +131,8 @@ export async function POST(request) {
       phone: data.phone,
       company: data.company,
       plan: isAdmin ? 'enterprise' : (data.plan || 'free'),
+      subscription_status: data.subscription_status || null,
+      subscription_source: data.subscription_source || null,
       is_admin: isAdmin,
       status: data.status,
       rates: data.rates || {},
