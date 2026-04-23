@@ -48,7 +48,8 @@ function InvoicesPageInner() {
 
   // Blank invoice form state
   const [blankForm, setBlankForm] = useState({
-    customer_name: '', customer_email: '', aircraft_model: '', tail_number: '',
+    customer_id: null, customer_name: '', customer_email: '', customer_phone: '',
+    aircraft_model: '', tail_number: '',
     line_items: [{ description: '', quantity: 1, rate: 0 }],
     net_terms: 30, notes: '',
   });
@@ -539,8 +540,12 @@ function InvoicesPageInner() {
         // customers.tail_numbers. Fire-and-forget — doesn't block the UI
         // and failures are logged, not surfaced.
         try {
+          // Prefer the customer_id locked in by the name-match handler; fall
+          // back to a re-match by name if customer_id wasn't set.
           const nameKey = (blankForm.customer_name || '').trim().toLowerCase();
-          const matched = nameKey ? customers.find(c => (c.name || '').trim().toLowerCase() === nameKey) : null;
+          const matched = blankForm.customer_id
+            ? customers.find(c => c.id === blankForm.customer_id)
+            : (nameKey ? customers.find(c => (c.name || '').trim().toLowerCase() === nameKey) : null);
           const newTail = (blankForm.tail_number || '').trim().toUpperCase();
           if (matched && newTail) {
             const already = (matched.tail_numbers || []).some(a => String(a?.tail || '').trim().toUpperCase() === newTail);
@@ -566,7 +571,7 @@ function InvoicesPageInner() {
         setCreateModal(false);
         setInvAircraftMode('list');
         setInvAircraftDraft({ model: '', tail: '' });
-        setBlankForm({ customer_name: '', customer_email: '', aircraft_model: '', tail_number: '', line_items: [{ description: '', quantity: 1, rate: 0 }], net_terms: 30, notes: '' });
+        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', line_items: [{ description: '', quantity: 1, rate: 0 }], net_terms: 30, notes: '' });
       } else {
         setError(data.error || 'Failed to create');
       }
@@ -1442,7 +1447,21 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-v-text-secondary mb-1">Customer name *</label>
-                  <input value={blankForm.customer_name} onChange={e => setBlankForm(f => ({ ...f, customer_name: e.target.value }))}
+                  <input value={blankForm.customer_name}
+                    onChange={e => {
+                      const v = e.target.value;
+                      // When the typed value matches a known customer's name
+                      // exactly (case-insensitive, trimmed), auto-fill email,
+                      // phone, and customer_id. This powers the silent tail
+                      // learning on save (commit d5f522d). Unknown names just
+                      // update the name — we never clobber email/phone the
+                      // user has already typed, per the task spec.
+                      const key = v.trim().toLowerCase();
+                      const match = key ? customers.find(c => (c.name || '').trim().toLowerCase() === key) : null;
+                      setBlankForm(f => match
+                        ? { ...f, customer_name: v, customer_id: match.id, customer_email: match.email || f.customer_email, customer_phone: match.phone || f.customer_phone }
+                        : { ...f, customer_name: v, customer_id: null });
+                    }}
                     list="customer-names" placeholder="Customer name"
                     className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
                   <datalist id="customer-names">
