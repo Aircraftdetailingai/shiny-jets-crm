@@ -72,6 +72,12 @@ function NewQuoteContent() {
   const [selectedAddons, setSelectedAddons] = useState({});
   const [airport, setAirport] = useState('');
   const [tailNumber, setTailNumber] = useState('');
+  // Per-customer aircraft picker state (mirror of invoice modal pattern).
+  // 'list' = show saved-aircraft dropdown (when customer has any), 'add' =
+  // inline form, 'manual' = free-text escape hatch / no customer selected.
+  const [qAircraftMode, setQAircraftMode] = useState('list');
+  const [qAircraftDraft, setQAircraftDraft] = useState({ model: '', tail: '' });
+  const [qAircraftSaving, setQAircraftSaving] = useState(false);
   const [proposedDate, setProposedDate] = useState('');
   const [proposedTime, setProposedTime] = useState('08:00');
   const [bufferMinutes, setBufferMinutes] = useState(60);
@@ -939,6 +945,31 @@ function NewQuoteContent() {
       } else {
         toastSuccess('Draft saved — find it in Quotes');
       }
+
+      // Silent tail-learning: if this quote is for a preselected customer
+      // and the tail isn't already on that customer, persist it to
+      // customers.tail_numbers. Fire-and-forget; failures are logged only.
+      try {
+        const newTail = (tailNumber || '').trim().toUpperCase();
+        if (preselectedCustomer?.id && newTail) {
+          const existing = Array.isArray(preselectedCustomer.tail_numbers) ? preselectedCustomer.tail_numbers : [];
+          const already = existing.some(a => String(a?.tail || '').trim().toUpperCase() === newTail);
+          if (!already) {
+            fetch(`/api/customers/${preselectedCustomer.id}/aircraft`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ model: selectedAircraft?.model || '', tail: newTail }),
+            })
+              .then(r => r.ok ? r.json() : null)
+              .then(j => {
+                if (j?.aircraft) setPreselectedCustomer(c => c ? { ...c, tail_numbers: j.aircraft } : c);
+              })
+              .catch(e => console.warn('[quote/tail-learn] silent save failed:', e?.message || e));
+          }
+        }
+      } catch (e) {
+        console.warn('[quote/tail-learn] pre-post error:', e?.message || e);
+      }
     } catch (err) {
       if (!silent) toastError?.('Failed to save draft');
       console.error('[saveDraft]', err);
@@ -1365,19 +1396,114 @@ function NewQuoteContent() {
             )}
           </div>
 
-          {/* Tail Number */}
-          {selectedAircraft && (
-            <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Tail Number (N-number)</label>
-              <input
-                type="text"
-                value={tailNumber}
-                onChange={(e) => setTailNumber(e.target.value.toUpperCase())}
-                placeholder="N12345"
-                className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
-              />
-            </div>
-          )}
+          {/* Tail Number — dropdown of saved aircraft when a preselected
+              customer has any; otherwise falls back to free-text. Mirrors the
+              invoice modal aircraft picker exactly, including the "+ Add new
+              aircraft" inline form and the "— Different aircraft —" escape
+              hatch. */}
+          {selectedAircraft && (() => {
+            const savedAircraft = preselectedCustomer && Array.isArray(preselectedCustomer.tail_numbers)
+              ? preselectedCustomer.tail_numbers
+              : [];
+            const hasSaved = savedAircraft.length > 0;
+
+            if (!preselectedCustomer || !hasSaved || qAircraftMode === 'manual') {
+              return (
+                <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
+                  <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Tail Number (N-number)</label>
+                  <input
+                    type="text"
+                    value={tailNumber}
+                    onChange={(e) => setTailNumber(e.target.value.toUpperCase())}
+                    placeholder="N12345"
+                    className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base"
+                  />
+                </div>
+              );
+            }
+
+            if (qAircraftMode === 'add') {
+              return (
+                <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
+                  <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Add new aircraft for {preselectedCustomer.name}</label>
+                  <div className="grid grid-cols-[1fr,140px,auto,auto] gap-2 items-center">
+                    <input value={qAircraftDraft.model} onChange={e => setQAircraftDraft(d => ({ ...d, model: e.target.value }))}
+                      placeholder="Model, e.g. Falcon 20"
+                      className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary outline-none focus:ring-2 focus:ring-v-gold" />
+                    <input value={qAircraftDraft.tail} onChange={e => setQAircraftDraft(d => ({ ...d, tail: e.target.value.toUpperCase() }))}
+                      placeholder="Tail"
+                      className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary outline-none focus:ring-2 focus:ring-v-gold uppercase" />
+                    <button type="button" disabled={qAircraftSaving || !qAircraftDraft.tail.trim()}
+                      onClick={async () => {
+                        setQAircraftSaving(true);
+                        try {
+                          const token = localStorage.getItem('vector_token');
+                          const res = await fetch(`/api/customers/${preselectedCustomer.id}/aircraft`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ model: qAircraftDraft.model.trim(), tail: qAircraftDraft.tail.trim().toUpperCase() }),
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            const nextList = Array.isArray(data.aircraft) ? data.aircraft : [];
+                            setPreselectedCustomer(c => c ? { ...c, tail_numbers: nextList } : c);
+                            setTailNumber(qAircraftDraft.tail.trim().toUpperCase());
+                            setQAircraftDraft({ model: '', tail: '' });
+                            setQAircraftMode('list');
+                          }
+                        } catch (err) {
+                          console.warn('[quote/aircraft/add] failed:', err?.message || err);
+                        } finally {
+                          setQAircraftSaving(false);
+                        }
+                      }}
+                      className="px-3 py-2 text-xs uppercase tracking-widest bg-v-gold text-v-charcoal rounded disabled:opacity-50">
+                      {qAircraftSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button type="button"
+                      onClick={() => { setQAircraftMode('list'); setQAircraftDraft({ model: '', tail: '' }); }}
+                      className="px-3 py-2 text-xs uppercase tracking-widest text-v-text-secondary hover:text-white">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            const currentTail = (tailNumber || '').trim().toUpperCase();
+            const currentMatches = savedAircraft.some(a => String(a?.tail || '').trim().toUpperCase() === currentTail);
+            return (
+              <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
+                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Tail Number &mdash; {preselectedCustomer.name}</label>
+                <select
+                  value={currentMatches ? currentTail : ''}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === '__ADD__') {
+                      setQAircraftMode('add');
+                      return;
+                    }
+                    if (v === '__OTHER__') {
+                      setQAircraftMode('manual');
+                      setTailNumber('');
+                      return;
+                    }
+                    const picked = savedAircraft.find(a => String(a?.tail || '').trim().toUpperCase() === v);
+                    if (picked) setTailNumber((picked.tail || '').toUpperCase());
+                  }}
+                  className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-base">
+                  <option value="">Select aircraft</option>
+                  {savedAircraft.map((a, i) => (
+                    <option key={i} value={String(a?.tail || '').trim().toUpperCase()}>
+                      {[a?.model, a?.tail].filter(Boolean).join(' \u2014 ')}
+                    </option>
+                  ))}
+                  <option value="__ADD__">+ Add new aircraft</option>
+                  <option value="__OTHER__">&mdash; Different aircraft &mdash;</option>
+                </select>
+              </div>
+            );
+          })()}
 
           {/* 2. Select Services */}
           {selectedAircraft && (
