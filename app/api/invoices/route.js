@@ -87,6 +87,8 @@ export async function POST(request) {
       total,
       net_terms,
       notes,
+      issued_date: body_issued_date,
+      due_date: body_due_date,
     } = body;
 
     if (!customer_name || !customer_email || !line_items || !total) {
@@ -120,8 +122,15 @@ export async function POST(request) {
     }
 
     const share_link = crypto.randomBytes(12).toString('hex');
-    const issued_date = new Date().toISOString();
-    const due_date = new Date(Date.now() + (net_terms || 30) * 24 * 60 * 60 * 1000).toISOString();
+    // Honor client-supplied dates (New Invoice modal now sets them
+    // explicitly so Brett can backdate historical jobs). Fall back to
+    // today / today + net_terms when the client omits them.
+    const issued_date = body_issued_date
+      ? new Date(body_issued_date).toISOString()
+      : new Date().toISOString();
+    const due_date = body_due_date
+      ? new Date(body_due_date).toISOString()
+      : new Date(Date.now() + (net_terms || 30) * 24 * 60 * 60 * 1000).toISOString();
 
     const invoiceRow = {
       detailer_id: user.id,

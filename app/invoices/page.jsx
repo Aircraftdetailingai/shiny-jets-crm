@@ -47,12 +47,29 @@ function InvoicesPageInner() {
   const [error, setError] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 
+  // ISO date helpers for the New Invoice modal's Issue/Due date inputs.
+  // Returning YYYY-MM-DD in local time avoids a UTC-offset day drift when the
+  // user's timezone is negative (e.g. Apr 23 rendered as Apr 22 in PST).
+  const todayISO = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  };
+  const addDaysISO = (iso, days) => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + (parseInt(days) || 0));
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  };
+
   // Blank invoice form state. Line items are no longer stored here — they
   // come from the services picker (blankSelectedServices + blankHourOverrides)
   // and blankCustomLines below.
   const [blankForm, setBlankForm] = useState({
     customer_id: null, customer_name: '', customer_email: '', customer_phone: '',
     aircraft_model: '', tail_number: '',
+    issued_date: todayISO(), due_date: addDaysISO(todayISO(), 30),
     net_terms: 30, notes: '',
   });
   const [customers, setCustomers] = useState([]);
@@ -220,6 +237,7 @@ function InvoicesPageInner() {
   // (line_items is intentionally absent — services picker replaced it
   // in commit 5c0f3d9).
   const resetBlankModal = () => {
+    const today = todayISO();
     setBlankForm({
       customer_id: null,
       customer_name: '',
@@ -227,6 +245,8 @@ function InvoicesPageInner() {
       customer_phone: '',
       aircraft_model: '',
       tail_number: '',
+      issued_date: today,
+      due_date: addDaysISO(today, 30),
       net_terms: 30,
       notes: '',
     });
@@ -691,6 +711,8 @@ function InvoicesPageInner() {
           customer_email: blankForm.customer_email,
           aircraft_model: blankForm.aircraft_model || '',
           tail_number: blankForm.tail_number || '',
+          issued_date: blankForm.issued_date || null,
+          due_date: blankForm.due_date || null,
           line_items: lineItems,
           total,
           net_terms: blankForm.net_terms || 30,
@@ -739,7 +761,8 @@ function InvoicesPageInner() {
         setCreateModal(false);
         setInvAircraftMode('list');
         setInvAircraftDraft({ model: '', tail: '' });
-        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', net_terms: 30, notes: '' });
+        const _today = todayISO();
+        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', issued_date: _today, due_date: addDaysISO(_today, 30), net_terms: 30, notes: '' });
         setBlankSelectedServices([]);
         setBlankHourOverrides({});
         setBlankCustomLines([]);
@@ -1710,6 +1733,29 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
+            {/* Issue / Due dates. Issue Date changes recompute Due Date from
+                net_terms. Changing net_terms (further down) also recomputes.
+                Due Date is a manual override — edit it AFTER setting the
+                issue date and terms if you need a non-standard due date. */}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Issue Date</label>
+                <input type="date" value={blankForm.issued_date}
+                  onChange={e => setBlankForm(f => ({
+                    ...f,
+                    issued_date: e.target.value,
+                    due_date: addDaysISO(e.target.value, f.net_terms || 30),
+                  }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">Due Date</label>
+                <input type="date" value={blankForm.due_date}
+                  onChange={e => setBlankForm(f => ({ ...f, due_date: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+              </div>
+            </div>
+
             {/* Services — grouped picker sourced from /api/services. Same
                 component used by the edit modal so the two stay in sync. */}
             <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Services</p>
@@ -1777,7 +1823,11 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="block text-xs text-v-text-secondary mb-1">Net Terms (days)</label>
-                <input type="number" value={blankForm.net_terms} onChange={e => setBlankForm(f => ({ ...f, net_terms: parseInt(e.target.value) || 30 }))}
+                <input type="number" value={blankForm.net_terms}
+                  onChange={e => setBlankForm(f => {
+                    const terms = parseInt(e.target.value) || 30;
+                    return { ...f, net_terms: terms, due_date: addDaysISO(f.issued_date || todayISO(), terms) };
+                  })}
                   className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none" />
               </div>
               <div>
