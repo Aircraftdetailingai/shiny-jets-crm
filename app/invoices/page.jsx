@@ -56,13 +56,17 @@ function InvoicesPageInner() {
     net_terms: 30, notes: '',
   });
   const [customers, setCustomers] = useState([]);
-  // Services picker state for the New Invoice modal (mirrors the edit-modal
-  // pattern but without aircraft-hours calibration). Custom line items are a
-  // separate free-text escape hatch for charges that aren't in the catalog.
+  // Services picker state for the New Invoice modal. Aircraft-hours
+  // calibration uses the same two-source pattern as Create Quote:
+  //   blankAircraftRow      — the selected aircraft row (legacy `_hours` cols)
+  //   blankAircraftHoursRef — row from aircraft_hours reference (`_hrs` cols)
+  // See getBlankRefHours + getBlankRowHours below for the mapping.
   const [blankServices, setBlankServices] = useState([]);
   const [blankSelectedServices, setBlankSelectedServices] = useState([]);
   const [blankHourOverrides, setBlankHourOverrides] = useState({});
   const [blankCustomLines, setBlankCustomLines] = useState([]);
+  const [blankAircraftRow, setBlankAircraftRow] = useState(null);
+  const [blankAircraftHoursRef, setBlankAircraftHoursRef] = useState(null);
   // Aircraft picker state for the New Invoice modal — Create Job pattern:
   // two-select Manufacturer + Model sourced from /api/aircraft/*, with a
   // Standard / Custom toggle that swaps the selects for free-text inputs
@@ -215,7 +219,54 @@ function InvoicesPageInner() {
   const setBlankHours = (id, hours) => {
     setBlankHourOverrides(prev => ({ ...prev, [id]: hours }));
   };
-  const getBlankDefaultHours = (svc) => parseFloat(svc?.default_hours) || 0;
+
+  // Aircraft-hours mapping. Mirrors Create Quote (app/quotes/new/page.jsx
+  // getRefHours + getOldAircraftHours + getAircraftHours) to avoid
+  // inventing a second dialect. First prefers the `aircraft_hours`
+  // reference row (`_hrs` columns), then falls back to the aircraft
+  // catalog row's legacy `_hours` columns, then to the service's own
+  // default_hours. Returns 0 when nothing is available (e.g. custom mode).
+  const getBlankRefHours = (svc) => {
+    const ref = blankAircraftHoursRef;
+    if (!ref) return 0;
+    const name = (svc?.name || '').toLowerCase();
+    if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(ref.maintenance_wash_hrs) || 0;
+    if (name.includes('decon')) return parseFloat(ref.decon_paint_hrs) || 0;
+    if (name.includes('polish')) return parseFloat(ref.one_step_polish_hrs) || 0;
+    if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(ref.spray_ceramic_hrs) || 0;
+    if (name.includes('ceramic')) return parseFloat(ref.ceramic_coating_hrs) || 0;
+    if (name.includes('wax') || name.includes('static guard')) return parseFloat(ref.wax_hrs) || 0;
+    if (name.includes('leather')) return parseFloat(ref.leather_hrs) || 0;
+    if (name.includes('carpet') || name.includes('extract')) return parseFloat(ref.carpet_hrs) || 0;
+    return 0;
+  };
+  const getBlankRowHours = (svc) => {
+    const ac = blankAircraftRow;
+    if (!ac) return 0;
+    if (svc?.hours_field && ac[svc.hours_field] !== undefined) {
+      return parseFloat(ac[svc.hours_field]) || 0;
+    }
+    const name = (svc?.name || '').toLowerCase();
+    if (name.includes('leather')) return parseFloat(ac.leather_hours) || 0;
+    if (name.includes('carpet') || name.includes('upholster') || name.includes('extract')) return parseFloat(ac.carpet_hours) || 0;
+    if (name.includes('decon')) return parseFloat(ac.decon_hours) || parseFloat(ac.ext_wash_hours) || 0;
+    if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat')) return parseFloat(ac.spray_ceramic_hours) || parseFloat(ac.ceramic_hours) || 0;
+    if (name.includes('ceramic')) return parseFloat(ac.ceramic_hours) || 0;
+    if (name.includes('wax')) return parseFloat(ac.wax_hours) || 0;
+    if (name.includes('brightwork') || name.includes('bright') || name.includes('chrome')) return parseFloat(ac.brightwork_hours) || 0;
+    if (name.includes('polish')) return parseFloat(ac.polish_hours) || 0;
+    if (name.includes('quick turn') && name.includes('interior')) return parseFloat(ac.int_detail_hours) || 0;
+    if (name.includes('quick turn') && name.includes('exterior')) return parseFloat(ac.ext_wash_hours) || 0;
+    if (name.includes('interior') || name.includes('vacuum') || name.includes('wipe') || name.includes('cabin')) return parseFloat(ac.int_detail_hours) || 0;
+    return parseFloat(ac.ext_wash_hours) || 0;
+  };
+  const getBlankDefaultHours = (svc) => {
+    const ref = getBlankRefHours(svc);
+    if (ref > 0) return ref;
+    const row = getBlankRowHours(svc);
+    if (row > 0) return row;
+    return parseFloat(svc?.default_hours) || 0;
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -368,6 +419,38 @@ function InvoicesPageInner() {
       .catch(() => {});
     return () => ctrl.abort();
   }, [invMfr]);
+
+  // Fetch aircraft hours whenever the blank-modal aircraft selection
+  // changes. Standard mode pulls both the aircraft row (legacy `_hours`
+  // columns) and the aircraft_hours reference row (`_hrs` columns) so the
+  // service picker can default hours per the mapping in getBlankDefaultHours.
+  // Custom mode has no catalog row — defaults fall through to 0.
+  // User-set overrides in blankHourOverrides are never touched here.
+  useEffect(() => {
+    if (createModal !== 'blank') return;
+    if (invAcMode !== 'standard' || !invMfr || !invModel) {
+      setBlankAircraftRow(null);
+      setBlankAircraftHoursRef(null);
+      return;
+    }
+    const ctrl = new AbortController();
+    // Aircraft row — id comes from the already-loaded models list
+    const match = invModels.find(m => (m.model || '').toLowerCase().trim() === invModel.toLowerCase().trim());
+    if (match?.id && !match.custom) {
+      fetch(`/api/aircraft/${match.id}`, { headers: headers(), signal: ctrl.signal })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.aircraft) setBlankAircraftRow(d.aircraft); })
+        .catch(() => {});
+    } else {
+      setBlankAircraftRow(null);
+    }
+    // aircraft_hours reference row (by make/model string)
+    fetch(`/api/aircraft-hours?make=${encodeURIComponent(invMfr)}&model=${encodeURIComponent(invModel)}`, { headers: headers(), signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setBlankAircraftHoursRef(d?.hours || null))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [createModal, invAcMode, invMfr, invModel, invModels]);
 
   // Re-fetch aircraft_hours when the user edits aircraft_model in the modal.
   useEffect(() => {
@@ -630,6 +713,8 @@ function InvoicesPageInner() {
         setBlankSelectedServices([]);
         setBlankHourOverrides({});
         setBlankCustomLines([]);
+        setBlankAircraftRow(null);
+        setBlankAircraftHoursRef(null);
       } else {
         setError(data.error || 'Failed to create');
       }
