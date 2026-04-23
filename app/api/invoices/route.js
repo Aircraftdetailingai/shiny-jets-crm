@@ -89,6 +89,7 @@ export async function POST(request) {
       notes,
       issued_date: body_issued_date,
       due_date: body_due_date,
+      service_date: body_service_date,
     } = body;
 
     if (!customer_name || !customer_email || !line_items || !total) {
@@ -149,6 +150,11 @@ export async function POST(request) {
       share_link,
       issued_date,
       due_date,
+      // service_date = the day the work was actually performed. Optional;
+      // null when the client didn't send it (e.g. older clients that haven't
+      // been updated yet, or the "convert job → invoice" path). Column is
+      // date type so we persist the YYYY-MM-DD string verbatim.
+      service_date: body_service_date || null,
     };
 
     // Insert with retry for missing columns

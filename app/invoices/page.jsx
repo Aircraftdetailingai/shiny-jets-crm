@@ -774,6 +774,7 @@ function InvoicesPageInner() {
           customer_email: blankForm.customer_email,
           aircraft_model: blankForm.aircraft_model || '',
           tail_number: blankForm.tail_number || '',
+          service_date: blankForm.service_date || null,
           issued_date: blankForm.issued_date || null,
           due_date: blankForm.due_date || null,
           line_items: lineItems,
@@ -825,7 +826,7 @@ function InvoicesPageInner() {
         setInvAircraftMode('list');
         setInvAircraftDraft({ model: '', tail: '' });
         const _today = todayISO();
-        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', issued_date: _today, due_date: addDaysISO(_today, 30), net_terms: 30, notes: '' });
+        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', service_date: _today, issued_date: _today, due_date: addDaysISO(_today, 30), net_terms: 30, notes: '' });
         setBlankSelectedServices([]);
         setBlankHourOverrides({});
         setBlankCustomLines([]);
@@ -1797,20 +1798,30 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
-            {/* Issue / Due dates. Issue Date changes recompute Due Date from
-                net_terms. Changing net_terms (further down) also recomputes.
-                Due Date is a manual override — edit it AFTER setting the
-                issue date and terms if you need a non-standard due date. */}
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            {/* Service / Issue / Due dates.
+                - Service Date: day the work was performed. Defaults to today;
+                  user backdates when billing older work. Highlighted subtly
+                  because it's the field most likely to be changed.
+                - Issue Date: invoice creation date. Rarely changed; de-
+                  emphasized. Editing it recomputes Due Date from net_terms.
+                - Due Date: auto-computed from issued_date + net_terms; edit
+                  as a manual override AFTER setting issue date and terms. */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
               <div>
-                <label className="block text-xs text-v-text-secondary mb-1">Issue Date</label>
+                <label className="block text-xs text-v-gold mb-1">Service Date</label>
+                <input type="date" value={blankForm.service_date}
+                  onChange={e => setBlankForm(f => ({ ...f, service_date: e.target.value }))}
+                  className="w-full bg-v-charcoal border border-v-gold/40 rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/70" />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary/70 mb-1">Issue Date</label>
                 <input type="date" value={blankForm.issued_date}
                   onChange={e => setBlankForm(f => ({
                     ...f,
                     issued_date: e.target.value,
                     due_date: addDaysISO(e.target.value, f.net_terms || 30),
                   }))}
-                  className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
+                  className="w-full bg-v-charcoal border border-v-border/60 rounded px-3 py-2 text-sm text-v-text-secondary outline-none focus:border-v-gold/50 focus:text-white" />
               </div>
               <div>
                 <label className="block text-xs text-v-text-secondary mb-1">Due Date</label>
