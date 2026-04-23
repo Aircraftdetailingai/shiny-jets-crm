@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import ServicesPicker from '@/components/ServicesPicker';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
 const statusColors = {
@@ -46,14 +47,22 @@ function InvoicesPageInner() {
   const [error, setError] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 
-  // Blank invoice form state
+  // Blank invoice form state. Line items are no longer stored here — they
+  // come from the services picker (blankSelectedServices + blankHourOverrides)
+  // and blankCustomLines below.
   const [blankForm, setBlankForm] = useState({
     customer_id: null, customer_name: '', customer_email: '', customer_phone: '',
     aircraft_model: '', tail_number: '',
-    line_items: [{ description: '', quantity: 1, rate: 0 }],
     net_terms: 30, notes: '',
   });
   const [customers, setCustomers] = useState([]);
+  // Services picker state for the New Invoice modal (mirrors the edit-modal
+  // pattern but without aircraft-hours calibration). Custom line items are a
+  // separate free-text escape hatch for charges that aren't in the catalog.
+  const [blankServices, setBlankServices] = useState([]);
+  const [blankSelectedServices, setBlankSelectedServices] = useState([]);
+  const [blankHourOverrides, setBlankHourOverrides] = useState({});
+  const [blankCustomLines, setBlankCustomLines] = useState([]);
   // Aircraft picker state for the New Invoice modal — Create Job pattern:
   // two-select Manufacturer + Model sourced from /api/aircraft/*, with a
   // Standard / Custom toggle that swaps the selects for free-text inputs
@@ -187,6 +196,26 @@ function InvoicesPageInner() {
       console.error('Failed to fetch jobs:', err);
     }
   };
+
+  const fetchBlankServices = async () => {
+    try {
+      const res = await fetch('/api/services', { headers: headers() });
+      if (res.ok) {
+        const data = await res.json();
+        setBlankServices(Array.isArray(data?.services) ? data.services : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch services for new invoice:', err);
+    }
+  };
+
+  const toggleBlankService = (id) => {
+    setBlankSelectedServices(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const setBlankHours = (id, hours) => {
+    setBlankHourOverrides(prev => ({ ...prev, [id]: hours }));
+  };
+  const getBlankDefaultHours = (svc) => parseFloat(svc?.default_hours) || 0;
 
   const fetchCustomers = async () => {
     try {
@@ -500,20 +529,46 @@ function InvoicesPageInner() {
       setError('Customer name and email are required');
       return;
     }
-    const items = blankForm.line_items.filter(li => li.description.trim());
-    if (items.length === 0) {
-      setError('Add at least one line item');
+    // Assemble line items in the canonical DB shape { name, hours, rate, price }
+    // used by the edit modal. Services picker first, then custom lines.
+    const svcLines = blankSelectedServices
+      .map(id => {
+        const svc = blankServices.find(s => s.id === id);
+        if (!svc) return null;
+        const hrs = parseFloat(blankHourOverrides[id] !== undefined ? blankHourOverrides[id] : getBlankDefaultHours(svc)) || 0;
+        const rate = parseFloat(svc.hourly_rate) || 0;
+        return {
+          name: svc.name,
+          description: svc.name,
+          hours: hrs,
+          quantity: hrs,
+          rate,
+          price: Math.round(hrs * rate * 100) / 100,
+        };
+      })
+      .filter(Boolean);
+    const customLines = blankCustomLines
+      .filter(cl => (cl.name || '').trim())
+      .map(cl => {
+        const hrs = parseFloat(cl.hours) || 0;
+        const rate = parseFloat(cl.rate) || 0;
+        return {
+          name: cl.name,
+          description: cl.name,
+          hours: hrs,
+          quantity: hrs,
+          rate,
+          price: Math.round(hrs * rate * 100) / 100,
+        };
+      });
+    const lineItems = [...svcLines, ...customLines];
+    if (lineItems.length === 0) {
+      setError('Pick at least one service, or add a custom line item');
       return;
     }
     setActionLoading(true);
     setError('');
     try {
-      const lineItems = items.map(li => ({
-        description: li.description,
-        quantity: parseFloat(li.quantity) || 1,
-        rate: parseFloat(li.rate) || 0,
-        price: (parseFloat(li.quantity) || 1) * (parseFloat(li.rate) || 0),
-      }));
       const total = lineItems.reduce((s, li) => s + li.price, 0);
       const res = await fetch('/api/invoices', {
         method: 'POST',
@@ -571,7 +626,10 @@ function InvoicesPageInner() {
         setCreateModal(false);
         setInvAircraftMode('list');
         setInvAircraftDraft({ model: '', tail: '' });
-        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', line_items: [{ description: '', quantity: 1, rate: 0 }], net_terms: 30, notes: '' });
+        setBlankForm({ customer_id: null, customer_name: '', customer_email: '', customer_phone: '', aircraft_model: '', tail_number: '', net_terms: 30, notes: '' });
+        setBlankSelectedServices([]);
+        setBlankHourOverrides({});
+        setBlankCustomLines([]);
       } else {
         setError(data.error || 'Failed to create');
       }
@@ -581,14 +639,6 @@ function InvoicesPageInner() {
       setActionLoading(false);
     }
   };
-
-  const addLineItem = () => setBlankForm(f => ({ ...f, line_items: [...f.line_items, { description: '', quantity: 1, rate: 0 }] }));
-  const updateLineItem = (i, field, val) => setBlankForm(f => {
-    const items = [...f.line_items];
-    items[i] = { ...items[i], [field]: val };
-    return { ...f, line_items: items };
-  });
-  const removeLineItem = (i) => setBlankForm(f => ({ ...f, line_items: f.line_items.filter((_, j) => j !== i) }));
 
   const getDisplayStatus = (inv) => {
     if (inv.status === 'paid') return 'paid';
@@ -1367,7 +1417,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                 </div>
               </button>
               <button
-                onClick={() => { setCreateModal('blank'); fetchCustomers(); }}
+                onClick={() => { setCreateModal('blank'); fetchCustomers(); fetchBlankServices(); }}
                 className="w-full flex items-center gap-3 p-4 border border-v-border rounded-lg hover:bg-white/5 transition-colors text-left"
               >
                 <span className="text-2xl">&#128221;</span>
@@ -1545,32 +1595,69 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
-            {/* Line items */}
-            <p className="text-xs text-v-text-secondary mb-2">Line Items</p>
-            <div className="space-y-2 mb-3">
-              {blankForm.line_items.map((li, i) => (
-                <div key={i} className="flex gap-2 items-start">
-                  <input value={li.description} onChange={e => updateLineItem(i, 'description', e.target.value)}
-                    placeholder="Description" className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none" />
-                  <input type="number" value={li.quantity} onChange={e => updateLineItem(i, 'quantity', e.target.value)}
-                    placeholder="Qty" min="1" step="0.5" className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none text-center" />
-                  <input type="number" value={li.rate} onChange={e => updateLineItem(i, 'rate', e.target.value)}
-                    placeholder="Rate" step="0.01" className="w-24 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-sm text-white outline-none text-right" />
-                  <span className="text-sm text-v-text-secondary py-1.5 w-20 text-right">{sym}{((parseFloat(li.quantity) || 0) * (parseFloat(li.rate) || 0)).toFixed(2)}</span>
-                  {blankForm.line_items.length > 1 && (
-                    <button onClick={() => removeLineItem(i)} className="text-red-400 hover:text-red-300 text-sm py-1.5">&times;</button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button onClick={addLineItem} className="text-v-gold text-xs hover:underline mb-4">+ Add line item</button>
+            {/* Services — grouped picker sourced from /api/services. Same
+                component used by the edit modal so the two stay in sync. */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Services</p>
+            <ServicesPicker
+              services={blankServices}
+              selectedIds={blankSelectedServices}
+              hoursOverrides={blankHourOverrides}
+              onToggle={toggleBlankService}
+              onHoursChange={setBlankHours}
+              getDefaultHours={getBlankDefaultHours}
+              sym={sym}
+            />
 
-            <div className="flex items-center justify-between border-t border-v-border pt-3 mb-4">
-              <span className="text-sm font-semibold text-v-text-primary">Total</span>
-              <span className="text-lg font-bold text-v-gold">
-                {sym}{blankForm.line_items.reduce((s, li) => s + (parseFloat(li.quantity) || 0) * (parseFloat(li.rate) || 0), 0).toFixed(2)}
-              </span>
-            </div>
+            {/* Custom line items — escape hatch for travel fees, misc charges,
+                or anything not in the services catalog. */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Custom Line Items</p>
+            {blankCustomLines.length > 0 && (
+              <div className="space-y-1.5 mb-2">
+                {blankCustomLines.map((cl, i) => (
+                  <div key={i} className="flex gap-2 items-center p-2 rounded border border-v-gold/20 bg-v-gold/5">
+                    <input value={cl.name}
+                      onChange={e => setBlankCustomLines(prev => { const c = [...prev]; c[i] = { ...c[i], name: e.target.value }; return c; })}
+                      placeholder="Description"
+                      className="flex-1 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                    <input type="number" step="0.01" value={cl.hours}
+                      onChange={e => setBlankCustomLines(prev => { const c = [...prev]; c[i] = { ...c[i], hours: e.target.value }; return c; })}
+                      placeholder="Hrs"
+                      className="w-16 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-center" />
+                    <input type="number" step="0.01" value={cl.rate}
+                      onChange={e => setBlankCustomLines(prev => { const c = [...prev]; c[i] = { ...c[i], rate: e.target.value }; return c; })}
+                      placeholder="Rate"
+                      className="w-20 bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none text-right" />
+                    <span className="text-xs text-v-text-secondary w-20 text-right">
+                      {sym}{((parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0)).toFixed(2)}
+                    </span>
+                    <button onClick={() => setBlankCustomLines(prev => prev.filter((_, j) => j !== i))}
+                      className="text-red-400 hover:text-red-300 text-sm w-6">&times;</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setBlankCustomLines(prev => [...prev, { name: '', hours: '', rate: '' }])}
+              className="text-v-gold text-xs hover:underline mb-4">+ Add custom line item</button>
+
+            {/* Live total — sum of picked services × hours × rate plus the
+                custom line items. Recomputes every render. */}
+            {(() => {
+              const svcSub = blankSelectedServices.reduce((s, id) => {
+                const svc = blankServices.find(x => x.id === id);
+                if (!svc) return s;
+                const hrs = blankHourOverrides[id] !== undefined ? blankHourOverrides[id] : getBlankDefaultHours(svc);
+                const rate = parseFloat(svc.hourly_rate) || 0;
+                return s + ((parseFloat(hrs) || 0) * rate);
+              }, 0);
+              const customSub = blankCustomLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0);
+              const total = svcSub + customSub;
+              return (
+                <div className="flex items-center justify-between border-t border-v-border pt-3 mb-4">
+                  <span className="text-sm font-semibold text-v-text-primary">Total</span>
+                  <span className="text-lg font-bold text-v-gold">{sym}{total.toFixed(2)}</span>
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
@@ -1661,62 +1748,20 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
-            {/* Services */}
+            {/* Services — shared picker (also used by the New Invoice modal).
+                getDefaultHours is aircraft-aware here, falling back to the
+                service's default_hours when no aircraft hours ref is set. */}
             <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Services</p>
-            {(() => {
-              const grouped = {};
-              editServices.forEach(svc => {
-                const cat = svc.category || 'other';
-                if (!grouped[cat]) grouped[cat] = [];
-                grouped[cat].push(svc);
-              });
-              const cats = CATEGORY_ORDER.filter(c => grouped[c]?.length);
-              Object.keys(grouped).forEach(c => { if (!cats.includes(c)) cats.push(c); });
-              if (cats.length === 0) {
-                return <p className="text-xs text-v-text-secondary/60 italic mb-3">Loading services…</p>;
-              }
-              return (
-                <div className="space-y-4 mb-4">
-                  {cats.map(cat => (
-                    <div key={cat}>
-                      <p className="text-[10px] uppercase tracking-wider text-v-gold/60 mb-1.5">{CATEGORY_LABELS[cat] || cat}</p>
-                      <div className="space-y-1">
-                        {grouped[cat].map(svc => {
-                          const sel = editSelectedServices.includes(svc.id);
-                          const hrs = getEditHours(svc);
-                          const rate = getEditRate(svc);
-                          const svcTotal = getEditServiceTotal(svc);
-                          return (
-                            <div key={svc.id} className={`flex items-center gap-3 p-3 rounded border transition-colors ${sel ? 'border-v-gold/50 bg-v-gold/5' : 'border-v-border bg-v-charcoal'}`}>
-                              <input type="checkbox" checked={sel}
-                                onChange={() => toggleEditService(svc.id)}
-                                className="w-4 h-4 rounded accent-v-gold cursor-pointer" />
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm text-v-text-primary">{svc.name}</span>
-                                {!editAircraftHoursRef && <span className="text-[10px] text-v-text-secondary/50 ml-2 italic">Set aircraft for auto hours</span>}
-                              </div>
-                              {sel && (
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <input type="number" step="0.01" min="0"
-                                    value={editHourOverrides[svc.id] !== undefined ? editHourOverrides[svc.id] : (getEditDefaultHours(svc) || '')}
-                                    onChange={e => setEditHourOverrides(prev => ({ ...prev, [svc.id]: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 }))}
-                                    className="w-16 bg-v-surface border border-v-border text-v-text-primary rounded px-2 py-1 text-xs text-center outline-none focus:border-v-gold/50" />
-                                  <span className="text-[10px] text-v-text-secondary">hrs</span>
-                                </div>
-                              )}
-                              <div className="text-right shrink-0 w-24">
-                                {svcTotal > 0 && <span className="text-sm text-v-text-primary font-medium">{sym}{svcTotal.toFixed(2)}</span>}
-                                {rate > 0 && parseFloat(hrs) > 0 && <span className="text-[10px] text-v-text-secondary block">@ {sym}{rate}/hr</span>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+            <ServicesPicker
+              services={editServices}
+              selectedIds={editSelectedServices}
+              hoursOverrides={editHourOverrides}
+              onToggle={toggleEditService}
+              onHoursChange={(id, hours) => setEditHourOverrides(prev => ({ ...prev, [id]: hours }))}
+              getDefaultHours={getEditDefaultHours}
+              hint={!editAircraftHoursRef ? 'Set aircraft for auto hours' : null}
+              sym={sym}
+            />
 
             {/* Custom line items */}
             <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Custom Line Items</p>
