@@ -18,6 +18,7 @@ const NAV_GROUPS = [
     items: [
       { href: '/requests', label: 'Requests', icon: RequestsIcon, badge: true },
       { href: '/quotes', label: 'Quotes', icon: QuotesIcon },
+      { href: '/customers', label: 'Customers', icon: CustomersIcon },
       { href: '/jobs', label: 'Jobs', icon: JobsIcon },
       { href: '/dispatch', label: 'Dispatch', icon: DispatchIcon },
       { href: '/calendar', label: 'Schedule', icon: CalendarIcon },
@@ -29,12 +30,15 @@ const NAV_GROUPS = [
     items: [
       { href: '/equipment', label: 'Equipment', icon: EquipmentIcon },
       { href: '/products', label: 'Products', icon: ProductsIcon },
+      // /services top-level doesn't exist yet; point at the existing
+      // Settings → Services & Pricing page until a dedicated browse page
+      // is built. Route works today.
+      { href: '/settings/services', label: 'Services', icon: ServicesIcon },
     ],
   },
   {
     label: 'Relationships',
     items: [
-      { href: '/customers', label: 'Customers', icon: CustomersIcon },
       { href: '/reviews', label: 'Reviews', icon: ReviewsIcon },
       { href: '/team', label: 'Team', icon: TeamIcon },
     ],
@@ -89,6 +93,9 @@ function RequestsIcon() {
 }
 function EquipmentIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M11.42 15.17l-5.6 5.6a2.12 2.12 0 01-3-3l5.6-5.6m2.83 2.83l3.18-3.18a2.12 2.12 0 000-3L14.3 5.7a2.12 2.12 0 00-3 0L8.12 8.88m3.3 6.29l-3.3-3.3" /><path d="M19.07 4.93a2 2 0 010 2.83l-1.42 1.42" /></svg>;
+}
+function ServicesIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" /></svg>;
 }
 function SettingsIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg>;
