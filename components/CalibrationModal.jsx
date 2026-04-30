@@ -123,7 +123,9 @@ export default function CalibrationModal({
     }
   }, [isOpen, service?.id, calibrations]);
 
-  // Debounced preview fetch — uses the computed adjustment_pct
+  // Debounced preview fetch — uses the computed adjustment_pct.
+  // When anchors are picked, pass their uuids so the preview rows show the
+  // detailer's actual anchor aircraft instead of generic category samples.
   useEffect(() => {
     if (!isOpen) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -131,8 +133,14 @@ export default function CalibrationModal({
       setPreviewLoading(true);
       try {
         const token = localStorage.getItem('vector_token');
+        const params = new URLSearchParams({
+          reference_type: referenceType,
+          adjustment_pct: String(adjustmentPct),
+        });
+        if (anchorA?.id) params.set('anchor_a', anchorA.id);
+        if (anchorB?.id) params.set('anchor_b', anchorB.id);
         const res = await fetch(
-          `/api/services/calibration-preview?reference_type=${encodeURIComponent(referenceType)}&adjustment_pct=${adjustmentPct}`,
+          `/api/services/calibration-preview?${params.toString()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (res.ok) {
@@ -148,7 +156,7 @@ export default function CalibrationModal({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [isOpen, referenceType, adjustmentPct]);
+  }, [isOpen, referenceType, adjustmentPct, anchorA?.id, anchorB?.id]);
 
   const handleSave = async () => {
     if (!service) return;
