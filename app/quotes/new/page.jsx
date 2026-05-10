@@ -361,6 +361,29 @@ function NewQuoteContent() {
             localStorage.setItem('_pending_services', JSON.stringify(prefill.selected_services));
           }
 
+          // Restore services chosen on the intake/lead. Leads only carry the
+          // names ("Quick Turn") rather than the detailer's service uuids,
+          // so we have to fuzzy-match against availableServices once it
+          // loads. Pull names from both lead.services_requested (free-text,
+          // possibly comma-separated) and intake_responses.Packages (the
+          // structured array the public intake form writes).
+          const namesFromLead = [];
+          if (prefill.service && typeof prefill.service === 'string') {
+            for (const piece of prefill.service.split(/[,;]/)) {
+              const t = piece.trim();
+              if (t) namesFromLead.push(t);
+            }
+          }
+          const pkgs = prefill.intake_responses?.Packages;
+          if (Array.isArray(pkgs)) {
+            for (const p of pkgs) {
+              if (typeof p === 'string' && p.trim()) namesFromLead.push(p.trim());
+            }
+          }
+          if (namesFromLead.length > 0) {
+            localStorage.setItem('_pending_service_names', JSON.stringify(namesFromLead));
+          }
+
           // Restore discount
           if (prefill.discount_type && prefill.discount_value) {
             setShowDiscount(true);
@@ -400,26 +423,57 @@ function NewQuoteContent() {
     };
   }, [router]);
 
-  // Deferred service restoration — apply pending services once availableServices loads
+  // Deferred service restoration — apply pending services once availableServices loads.
+  // Two pending slots:
+  //   _pending_services      — array of service uuids (draft restore path)
+  //   _pending_service_names — array of free-text service names from a lead
+  //                            (the lead never carries service uuids, only
+  //                            the customer's intake selections by name)
   useEffect(() => {
     if (availableServices.length === 0) return;
     try {
-      const pending = localStorage.getItem('_pending_services');
-      if (pending) {
-        const serviceIds = JSON.parse(pending);
-        if (Array.isArray(serviceIds) && serviceIds.length > 0) {
-          const newSelected = {};
+      const newSelected = {};
+
+      const pendingIds = localStorage.getItem('_pending_services');
+      if (pendingIds) {
+        const serviceIds = JSON.parse(pendingIds);
+        if (Array.isArray(serviceIds)) {
           serviceIds.forEach(id => {
             if (availableServices.some(s => s.id === id)) {
               newSelected[id] = true;
             }
           });
-          if (Object.keys(newSelected).length > 0) {
-            setSelectedServices(newSelected);
-            console.log('[prefill] restored', Object.keys(newSelected).length, 'services from draft');
-          }
         }
         localStorage.removeItem('_pending_services');
+      }
+
+      const pendingNames = localStorage.getItem('_pending_service_names');
+      if (pendingNames) {
+        const names = JSON.parse(pendingNames);
+        if (Array.isArray(names) && names.length > 0) {
+          const matched = [];
+          for (const rawName of names) {
+            const needle = String(rawName || '').trim().toLowerCase();
+            if (!needle) continue;
+            for (const svc of availableServices) {
+              const hay = String(svc.name || '').trim().toLowerCase();
+              if (!hay) continue;
+              // Fuzzy match both directions so "Quick Turn" matches
+              // "Quick Turn - Exterior" AND "Quick Turn - Interior".
+              if (hay.includes(needle) || needle.includes(hay)) {
+                newSelected[svc.id] = true;
+                matched.push(svc.name);
+              }
+            }
+          }
+          console.log('[quote-from-lead] lead service names:', names, 'matched services:', matched);
+        }
+        localStorage.removeItem('_pending_service_names');
+      }
+
+      if (Object.keys(newSelected).length > 0) {
+        setSelectedServices(newSelected);
+        console.log('[prefill] restored', Object.keys(newSelected).length, 'services');
       }
     } catch {}
   }, [availableServices]);
