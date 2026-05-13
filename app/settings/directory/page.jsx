@@ -34,6 +34,16 @@ export default function DirectorySettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
+  // Public-directory tie-breaker fields. When two detailers share the same
+  // tier at an airport, the find-a-detailer page ranks by:
+  //   operating_hours_per_week DESC NULLS LAST → google_rating DESC NULLS LAST
+  //   → google_review_count DESC NULLS LAST → created_at ASC.
+  // All three are optional; absence just means the detailer falls to the
+  // bottom of the tie-break chain rather than being hidden.
+  const [opHoursPerWeek, setOpHoursPerWeek] = useState('');
+  const [googleRating, setGoogleRating] = useState('');
+  const [googleReviewCount, setGoogleReviewCount] = useState('');
+
   const token = typeof window !== 'undefined' ? localStorage.getItem('vector_token') : null;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
@@ -59,6 +69,9 @@ export default function DirectorySettingsPage() {
         setInsuranceExpiry(u.insurance_expiry_date || null);
         setInsuranceVerified(u.insurance_verified || false);
         setInsuranceInsurer(u.insurance_insurer || '');
+        setOpHoursPerWeek(u.operating_hours_per_week != null ? String(u.operating_hours_per_week) : '');
+        setGoogleRating(u.google_rating != null ? String(u.google_rating) : '');
+        setGoogleReviewCount(u.google_review_count != null ? String(u.google_review_count) : '');
       }
       setServices((svcData.services || svcData || []).map(s => s.name));
     }).finally(() => setLoading(false));
@@ -69,6 +82,14 @@ export default function DirectorySettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Parse the tie-breaker fields client-side and only send when the user
+      // entered a value — sending null vs. omitting matters because the
+      // settings route shouldn't clobber an admin-set value with a blank
+      // input. Bounds match the spec: hours 0-168, rating 1.0-5.0, count >= 0.
+      const parsedHours = opHoursPerWeek === '' ? null : Math.max(0, Math.min(168, parseFloat(opHoursPerWeek)));
+      const parsedRating = googleRating === '' ? null : Math.max(1, Math.min(5, parseFloat(googleRating)));
+      const parsedReviews = googleReviewCount === '' ? null : Math.max(0, parseInt(googleReviewCount, 10) || 0);
+
       const res = await fetch('/api/directory/settings', {
         method: 'POST', headers,
         body: JSON.stringify({
@@ -80,6 +101,9 @@ export default function DirectorySettingsPage() {
           certifications,
           insurance_insurer: insuranceInsurer,
           insurance_expiry_date: insuranceExpiry,
+          operating_hours_per_week: parsedHours,
+          google_rating: parsedRating,
+          google_review_count: parsedReviews,
         }),
       });
       if (res.ok) showToast('Directory settings saved');
@@ -197,6 +221,54 @@ export default function DirectorySettingsPage() {
         <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-2">Business Description</label>
         <textarea value={description} onChange={e => setDescription(e.target.value.slice(0, 200))} rows={3} placeholder="Brief description of your services..." className={cls + ' resize-none'} />
         <p className="text-[10px] text-v-text-secondary mt-1">{description.length}/200</p>
+      </div>
+
+      {/* Directory ranking tie-breakers */}
+      <div>
+        <h3 className="text-xs uppercase tracking-wider text-v-text-secondary mb-2">Directory Ranking</h3>
+        <p className="text-[10px] text-v-text-secondary mb-3">
+          These improve your ranking in the public directory when other detailers list the same airport.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Operating hours / week</label>
+            <input
+              type="number"
+              min={0}
+              max={168}
+              step={1}
+              value={opHoursPerWeek}
+              onChange={e => setOpHoursPerWeek(e.target.value)}
+              placeholder="e.g. 60"
+              className={cls}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Google rating</label>
+            <input
+              type="number"
+              min={1}
+              max={5}
+              step={0.1}
+              value={googleRating}
+              onChange={e => setGoogleRating(e.target.value)}
+              placeholder="e.g. 4.9"
+              className={cls}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Google review count</label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={googleReviewCount}
+              onChange={e => setGoogleReviewCount(e.target.value)}
+              placeholder="e.g. 84"
+              className={cls}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Insurance */}

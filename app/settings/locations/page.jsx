@@ -22,13 +22,18 @@ const TEMPLATES = [
 export default function LocationsPage() {
   const router = useRouter();
   const [locations, setLocations] = useState([]);
+  const [limits, setLimits] = useState({ primary: null, secondary: null });
+  const [plan, setPlan] = useState('free');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+  // Limit-exceeded modal triggered by a 403 from the locations API. tier is
+  // 'primary' or 'secondary'; limit is the plan_limits value the server returned.
+  const [limitModal, setLimitModal] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', location_type: 'other', airport_icao: '', address: '', notes: '',
+    name: '', location_type: 'other', airport_icao: '', address: '', notes: '', tier: 'secondary',
   });
 
   const getToken = () => localStorage.getItem('vector_token');
@@ -44,6 +49,11 @@ export default function LocationsPage() {
       if (res.ok) {
         const data = await res.json();
         setLocations(data.locations || []);
+        // Terminal 1 surfaces { limits: { primary, secondary }, plan } on the
+        // locations response. Fall back to nulls so the count UI still renders
+        // without a limit pill while Terminal 1's deploy catches up.
+        if (data.limits) setLimits({ primary: data.limits.primary ?? null, secondary: data.limits.secondary ?? null });
+        if (data.plan) setPlan(data.plan);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -53,7 +63,7 @@ export default function LocationsPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ name: '', location_type: 'other', airport_icao: '', address: '', notes: '' });
+    setFormData({ name: '', location_type: 'other', airport_icao: '', address: '', notes: '', tier: 'secondary' });
     setShowModal(true);
   };
 
@@ -65,6 +75,7 @@ export default function LocationsPage() {
       airport_icao: loc.airport_icao || '',
       address: loc.address || '',
       notes: loc.notes || '',
+      tier: loc.tier || 'secondary',
     });
     setShowModal(true);
   };
@@ -80,6 +91,15 @@ export default function LocationsPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(body),
       });
+      if (res.status === 403) {
+        const err = await res.json().catch(() => ({}));
+        setLimitModal({
+          tier: err.tier || formData.tier,
+          limit: err.limit ?? (formData.tier === 'primary' ? limits.primary : limits.secondary),
+          plan: err.plan || plan,
+        });
+        return;
+      }
       if (res.ok) {
         await fetchLocations();
         setShowModal(false);
@@ -87,6 +107,33 @@ export default function LocationsPage() {
       }
     } catch (e) { console.error(e); }
     finally { setSaving(false); }
+  };
+
+  // Tier toggle from the card. Hits PUT directly so the user doesn't have
+  // to open the edit modal just to flip Primary/Secondary. Same 403 path
+  // surfaces the limit modal.
+  const toggleTier = async (loc) => {
+    const nextTier = loc.tier === 'primary' ? 'secondary' : 'primary';
+    try {
+      const res = await fetch('/api/locations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ id: loc.id, tier: nextTier }),
+      });
+      if (res.status === 403) {
+        const err = await res.json().catch(() => ({}));
+        setLimitModal({
+          tier: err.tier || nextTier,
+          limit: err.limit ?? (nextTier === 'primary' ? limits.primary : limits.secondary),
+          plan: err.plan || plan,
+        });
+        return;
+      }
+      if (res.ok) {
+        await fetchLocations();
+        showToast(`Set to ${nextTier}`);
+      }
+    } catch (e) { console.error(e); }
   };
 
   const deleteLocation = async (id) => {
@@ -118,6 +165,14 @@ export default function LocationsPage() {
 
   const getTypeInfo = (type) => LOCATION_TYPES.find(t => t.value === type) || LOCATION_TYPES[LOCATION_TYPES.length - 1];
 
+  // Counts use airport_icao + tier — we treat any active location with an
+  // airport_icao as a directory airport. Counts can legitimately exceed
+  // limits on free detailers until 30-day enforcement fires; never crash.
+  const primaryCount = locations.filter(l => l.airport_icao && l.tier === 'primary' && l.active !== false).length;
+  const secondaryCount = locations.filter(l => l.airport_icao && l.tier === 'secondary' && l.active !== false).length;
+  const limitLabel = (count, lim) => (lim == null ? `${count}` : `${count} / ${lim}`);
+  const overLimit = (count, lim) => (lim != null && count > lim);
+
   if (loading) {
     return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -130,14 +185,27 @@ export default function LocationsPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-2">
         <div>
           <h2 className="text-xl font-bold text-white">Locations</h2>
           <p className="text-sm text-v-text-secondary">Manage inventory across multiple locations</p>
+          <p className="text-xs text-v-text-secondary mt-1">
+            Primary airports are your home bases. They rank above secondary airports in the public directory.
+          </p>
         </div>
         <button onClick={openAdd} className="px-4 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim text-sm font-medium">
           + Add Location
         </button>
+      </div>
+
+      {/* Tier counts vs limits */}
+      <div className="mt-3 mb-6 flex flex-wrap items-center gap-3 text-xs">
+        <span className={`px-2.5 py-1 rounded border ${overLimit(primaryCount, limits.primary) ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-v-border bg-v-surface text-v-text-secondary'}`}>
+          Primary: <span className="text-white font-medium">{limitLabel(primaryCount, limits.primary)}</span>
+        </span>
+        <span className={`px-2.5 py-1 rounded border ${overLimit(secondaryCount, limits.secondary) ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-v-border bg-v-surface text-v-text-secondary'}`}>
+          Secondary: <span className="text-white font-medium">{limitLabel(secondaryCount, limits.secondary)}</span>
+        </span>
       </div>
 
       {/* Quick templates when no locations exist */}
@@ -171,12 +239,14 @@ export default function LocationsPage() {
       <div className="space-y-3">
         {locations.map(loc => {
           const info = getTypeInfo(loc.location_type);
+          const tier = loc.tier || 'secondary';
+          const isPrimary = tier === 'primary';
           return (
             <div key={loc.id} className="bg-v-surface border border-v-border/40 rounded-lg p-4 hover:border-v-gold/30 transition-all">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <span className="text-2xl">{info.icon}</span>
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-medium text-white">{loc.name}</h3>
                     <p className="text-xs text-v-text-secondary">{info.label}</p>
                     {loc.airport_icao && (
@@ -188,7 +258,21 @@ export default function LocationsPage() {
                     {loc.notes && <p className="text-xs text-gray-600 mt-1 italic">{loc.notes}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Tier toggle — only meaningful for airport-bound rows */}
+                  {loc.airport_icao && (
+                    <button
+                      onClick={() => toggleTier(loc)}
+                      title={isPrimary ? 'Click to set Secondary' : 'Click to set Primary'}
+                      className={`px-2 py-1 text-[10px] uppercase tracking-wider rounded border transition-colors ${
+                        isPrimary
+                          ? 'border-v-gold/50 bg-v-gold/10 text-v-gold hover:bg-v-gold/20'
+                          : 'border-v-border text-v-text-secondary hover:border-v-gold/30 hover:text-v-gold'
+                      }`}
+                    >
+                      {isPrimary ? 'Primary' : 'Secondary'}
+                    </button>
+                  )}
                   {!loc.active && (
                     <span className="px-2 py-0.5 bg-red-900/30 text-red-400 rounded text-[10px]">Inactive</span>
                   )}
@@ -259,6 +343,31 @@ export default function LocationsPage() {
                 />
               </div>
 
+              {/* Tier selection — only meaningful when an airport is set */}
+              {formData.airport_icao && (
+                <div>
+                  <label className="block text-xs text-v-text-secondary mb-1">Tier</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['primary', 'secondary'].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setFormData(p => ({ ...p, tier: t }))}
+                        className={`px-3 py-2 rounded-lg border text-sm capitalize transition-all ${
+                          formData.tier === t
+                            ? 'border-v-gold bg-v-gold/10 text-v-gold'
+                            : 'border-v-border text-v-text-secondary hover:border-v-gold/30'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-v-text-secondary mt-1">
+                    Primary airports rank above secondary in the public directory.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs text-v-text-secondary mb-1">Address (optional)</label>
                 <input
@@ -288,6 +397,29 @@ export default function LocationsPage() {
               <button onClick={saveLocation} disabled={saving || !formData.name.trim()} className="flex-1 px-4 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim text-sm font-medium disabled:opacity-50">
                 {saving ? 'Saving...' : editing ? 'Update' : 'Add Location'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Plan limit modal — surfaced on 403 from POST or PUT */}
+      {limitModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setLimitModal(null)}>
+          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-3">Plan limit reached</h3>
+            <p className="text-sm text-v-text-secondary mb-5">
+              You&apos;ve reached your <span className="text-white font-medium capitalize">{limitModal.plan}</span> plan limit of <span className="text-white font-medium">{limitModal.limit}</span> {limitModal.tier} airport{limitModal.limit === 1 ? '' : 's'}.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setLimitModal(null)} className="flex-1 px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5 text-sm">
+                Cancel
+              </button>
+              <a
+                href="/settings"
+                className="flex-1 text-center px-4 py-2 bg-v-gold text-v-charcoal rounded-lg hover:bg-v-gold-dim text-sm font-semibold"
+              >
+                Upgrade plan
+              </a>
             </div>
           </div>
         </div>

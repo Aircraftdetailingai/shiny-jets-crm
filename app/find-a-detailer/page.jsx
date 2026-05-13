@@ -1,7 +1,35 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { STRIPE_COUNTRIES, CURRENCY_MAP } from '@/lib/currency';
+
+// Ranking tie-break chain when filtered by airport. Lower is better. Nulls
+// go last on every signal so a detailer who hasn't filled in the optional
+// profile fields drops to the bottom of the tie chain instead of being
+// hidden. `airportIcao` is the filter the user typed — used to look up the
+// tier this specific detailer claims at THIS airport. detailer.airports is
+// supplied by Terminal 1's directory route as [{ icao, name, tier }].
+function rankKey(detailer, airportIcao) {
+  const upper = (airportIcao || '').toUpperCase();
+  const match = (detailer.airports || []).find(a => (a.icao || '').toUpperCase() === upper);
+  const tierRank = match?.tier === 'primary' ? 0 : 1;
+  const nullsLast = (v) => (v == null || Number.isNaN(Number(v)) ? -Infinity : Number(v));
+  return [
+    tierRank,
+    -nullsLast(detailer.operating_hours_per_week),
+    -nullsLast(detailer.google_rating),
+    -nullsLast(detailer.google_review_count),
+    detailer.created_at ? new Date(detailer.created_at).getTime() : Infinity,
+  ];
+}
+
+function cmpRankKeys(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] < b[i]) return -1;
+    if (a[i] > b[i]) return 1;
+  }
+  return 0;
+}
 
 export default function FindADetailerPage() {
   const [detailers, setDetailers] = useState([]);
@@ -46,6 +74,17 @@ export default function FindADetailerPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [airport, search]);
+
+  // Re-order client-side only when filtering by airport. Unfiltered ordering
+  // stays whatever the API returned (currently company ASC) — explicit ask
+  // in the spec to "leave alone" the unfiltered case.
+  const displayed = useMemo(() => {
+    const trimmed = (airport || '').trim();
+    if (!trimmed) return detailers;
+    const keyed = detailers.map(d => ({ d, key: rankKey(d, trimmed) }));
+    keyed.sort((a, b) => cmpRankKeys(a.key, b.key));
+    return keyed.map(x => x.d);
+  }, [detailers, airport]);
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
@@ -168,11 +207,17 @@ export default function FindADetailerPage() {
           </div>
         ) : (
           <>
-            <p className="text-gray-500 text-sm mb-6">{detailers.length} detailer{detailers.length !== 1 ? 's' : ''} found</p>
+            <p className="text-gray-500 text-sm mb-6">{displayed.length} detailer{displayed.length !== 1 ? 's' : ''} found</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {detailers.map((d) => {
+              {displayed.map((d) => {
                 const countryData = STRIPE_COUNTRIES.find(c => c.code === d.country);
                 const currencyInfo = CURRENCY_MAP[d.preferred_currency];
+                // Group airports by tier — Primary above Secondary. Falls back
+                // to home_airport text only when the API didn't return the new
+                // airports array (older response shape during deploy lag).
+                const airportRows = Array.isArray(d.airports) ? d.airports : [];
+                const primaryAirports = airportRows.filter(a => a?.tier === 'primary' && a.icao).map(a => a.icao);
+                const secondaryAirports = airportRows.filter(a => a?.tier !== 'primary' && a.icao).map(a => a.icao);
                 return (
                   <div key={d.id} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors">
                     <div className="flex items-center justify-between mb-3">
@@ -224,11 +269,24 @@ export default function FindADetailerPage() {
                           {countryData.flag} {countryData.name}
                         </p>
                       )}
-                      {d.home_airport && (
+                      {airportRows.length > 0 ? (
+                        <div className="space-y-0.5">
+                          {primaryAirports.length > 0 && (
+                            <p className="text-sm text-white font-semibold">
+                              {'\u2708\uFE0F'} Primary: {primaryAirports.join(', ')}
+                            </p>
+                          )}
+                          {secondaryAirports.length > 0 && (
+                            <p className="text-xs text-gray-500">
+                              Secondary: {secondaryAirports.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      ) : d.home_airport ? (
                         <p className="text-sm text-gray-400">
                           {'\u2708\uFE0F'} {d.home_airport}
                         </p>
-                      )}
+                      ) : null}
                       {currencyInfo && (
                         <p className="text-sm text-gray-400">
                           {currencyInfo.flag} {currencyInfo.code} ({currencyInfo.symbol})
