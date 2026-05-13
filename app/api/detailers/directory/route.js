@@ -20,11 +20,19 @@ export async function GET(request) {
   const airport = searchParams.get('airport') || '';
   const search = searchParams.get('search') || '';
 
+  // Gating is exactly: listed_in_directory=true AND slug IS NOT NULL AND
+  // status='active'. The slug guard is load-bearing — every public-facing
+  // link to a detailer (sitemap, profile route, JSON-LD) is keyed on slug,
+  // so a slug-less row in the directory response would render a card whose
+  // links 404. Locations and airports_served are NOT gates; detailers with
+  // zero pinned airports still render (card shows whatever home_airport
+  // text they've set, or nothing — never drops the row).
   let query = supabase
     .from('detailers')
     .select('id, name, company, country, home_airport, airports_served, preferred_currency, plan, stripe_account_id, stripe_publishable_key, has_online_booking, logo_url, theme_logo_url, directory_description, certifications, slug, verified_finish, insurance_verified')
     .eq('listed_in_directory', true)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .not('slug', 'is', null);
 
   if (country) {
     query = query.eq('country', country.toUpperCase());
