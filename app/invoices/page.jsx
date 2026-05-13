@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import ServicesPicker from '@/components/ServicesPicker';
 import CustomerAutocomplete from '@/components/CustomerAutocomplete';
+import { computeCalibratedHours, applyMinimumPrice } from '@/lib/calibrate-hours';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
 const statusColors = {
@@ -93,6 +94,7 @@ function InvoicesPageInner() {
   //   blankAircraftHoursRef — row from aircraft_hours reference (`_hrs` cols)
   // See getBlankRefHours + getBlankRowHours below for the mapping.
   const [blankServices, setBlankServices] = useState([]);
+  const [blankCalibrations, setBlankCalibrations] = useState([]);
   const [blankSelectedServices, setBlankSelectedServices] = useState([]);
   const [blankHourOverrides, setBlankHourOverrides] = useState({});
   const [blankCustomLines, setBlankCustomLines] = useState([]);
@@ -240,10 +242,17 @@ function InvoicesPageInner() {
 
   const fetchBlankServices = async () => {
     try {
-      const res = await fetch('/api/services', { headers: headers() });
-      if (res.ok) {
-        const data = await res.json();
+      const [svcRes, calRes] = await Promise.all([
+        fetch('/api/services', { headers: headers() }),
+        fetch('/api/services/calibrations', { headers: headers() }).catch(() => null),
+      ]);
+      if (svcRes?.ok) {
+        const data = await svcRes.json();
         setBlankServices(Array.isArray(data?.services) ? data.services : []);
+      }
+      if (calRes?.ok) {
+        const data = await calRes.json();
+        setBlankCalibrations(Array.isArray(data?.calibrations) ? data.calibrations : []);
       }
     } catch (err) {
       console.error('Failed to fetch services for new invoice:', err);
@@ -377,6 +386,12 @@ function InvoicesPageInner() {
     return parseFloat(ac.ext_wash_hours) || 0;
   };
   const getBlankDefaultHours = (svc) => {
+    // service_calibrations take precedence over the aircraft_hours name-match
+    // chain — they're the detailer's explicit per-service ratio for *this*
+    // airframe family. Only fall through to the chain when no calibration
+    // exists or the calibration's baseline column is null/0 on this aircraft.
+    const cal = computeCalibratedHours({ service: svc, aircraftHoursRef: blankAircraftHoursRef, calibrations: blankCalibrations });
+    if (cal.source === 'calibrated') return cal.hours;
     const ref = getBlankRefHours(svc);
     if (ref > 0) return ref;
     const row = getBlankRowHours(svc);
@@ -753,13 +768,19 @@ function InvoicesPageInner() {
           if (!svc) return null;
           const hrs = parseFloat(blankHourOverrides[id] !== undefined ? blankHourOverrides[id] : getBlankDefaultHours(svc)) || 0;
           const rate = parseFloat(svc.hourly_rate) || 0;
+          const rawPrice = Math.round(hrs * rate * 100) / 100;
+          // services.minimum_price floors the line item's price without
+          // touching hours, so the invoice math still ties out: shown
+          // hours × rate may be less than displayed price when the floor
+          // hits.
+          const { price, minApplied } = applyMinimumPrice(rawPrice, svc.minimum_price);
           return {
             name: svc.name,
-            description: svc.name,
+            description: minApplied ? `${svc.name} (min applied)` : svc.name,
             hours: hrs,
             quantity: hrs,
             rate,
-            price: Math.round(hrs * rate * 100) / 100,
+            price,
           };
         })
         .filter(Boolean);

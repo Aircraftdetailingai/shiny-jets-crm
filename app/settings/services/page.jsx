@@ -224,7 +224,7 @@ export default function ServicesPage() {
   // Service form
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState(null);
-  const [newService, setNewService] = useState({ name: '', description: '', hourly_rate: '', category: 'other' });
+  const [newService, setNewService] = useState({ name: '', description: '', hourly_rate: '', category: 'other', minimum_price: '' });
 
   // Package form
   const [showPackageBuilder, setShowPackageBuilder] = useState(false);
@@ -546,12 +546,13 @@ export default function ServicesPage() {
           description: newService.description,
           hourly_rate: parseFloat(newService.hourly_rate) || 0,
           category: newService.category || 'other',
+          minimum_price: newService.minimum_price === '' ? null : parseFloat(newService.minimum_price),
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to add service'); return; }
       setServices([...services, data.service]);
-      setNewService({ name: '', description: '', hourly_rate: '', category: 'other' });
+      setNewService({ name: '', description: '', hourly_rate: '', category: 'other', minimum_price: '' });
       setShowServiceModal(false);
       setError('');
       flashSaved('Service added');
@@ -589,6 +590,9 @@ export default function ServicesPage() {
           hours_field: editingService.hours_field || null,
           product_cost_per_hour: parseFloat(editingService.product_cost_per_hour) || 0,
           product_notes: editingService.product_notes || '',
+          minimum_price: editingService.minimum_price === '' || editingService.minimum_price == null
+            ? null
+            : parseFloat(editingService.minimum_price),
         }),
       });
       const data = await res.json();
@@ -1361,6 +1365,16 @@ export default function ServicesPage() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Minimum Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
+                <input type="number" step="0.01" value={newService.minimum_price}
+                  onChange={(e) => setNewService({ ...newService, minimum_price: e.target.value })}
+                  placeholder="0.00" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-3 py-2" />
+              </div>
+              <p className="text-xs text-v-text-secondary mt-1">Optional floor. Line item price will be at least this amount.</p>
+            </div>
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setShowServiceModal(false)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">Cancel</button>
@@ -1416,6 +1430,17 @@ export default function ServicesPage() {
                 ))}
               </select>
               <p className="text-xs text-v-text-secondary mt-1">Link to aircraft database for automatic hour estimates</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-v-text-secondary mb-1">Minimum Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>
+                <input type="number" step="0.01"
+                  value={editingService.minimum_price == null ? '' : editingService.minimum_price}
+                  onChange={(e) => setEditingService({ ...editingService, minimum_price: e.target.value })}
+                  placeholder="0.00" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-3 py-2" />
+              </div>
+              <p className="text-xs text-v-text-secondary mt-1">Optional floor. Line item price will be at least this amount.</p>
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-v-text-secondary mb-3">Product Cost Tracking <span className="text-xs text-v-text-secondary font-normal">(internal only)</span></p>

@@ -137,7 +137,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category } = body;
+    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category, minimum_price } = body;
 
     if (!name) {
       return Response.json({ error: 'Name is required' }, { status: 400 });
@@ -166,6 +166,11 @@ export async function POST(request) {
     }
     if (product_notes !== undefined) {
       row.product_notes = product_notes || '';
+    }
+    if (minimum_price !== undefined) {
+      // null clears it; explicit 0 also stored as null (no useful floor).
+      const mp = minimum_price === null || minimum_price === '' ? null : parseFloat(minimum_price);
+      row.minimum_price = Number.isFinite(mp) && mp > 0 ? mp : null;
     }
 
     // Set sort_order to end of list

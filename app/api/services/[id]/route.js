@@ -23,9 +23,9 @@ export async function PUT(request, { params }) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
-    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category } = body;
+    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category, minimum_price } = body;
 
     const updates = {};
     if (name !== undefined) updates.name = name;
@@ -36,6 +36,10 @@ export async function PUT(request, { params }) {
     if (default_hours !== undefined) updates.default_hours = default_hours === null ? null : parseFloat(default_hours);
     if (product_cost_per_hour !== undefined) updates.product_cost_per_hour = parseFloat(product_cost_per_hour) || 0;
     if (product_notes !== undefined) updates.product_notes = product_notes || '';
+    if (minimum_price !== undefined) {
+      const mp = minimum_price === null || minimum_price === '' ? null : parseFloat(minimum_price);
+      updates.minimum_price = Number.isFinite(mp) && mp > 0 ? mp : null;
+    }
     updates.updated_at = new Date().toISOString();
 
     let { data: service, error } = await supabase
@@ -95,7 +99,7 @@ export async function DELETE(request, { params }) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const { error } = await supabase
       .from('services')

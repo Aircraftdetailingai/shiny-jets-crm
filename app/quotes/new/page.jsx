@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import SendQuoteModal from '../../../components/SendQuoteModal.jsx';
 import CustomerAutocomplete from '../../../components/CustomerAutocomplete.jsx';
+import { computeCalibratedHours, applyMinimumPrice } from '../../../lib/calibrate-hours.js';
 import LoadingSpinner from '../../../components/LoadingSpinner.jsx';
 import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
@@ -42,6 +43,7 @@ function NewQuoteContent() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [availableServices, setAvailableServices] = useState([]);
+  const [calibrations, setCalibrations] = useState([]);
   const [preselectedCustomer, setPreselectedCustomer] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [customerMode, setCustomerMode] = useState('existing');
@@ -268,7 +270,7 @@ function NewQuoteContent() {
     const headers = { Authorization: `Bearer ${token}` };
 
     const fetchData = async () => {
-      const [servicesRes, packagesRes, minFeeRes, addonsRes, productRatiosRes, svcProdRes, svcEquipRes, ccFeeRes, quotaRes] = await Promise.allSettled([
+      const [servicesRes, packagesRes, minFeeRes, addonsRes, productRatiosRes, svcProdRes, svcEquipRes, ccFeeRes, quotaRes, calibrationsRes] = await Promise.allSettled([
         fetch('/api/services', { headers }),
         fetch('/api/packages', { headers }),
         fetch('/api/user/minimum-fee', { headers }),
@@ -278,7 +280,12 @@ function NewQuoteContent() {
         fetch('/api/services/equipment', { headers }),
         fetch('/api/user/cc-fee', { headers }),
         fetch('/api/quotes/quota', { headers }),
+        fetch('/api/services/calibrations', { headers }),
       ]);
+      if (calibrationsRes.status === 'fulfilled' && calibrationsRes.value.ok) {
+        const data = await calibrationsRes.value.json();
+        setCalibrations(data.calibrations || []);
+      }
 
       if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
         const data = await servicesRes.value.json();
@@ -669,10 +676,17 @@ function NewQuoteContent() {
     return 0;
   };
 
-  // Get hours for a service: manual override > per-aircraft override > detailer default > community avg > aircraft_hours ref > old aircraft > 1.0 fallback
+  // Get hours for a service. Priority:
+  //   manual override > per-aircraft override > service_calibrations ratio
+  //   (when a calibration exists AND the baseline column for that
+  //    reference_service_type is populated on the aircraft_hours row) >
+  //   detailer default > community avg > aircraft_hours name-match ref >
+  //   old aircraft table > 1.0 fallback.
   const getHoursForService = (svc) => {
     if (customHours[svc.id] !== undefined) return customHours[svc.id];
     if (aircraftOverrides[svc.id] !== undefined) return aircraftOverrides[svc.id];
+    const cal = computeCalibratedHours({ service: svc, aircraftHoursRef, calibrations });
+    if (cal.source === 'calibrated') return cal.hours;
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
     const community = getCommunityHours(svc);
     if (community > 0) return community;
@@ -766,7 +780,16 @@ function NewQuoteContent() {
 
   const getServicePrice = (svc) => {
     const hours = getHoursForService(svc);
-    return hours * (parseFloat(svc.hourly_rate) || 0);
+    const raw = hours * (parseFloat(svc.hourly_rate) || 0);
+    return applyMinimumPrice(raw, svc.minimum_price).price;
+  };
+
+  // Whether the service's minimum_price floor kicked in for the current
+  // hours × rate. Used by the picker to show a small "min applied" badge.
+  const isMinApplied = (svc) => {
+    const hours = getHoursForService(svc);
+    const raw = hours * (parseFloat(svc.hourly_rate) || 0);
+    return applyMinimumPrice(raw, svc.minimum_price).minApplied;
   };
 
   const getSelectedServicesList = () => availableServices.filter(svc => selectedServices[svc.id]);
@@ -813,16 +836,19 @@ function NewQuoteContent() {
   const platformFeeAmount = Math.round(totalPrice * platformFeeRate * 100) / 100;
   const netToDetailer = totalPrice - platformFeeAmount;
 
-  const lineItems = selectedServicesList.map(svc => ({
-    service_id: svc.id,
-    description: svc.name,
-    service_type: svc.service_type || 'exterior',
-    hours_field: svc.hours_field || '',
-    hours: getHoursForService(svc),
-    rate: parseFloat(svc.hourly_rate) || 0,
-    amount: getServicePrice(svc) * accessDifficulty * (1 - discountPercent / 100),
-    product_cost_per_hour: parseFloat(svc.product_cost_per_hour) || 0,
-  }));
+  const lineItems = selectedServicesList.map(svc => {
+    const minApplied = isMinApplied(svc);
+    return {
+      service_id: svc.id,
+      description: minApplied ? `${svc.name} (min applied)` : svc.name,
+      service_type: svc.service_type || 'exterior',
+      hours_field: svc.hours_field || '',
+      hours: getHoursForService(svc),
+      rate: parseFloat(svc.hourly_rate) || 0,
+      amount: getServicePrice(svc) * accessDifficulty * (1 - discountPercent / 100),
+      product_cost_per_hour: parseFloat(svc.product_cost_per_hour) || 0,
+    };
+  });
 
   const estimatedProductCost = selectedServicesList.reduce((sum, svc) => {
     const hours = getHoursForService(svc);
@@ -1633,7 +1659,12 @@ function NewQuoteContent() {
                               <span className="text-gray-300 mx-0.5 hidden sm:inline">@</span>
                               <span className="text-gray-500 text-xs hidden sm:inline">{currencySymbol()}{parseFloat(svc.hourly_rate || 0).toFixed(0)}/hr</span>
                               <span className="text-gray-300 mx-0.5 hidden sm:inline">=</span>
-                              <span className="font-bold text-v-text-primary min-w-[60px] text-right">{currencySymbol()}{formatPrice(price)}</span>
+                              <span className="font-bold text-v-text-primary min-w-[60px] text-right">
+                                {currencySymbol()}{formatPrice(price)}
+                                {isMinApplied(svc) && (
+                                  <span className="block text-[9px] text-v-gold/70 uppercase tracking-wider">min applied</span>
+                                )}
+                              </span>
                             </>
                           ) : (
                             <>

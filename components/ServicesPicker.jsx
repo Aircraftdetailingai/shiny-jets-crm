@@ -60,7 +60,14 @@ export default function ServicesPicker({
               const overrideHrs = hoursOverrides && hoursOverrides[svc.id] !== undefined ? hoursOverrides[svc.id] : undefined;
               const effectiveHrs = overrideHrs !== undefined ? overrideHrs : defaultHrs;
               const rate = parseFloat(svc.hourly_rate) || 0;
-              const svcTotal = (parseFloat(effectiveHrs) || 0) * rate;
+              const rawTotal = (parseFloat(effectiveHrs) || 0) * rate;
+              // Apply services.minimum_price floor in the preview so the
+              // detailer sees the same number the saved line item will
+              // carry. Hours stay as displayed.
+              const minPrice = parseFloat(svc.minimum_price);
+              const hasMin = Number.isFinite(minPrice) && minPrice > 0;
+              const minApplied = hasMin && rawTotal < minPrice;
+              const svcTotal = minApplied ? minPrice : rawTotal;
               return (
                 <div key={svc.id} className={`flex items-center gap-3 p-3 rounded border transition-colors ${sel ? 'border-v-gold/50 bg-v-gold/5' : 'border-v-border bg-v-charcoal'}`}>
                   <input type="checkbox" checked={sel}
@@ -86,6 +93,7 @@ export default function ServicesPicker({
                   <div className="text-right shrink-0 w-24">
                     {svcTotal > 0 && <span className="text-sm text-v-text-primary font-medium">{sym}{svcTotal.toFixed(2)}</span>}
                     {rate > 0 && parseFloat(effectiveHrs) > 0 && <span className="text-[10px] text-v-text-secondary block">@ {sym}{rate}/hr</span>}
+                    {minApplied && <span className="text-[9px] text-v-gold/70 uppercase tracking-wider block">min applied</span>}
                   </div>
                 </div>
               );
