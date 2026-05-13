@@ -690,6 +690,37 @@ function InvoicesPageInner() {
     }
   }, [searchParams, invoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-open the blank invoice modal pre-filled when arriving from the
+  // customer-detail "+ Create Invoice" button: ?new=blank&customer_id=<id>.
+  useEffect(() => {
+    if (!searchParams) return;
+    if (searchParams.get('new') !== 'blank') return;
+    const preId = searchParams.get('customer_id');
+    if (createModal) return;
+    resetBlankModal();
+    setCreateModal('blank');
+    fetchCustomers();
+    fetchBlankServices();
+    fetchBlankPackages();
+    if (preId) {
+      fetch(`/api/customers/${preId}`, { headers: headers() })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          const c = data?.customer;
+          if (!c) return;
+          setBlankForm(prev => ({
+            ...prev,
+            customer_id: c.id,
+            customer_name: c.name || '',
+            customer_email: c.email || '',
+            customer_phone: c.phone || '',
+          }));
+        })
+        .catch(() => {});
+    }
+    router.replace('/invoices');
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const createInvoiceFromJob = async ({ send = false } = {}) => {
     if (!selectedQuoteId) return;
     setActionLoading(true);

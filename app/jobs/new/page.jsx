@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const CATEGORY_ORDER = ['exterior', 'interior', 'paint_correction', 'coating', 'brightwork', 'other'];
 const CATEGORY_LABELS = {
@@ -9,8 +10,9 @@ const CATEGORY_LABELS = {
   coating: 'Coatings & Protection', brightwork: 'Brightwork', other: 'Other',
 };
 
-export default function NewJobPage() {
+function NewJobPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -61,11 +63,33 @@ export default function NewJobPage() {
       fetch('/api/team', { headers }).then(r => r.ok ? r.json() : { members: [] }),
       fetch('/api/packages', { headers }).then(r => r.ok ? r.json() : { packages: [] }),
     ]).then(([custData, mfrData, svcData, teamData, pkgData]) => {
-      setCustomers(custData.customers || []);
+      const list = custData.customers || [];
+      setCustomers(list);
       setManufacturers(mfrData.manufacturers || []);
       setServices(svcData.services || svcData || []);
       setTeamMembers((teamData.members || []).filter(m => m.status === 'active'));
       setPackages(pkgData.packages || []);
+
+      // Pre-select customer from URL param (e.g. + Create Job button on /customers/[id]).
+      const preId = searchParams.get('customer_id');
+      if (preId) {
+        const match = list.find(c => c.id === preId);
+        if (match) {
+          setSelectedCustomer(match);
+          setCustomerMode('existing');
+        } else {
+          // Customer wasn't in the first page of /api/customers — fetch directly.
+          fetch(`/api/customers/${preId}`, { headers })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data?.customer) {
+                setSelectedCustomer(data.customer);
+                setCustomerMode('existing');
+              }
+            })
+            .catch(() => {});
+        }
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -520,5 +544,13 @@ export default function NewJobPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function NewJobPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <NewJobPageInner />
+    </Suspense>
   );
 }

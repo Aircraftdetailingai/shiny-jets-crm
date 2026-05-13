@@ -1,799 +1,445 @@
 "use client";
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
-
-const ACTIVITY_CONFIG = {
-  quote_created: { icon: '+', color: 'bg-v-gold', label: 'Quote', group: 'quotes' },
-  quote_sent: { icon: '\u2192', color: 'bg-v-gold', label: 'Sent', group: 'quotes' },
-  quote_viewed: { icon: '\u25C9', color: 'bg-v-gold', label: 'Viewed', group: 'quotes' },
-  quote_accepted: { icon: '\u2713', color: 'bg-green-500', label: 'Accepted', group: 'quotes' },
-  quote_expired: { icon: '\u2717', color: 'bg-gray-500', label: 'Expired', group: 'quotes' },
-  payment_received: { icon: '$', color: 'bg-green-500', label: 'Payment', group: 'payments' },
-  payment_failed: { icon: '!', color: 'bg-red-500', label: 'Failed', group: 'payments' },
-  refund_issued: { icon: '\u21A9', color: 'bg-red-400', label: 'Refund', group: 'payments' },
-  job_completed: { icon: '\u2713', color: 'bg-emerald-500', label: 'Completed', group: 'jobs' },
-  job_scheduled: { icon: '\uD83D\uDCC5', color: 'bg-v-gold', label: 'Scheduled', group: 'jobs' },
-  followup_sent: { icon: '\u2709', color: 'bg-v-gold', label: 'Follow-up', group: 'quotes' },
-  note_added: { icon: '\uD83D\uDCDD', color: 'bg-gray-400', label: 'Note', group: 'notes' },
-  feedback_received: { icon: '\u2605', color: 'bg-v-gold', label: 'Feedback', group: 'feedback' },
-  customer_created: { icon: '\u263A', color: 'bg-v-gold', label: 'Created', group: 'other' },
-};
+import AppShell from '@/components/AppShell';
 
 function formatPhone(phone) {
   if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  if (digits.length === 11 && digits[0] === '1') {
-    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  }
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits[0] === '1') return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
   return phone;
 }
+
+function formatCurrency(val) {
+  const n = Number(val) || 0;
+  return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const STATUS_STYLES = {
+  draft: 'bg-gray-500/15 text-gray-300 border-gray-500/30',
+  pending: 'bg-gray-500/15 text-gray-300 border-gray-500/30',
+  sent: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+  viewed: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+  accepted: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  approved: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  scheduled: 'bg-v-gold/15 text-v-gold border-v-gold/30',
+  in_progress: 'bg-v-gold/15 text-v-gold border-v-gold/30',
+  paid: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  completed: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  expired: 'bg-red-500/15 text-red-300 border-red-500/30',
+  overdue: 'bg-red-500/15 text-red-300 border-red-500/30',
+  cancelled: 'bg-red-500/15 text-red-300 border-red-500/30',
+};
+
+function statusClass(s) {
+  return STATUS_STYLES[s] || 'bg-gray-500/15 text-gray-300 border-gray-500/30';
+}
+
+const KIND_LABEL = { quote: 'QUOTE', invoice: 'INVOICE', job: 'JOB' };
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const customerId = params.id;
 
-  const FILTER_TABS = [
-    { key: 'all', label: 'All' },
-    { key: 'quotes', label: 'Quotes' },
-    { key: 'payments', label: 'Invoices' },
-    { key: 'jobs', label: 'Jobs' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'feedback', label: 'Feedback' },
-  ];
-
-  const [customer, setCustomer] = useState(null);
-  const [notes, setNotes] = useState([]);
-  const [activity, setActivity] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('activity');
-  const [activityFilter, setActivityFilter] = useState('all');
-  const [newNote, setNewNote] = useState('');
-  const [noteSaving, setNoteSaving] = useState(false);
-  const [editingNote, setEditingNote] = useState(null);
-  const [editContent, setEditContent] = useState('');
-  const [quoteStats, setQuoteStats] = useState(null);
-  const [recommendations, setRecommendations] = useState([]);
-  const [showAddRec, setShowAddRec] = useState(false);
-  const [recForm, setRecForm] = useState({ service_name: 'Wax', status: 'maintain', interval_days: 90, last_service_date: '', notes: '' });
-  const [recSaving, setRecSaving] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [aircraft, setAircraft] = useState([]);
+
+  // Notes editing
+  const [notesDraft, setNotesDraft] = useState('');
+  const [notesDirty, setNotesDirty] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSavedAt, setNotesSavedAt] = useState(null);
+
+  // Aircraft editing
+  const [addingAircraft, setAddingAircraft] = useState(false);
+  const [newAircraft, setNewAircraft] = useState({ tail: '', model: '' });
+  const [aircraftSaving, setAircraftSaving] = useState(false);
+
+  // Photo viewer
+  const [viewerPhoto, setViewerPhoto] = useState(null);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('vector_token') : null;
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const authHeaders = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
 
   useEffect(() => {
     if (!token) { router.push('/login'); return; }
-    loadAll();
+    loadDetails();
   }, [customerId]);
 
-  const loadAll = async () => {
+  const loadDetails = async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [custRes, notesRes, actRes, recsRes] = await Promise.all([
-        fetch(`/api/customers/${customerId}`, { headers }),
-        fetch(`/api/customers/${customerId}/notes`, { headers }).catch(() => null),
-        fetch(`/api/customers/${customerId}/activity`, { headers }).catch(() => null),
-        fetch(`/api/customer-recommendations?customer_id=${customerId}`, { headers }).catch(() => null),
-      ]);
-
-      if (custRes.ok) {
-        const data = await custRes.json();
-        setCustomer(data.customer);
-        setQuoteStats(data.stats || null);
-      } else {
-        const err = await custRes.json().catch(() => ({}));
-        setLoadError(err.error || `Failed to load customer (${custRes.status})`);
+      const res = await fetch(`/api/customers/${customerId}/details`, {
+        headers: authHeaders(),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setLoadError(err.error || `Failed to load (${res.status})`);
+        setData(null);
+        return;
       }
-      if (notesRes?.ok) {
-        const data = await notesRes.json();
-        setNotes(data.notes || []);
-      }
-      if (actRes?.ok) {
-        const data = await actRes.json();
-        setActivity(data.activity || []);
-      } else if (actRes) {
-        console.error('Activity API error:', actRes.status);
-      }
-      if (recsRes?.ok) {
-        const data = await recsRes.json();
-        setRecommendations(data.recommendations || []);
-      }
-
-      // Fetch aircraft (unique tail numbers from quotes)
-      try {
-        const quotesRes = await fetch(`/api/quotes?customer_id=${customerId}`, { headers });
-        if (quotesRes?.ok) {
-          const qData = await quotesRes.json();
-          const quotes = qData.quotes || qData || [];
-          const tailMap = {};
-          (Array.isArray(quotes) ? quotes : []).forEach(q => {
-            if (q.tail_number) {
-              const tail = q.tail_number.toUpperCase();
-              if (!tailMap[tail]) {
-                tailMap[tail] = {
-                  tail_number: tail,
-                  aircraft_model: q.aircraft_model,
-                  jobs: 0,
-                  last_service: null,
-                  total_revenue: 0,
-                };
-              }
-              tailMap[tail].jobs++;
-              tailMap[tail].total_revenue += parseFloat(q.total_price || 0);
-              const date = q.completed_at || q.scheduled_date || q.created_at;
-              if (date && (!tailMap[tail].last_service || date > tailMap[tail].last_service)) {
-                tailMap[tail].last_service = date;
-              }
-            }
-          });
-          setAircraft(Object.values(tailMap));
-        }
-      } catch {}
-
+      const json = await res.json();
+      setData(json);
+      setNotesDraft(json.notes || '');
+      setNotesDirty(false);
     } catch (err) {
-      console.error('Load error:', err);
-      setLoadError(err.message);
+      setLoadError(err.message || 'Failed to load');
     } finally {
       setLoading(false);
     }
   };
 
-  const addNote = async () => {
-    if (!newNote.trim()) return;
-    setNoteSaving(true);
+  const saveNotes = async () => {
+    setNotesSaving(true);
     try {
-      const res = await fetch(`/api/customers/${customerId}/notes`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ content: newNote }),
+      const res = await fetch(`/api/customers/${customerId}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ notes: notesDraft }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setNotes(prev => [data.note, ...prev]);
-        setNewNote('');
+        setNotesDirty(false);
+        setNotesSavedAt(Date.now());
+        setData(prev => prev ? { ...prev, notes: notesDraft, customer: { ...prev.customer, notes: notesDraft } } : prev);
       }
     } catch (err) {
-      console.error('Add note error:', err);
+      console.error('Save notes error', err);
     } finally {
-      setNoteSaving(false);
+      setNotesSaving(false);
     }
   };
 
-  const togglePin = async (note) => {
+  const addAircraft = async () => {
+    const tail = (newAircraft.tail || '').trim().toUpperCase();
+    if (!tail) return;
+    setAircraftSaving(true);
     try {
-      const res = await fetch(`/api/customers/${customerId}/notes`, {
+      const res = await fetch(`/api/customers/${customerId}/aircraft`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ tail, model: (newAircraft.model || '').trim() }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        setData(prev => prev ? { ...prev, aircraft: j.aircraft || prev.aircraft } : prev);
+        setNewAircraft({ tail: '', model: '' });
+        setAddingAircraft(false);
+      }
+    } catch (err) {
+      console.error('Add aircraft error', err);
+    } finally {
+      setAircraftSaving(false);
+    }
+  };
+
+  const removeAircraft = async (tail) => {
+    if (!confirm(`Remove ${tail} from this customer?`)) return;
+    const remaining = (data?.aircraft || []).filter(a => String(a.tail || '').toUpperCase() !== String(tail).toUpperCase());
+    try {
+      const res = await fetch(`/api/customers/${customerId}`, {
         method: 'PATCH',
-        headers,
-        body: JSON.stringify({ note_id: note.id, pinned: !note.pinned }),
+        headers: authHeaders(),
+        body: JSON.stringify({ tail_numbers: remaining }),
       });
       if (res.ok) {
-        setNotes(prev => {
-          const updated = prev.map(n => n.id === note.id ? { ...n, pinned: !n.pinned } : n);
-          return updated.sort((a, b) => {
-            if (a.pinned && !b.pinned) return -1;
-            if (!a.pinned && b.pinned) return 1;
-            return new Date(b.created_at) - new Date(a.created_at);
-          });
-        });
+        setData(prev => prev ? { ...prev, aircraft: remaining } : prev);
       }
     } catch (err) {
-      console.error('Pin error:', err);
+      console.error('Remove aircraft error', err);
     }
   };
-
-  const saveEdit = async () => {
-    if (!editContent.trim() || !editingNote) return;
-    try {
-      const res = await fetch(`/api/customers/${customerId}/notes`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ note_id: editingNote, content: editContent }),
-      });
-      if (res.ok) {
-        setNotes(prev => prev.map(n => n.id === editingNote ? { ...n, content: editContent.trim() } : n));
-        setEditingNote(null);
-        setEditContent('');
-      }
-    } catch (err) {
-      console.error('Edit error:', err);
-    }
-  };
-
-  const deleteNote = async (noteId) => {
-    if (!confirm('Delete this note?')) return;
-    try {
-      const res = await fetch(`/api/customers/${customerId}/notes?note_id=${noteId}`, {
-        method: 'DELETE',
-        headers,
-      });
-      if (res.ok) {
-        setNotes(prev => prev.filter(n => n.id !== noteId));
-      }
-    } catch (err) {
-      console.error('Delete error:', err);
-    }
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const timeAgo = (dateStr) => {
-    if (!dateStr) return '';
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return formatDate(dateStr);
-  };
-
-  // Filter + group activity by date
-  const filteredActivity = useMemo(() => {
-    if (activityFilter === 'all') return activity;
-    return activity.filter(item => {
-      const config = ACTIVITY_CONFIG[item.type];
-      return config && config.group === activityFilter;
-    });
-  }, [activity, activityFilter]);
-
-  const groupedActivity = useMemo(() => {
-    return filteredActivity.reduce((acc, item) => {
-      const date = formatDate(item.date);
-      if (!acc[date]) acc[date] = [];
-      acc[date].push(item);
-      return acc;
-    }, {});
-  }, [filteredActivity]);
-
-  // Count events per filter group
-  const filterCounts = useMemo(() => {
-    const counts = { all: activity.length, quotes: 0, payments: 0, jobs: 0, notes: 0, feedback: 0, other: 0 };
-    for (const item of activity) {
-      const config = ACTIVITY_CONFIG[item.type];
-      if (config && counts[config.group] !== undefined) {
-        counts[config.group]++;
-      }
-    }
-    return counts;
-  }, [activity]);
 
   if (loading) {
-    return <LoadingSpinner message="Loading..." />;
+    return <LoadingSpinner message="Loading customer..." />;
   }
 
-  if (!customer) {
+  if (loadError || !data?.customer) {
     return (
-      <div className="min-h-screen bg-v-charcoal flex items-center justify-center p-4">
-        <div className="bg-v-surface border border-v-border rounded-sm p-8 text-center max-w-sm">
+      <AppShell title="Customer">
+        <div className="p-6 max-w-md">
           <p className="text-v-text-secondary mb-4">{loadError || 'Customer not found'}</p>
-          <a href="/customers" className="text-v-gold hover:text-v-gold-dim">Back to Customers</a>
+          <a href="/customers" className="text-v-gold hover:text-v-gold-dim">&larr; Back to Customers</a>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
+  const { customer, aircraft = [], photos = [], activity = [], counts = {} } = data;
   const tags = Array.isArray(customer.tags) ? customer.tags : [];
-  const pinnedNotes = notes.filter(n => n.pinned);
 
   return (
-    <div className="page-transition min-h-screen bg-v-charcoal p-4">
-      {/* Header */}
-      <header className="flex items-center gap-4 mb-6">
-        <a href="/customers" className="text-2xl text-v-text-secondary hover:text-v-gold">&larr;</a>
-        <div className="flex-1">
-          <h1 className="text-2xl font-heading text-v-text-primary">{customer.name || 'Customer'}</h1>
-          <p className="text-sm text-v-text-secondary">{customer.email}</p>
+    <AppShell title="Customer">
+      <div className="px-4 sm:px-6 md:px-10 py-6 pb-32 max-w-[1400px] mx-auto">
+        {/* Back link */}
+        <div className="mb-4">
+          <a href="/customers" className="text-sm text-v-text-secondary hover:text-v-gold">&larr; Customers</a>
         </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={`/quotes/new?customer_id=${customerId}`}
-            className="px-4 py-2 bg-v-gold text-black text-sm rounded-sm font-medium hover:bg-v-gold-dim transition-colors"
-          >
-            New Quote
-          </a>
-          <a
-            href={`/quotes?search=${encodeURIComponent(customer.email)}`}
-            className="px-4 py-2 border border-v-border text-v-text-secondary text-sm rounded-sm hover:text-v-text-primary hover:border-v-gold/50 transition-colors"
-          >
-            View Quotes
-          </a>
-        </div>
-      </header>
 
-      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left: Info Card */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Contact Info */}
-          <div className="bg-v-surface border border-v-border rounded-sm p-5">
-            <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest mb-3">Customer</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-v-text-secondary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <a href={`mailto:${customer.email}`} className="text-v-gold hover:text-v-gold-dim">{customer.email}</a>
-              </div>
-              {customer.phone && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-v-text-secondary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <a href={`tel:${customer.phone}`} className="text-v-gold hover:text-v-gold-dim">{formatPhone(customer.phone)}</a>
-                </div>
-              )}
+        {/* HEADER */}
+        <header className="bg-v-surface border border-v-border rounded-sm p-4 sm:p-6 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="font-heading text-2xl sm:text-3xl text-v-text-primary truncate">{customer.name || 'Customer'}</h1>
               {customer.company_name && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-v-text-secondary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span className="text-v-text-primary">{customer.company_name}</span>
+                <p className="text-sm text-v-text-secondary mt-0.5 truncate">{customer.company_name}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm">
+                {customer.email && (
+                  <a href={`mailto:${customer.email}`} className="text-v-gold hover:text-v-gold-dim flex items-center gap-1.5 min-w-0">
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <span className="truncate">{customer.email}</span>
+                  </a>
+                )}
+                {customer.phone && (
+                  <a href={`tel:${customer.phone}`} className="text-v-gold hover:text-v-gold-dim flex items-center gap-1.5">
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    {formatPhone(customer.phone)}
+                  </a>
+                )}
+                {customer.airport && (
+                  <span className="text-v-text-secondary flex items-center gap-1.5">
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12l4-4m-4 4l4 4" /></svg>
+                    {customer.airport}
+                  </span>
+                )}
+              </div>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {tags.map(tag => (
+                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-v-gold/10 text-v-gold border border-v-gold/30">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
-            {tags.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-v-border flex flex-wrap gap-1.5">
-                {tags.map(tag => (
-                  <span key={tag} className="px-2 py-0.5 rounded-full text-xs font-medium bg-v-gold/10 text-v-gold border border-v-gold/30">
-                    {tag}
-                  </span>
-                ))}
-              </div>
+
+            {/* Action buttons — full width on mobile, row on desktop */}
+            <div className="grid grid-cols-3 sm:flex sm:flex-row gap-2 sm:gap-2 sm:shrink-0">
+              <a
+                href={`/quotes/new?customer_id=${customerId}`}
+                className="px-3 py-2 bg-v-gold text-v-charcoal rounded-sm text-xs sm:text-sm font-medium text-center hover:bg-v-gold-dim"
+              >
+                + Quote
+              </a>
+              <a
+                href={`/jobs/new?customer_id=${customerId}`}
+                className="px-3 py-2 bg-v-gold text-v-charcoal rounded-sm text-xs sm:text-sm font-medium text-center hover:bg-v-gold-dim"
+              >
+                + Job
+              </a>
+              <a
+                href={`/invoices?new=blank&customer_id=${customerId}`}
+                className="px-3 py-2 bg-v-gold text-v-charcoal rounded-sm text-xs sm:text-sm font-medium text-center hover:bg-v-gold-dim"
+              >
+                + Invoice
+              </a>
+            </div>
+          </div>
+        </header>
+
+        {/* AIRCRAFT */}
+        <section className="bg-v-surface border border-v-border rounded-sm p-4 sm:p-6 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest">Aircraft ({aircraft.length})</h2>
+            {!addingAircraft && (
+              <button
+                onClick={() => setAddingAircraft(true)}
+                className="text-xs text-v-gold hover:text-v-gold-dim border border-v-gold/30 hover:border-v-gold/60 rounded px-2.5 py-1"
+              >
+                + Add Aircraft
+              </button>
             )}
           </div>
 
-          {/* Aircraft Contact Info */}
-          {(customer.poc_name || customer.emergency_contact_name) && (
-            <div className="bg-v-surface border border-v-border rounded-sm p-5">
-              <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest mb-3">Aircraft Contact</h2>
-              {customer.poc_name && (
-                <div className="mb-3">
-                  <p className="text-sm font-medium text-v-text-primary">{customer.poc_name}</p>
-                  {customer.poc_role && <p className="text-xs text-v-text-secondary">{customer.poc_role}</p>}
-                  <div className="mt-1 space-y-1">
-                    {customer.poc_phone && (
-                      <a href={`tel:${customer.poc_phone}`} className="block text-sm text-v-gold hover:text-v-gold-dim">{formatPhone(customer.poc_phone)}</a>
-                    )}
-                    {customer.poc_email && (
-                      <a href={`mailto:${customer.poc_email}`} className="block text-sm text-v-gold hover:text-v-gold-dim">{customer.poc_email}</a>
-                    )}
-                  </div>
-                </div>
-              )}
-              {customer.emergency_contact_name && (
-                <div className="pt-2 border-t border-v-border">
-                  <p className="text-xs font-semibold text-v-danger uppercase tracking-wider mb-1">Emergency</p>
-                  <p className="text-sm font-medium text-v-text-primary">{customer.emergency_contact_name}</p>
-                  {customer.emergency_contact_phone && (
-                    <a href={`tel:${customer.emergency_contact_phone}`} className="text-sm text-v-gold hover:text-v-gold-dim">{formatPhone(customer.emergency_contact_phone)}</a>
-                  )}
-                </div>
-              )}
-              {customer.contact_notes && (
-                <div className="mt-2 pt-2 border-t border-v-border">
-                  <p className="text-xs text-v-text-secondary whitespace-pre-wrap">{customer.contact_notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Quick Stats */}
-          {quoteStats && (
-            <div className="bg-v-surface border border-v-border rounded-sm p-5">
-              <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest mb-3">Details</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-v-text-secondary">Total Quotes</p>
-                  <p className="text-lg font-bold text-v-text-primary font-data">{quoteStats.totalQuotes || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-v-text-secondary">Total Revenue</p>
-                  <p className="text-lg font-bold text-v-success font-data">${(quoteStats.totalRevenue || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-v-text-secondary">Completed</p>
-                  <p className="text-lg font-bold text-v-success font-data">{quoteStats.completedJobs || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-v-text-secondary">Last Quote</p>
-                  <p className="text-sm font-medium text-v-text-primary">{quoteStats.lastService ? formatDate(quoteStats.lastService) : '-'}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Pinned Notes */}
-          {pinnedNotes.length > 0 && (
-            <div className="bg-v-gold/5 border border-v-gold/20 rounded-sm p-4">
-              <h2 className="text-sm font-semibold text-v-gold mb-2 flex items-center gap-1.5">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                Pinned Notes
-              </h2>
-              <div className="space-y-2">
-                {pinnedNotes.map(note => (
-                  <div key={note.id} className="text-sm text-v-text-primary bg-v-surface/60 rounded p-2.5">
-                    {note.content}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Tabs (Activity / Notes) */}
-        <div className="lg:col-span-2">
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4">
-            {['activity', 'notes', 'aircraft', 'recommendations'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 rounded-sm text-xs font-medium transition-colors ${
-                  activeTab === tab
-                    ? 'bg-v-surface text-v-text-primary border border-v-border'
-                    : 'text-v-text-secondary hover:text-v-text-primary hover:bg-v-surface/50'
-                }`}
-              >
-                {tab === 'activity' ? `Timeline (${activity.length})` : tab === 'notes' ? `Notes (${notes.length})` : tab === 'recommendations' ? `Recs (${recommendations.length})` : 'Aircraft'}
-              </button>
-            ))}
-          </div>
-
-          {/* Activity Timeline */}
-          {activeTab === 'activity' && (
-            <div className="space-y-3">
-              {/* Filter bar */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {FILTER_TABS.map(f => {
-                  const count = filterCounts[f.key] || 0;
-                  return (
-                    <button
-                      key={f.key}
-                      onClick={() => setActivityFilter(f.key)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                        activityFilter === f.key
-                          ? 'bg-v-gold text-v-charcoal'
-                          : 'bg-v-surface text-v-text-secondary border border-v-border hover:text-v-text-primary hover:border-v-gold/50'
-                      }`}
-                    >
-                      {f.label}{count > 0 ? ` (${count})` : ''}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Timeline */}
-              <div className="bg-v-surface border border-v-border rounded-sm">
-                {filteredActivity.length === 0 ? (
-                  <div className="p-8 text-center text-v-text-secondary text-sm">
-                    {activityFilter === 'all'
-                      ? 'No activity yet. Events will appear here when you send quotes, receive payments, etc.'
-                      : `No ${activityFilter} activity found.`}
-                  </div>
-                ) : (
-                  <div className="p-4">
-                    {Object.entries(groupedActivity).map(([date, items]) => (
-                      <div key={date} className="mb-6 last:mb-0">
-                        <p className="text-xs font-semibold text-v-text-secondary uppercase tracking-wider mb-3 sticky top-0 bg-v-surface z-10 py-1">{date}</p>
-                        <div className="relative pl-8 border-l-2 border-v-border space-y-4">
-                          {items.map(item => {
-                            const config = ACTIVITY_CONFIG[item.type] || { icon: '\u25CF', color: 'bg-gray-400', label: item.type, group: 'other' };
-                            const amount = item.details?.amount;
-                            return (
-                              <div key={item.id} className="relative group">
-                                {/* Icon circle */}
-                                <div className={`absolute -left-[33px] w-4 h-4 rounded-full ${config.color} ring-3 ring-v-surface flex items-center justify-center`}>
-                                  <span className="text-white text-[8px] font-bold leading-none">{config.icon}</span>
-                                </div>
-
-                                <div className="bg-v-charcoal/50 rounded px-3 py-2.5 group-hover:bg-v-charcoal transition-colors">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm text-v-text-primary">{item.summary}</p>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] text-v-text-secondary">{formatTime(item.date)}</span>
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${config.color} text-white`}>
-                                          {config.label}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    {amount && parseFloat(amount) > 0 && (
-                                      <span className={`text-sm font-bold font-data whitespace-nowrap ${
-                                        item.type === 'refund_issued' ? 'text-v-danger' :
-                                        item.type === 'payment_received' ? 'text-v-success' :
-                                        'text-v-text-primary'
-                                      }`}>
-                                        {item.type === 'refund_issued' ? '-' : ''}${Number(amount).toLocaleString()}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          {activeTab === 'notes' && (
-            <div className="space-y-4">
-              {/* Add note */}
-              <div className="bg-v-surface border border-v-border rounded-sm p-4">
-                <textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add a note about this customer..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-v-charcoal border border-v-border rounded text-sm text-v-text-primary placeholder-v-text-secondary/50 focus:border-v-gold/50 outline-none resize-none"
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={addNote}
-                    disabled={noteSaving || !newNote.trim()}
-                    className="px-4 py-2 bg-v-gold text-v-charcoal text-sm rounded-sm hover:bg-v-gold-dim disabled:opacity-50 font-medium"
-                  >
-                    {noteSaving ? 'Saving...' : 'Add Note'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Notes list */}
-              {notes.length === 0 ? (
-                <div className="bg-v-surface border border-v-border rounded-sm p-8 text-center text-v-text-secondary text-sm">
-                  No notes yet
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {notes.map(note => (
-                    <div key={note.id} className={`bg-v-surface border rounded-sm p-4 ${note.pinned ? 'border-v-gold/30' : 'border-v-border'}`}>
-                      {editingNote === note.id ? (
-                        <div>
-                          <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            rows={3}
-                            className="w-full px-3 py-2 bg-v-charcoal border border-v-border rounded text-sm text-v-text-primary outline-none resize-none mb-2"
-                          />
-                          <div className="flex justify-end gap-2">
-                            <button onClick={() => setEditingNote(null)} className="px-3 py-1.5 text-sm text-v-text-secondary hover:text-v-text-primary">Cancel</button>
-                            <button onClick={saveEdit} className="px-3 py-1.5 text-sm bg-v-gold text-v-charcoal rounded-sm hover:bg-v-gold-dim font-medium">Save</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-sm text-v-text-primary whitespace-pre-wrap">{note.content}</p>
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-v-border">
-                            <p className="text-xs text-v-text-secondary">
-                              {timeAgo(note.created_at)}
-                              {note.pinned && <span className="ml-2 text-v-gold font-medium">Pinned</span>}
-                            </p>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => togglePin(note)}
-                                className={`p-1.5 rounded hover:bg-v-charcoal text-xs ${note.pinned ? 'text-v-gold' : 'text-v-text-secondary'}`}
-                                title={note.pinned ? 'Unpin' : 'Pin'}
-                              >
-                                <svg className="w-4 h-4" fill={note.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => { setEditingNote(note.id); setEditContent(note.content); }}
-                                className="p-1.5 rounded hover:bg-v-charcoal text-v-text-secondary text-xs"
-                                title="Edit"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => deleteNote(note.id)}
-                                className="p-1.5 rounded hover:bg-v-danger/10 text-v-text-secondary hover:text-v-danger text-xs"
-                                title="Delete"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Aircraft Tab */}
-          {activeTab === 'aircraft' && (
-            <div>
-              {aircraft.length === 0 ? (
-                <div className="text-center py-8 text-v-text-secondary">No aircraft on file for this customer</div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {aircraft.map(ac => (
-                    <div
-                      key={ac.tail_number}
-                      onClick={() => router.push(`/aircraft/${encodeURIComponent(ac.tail_number)}`)}
-                      className="bg-v-surface border border-v-border rounded-lg p-5 cursor-pointer hover:border-v-gold/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-v-gold/20 flex items-center justify-center text-lg">&#9992;</div>
-                        <div>
-                          <p className="text-v-text-primary font-semibold text-lg">{ac.tail_number}</p>
-                          <p className="text-v-text-secondary text-xs">{ac.aircraft_model || 'Aircraft'}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div>
-                          <p className="text-xs text-v-text-secondary">Jobs</p>
-                          <p className="text-sm font-medium text-v-text-primary">{ac.jobs}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-v-text-secondary">Revenue</p>
-                          <p className="text-sm font-medium text-v-gold">${formatPrice(ac.total_revenue)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-v-text-secondary">Last</p>
-                          <p className="text-sm font-medium text-v-text-primary">
-                            {ac.last_service ? new Date(ac.last_service).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Recommendations Tab */}
-          {activeTab === 'recommendations' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-v-text-secondary text-xs">Service intervals and maintenance recommendations</p>
-                <button onClick={() => setShowAddRec(true)}
-                  className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 hover:bg-v-gold/5 rounded transition-colors">
-                  Add
+          {addingAircraft && (
+            <div className="bg-v-charcoal/50 border border-v-border rounded p-3 mb-3 flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={newAircraft.tail}
+                onChange={(e) => setNewAircraft(p => ({ ...p, tail: e.target.value.toUpperCase() }))}
+                placeholder="Tail #"
+                className="flex-1 bg-v-surface border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+              />
+              <input
+                type="text"
+                value={newAircraft.model}
+                onChange={(e) => setNewAircraft(p => ({ ...p, model: e.target.value }))}
+                placeholder="Make / Model (optional)"
+                className="flex-[2] bg-v-surface border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={addAircraft}
+                  disabled={aircraftSaving || !newAircraft.tail.trim()}
+                  className="px-3 py-2 bg-v-gold text-v-charcoal text-sm rounded font-medium hover:bg-v-gold-dim disabled:opacity-50"
+                >
+                  {aircraftSaving ? 'Saving...' : 'Add'}
+                </button>
+                <button
+                  onClick={() => { setAddingAircraft(false); setNewAircraft({ tail: '', model: '' }); }}
+                  className="px-3 py-2 border border-v-border rounded text-sm text-v-text-secondary hover:text-v-text-primary"
+                >
+                  Cancel
                 </button>
               </div>
-
-              {recommendations.length === 0 && !showAddRec && (
-                <div className="text-center py-8 text-v-text-secondary text-sm">No recommendations yet</div>
-              )}
-
-              {/* Add/Edit Form */}
-              {showAddRec && (
-                <div className="bg-v-surface border border-v-border rounded-lg p-4 mb-4">
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Service</label>
-                      <select value={recForm.service_name} onChange={e => setRecForm(p => ({ ...p, service_name: e.target.value }))}
-                        className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-2 text-sm">
-                        {['Wax', 'Ceramic Coating', 'Spray Ceramic', 'Decon Wash', 'Polish', 'Leather Clean', 'Carpet Extraction', 'De-ice Boots', 'Brightwork', 'Exterior Wash', 'Other'].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Status</label>
-                      <select value={recForm.status} onChange={e => setRecForm(p => ({ ...p, status: e.target.value }))}
-                        className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-2 text-sm">
-                        <option value="maintain">Maintain</option>
-                        <option value="restore">Needs Restoration</option>
-                        <option value="protect">Protect</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Last Service</label>
-                      <input type="date" value={recForm.last_service_date} onChange={e => setRecForm(p => ({ ...p, last_service_date: e.target.value }))}
-                        className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-v-text-secondary uppercase tracking-wider mb-1">Interval</label>
-                      <select value={recForm.interval_days} onChange={e => setRecForm(p => ({ ...p, interval_days: parseInt(e.target.value) }))}
-                        className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-2 text-sm">
-                        <option value={30}>Every 30 days</option>
-                        <option value={60}>Every 60 days</option>
-                        <option value={90}>Every 90 days</option>
-                        <option value={180}>Every 6 months</option>
-                        <option value={365}>Every year</option>
-                      </select>
-                    </div>
-                  </div>
-                  <input type="text" value={recForm.notes} onChange={e => setRecForm(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="Notes (optional)"
-                    className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded px-2 py-2 text-sm mb-3 placeholder-v-text-secondary/50" />
-                  <div className="flex gap-2">
-                    <button onClick={async () => {
-                      setRecSaving(true);
-                      await fetch('/api/customer-recommendations', {
-                        method: 'POST', headers,
-                        body: JSON.stringify({ ...recForm, customer_id: customerId, tail_number: aircraft[0]?.tail_number || '' }),
-                      }).then(r => r.ok ? r.json() : null).then(d => {
-                        if (d?.recommendation) setRecommendations(prev => [...prev, d.recommendation]);
-                      });
-                      setRecSaving(false);
-                      setShowAddRec(false);
-                      setRecForm({ service_name: 'Wax', status: 'maintain', interval_days: 90, last_service_date: '', notes: '' });
-                    }} disabled={recSaving}
-                      className="px-4 py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-wider rounded hover:bg-v-gold-dim disabled:opacity-50">
-                      {recSaving ? 'Saving...' : 'Save'}
-                    </button>
-                    <button onClick={() => setShowAddRec(false)}
-                      className="px-4 py-2 border border-v-border text-v-text-secondary text-xs uppercase tracking-wider rounded hover:bg-white/5">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Recommendation Cards */}
-              <div className="space-y-2">
-                {recommendations.map(rec => {
-                  const daysUntil = rec.next_due_date ? Math.ceil((new Date(rec.next_due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-                  const overdue = daysUntil !== null && daysUntil < 0;
-                  const statusColors = { maintain: 'text-green-400 bg-green-500/10', restore: 'text-yellow-400 bg-yellow-500/10', protect: 'text-blue-400 bg-blue-500/10' };
-                  const sc = statusColors[rec.status] || statusColors.maintain;
-                  return (
-                    <div key={rec.id} className="bg-v-surface border border-v-border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-medium">{rec.service_name}</span>
-                          <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${sc}`}>{rec.status}</span>
-                        </div>
-                        <button onClick={async () => {
-                          await fetch(`/api/customer-recommendations?id=${rec.id}`, { method: 'DELETE', headers });
-                          setRecommendations(prev => prev.filter(r => r.id !== rec.id));
-                        }} className="text-v-text-secondary/40 hover:text-red-400 text-xs">Remove</button>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-v-text-secondary">
-                        {rec.last_service_date && <span>Last: {new Date(rec.last_service_date).toLocaleDateString()}</span>}
-                        <span>Every {rec.interval_days}d</span>
-                        {daysUntil !== null && (
-                          <span className={overdue ? 'text-red-400 font-medium' : daysUntil <= 14 ? 'text-v-gold' : ''}>
-                            {overdue ? `Overdue by ${Math.abs(daysUntil)}d` : `Due in ${daysUntil}d`}
-                          </span>
-                        )}
-                      </div>
-                      {rec.notes && <p className="text-v-text-secondary/60 text-xs mt-1">{rec.notes}</p>}
-                      {rec.tail_number && <p className="text-v-text-secondary/40 text-[10px] mt-1">{rec.tail_number}</p>}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
-        </div>
+
+          {aircraft.length === 0 && !addingAircraft ? (
+            <p className="text-sm text-v-text-secondary py-3">No aircraft on file. Tap "+ Add Aircraft" to add one.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {aircraft.map((ac) => {
+                const tail = String(ac.tail || '').toUpperCase();
+                return (
+                  <div
+                    key={tail || Math.random()}
+                    className="flex items-center justify-between bg-v-charcoal/40 border border-v-border rounded p-3 hover:border-v-gold/40 transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => tail && router.push(`/aircraft/${encodeURIComponent(tail)}`)}
+                      className="text-left min-w-0 flex-1"
+                    >
+                      <p className="font-data text-v-text-primary text-base truncate">{tail || 'Aircraft'}</p>
+                      {ac.model && <p className="text-xs text-v-text-secondary truncate">{ac.model}</p>}
+                    </button>
+                    <button
+                      onClick={() => removeAircraft(tail)}
+                      className="text-v-text-secondary/40 hover:text-red-400 p-1.5 ml-2 shrink-0"
+                      title="Remove"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* NOTES */}
+        <section className="bg-v-surface border border-v-border rounded-sm p-4 sm:p-6 mb-4">
+          <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest mb-3">Notes</h2>
+          <textarea
+            value={notesDraft}
+            onChange={(e) => { setNotesDraft(e.target.value); setNotesDirty(true); }}
+            rows={4}
+            placeholder="Notes about this customer (preferences, schedule, internal reminders)..."
+            className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50 resize-y"
+          />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs text-v-text-secondary">
+              {notesSaving ? 'Saving...' : notesDirty ? 'Unsaved changes' : notesSavedAt ? 'Saved' : ' '}
+            </span>
+            <button
+              onClick={saveNotes}
+              disabled={notesSaving || !notesDirty}
+              className="px-3 py-1.5 bg-v-gold text-v-charcoal text-sm rounded font-medium hover:bg-v-gold-dim disabled:opacity-50"
+            >
+              {notesSaving ? 'Saving...' : 'Save Notes'}
+            </button>
+          </div>
+        </section>
+
+        {/* PHOTOS */}
+        <section className="bg-v-surface border border-v-border rounded-sm p-4 sm:p-6 mb-4">
+          <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest mb-3">Photos ({photos.length})</h2>
+          {photos.length === 0 ? (
+            <p className="text-sm text-v-text-secondary py-3">No photos yet. Photos uploaded with requests for this customer will appear here.</p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {photos.map((p, idx) => (
+                <button
+                  key={`${p.url}-${idx}`}
+                  onClick={() => setViewerPhoto(p)}
+                  className="aspect-square bg-v-charcoal rounded overflow-hidden border border-v-border hover:border-v-gold/40 transition-colors"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.url}
+                    alt={p.aircraft || 'Customer photo'}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ACTIVITY */}
+        <section className="bg-v-surface border border-v-border rounded-sm p-4 sm:p-6">
+          <h2 className="text-sm font-heading text-v-text-secondary uppercase tracking-widest mb-3">
+            Recent Activity ({counts.quotes || 0} quotes &middot; {counts.invoices || 0} invoices &middot; {counts.jobs || 0} jobs)
+          </h2>
+          {activity.length === 0 ? (
+            <p className="text-sm text-v-text-secondary py-3">No quotes, invoices, or jobs yet for this customer.</p>
+          ) : (
+            <div className="divide-y divide-v-border/30">
+              {activity.map(item => (
+                <button
+                  key={`${item.kind}-${item.id}`}
+                  onClick={() => router.push(item.href)}
+                  className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-v-charcoal/30 -mx-2 px-2 rounded transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="text-[10px] font-bold tracking-wider text-v-text-secondary w-14 shrink-0">
+                      {KIND_LABEL[item.kind] || item.kind.toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-v-text-primary truncate">{item.label}</p>
+                      <p className="text-xs text-v-text-secondary">{formatDate(item.date)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusClass(item.status)}`}>
+                      {item.status}
+                    </span>
+                    {item.amount > 0 && (
+                      <span className="text-sm font-data text-v-text-primary whitespace-nowrap">{formatCurrency(item.amount)}</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-    </div>
+
+      {/* Photo viewer */}
+      {viewerPhoto && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewerPhoto(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={viewerPhoto.url}
+            alt={viewerPhoto.aircraft || 'Photo'}
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            onClick={() => setViewerPhoto(null)}
+            className="absolute top-4 right-4 text-white text-2xl hover:text-v-gold"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+    </AppShell>
   );
 }

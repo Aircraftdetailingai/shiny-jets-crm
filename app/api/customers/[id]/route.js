@@ -98,12 +98,16 @@ export async function PATCH(request, { params }) {
   }
 
   const updates = { updated_at: new Date().toISOString() };
-  const contactFields = ['poc_name', 'poc_phone', 'poc_email', 'poc_role',
-    'emergency_contact_name', 'emergency_contact_phone', 'contact_notes'];
-  for (const f of contactFields) {
+  const editableFields = [
+    'poc_name', 'poc_phone', 'poc_email', 'poc_role',
+    'emergency_contact_name', 'emergency_contact_phone', 'contact_notes',
+    'notes', 'name', 'company_name', 'phone', 'airport',
+  ];
+  for (const f of editableFields) {
     if (body[f] !== undefined) updates[f] = body[f];
   }
   if (body.is_archived !== undefined) updates.is_archived = body.is_archived;
+  if (Array.isArray(body.tail_numbers)) updates.tail_numbers = body.tail_numbers;
 
   // Column-stripping retry
   for (let attempt = 0; attempt < 5; attempt++) {

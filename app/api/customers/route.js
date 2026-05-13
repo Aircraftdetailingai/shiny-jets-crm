@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { resolveDetailerId } from '@/lib/resolve-detailer';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' };
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -15,19 +19,22 @@ export async function GET(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
     }
 
     const supabase = getSupabase();
     if (!supabase) {
-      return Response.json({ error: 'Database not configured' }, { status: 500 });
+      return Response.json({ error: 'Database not configured' }, { status: 500, headers: NO_STORE });
     }
+
+    const detailerId = await resolveDetailerId(supabase, user);
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit')) || 20;
     const tag = searchParams.get('tag');
     const archived = searchParams.get('archived');
+    const tab = archived === 'true' ? 'archived' : 'active';
 
     // Core columns that exist in the customers table
     let selectCols = 'id, name, email, phone, company_name, airport, tail_numbers, notes, tags, is_archived, created_at';
@@ -37,7 +44,7 @@ export async function GET(request) {
       let query = supabase
         .from('customers')
         .select(selectCols)
-        .eq('detailer_id', user.detailer_id || user.id)
+        .eq('detailer_id', detailerId)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -47,9 +54,12 @@ export async function GET(request) {
       if (tag) {
         query = query.contains('tags', [tag]);
       }
-      // Filter by archived status (only if column exists in select)
+      // Filter by archived status (only if column exists in select — older
+      // schemas that haven't run the 20260513_customers_add_archived
+      // migration drop this branch and show all rows, which is the safer
+      // default than silently filtering everything out).
       if (selectCols.includes('is_archived')) {
-        if (archived === 'true') {
+        if (tab === 'archived') {
           query = query.eq('is_archived', true);
         } else {
           query = query.or('is_archived.eq.false,is_archived.is.null');
@@ -60,14 +70,14 @@ export async function GET(request) {
 
       if (!error) {
         customers = data || [];
-        console.log(`=== CUSTOMERS GET === user=${user.id} found=${customers.length} cols=${selectCols}`);
+        console.log(`[customers-list] resolved detailerId: ${detailerId} tab: ${tab} returned: ${customers.length}`);
         break;
       }
 
       // Table doesn't exist - fall back to quotes
       if (error.code === '42P01' || error.code === 'PGRST205') {
-        console.log('=== CUSTOMERS GET === table does not exist, falling back to quotes');
-        customers = await getCustomersFromQuotes(supabase, user.id, q, limit);
+        console.log('[customers-list] table does not exist, falling back to quotes');
+        customers = await getCustomersFromQuotes(supabase, detailerId, q, limit);
         break;
       }
 
@@ -77,14 +87,14 @@ export async function GET(request) {
         || error.message?.match(/column "([^"]+)" of relation "customers" does not exist/);
       if (colMatch) {
         const badCol = colMatch[2] || colMatch[1];
-        console.log(`=== CUSTOMERS GET === stripping missing column: ${badCol}`);
+        console.log(`[customers-list] stripping missing column: ${badCol}`);
         selectCols = selectCols.split(',').map(c => c.trim()).filter(c => c !== badCol).join(', ');
         continue;
       }
 
       // Other error
-      console.error('=== CUSTOMERS GET ERROR ===', error);
-      return Response.json({ error: error.message }, { status: 500 });
+      console.error('[customers-list] ERROR', error);
+      return Response.json({ error: error.message }, { status: 500, headers: NO_STORE });
     }
 
     // Enrich with quote history
@@ -93,8 +103,8 @@ export async function GET(request) {
         const { data: quotes } = await supabase
           .from('quotes')
           .select('id, status, total_price, created_at')
-          .eq('detailer_id', user.detailer_id || user.id)
-          .eq('client_email', c.email)
+          .eq('detailer_id', detailerId)
+          .ilike('client_email', c.email || '')
           .order('created_at', { ascending: false });
 
         const allQuotes = quotes || [];
@@ -112,15 +122,15 @@ export async function GET(request) {
       }
     }));
 
-    return Response.json({ customers: enriched });
+    return Response.json({ customers: enriched }, { headers: NO_STORE });
 
   } catch (err) {
-    console.error('=== CUSTOMERS GET EXCEPTION ===', err);
-    return Response.json({ error: 'Failed to fetch customers' }, { status: 500 });
+    console.error('[customers-list] EXCEPTION', err);
+    return Response.json({ error: 'Failed to fetch customers' }, { status: 500, headers: NO_STORE });
   }
 }
 
-// Fallback: build customer list from existing quotes
+// Fallback: build customer list from existing quotes (no `customers` table)
 async function getCustomersFromQuotes(supabase, detailerId, q, limit) {
   try {
     let query = supabase
@@ -174,6 +184,7 @@ export async function POST(request) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
 
+    const detailerId = await resolveDetailerId(supabase, user);
     const body = await request.json();
     const { name, email, phone, company_name, notes, tags } = body;
     console.log('=== CUSTOMER CREATE === body:', JSON.stringify({ name, email, phone, company_name, hasTags: !!tags }));
@@ -190,7 +201,7 @@ export async function POST(request) {
       const { data: existing, error: lookupErr } = await supabase
         .from('customers')
         .select('*')
-        .eq('detailer_id', user.detailer_id || user.id)
+        .eq('detailer_id', detailerId)
         .eq('email', normalizedEmail)
         .single();
 
@@ -229,7 +240,7 @@ export async function POST(request) {
 
     // Create new customer
     const row = {
-      detailer_id: user.detailer_id || user.id,
+      detailer_id: detailerId,
       name,
       email: normalizedEmail,
       phone: phone || null,
