@@ -32,10 +32,17 @@ async function loadCustomer(supabase, detailerId, customerId) {
   return { customer: data };
 }
 
-// GET — list the customer's aircraft from customer_aircraft (the canonical
-// portal table) via the email → customer_accounts.id chain. Falls back to
-// the older customers.tail_numbers JSON column for customers whose portal
-// account wasn't created yet.
+// GET — list the customer's aircraft from customer_aircraft using the new
+// customer_id FK (added by migration add_customer_id_to_customer_aircraft
+// and backfilled across the network). customer_account_id is preserved on
+// the table for portal-side queries; this endpoint reads via customer_id
+// because the page URL :id is a customers.id, not a customer_accounts.id —
+// and many customers (like Lance Ricotta) have no customer_accounts row
+// at all, which is exactly why the prior email→account_id chain failed.
+//
+// Falls back to the legacy customers.tail_numbers JSON if customer_aircraft
+// has no rows for this customer yet (e.g. a customer not covered by the
+// backfill).
 export async function GET(request, { params }) {
   const user = await getAuthUser(request);
   if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: NO_STORE });
@@ -50,46 +57,34 @@ export async function GET(request, { params }) {
   }
 
   const customer = result.customer;
-  const email = (customer.email || '').toLowerCase().trim();
 
-  // Try to resolve a portal account row for this email so we can read the
-  // canonical customer_aircraft list. If no portal account exists yet,
-  // there's no row to fetch — return the legacy tail_numbers JSON shape.
   let aircraft = [];
-  if (email) {
-    const { data: account } = await supabase
-      .from('customer_accounts')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-    if (account?.id) {
-      const { data: rows, error: acErr } = await supabase
-        .from('customer_aircraft')
-        .select('id, tail_number, manufacturer, model, year, nickname, engine_type, storage_type, storage_location, annual_due_date, last_service_date, notes, home_airport, created_at')
-        .eq('customer_account_id', account.id)
-        .order('created_at', { ascending: true });
-      if (acErr) {
-        console.error('[customers/aircraft] customer_aircraft GET error:', acErr.message);
-      } else {
-        aircraft = (rows || []).map((r) => ({
-          id: r.id,
-          tail_number: r.tail_number,
-          aircraft_model: [r.manufacturer, r.model].filter(Boolean).join(' ') || r.model || null,
-          manufacturer: r.manufacturer || null,
-          model: r.model || null,
-          year: r.year || null,
-          nickname: r.nickname || null,
-          home_airport: r.home_airport || null,
-          notes: r.notes || null,
-          last_service_date: r.last_service_date || null,
-          created_at: r.created_at || null,
-        }));
-      }
-    }
+  const { data: rows, error: acErr } = await supabase
+    .from('customer_aircraft')
+    .select('id, tail_number, manufacturer, model, year, nickname, engine_type, storage_type, storage_location, annual_due_date, last_service_date, notes, home_airport, created_at')
+    .eq('detailer_id', detailerId)
+    .eq('customer_id', id)
+    .order('created_at', { ascending: false });
+  if (acErr) {
+    console.error('[customers/aircraft] customer_aircraft GET error:', acErr.message);
+  } else {
+    aircraft = (rows || []).map((r) => ({
+      id: r.id,
+      tail_number: r.tail_number,
+      aircraft_model: [r.manufacturer, r.model].filter(Boolean).join(' ') || r.model || null,
+      manufacturer: r.manufacturer || null,
+      model: r.model || null,
+      year: r.year || null,
+      nickname: r.nickname || null,
+      home_airport: r.home_airport || null,
+      notes: r.notes || null,
+      last_service_date: r.last_service_date || null,
+      created_at: r.created_at || null,
+    }));
   }
 
-  // Fallback: legacy customers.tail_numbers JSON. If a customer was created
-  // pre-portal and has no customer_accounts row, surface what we know.
+  // Fallback: legacy customers.tail_numbers JSON. Surfaces tails for
+  // customers whose rows weren't covered by the backfill.
   if (aircraft.length === 0) {
     const legacy = Array.isArray(customer.tail_numbers) ? customer.tail_numbers : [];
     aircraft = legacy.map((l) => ({
