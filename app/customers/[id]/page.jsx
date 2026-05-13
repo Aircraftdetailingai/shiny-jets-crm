@@ -106,36 +106,54 @@ export default function CustomerDetailPage() {
         setRecommendations(data.recommendations || []);
       }
 
-      // Fetch aircraft (unique tail numbers from quotes)
+      // Fetch the customer's canonical aircraft list from customer_aircraft
+      // (via /api/customers/[id]/aircraft, which resolves through
+      // customer_accounts.id by email). Augment with per-tail job/revenue
+      // rollups from quotes so the Aircraft tab still shows the stat row.
       try {
-        const quotesRes = await fetch(`/api/quotes?customer_id=${customerId}`, { headers });
+        const [acRes, quotesRes] = await Promise.all([
+          fetch(`/api/customers/${customerId}/aircraft`, { headers }),
+          fetch(`/api/quotes?customer_id=${customerId}`, { headers }),
+        ]);
+
+        const rollup = {};
         if (quotesRes?.ok) {
           const qData = await quotesRes.json();
           const quotes = qData.quotes || qData || [];
-          const tailMap = {};
           (Array.isArray(quotes) ? quotes : []).forEach(q => {
-            if (q.tail_number) {
-              const tail = q.tail_number.toUpperCase();
-              if (!tailMap[tail]) {
-                tailMap[tail] = {
-                  tail_number: tail,
-                  aircraft_model: q.aircraft_model,
-                  jobs: 0,
-                  last_service: null,
-                  total_revenue: 0,
-                };
-              }
-              tailMap[tail].jobs++;
-              tailMap[tail].total_revenue += parseFloat(q.total_price || 0);
-              const date = q.completed_at || q.scheduled_date || q.created_at;
-              if (date && (!tailMap[tail].last_service || date > tailMap[tail].last_service)) {
-                tailMap[tail].last_service = date;
-              }
+            const t = q.tail_number ? String(q.tail_number).toUpperCase() : null;
+            if (!t) return;
+            if (!rollup[t]) rollup[t] = { jobs: 0, total_revenue: 0, last_service: null };
+            rollup[t].jobs++;
+            rollup[t].total_revenue += parseFloat(q.total_price || 0);
+            const date = q.completed_at || q.scheduled_date || q.created_at;
+            if (date && (!rollup[t].last_service || date > rollup[t].last_service)) {
+              rollup[t].last_service = date;
             }
           });
-          setAircraft(Object.values(tailMap));
         }
-      } catch {}
+
+        if (acRes?.ok) {
+          const acData = await acRes.json();
+          const list = Array.isArray(acData.aircraft) ? acData.aircraft : [];
+          setAircraft(list.map(a => {
+            const t = (a.tail_number || '').toUpperCase();
+            const r = rollup[t] || { jobs: 0, total_revenue: 0, last_service: null };
+            return {
+              tail_number: t,
+              aircraft_model: a.aircraft_model || a.model || '',
+              jobs: r.jobs,
+              total_revenue: r.total_revenue,
+              last_service: r.last_service,
+            };
+          }));
+        } else if (acRes) {
+          console.error('Aircraft API error:', acRes.status);
+          setAircraft([]);
+        }
+      } catch (e) {
+        console.error('Aircraft fetch failed:', e?.message || e);
+      }
 
     } catch (err) {
       console.error('Load error:', err);
@@ -454,7 +472,7 @@ export default function CustomerDetailPage() {
                     : 'text-v-text-secondary hover:text-v-text-primary hover:bg-v-surface/50'
                 }`}
               >
-                {tab === 'activity' ? `Timeline (${activity.length})` : tab === 'notes' ? `Notes (${notes.length})` : tab === 'recommendations' ? `Recs (${recommendations.length})` : 'Aircraft'}
+                {tab === 'activity' ? `Timeline (${activity.length})` : tab === 'notes' ? `Notes (${notes.length})` : tab === 'recommendations' ? `Recs (${recommendations.length})` : `Aircraft (${aircraft.length})`}
               </button>
             ))}
           </div>

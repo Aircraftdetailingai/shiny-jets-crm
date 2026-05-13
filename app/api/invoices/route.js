@@ -238,6 +238,24 @@ export async function POST(request) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
+    // Auto-pin the invoiced aircraft to the customer's customer_aircraft
+    // list so the CRM customer detail page (and the portal) shows it.
+    // Fire-and-forget — never blocks the invoice response.
+    if (tail_number && customer_email) {
+      try {
+        const { pinCustomerAircraft } = await import('@/lib/pin-customer-aircraft');
+        pinCustomerAircraft(supabase, {
+          detailerId: user.detailer_id || user.id,
+          customerEmail: customer_email,
+          customerName: customer_name,
+          tailNumber: tail_number,
+          aircraftModel: aircraft_model,
+        }).catch((e) => console.error('[invoices] pin failed:', e?.message || e));
+      } catch (e) {
+        console.error('[invoices] pin import failed:', e?.message || e);
+      }
+    }
+
     return Response.json({ invoice: data }, { status: 201 });
   } catch (err) {
     console.error('Invoice POST error:', err);

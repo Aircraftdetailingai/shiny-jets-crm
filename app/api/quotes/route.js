@@ -380,6 +380,25 @@ export async function POST(request) {
       return Response.json({ error: 'An unexpected error occurred while creating your quote. Please try again.' }, { status: 500 });
     }
 
+    // Auto-pin the quoted aircraft to the customer's customer_aircraft list
+    // so the CRM customer detail Aircraft tab + portal both surface it.
+    // Fire-and-forget — never blocks the quote response.
+    if (tail_number && client_email) {
+      try {
+        const { pinCustomerAircraft } = await import('@/lib/pin-customer-aircraft');
+        pinCustomerAircraft(supabase, {
+          detailerId: user.detailer_id || user.id,
+          customerEmail: client_email,
+          customerName: body.client_name,
+          customerPhone: body.client_phone,
+          tailNumber: tail_number,
+          aircraftModel: aircraft_model,
+        }).catch((e) => console.error('[quotes] pin failed:', e?.message || e));
+      } catch (e) {
+        console.error('[quotes] pin import failed:', e?.message || e);
+      }
+    }
+
     return Response.json(data, { status: 201 });
 
   } catch (err) {
