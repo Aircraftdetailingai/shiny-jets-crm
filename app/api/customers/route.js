@@ -28,6 +28,15 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 20;
     const tag = searchParams.get('tag');
     const archived = searchParams.get('archived');
+    // Sort modes the CustomerAutocomplete component drives:
+    //   company (default) — company_name ASC, fall back to last-name for
+    //                       personal-name customers (post-processed
+    //                       client-side because Postgres doesn't compute
+    //                       last_name without a generated column).
+    //   name              — last_name ASC, first_name ASC (post-processed).
+    //   recent            — created_at DESC (pure SQL).
+    const sortMode = (searchParams.get('sort') || 'company').toLowerCase();
+    const validSort = ['company', 'name', 'recent'].includes(sortMode) ? sortMode : 'company';
 
     // Core columns that exist in the customers table
     let selectCols = 'id, name, email, phone, company_name, airport, tail_numbers, notes, tags, is_archived, created_at';
@@ -38,8 +47,21 @@ export async function GET(request) {
         .from('customers')
         .select(selectCols)
         .eq('detailer_id', user.detailer_id || user.id)
-        .order('created_at', { ascending: false })
         .limit(limit);
+
+      // Apply SQL-level ordering. For `company` and `name` we ask Postgres
+      // for a sensible first pass (so the LIMIT picks reasonable rows) then
+      // refine client-side. For `recent` the SQL order is final.
+      if (validSort === 'recent') {
+        query = query.order('created_at', { ascending: false });
+      } else if (validSort === 'name') {
+        query = query.order('name', { ascending: true, nullsFirst: false });
+      } else {
+        // 'company' — sort by company_name first, then name as tiebreaker.
+        query = query
+          .order('company_name', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true, nullsFirst: false });
+      }
 
       if (q) {
         query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`);
@@ -85,6 +107,41 @@ export async function GET(request) {
       // Other error
       console.error('=== CUSTOMERS GET ERROR ===', error);
       return Response.json({ error: error.message }, { status: 500 });
+    }
+
+    // Refine ordering for `company` and `name` modes. Postgres got us a
+    // sensible first pass + LIMIT, now apply the last-name-aware secondary
+    // ordering Postgres can't do cleanly (no generated last_name column).
+    function lastWord(s) {
+      const t = String(s || '').trim();
+      if (!t) return '';
+      const parts = t.split(/\s+/);
+      return (parts[parts.length - 1] || '').toLowerCase();
+    }
+    function firstWord(s) {
+      const t = String(s || '').trim();
+      if (!t) return '';
+      return (t.split(/\s+/)[0] || '').toLowerCase();
+    }
+    if (validSort === 'company') {
+      customers = [...customers].sort((a, b) => {
+        const ca = (a.company_name || '').trim().toLowerCase();
+        const cb = (b.company_name || '').trim().toLowerCase();
+        // Company rows first (alpha), then no-company rows (alpha by last
+        // word of name, tiebreak first word).
+        if (ca && !cb) return -1;
+        if (!ca && cb) return 1;
+        if (ca && cb) return ca.localeCompare(cb);
+        const la = lastWord(a.name), lb = lastWord(b.name);
+        if (la !== lb) return la.localeCompare(lb);
+        return firstWord(a.name).localeCompare(firstWord(b.name));
+      });
+    } else if (validSort === 'name') {
+      customers = [...customers].sort((a, b) => {
+        const la = lastWord(a.name), lb = lastWord(b.name);
+        if (la !== lb) return la.localeCompare(lb);
+        return firstWord(a.name).localeCompare(firstWord(b.name));
+      });
     }
 
     // Enrich with quote history
