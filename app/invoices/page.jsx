@@ -100,6 +100,14 @@ function InvoicesPageInner() {
   const [blankCustomLines, setBlankCustomLines] = useState([]);
   const [blankAircraftRow, setBlankAircraftRow] = useState(null);
   const [blankAircraftHoursRef, setBlankAircraftHoursRef] = useState(null);
+  // Customer-aircraft autofill state — populated on customer selection from
+  // /api/customers/[id]/aircraft. Length 1 auto-fills the form; length 2+
+  // renders an inline picker; length 0 / empty clears.
+  const [blankAircraftList, setBlankAircraftList] = useState([]);
+  const [editAircraftList, setEditAircraftList] = useState([]);
+  // Pending model string queued while we wait for the make's models to
+  // fetch via the existing useEffect cascade — applied once invModels loads.
+  const [pendingInvModel, setPendingInvModel] = useState('');
   // Package picker — mirrors Create Quote's selectedPackage pattern. When
   // a package is picked, its service_ids replace the current selection.
   // If the package has a flat price > 0, that price becomes the subtotal
@@ -240,6 +248,62 @@ function InvoicesPageInner() {
     }
   };
 
+  // Apply a customer_aircraft row to the New Invoice (blank) form. Prefers
+  // the curated Manufacturer/Model dropdowns when the saved manufacturer is
+  // in invMfrs; otherwise falls back to Custom/Not Listed mode so the form
+  // accepts arbitrary make/model strings. Tail always lands on blankForm.
+  const applyAircraftToBlank = (a) => {
+    if (!a) return;
+    const mfr = String(a.manufacturer || '').trim();
+    const mdl = String(a.model || '').trim();
+    const tail = String(a.tail_number || '').trim().toUpperCase();
+    const mfrInList = !!mfr && Array.isArray(invMfrs) && invMfrs.some(m => String(m).toLowerCase() === mfr.toLowerCase());
+    if (mfrInList) {
+      setInvAcMode('standard');
+      setInvMfr(mfr);
+      // The model dropdown is fed by an async fetch keyed on invMfr — queue
+      // the model and let the cascade effect apply it when invModels loads.
+      setPendingInvModel(mdl);
+      setInvCustomMake(''); setInvCustomModel('');
+    } else {
+      setInvAcMode('custom');
+      setInvCustomMake(mfr);
+      setInvCustomModel(mdl);
+      setInvMfr(''); setInvModel('');
+      setPendingInvModel('');
+    }
+    setBlankForm(f => ({ ...f, aircraft_model: mdl, tail_number: tail }));
+  };
+
+  // Customer-aircraft autofill on selection. Fires from CustomerAutocomplete's
+  // onSelect handler. /api/customers/[id]/aircraft already returns rows from
+  // the customer_aircraft table normalized via the customer_id FK (commit
+  // 29ff255).
+  const fetchAndAutofillAircraft = async (customerId, applyFn, setListFn) => {
+    if (!customerId) { setListFn([]); return; }
+    try {
+      const res = await fetch(`/api/customers/${customerId}/aircraft`, { headers: headers() });
+      if (!res.ok) {
+        console.error('[aircraft autofill] fetch failed', res.status);
+        setListFn([]);
+        return;
+      }
+      const data = await res.json();
+      const list = Array.isArray(data?.aircraft) ? data.aircraft : [];
+      if (list.length === 1) {
+        applyFn(list[0]);
+        setListFn([]);
+      } else if (list.length > 1) {
+        setListFn(list);
+      } else {
+        setListFn([]);
+      }
+    } catch (err) {
+      console.error('[aircraft autofill] fetch threw', err?.message || err);
+      setListFn([]);
+    }
+  };
+
   const fetchBlankServices = async () => {
     try {
       const [svcRes, calRes] = await Promise.all([
@@ -331,6 +395,8 @@ function InvoicesPageInner() {
     setBlankCustomLines([]);
     setBlankPackages([]);
     setBlankSelectedPackageId(null);
+    setBlankAircraftList([]);
+    setPendingInvModel('');
     setError('');
   };
 
@@ -521,7 +587,7 @@ function InvoicesPageInner() {
 
   // Reset all edit-modal state in one place.
   const closeEditModal = () => {
-    setEditInvoice(null); setEditForm(null);
+    setEditInvoice(null); setEditForm(null); setEditAircraftList([]);
     setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
     setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
     setEditDiscount({ type: 'percent', value: '', reason: '' });
@@ -550,6 +616,23 @@ function InvoicesPageInner() {
       .catch(() => {});
     return () => ctrl.abort();
   }, [invMfr]);
+
+  // Apply a queued model string once invModels finishes loading for the
+  // newly-set invMfr. Used by the customer-aircraft autofill in standard
+  // mode so the model dropdown actually picks up the autofilled value.
+  useEffect(() => {
+    if (!pendingInvModel) return;
+    if (!Array.isArray(invModels) || invModels.length === 0) return;
+    const target = pendingInvModel;
+    const found = invModels.find(m => String(m.model || '').toLowerCase() === target.toLowerCase());
+    if (found) {
+      setInvModel(found.model);
+      setBlankForm(f => ({ ...f, aircraft_model: found.model }));
+    }
+    // Whether we matched or not, drop the pending value — invModels finished
+    // loading and we either applied or there's no match to apply.
+    setPendingInvModel('');
+  }, [invModels, pendingInvModel]);
 
   // Fetch aircraft hours whenever the blank-modal aircraft selection
   // changes. Standard mode pulls both the aircraft row (legacy `_hours`
@@ -1786,12 +1869,15 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                       // Same exact-name match-and-link behavior as before so
                       // silent tail learning (commit d5f522d) keeps working
                       // when the user types a name that matches a known
-                      // customer without tapping a dropdown row.
+                      // customer without tapping a dropdown row. Typing over
+                      // a previously-selected customer breaks the link and
+                      // hides the multi-aircraft picker.
                       const key = v.trim().toLowerCase();
                       const match = key ? customers.find(c => (c.name || '').trim().toLowerCase() === key) : null;
                       setBlankForm(f => match
                         ? { ...f, customer_name: v, customer_id: match.id, customer_email: match.email || f.customer_email, customer_phone: match.phone || f.customer_phone }
                         : { ...f, customer_name: v, customer_id: null });
+                      if (!match) setBlankAircraftList([]);
                     }}
                     onSelect={(c) => {
                       setBlankForm(f => ({
@@ -1801,9 +1887,12 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                         customer_email: c.email || f.customer_email,
                         customer_phone: c.phone || f.customer_phone,
                       }));
+                      // Fire-and-forget — autofill never blocks the form.
+                      fetchAndAutofillAircraft(c.id, applyAircraftToBlank, setBlankAircraftList);
                     }}
                     onCreateNew={(typed) => {
                       setBlankForm(f => ({ ...f, customer_name: typed, customer_id: null }));
+                      setBlankAircraftList([]);
                     }}
                     placeholder="Customer name"
                     className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50"
@@ -1816,6 +1905,37 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                     className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50" />
                 </div>
               </div>
+              {/* Multi-aircraft picker — appears when the selected customer
+                  has 2+ saved aircraft in customer_aircraft. Click one to
+                  autofill Manufacturer/Model/Tail below; "+ Add new aircraft"
+                  dismisses the picker so the user can type a new one. */}
+              {blankAircraftList.length > 1 && (
+                <div className="p-3 rounded-md border border-v-border bg-v-charcoal/50">
+                  <div className="text-xs text-v-text-secondary mb-2">Pick from this customer's aircraft:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {blankAircraftList.map(a => (
+                      <button
+                        type="button"
+                        key={a.id}
+                        onClick={() => { applyAircraftToBlank(a); setBlankAircraftList([]); }}
+                        className="px-3 py-1.5 text-xs bg-v-surface border border-v-border rounded hover:border-v-gold/50 transition-colors"
+                      >
+                        <span className="font-semibold text-v-text-primary">{a.tail_number}</span>
+                        {(a.manufacturer || a.model) && (
+                          <span className="text-v-text-secondary"> — {[a.manufacturer, a.model].filter(Boolean).join(' ')}</span>
+                        )}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setBlankAircraftList([])}
+                      className="px-3 py-1.5 text-xs text-v-gold border border-v-gold/40 rounded hover:bg-v-gold/10"
+                    >
+                      + Add new aircraft
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Aircraft — Create Job pattern. Standard mode uses two selects
                   sourced from /api/aircraft/manufacturers and /api/aircraft/models?make=.
                   Custom/Not Listed mode swaps the selects for free-text inputs for
@@ -2161,14 +2281,37 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                 <label className="block text-xs text-v-text-secondary mb-1">Name</label>
                 <CustomerAutocomplete
                   value={editForm.customer_name}
-                  onChange={(v) => setEditForm(f => ({ ...f, customer_name: v }))}
-                  onSelect={(c) => setEditForm(f => ({
-                    ...f,
-                    customer_name: c.name || '',
-                    customer_email: c.email || f.customer_email,
-                    customer_phone: c.phone || f.customer_phone,
-                  }))}
-                  onCreateNew={(typed) => setEditForm(f => ({ ...f, customer_name: typed }))}
+                  onChange={(v) => {
+                    setEditForm(f => ({ ...f, customer_name: v }));
+                    // Typing over a selected customer clears the multi-
+                    // aircraft picker — same edge case as New Invoice.
+                    if (!v) setEditAircraftList([]);
+                  }}
+                  onSelect={(c) => {
+                    setEditForm(f => ({
+                      ...f,
+                      customer_name: c.name || '',
+                      customer_email: c.email || f.customer_email,
+                      customer_phone: c.phone || f.customer_phone,
+                    }));
+                    // Edit form has a single aircraft_model text input
+                    // (no Manufacturer/Model dropdown), so autofill writes
+                    // a combined "Manufacturer Model" string.
+                    fetchAndAutofillAircraft(c.id, (a) => {
+                      const mfr = String(a.manufacturer || '').trim();
+                      const mdl = String(a.model || '').trim();
+                      const combined = [mfr, mdl].filter(Boolean).join(' ').trim();
+                      setEditForm(f => ({
+                        ...f,
+                        aircraft_model: combined || f.aircraft_model || '',
+                        tail_number: String(a.tail_number || '').trim().toUpperCase() || f.tail_number || '',
+                      }));
+                    }, setEditAircraftList);
+                  }}
+                  onCreateNew={(typed) => {
+                    setEditForm(f => ({ ...f, customer_name: typed }));
+                    setEditAircraftList([]);
+                  }}
                   placeholder="Customer name"
                   className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none focus:border-v-gold/50"
                 />
@@ -2194,6 +2337,44 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
             </div>
 
+            {/* Multi-aircraft picker — same shape as New Invoice modal. */}
+            {editAircraftList.length > 1 && (
+              <div className="mb-3 p-3 rounded-md border border-v-border bg-v-charcoal/50">
+                <div className="text-xs text-v-text-secondary mb-2">Pick from this customer's aircraft:</div>
+                <div className="flex flex-wrap gap-2">
+                  {editAircraftList.map(a => (
+                    <button
+                      type="button"
+                      key={a.id}
+                      onClick={() => {
+                        const mfr = String(a.manufacturer || '').trim();
+                        const mdl = String(a.model || '').trim();
+                        const combined = [mfr, mdl].filter(Boolean).join(' ').trim();
+                        setEditForm(f => ({
+                          ...f,
+                          aircraft_model: combined || f.aircraft_model || '',
+                          tail_number: String(a.tail_number || '').trim().toUpperCase() || f.tail_number || '',
+                        }));
+                        setEditAircraftList([]);
+                      }}
+                      className="px-3 py-1.5 text-xs bg-v-surface border border-v-border rounded hover:border-v-gold/50 transition-colors"
+                    >
+                      <span className="font-semibold text-v-text-primary">{a.tail_number}</span>
+                      {(a.manufacturer || a.model) && (
+                        <span className="text-v-text-secondary"> — {[a.manufacturer, a.model].filter(Boolean).join(' ')}</span>
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditAircraftList([])}
+                    className="px-3 py-1.5 text-xs text-v-gold border border-v-gold/40 rounded hover:bg-v-gold/10"
+                  >
+                    + Add new aircraft
+                  </button>
+                </div>
+              </div>
+            )}
             {/* Aircraft */}
             <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Aircraft</p>
             <div className="grid grid-cols-2 gap-3 mb-4">
