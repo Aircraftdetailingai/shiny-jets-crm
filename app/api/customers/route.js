@@ -13,21 +13,30 @@ function getSupabase() {
 // GET - Search customers for this detailer
 export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get('q') || '';
+    const limit = parseInt(searchParams.get('limit')) || 20;
+    const tag = searchParams.get('tag');
+    const archived = searchParams.get('archived');
+    // Trace what the browser actually sent so we can diagnose silent 401s
+    // (e.g., expired Bearer + missing cookie on the mobile PWA).
+    const hasAuthHeader = !!request.headers.get('authorization');
+    const hasCookie = !!request.cookies.get('auth_token');
+    console.log('[/api/customers] GET', { hasAuthHeader, hasCookie, q, limit, sort: searchParams.get('sort') });
+
     const user = await getAuthUser(request);
     if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      console.warn('[/api/customers] GET 401 — no valid session', { hasAuthHeader, hasCookie });
+      return Response.json(
+        { error: 'unauthorized', hint: 'no valid session — sign in again' },
+        { status: 401 },
+      );
     }
 
     const supabase = getSupabase();
     if (!supabase) {
       return Response.json({ error: 'Database not configured' }, { status: 500 });
     }
-
-    const { searchParams } = new URL(request.url);
-    const q = searchParams.get('q') || '';
-    const limit = parseInt(searchParams.get('limit')) || 20;
-    const tag = searchParams.get('tag');
-    const archived = searchParams.get('archived');
     // Sort modes the CustomerAutocomplete component drives:
     //   company (default) — company_name ASC, fall back to last-name for
     //                       personal-name customers (post-processed

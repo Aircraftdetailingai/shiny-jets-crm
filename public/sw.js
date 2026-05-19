@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vector-v2';
+const CACHE_NAME = 'vector-v3';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icon-192.png',

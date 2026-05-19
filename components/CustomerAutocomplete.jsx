@@ -2,6 +2,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
+// Version stamp so users can confirm in DevTools console that the latest
+// bundle is loaded (mobile PWA caches can lag behind by a few sessions).
+if (typeof window !== 'undefined') {
+  console.log('[CustomerAutocomplete] v20f6556+nuclear', new Date().toISOString());
+}
+
 /**
  * Customer-name input with a mobile-friendly autocomplete dropdown.
  *
@@ -21,6 +27,11 @@ import { createPortal } from 'react-dom';
  * Empty-state-on-focus: when the input is focused and the value is empty,
  * the dropdown shows the first 8 customers in the chosen sort order so the
  * user has a baseline list before typing.
+ *
+ * Auth: the fetch sends BOTH the httpOnly auth_token cookie (via
+ * credentials: 'include') AND the Bearer token from localStorage. The API
+ * accepts either, so whichever is valid wins. This avoids silent 401s when
+ * one path is stale.
  *
  * Props: value, onChange, onSelect, onCreateNew, placeholder, className, listClassName.
  */
@@ -72,8 +83,8 @@ function secondaryLine(c, sortMode) {
   const lead = sortMode === 'name'
     ? company
     : (company && name ? name : '');
-  const tail = [email, phone].filter(Boolean).join(' \u00b7 ');
-  if (lead && tail) return `${lead} \u00b7 ${tail}`;
+  const tail = [email, phone].filter(Boolean).join(' · ');
+  if (lead && tail) return `${lead} · ${tail}`;
   return lead || tail;
 }
 
@@ -89,9 +100,11 @@ export default function CustomerAutocomplete({
   const [matches, setMatches] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [anchorRect, setAnchorRect] = useState(null);
   const [sortMode, setSortMode] = useState('company');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const sortBtnRef = useRef(null);
@@ -119,40 +132,57 @@ export default function CustomerAutocomplete({
     if (!open) {
       setMatches([]);
       setLoading(false);
+      setFetchError(null);
       return;
     }
     const runFetch = async () => {
       setLoading(true);
+      setFetchError(null);
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('vector_token') : null;
         const params = new URLSearchParams({ limit: '8', sort: sortMode });
-        if (q.length >= 2) params.set('q', q);
+        // Search kicks in at 1 character so "l" surfaces Lance immediately.
+        if (q.length >= 1) params.set('q', q);
         const url = `/api/customers?${params.toString()}`;
+        // Send BOTH cookie (httpOnly auth_token) and Bearer header. The API
+        // accepts either; whichever is valid wins. Silent 401s when one path
+        // is stale were the root cause of the original "no customers" bug.
         const res = await fetch(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          method: 'GET',
+          credentials: 'include',
           cache: 'no-store',
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         });
         if (!res.ok) {
-          console.error('[CustomerAutocomplete] fetch failed', url, res.status);
+          let body = '';
+          try { body = await res.text(); } catch {}
+          console.error('[CustomerAutocomplete] fetch failed', url, res.status, body);
           setMatches([]);
+          setFetchError(res.status === 401 ? 'Session expired — sign in again' : 'Unable to load customers — tap to retry');
           return;
         }
         const data = await res.json();
         const list = Array.isArray(data?.customers) ? data.customers.slice(0, 8) : [];
-        console.log('[CustomerAutocomplete] fetch', url, res.status, 'matches=', list.length);
+        console.log('[CustomerAutocomplete] fetch ok', url, 'matches=', list.length);
         setMatches(list);
+        setFetchError(null);
       } catch (err) {
         console.error('[CustomerAutocomplete] fetch threw', err?.message || err);
         setMatches([]);
+        setFetchError('Network error — tap to retry');
       } finally {
         setLoading(false);
       }
     };
     // Empty-state and sort-change fire immediately; typed-query debounces.
-    const delay = q.length >= 2 ? 200 : 0;
+    // 150ms keeps single-keystroke searches snappy on mobile.
+    const delay = q.length >= 1 ? 150 : 0;
     debounceRef.current = setTimeout(runFetch, delay);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [value, sortMode, open]);
+  }, [value, sortMode, open, retryTick]);
 
   // Pin the dropdown to the input's viewport rect. Re-runs on resize/scroll
   // (capture=true to catch inner overflow containers).
@@ -221,9 +251,10 @@ export default function CustomerAutocomplete({
   };
 
   const q = (value || '').trim();
-  // Show dropdown whenever the input is focused. Empty state shows the
-  // first 8 by sort; >=2-char queries show filtered matches.
-  const showDropdown = open && anchorRect && (loading || matches.length > 0 || q.length >= 2);
+  // Whenever the input is focused (open=true), the dropdown is visible — it
+  // shows loading / matches / empty / error states so the user always sees
+  // *something* and never a silent empty popover.
+  const showDropdown = open && anchorRect;
   const canPortal = typeof window !== 'undefined' && typeof document !== 'undefined';
 
   const dropdown = showDropdown ? (
@@ -240,6 +271,23 @@ export default function CustomerAutocomplete({
       onMouseDown={(e) => e.preventDefault()}
       onPointerDown={(e) => e.preventDefault()}
     >
+      {loading && matches.length === 0 && (
+        <div className="px-3 py-3 text-xs text-v-text-secondary">Loading customers&hellip;</div>
+      )}
+      {!loading && !fetchError && matches.length === 0 && (
+        <div className="px-3 py-3 text-xs text-v-text-secondary">
+          {q ? `No customers match "${q}"` : 'No customers yet — type a name to add one'}
+        </div>
+      )}
+      {fetchError && (
+        <button
+          type="button"
+          onClick={() => setRetryTick((t) => t + 1)}
+          className="w-full text-left px-3 py-3 text-xs text-red-300 hover:bg-white/5 active:bg-white/10"
+        >
+          {fetchError}
+        </button>
+      )}
       {matches.map((c) => (
         <button
           key={c.id}
@@ -253,7 +301,7 @@ export default function CustomerAutocomplete({
           )}
         </button>
       ))}
-      {q.length >= 2 && (
+      {q.length >= 1 && (
         <button
           type="button"
           onClick={pickCreateNew}
@@ -308,6 +356,7 @@ export default function CustomerAutocomplete({
           onFocus={handleFocus}
           placeholder={placeholder}
           autoComplete="off"
+          data-testid="customer-autocomplete-input"
           className={`${className} pr-10`}
         />
         <button
