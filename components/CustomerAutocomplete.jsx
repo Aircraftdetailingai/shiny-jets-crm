@@ -155,12 +155,23 @@ export default function CustomerAutocomplete({
   }, [value, sortMode, open]);
 
   // Pin the dropdown to the input's viewport rect. Re-runs on resize/scroll
-  // (capture=true to catch inner overflow containers).
+  // and on visualViewport changes — iOS Safari's window.innerHeight doesn't
+  // shrink when the keyboard opens, but visualViewport.height does. The
+  // offsetTop/offsetLeft fields capture the visual viewport's displacement
+  // from the layout viewport, so subtracting them keeps the portal glued to
+  // the input even when iOS shifts the page up for the keyboard.
   const recomputeRect = useCallback(() => {
     const el = inputRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setAnchorRect({ top: r.bottom, left: r.left, width: r.width });
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    const offsetTop = vv ? vv.offsetTop : 0;
+    const offsetLeft = vv ? vv.offsetLeft : 0;
+    setAnchorRect({
+      top: r.bottom - offsetTop,
+      left: r.left - offsetLeft,
+      width: r.width,
+    });
   }, []);
 
   useEffect(() => {
@@ -168,10 +179,23 @@ export default function CustomerAutocomplete({
     recomputeRect();
     const handler = () => recomputeRect();
     window.addEventListener('resize', handler);
+    // capture=true so we catch scrolls on inner overflow containers (the
+    // modal's max-h scroll area).
     window.addEventListener('scroll', handler, true);
+    // visualViewport events fire when the iOS keyboard slides in/out — the
+    // dropdown needs to reflow with them so it stays anchored to the input.
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (vv) {
+      vv.addEventListener('resize', handler);
+      vv.addEventListener('scroll', handler);
+    }
     return () => {
       window.removeEventListener('resize', handler);
       window.removeEventListener('scroll', handler, true);
+      if (vv) {
+        vv.removeEventListener('resize', handler);
+        vv.removeEventListener('scroll', handler);
+      }
     };
   }, [open, recomputeRect]);
 
@@ -213,17 +237,20 @@ export default function CustomerAutocomplete({
 
   const pickCreateNew = () => {
     const typed = (value || '').trim();
-    if (!typed) return;
+    // Empty is now valid — the parent's onCreateNew handler clears
+    // customer_id and lets the user fill name/email manually.
     if (onCreateNew) onCreateNew(typed);
-    else onChange?.(typed);
+    else if (typed) onChange?.(typed);
     setOpen(false);
     setSortMenuOpen(false);
   };
 
   const q = (value || '').trim();
   // Show dropdown whenever the input is focused. Empty state shows the
-  // first 8 by sort; >=2-char queries show filtered matches.
-  const showDropdown = open && anchorRect && (loading || matches.length > 0 || q.length >= 2);
+  // first 8 by sort; >=2-char queries show filtered matches. When
+  // onCreateNew is provided, the "+ Add new customer" row anchors the
+  // bottom of the dropdown even for zero-customer detailers.
+  const showDropdown = open && anchorRect && (loading || matches.length > 0 || q.length >= 2 || !!onCreateNew);
   const canPortal = typeof window !== 'undefined' && typeof document !== 'undefined';
 
   const dropdown = showDropdown ? (
@@ -235,6 +262,8 @@ export default function CustomerAutocomplete({
         left: anchorRect.left,
         width: anchorRect.width,
         zIndex: 9999,
+        // iOS Safari momentum scrolling on overflow:auto.
+        WebkitOverflowScrolling: 'touch',
       }}
       className={`max-h-72 overflow-y-auto bg-v-surface border border-v-border rounded-md shadow-lg ${listClassName}`}
       onMouseDown={(e) => e.preventDefault()}
@@ -245,6 +274,7 @@ export default function CustomerAutocomplete({
           key={c.id}
           type="button"
           onClick={() => pickCustomer(c)}
+          style={{ touchAction: 'manipulation' }}
           className="w-full text-left px-3 py-2 hover:bg-white/5 active:bg-white/10 border-b border-v-border/30 last:border-b-0"
         >
           <div className="text-sm font-semibold text-v-text-primary truncate">{primaryLine(c, sortMode)}</div>
@@ -253,13 +283,16 @@ export default function CustomerAutocomplete({
           )}
         </button>
       ))}
-      {q.length >= 2 && (
+      {onCreateNew && (
         <button
           type="button"
           onClick={pickCreateNew}
+          style={{ touchAction: 'manipulation' }}
           className="w-full text-left px-3 py-2 text-xs text-v-gold hover:bg-v-gold/10 active:bg-v-gold/20 border-t border-v-gold/20"
         >
-          + Add as new customer: <span className="font-semibold">{q}</span>
+          {q
+            ? <>+ Add new customer: <span className="font-semibold">{q}</span></>
+            : <>+ Add new customer</>}
         </button>
       )}
     </div>
