@@ -185,11 +185,11 @@ function LoginContent() {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer — points users without an account at /signup */}
         <div className="mt-6 text-center">
           <p className="text-v-text-secondary text-sm">
-            {t('login.newToShinyJets')}{' '}
-            <a href="/" className="text-v-gold hover:text-v-gold-dim transition-colors">{t('login.seePlansAndPricing')}</a>
+            Don&apos;t have an account?{' '}
+            <a href="/signup" className="text-v-gold hover:text-v-gold-dim transition-colors">Sign up</a>
           </p>
         </div>
 

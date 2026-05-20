@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { STRIPE_COUNTRIES } from '@/lib/currency';
 import SocialLoginButtons from '@/components/SocialLoginButtons';
 
 function SignupForm() {
@@ -11,60 +10,40 @@ function SignupForm() {
   const refCode = searchParams.get('ref');
   const planParam = searchParams.get('plan');
 
-  const [loading, setLoading] = useState(true);
-  const [inviteOnly, setInviteOnly] = useState(true);
   const [invite, setInvite] = useState(null);
-  const [error, setError] = useState('');
+  const [validatingInvite, setValidatingInvite] = useState(false);
   // website_url is a honeypot — see hidden input below. Stays empty for
   // real humans; bots scraping all inputs fill it and get silently rejected.
-  const [form, setForm] = useState({ name: '', company: '', email: '', password: '', confirmPassword: '', country: 'US', website_url: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', website_url: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Open signup is the default UX now — the previous "invite-only gate" that
+  // surfaced an error card whenever /api/auth/signup-mode returned
+  // invite_only=true is gone. If a token is in the URL we still validate it
+  // so the invite banner + locked email field can render, but the page is
+  // always usable as a normal signup. Server enforces invite-only when the
+  // DB row demands it.
   useEffect(() => {
-    const init = async () => {
-      let isInviteOnly = true;
+    if (!inviteToken) return;
+    setValidatingInvite(true);
+    (async () => {
       try {
-        const modeRes = await fetch('/api/auth/signup-mode');
-        if (modeRes.ok) {
-          const modeData = await modeRes.json();
-          isInviteOnly = modeData.invite_only;
+        const res = await fetch(`/api/invites/validate?token=${encodeURIComponent(inviteToken)}`);
+        const data = await res.json();
+        if (data.valid) {
+          setInvite(data);
+          setForm((f) => ({ ...f, email: data.email }));
         }
-      } catch {}
-      setInviteOnly(isInviteOnly);
-
-      if (isInviteOnly) {
-        if (!inviteToken) {
-          setError('No invite token provided. You need a valid invitation to sign up.');
-          setLoading(false);
-          return;
-        }
-        try {
-          const res = await fetch(`/api/invites/validate?token=${encodeURIComponent(inviteToken)}`);
-          const data = await res.json();
-          if (data.valid) {
-            setInvite(data);
-            setForm(f => ({ ...f, email: data.email }));
-          } else {
-            setError(data.error || 'This invitation link is invalid or has expired.');
-          }
-        } catch {
-          setError('Failed to validate invite. Please check your link and try again.');
-        }
-      } else if (inviteToken) {
-        try {
-          const res = await fetch(`/api/invites/validate?token=${encodeURIComponent(inviteToken)}`);
-          const data = await res.json();
-          if (data.valid) {
-            setInvite(data);
-            setForm(f => ({ ...f, email: data.email }));
-          }
-        } catch {}
+      } catch {
+        // Invalid token in URL? Fall through to open signup — server will
+        // reject if invite-only mode requires a token.
+      } finally {
+        setValidatingInvite(false);
       }
-      setLoading(false);
-    };
-    init();
+    })();
   }, [inviteToken]);
 
   const handleSubmit = async (e) => {
@@ -85,11 +64,9 @@ function SignupForm() {
           email: form.email.trim(),
           password: form.password,
           name: form.name.trim(),
-          company: form.company.trim() || null,
-          country: form.country || null,
           plan: planParam || 'free',
           invite_token: inviteToken || null,
-          referral_code: refCode || localStorage.getItem('vector_referral_code') || null,
+          referral_code: refCode || (typeof window !== 'undefined' ? localStorage.getItem('vector_referral_code') : null) || null,
           website_url: form.website_url,
         }),
       });
@@ -104,15 +81,13 @@ function SignupForm() {
         return;
       }
 
-      // Store auth
       localStorage.setItem('vector_token', data.token);
       localStorage.setItem('vector_user', JSON.stringify(data.user));
 
-      // Show success screen then redirect
       setSuccess(true);
       setTimeout(() => {
         window.location.href = '/onboarding';
-      }, 1500);
+      }, 1200);
     } catch {
       setFormError('Connection error. Please check your internet and try again.');
     } finally {
@@ -120,16 +95,6 @@ function SignupForm() {
     }
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-v-charcoal flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen bg-v-charcoal flex items-center justify-center p-4">
@@ -149,44 +114,19 @@ function SignupForm() {
     );
   }
 
-  // Error state (invalid invite)
-  if (error) {
-    return (
-      <div className="min-h-screen bg-v-charcoal flex items-center justify-center p-4">
-        <div className="bg-v-surface border border-v-border rounded-lg p-6 sm:p-8 max-w-md w-full text-center">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-            <svg className="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-heading text-v-text-primary mb-2">Invalid Invitation</h1>
-          <p className="text-v-text-secondary text-sm mb-6 leading-relaxed">{error}</p>
-          <a
-            href="/login"
-            className="inline-block w-full px-6 py-3 bg-v-gold text-v-charcoal rounded-lg font-medium hover:bg-v-gold-dim transition-colors text-center"
-            style={{ minHeight: '48px', lineHeight: '24px' }}
-          >
-            Go to Login
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-v-charcoal flex flex-col items-center justify-start sm:justify-center px-4 py-8 sm:py-12">
+    <div className="page-transition min-h-screen flex items-center justify-center bg-v-charcoal p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-heading text-v-text-primary tracking-wide">Shiny Jets CRM</h1>
-          {!invite && (
-            <p className="text-v-text-secondary mt-2 text-sm">Create your account</p>
-          )}
+        {/* Header — distinct from /login so users know they're on the signup path */}
+        <div className="text-center mb-8">
+          <img src="/logos/shiny-jets-dark.png" alt="Shiny Jets CRM" className="h-12 mx-auto mb-4 object-contain" />
+          <h1 className="text-2xl font-heading text-v-text-primary tracking-wide">Create your Shiny Jets CRM account</h1>
+          <p className="text-v-text-secondary mt-2 text-sm">Get started with Shiny Jets CRM</p>
         </div>
 
-        {/* Invite accepted banner */}
+        {/* Invite accepted banner — only when validating returned a valid token */}
         {invite && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-5">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-sm p-4 mb-5">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-v-gold/20 flex items-center justify-center mt-0.5">
                 <svg className="w-4.5 h-4.5 text-v-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -210,34 +150,16 @@ function SignupForm() {
           </div>
         )}
 
-        {/* Signup form */}
-        <form onSubmit={handleSubmit} className="bg-v-surface border border-v-border rounded-lg p-5 sm:p-6">
-          {/* Social login — only show when not on invite flow */}
-          {!invite && (
-            <>
-              <SocialLoginButtons />
-              <div className="flex items-center my-5">
-                <div className="flex-grow border-t border-v-border"></div>
-                <span className="mx-3 text-v-text-secondary text-[11px] uppercase tracking-widest whitespace-nowrap">or with email</span>
-                <div className="flex-grow border-t border-v-border"></div>
-              </div>
-            </>
-          )}
-
-          {invite && (
-            <h2 className="text-base font-heading text-v-text-primary mb-4">Create Your Account</h2>
-          )}
-
+        <div className="bg-v-surface border border-v-border rounded-sm p-6">
           {/* Error message */}
           {formError && formError !== 'ACCOUNT_EXISTS' && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 mb-4">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-sm px-4 py-3 mb-4">
               <p className="text-red-400 text-sm leading-relaxed">{formError}</p>
             </div>
           )}
 
-          {/* Account already exists error */}
           {formError === 'ACCOUNT_EXISTS' && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 mb-4">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-sm px-4 py-3 mb-4">
               <p className="text-amber-300 text-sm font-medium mb-1">This email is already registered</p>
               <p className="text-amber-400/70 text-xs">
                 <a href="/login" className="text-v-gold underline underline-offset-2 hover:text-v-gold-dim">
@@ -248,7 +170,8 @@ function SignupForm() {
             </div>
           )}
 
-          <div className="space-y-3.5">
+          {/* Email signup form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Honeypot — visually + interaction-hidden. Real users never see
                 or focus this; bots scraping all inputs fill it and get
                 silently rejected server-side. Do not remove. */}
@@ -259,118 +182,117 @@ function SignupForm() {
               autoComplete="off"
               aria-hidden="true"
               value={form.website_url}
-              onChange={(e) => setForm(f => ({ ...f, website_url: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, website_url: e.target.value }))}
               style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
             />
 
             <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Full Name <span className="text-red-400">*</span></label>
+              <label className="block text-sm text-v-text-secondary mb-1">Name</label>
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="John Smith"
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 autoComplete="name"
-                className="w-full bg-v-surface-light border border-v-border rounded-lg px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50 focus:ring-1 focus:ring-v-gold/20"
+                required
+                placeholder="John Smith"
+                className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Company Name</label>
-              <input
-                type="text"
-                value={form.company}
-                onChange={(e) => setForm(f => ({ ...f, company: e.target.value }))}
-                placeholder="Your Aviation Company"
-                autoComplete="organization"
-                className="w-full bg-v-surface-light border border-v-border rounded-lg px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50 focus:ring-1 focus:ring-v-gold/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Country</label>
-              <select
-                value={form.country}
-                onChange={(e) => setForm(f => ({ ...f, country: e.target.value }))}
-                className="w-full bg-v-surface-light border border-v-border rounded-lg px-4 py-3 text-base text-v-text-primary outline-none focus:border-v-gold/50 focus:ring-1 focus:ring-v-gold/20 appearance-none"
-                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
-              >
-                {STRIPE_COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Email <span className="text-red-400">*</span></label>
+              <label className="block text-sm text-v-text-secondary mb-1">Email</label>
               {invite ? (
-                <div className="w-full bg-v-charcoal border border-v-border rounded-lg px-4 py-3 text-base text-v-text-secondary">
+                <div className="w-full bg-v-charcoal border border-v-border rounded-sm px-4 py-3 text-base text-v-text-secondary">
                   {form.email}
                 </div>
               ) : (
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="you@company.com"
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   autoComplete="email"
                   inputMode="email"
-                  className="w-full bg-v-surface-light border border-v-border rounded-lg px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50 focus:ring-1 focus:ring-v-gold/20"
+                  required
+                  placeholder="you@company.com"
+                  className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
                 />
               )}
             </div>
 
             <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Password <span className="text-red-400">*</span></label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="Minimum 8 characters"
-                autoComplete="new-password"
-                className="w-full bg-v-surface-light border border-v-border rounded-lg px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50 focus:ring-1 focus:ring-v-gold/20"
-              />
+              <label className="block text-sm text-v-text-secondary mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  placeholder="Minimum 8 characters"
+                  className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 pr-11 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-v-text-secondary hover:text-v-text-primary"
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M10.584 10.587a2 2 0 002.828 2.83M9.363 5.365A9.466 9.466 0 0112 5c4.477 0 8.268 2.943 9.542 7-.41 1.305-1.077 2.51-1.962 3.563M6.196 6.197A10.026 10.026 0 002.458 12c1.274 4.057 5.065 7 9.542 7 1.66 0 3.224-.4 4.604-1.107" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm text-v-text-secondary mb-1">Confirm Password <span className="text-red-400">*</span></label>
+              <label className="block text-sm text-v-text-secondary mb-1">Confirm password</label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={form.confirmPassword}
-                onChange={(e) => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                placeholder="Re-enter password"
+                onChange={(e) => setForm((f) => ({ ...f, confirmPassword: e.target.value }))}
                 autoComplete="new-password"
-                className="w-full bg-v-surface-light border border-v-border rounded-lg px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50 focus:ring-1 focus:ring-v-gold/20"
+                required
+                placeholder="Re-enter password"
+                className="w-full bg-v-surface-light border border-v-border rounded-sm px-4 py-3 text-base text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
               />
             </div>
+
+            <button
+              type="submit"
+              disabled={saving || validatingInvite}
+              className="w-full py-3 bg-v-gold text-v-charcoal rounded-sm font-medium hover:bg-v-gold-dim disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Creating account...' : 'Create account'}
+            </button>
+          </form>
+
+          {/* Divider + Google — placed BELOW the form per spec so the
+              primary call-to-action (email signup) leads. Same component
+              the /login page uses, so the Google button styling matches. */}
+          <div className="flex items-center my-6">
+            <div className="flex-grow border-t border-v-border"></div>
+            <span className="mx-4 text-v-text-secondary text-xs uppercase tracking-widest">or</span>
+            <div className="flex-grow border-t border-v-border"></div>
           </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full mt-5 bg-v-gold text-v-charcoal rounded-lg font-semibold hover:bg-v-gold-dim disabled:opacity-50 transition-colors text-base"
-            style={{ minHeight: '48px' }}
-          >
-            {saving ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-v-charcoal/30 border-t-v-charcoal rounded-full animate-spin" />
-                Creating Account...
-              </span>
-            ) : (
-              'Create Account'
-            )}
-          </button>
+          <SocialLoginButtons />
+        </div>
 
-          <p className="text-center text-xs text-v-text-secondary/60 mt-4">
+        {/* Footer: switch to login */}
+        <div className="mt-6 text-center">
+          <p className="text-v-text-secondary text-sm">
             Already have an account?{' '}
-            <a href="/login" className="text-v-gold hover:text-v-gold-dim underline underline-offset-2">Log in</a>
+            <a href="/login" className="text-v-gold hover:text-v-gold-dim transition-colors">Sign in</a>
           </p>
-        </form>
-
-        {/* Bottom spacing for mobile keyboard */}
-        <div className="h-8 sm:h-0" />
+        </div>
       </div>
     </div>
   );
