@@ -54,12 +54,29 @@ export async function POST(request) {
       console.log('[oauth-complete] Creating new detailer for:', email);
       isNewUser = true;
 
+      // Generate a slug so /request/{slug} works immediately. Match the
+      // email-signup pattern (clean → dedupe loop). OAuth has no company
+      // at signup time, so fall back to name, then email local-part.
+      const slugSource = (name || email.split('@')[0] || 'detailer').trim();
+      const baseSlug = slugSource.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'detailer';
+      let slug = baseSlug;
+      for (let i = 1; i < 50; i++) {
+        const { data: clash } = await supabase.from('detailers').select('id').eq('slug', slug).maybeSingle();
+        if (!clash) break;
+        slug = `${baseSlug}-${i}`;
+      }
+
       const { data: newDetailer, error: createError } = await supabase
         .from('detailers')
         .insert({
           email: email.toLowerCase().trim(),
           name: name || '',
           company: '',
+          slug,
           plan: 'free',
           status: 'active',
           onboarding_completed: false,
@@ -111,6 +128,24 @@ export async function POST(request) {
         detailer.plan = compResult.plan;
         detailer.subscription_status = compResult.subscription_status;
         if (compResult.trial_ends_at) detailer.trial_ends_at = compResult.trial_ends_at;
+      }
+    }
+
+    // Seed the default intake flow so /request/{slug} and /settings/developer
+    // work the moment signup completes. Same shape as the SQL backfill that
+    // covered 68 existing OAuth detailers. Non-blocking on failure.
+    if (isNewUser && detailer?.id) {
+      try {
+        const { buildDefaultFlowData } = await import('@/lib/default-flow');
+        const defaultFlow = buildDefaultFlowData();
+        await supabase.from('intake_flows').upsert({
+          detailer_id: detailer.id,
+          flow_nodes: defaultFlow.flow_nodes,
+          flow_edges: defaultFlow.flow_edges,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'detailer_id' });
+      } catch (flowErr) {
+        console.log('[oauth-complete] Default flow seed failed (non-critical):', flowErr.message);
       }
     }
 
