@@ -53,12 +53,13 @@ export async function GET(request) {
     .eq('id', detailerId)
     .maybeSingle();
 
-  // White-label rule: only enterprise plan with a real logo gets their own
-  // homescreen icon. Free/Pro/Business → Shiny Jets default. Enterprise
-  // with no logo uploaded → fall back to Shiny Jets default (don't ship a
-  // broken icon).
+  // White-label rule: business + enterprise plans get their own homescreen
+  // icon when a logo is set. Free + Pro → Shiny Jets default. Business or
+  // enterprise with no logo uploaded → fall back to Shiny Jets default
+  // (don't ship a broken icon).
   const logo = detailer?.logo_url || detailer?.logo_dark_url || detailer?.logo_light_url;
-  if (detailer?.plan === 'enterprise' && logo) {
+  const plan = detailer?.plan;
+  if ((plan === 'business' || plan === 'enterprise') && logo) {
     const fullName = detailer.company || detailer.name || 'CRM';
     return new Response(JSON.stringify({
       ...SHINY_JETS_DEFAULT,

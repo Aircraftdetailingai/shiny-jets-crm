@@ -226,9 +226,9 @@ export default function DeliveryReportPage() {
         )}
       </main>
 
-      {/* Footer — only pro/business surface "Powered by". Free has SJ in
-          the header already; enterprise is white-label. */}
-      {(detailer?.plan === 'pro' || detailer?.plan === 'business') && (
+      {/* Footer — only PRO surfaces "Powered by". Free has SJ in the
+          header already; business + enterprise are white-label. */}
+      {detailer?.plan === 'pro' && (
         <footer style={{ textAlign: 'center', padding: '24px 20px 40px', borderTop: '1px solid #111827' }}>
           <p style={{ color: '#2A3A50', fontSize: 11, letterSpacing: '0.1em', margin: 0 }}>
             Powered by Shiny Jets CRM
