@@ -349,7 +349,19 @@ export default function RequestsPage() {
                           </p>
                         </div>
                       </label>
-                      <span className={`shrink-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${style.cls}`}>{style.label}</span>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <span className={`px-2.5 py-0.5 text-[10px] uppercase tracking-wider ${style.cls}`}>{style.label}</span>
+                        <div className="flex items-center gap-1">
+                          {lead.draft_quote_id && lead.status === 'reviewed' && (
+                            <span className="text-[9px] uppercase tracking-wider text-v-gold/80 border border-v-gold/20 px-1.5 py-px rounded-sm">Draft</span>
+                          )}
+                          {Array.isArray(lead.photo_urls) && lead.photo_urls.length > 0 && (
+                            <span className="text-[9px] uppercase tracking-wider text-v-text-secondary border border-v-border px-1.5 py-px rounded-sm">
+                              {lead.photo_urls.length}&nbsp;photo{lead.photo_urls.length === 1 ? '' : 's'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-v-text-secondary text-xs">{formatDate(lead.created_at)}</span>
@@ -420,7 +432,7 @@ export default function RequestsPage() {
                     <div className="truncate pr-4">
                       <span className="text-v-text-secondary text-sm" title={lead.services_requested || ''}>{lead.services_requested || '—'}</span>
                     </div>
-                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                       <div className="relative">
                         <button
                           onClick={() => setStatusMenuOpen(statusMenuOpen === lead.id ? null : lead.id)}
@@ -441,6 +453,20 @@ export default function RequestsPage() {
                               </button>
                             ))}
                           </div>
+                        )}
+                      </div>
+                      {/* Sub-badges: draft-in-progress and photo count */}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {lead.draft_quote_id && lead.status === 'reviewed' && (
+                          <span className="text-[9px] uppercase tracking-wider text-v-gold/80 border border-v-gold/20 px-1.5 py-px rounded-sm"
+                            title="A draft quote is in progress for this lead">
+                            Draft
+                          </span>
+                        )}
+                        {Array.isArray(lead.photo_urls) && lead.photo_urls.length > 0 && (
+                          <span className="text-[9px] uppercase tracking-wider text-v-text-secondary border border-v-border px-1.5 py-px rounded-sm">
+                            {lead.photo_urls.length}&nbsp;photo{lead.photo_urls.length === 1 ? '' : 's'}
+                          </span>
                         )}
                       </div>
                     </div>

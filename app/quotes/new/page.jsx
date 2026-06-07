@@ -1000,6 +1000,7 @@ function NewQuoteContent() {
       discount_value: showDiscount && userDiscountAmt > 0 ? parseFloat(userDiscountValue) : null,
       discount_reason: showDiscount && userDiscountReason ? userDiscountReason : null,
       discounted_total: userDiscountAmt > 0 ? totalPrice : null,
+      lead_id: leadContext?.leadId || null,
     };
   };
 
@@ -1018,17 +1019,10 @@ function NewQuoteContent() {
         if (res.ok) {
           const data = await res.json();
           if (data.id) setDraftId(data.id);
-          // Lead → quote transition: when this quote came from a lead
-          // (CustomerAutocomplete prefill set leadContext.leadId), bump the
-          // intake_lead's status to 'quoted' so it falls out of the Open
-          // tab on /requests. Fire-and-forget — never blocks the save.
-          if (leadContext?.leadId) {
-            fetch('/api/lead-intake/leads', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ action: 'update_status', lead_id: leadContext.leadId, status: 'quoted' }),
-            }).catch(() => {});
-          }
+          // Lead status transitions are owned server-side now:
+          //  - convert_to_quote action sets lead.status='reviewed' (draft created)
+          //  - quotes/[id]/send sets lead.status='quoted' (actually emailed)
+          // No client-side status writes from this surface.
         }
       }
       if (silent) {

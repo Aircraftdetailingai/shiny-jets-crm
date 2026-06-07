@@ -30,7 +30,7 @@ export async function GET(request) {
   const supabase = getSupabase();
   const { data: row, error } = await supabase
     .from('detailers')
-    .select('id, name, email, plan, calibration_anchor_a, calibration_anchor_b')
+    .select('id, name, email, company, slug, plan, calibration_anchor_a, calibration_anchor_b')
     .eq('id', user.id)
     .single();
 

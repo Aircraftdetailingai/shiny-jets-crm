@@ -347,6 +347,7 @@ export async function POST(request) {
       deposit_percentage: effectiveDepositPct,
       deposit_amount: effectiveDepositAmt,
       payment_method: effectivePaymentMethod,
+      lead_id: body.lead_id || null,
     };
 
     // Try full insert first, then strip failing columns
@@ -379,6 +380,18 @@ export async function POST(request) {
     if (error) {
       console.error('Quote create final error:', JSON.stringify(error));
       return Response.json({ error: 'An unexpected error occurred while creating your quote. Please try again.' }, { status: 500 });
+    }
+
+    // Lead → draft transition: when this quote is linked to an intake_lead,
+    // flip the lead to 'reviewed'. The 'quoted' status fires only on send.
+    if (body.lead_id) {
+      supabase.from('intake_leads')
+        .update({ status: 'reviewed' })
+        .eq('id', body.lead_id)
+        .eq('detailer_id', user.detailer_id || user.id)
+        .then(({ error: leadErr }) => {
+          if (leadErr) console.error('[quotes] lead status propagation failed:', leadErr.message);
+        });
     }
 
     // Auto-pin the quoted aircraft to the customer's customer_aircraft list

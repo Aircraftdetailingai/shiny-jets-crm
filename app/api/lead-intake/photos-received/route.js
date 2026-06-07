@@ -7,18 +7,26 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request) {
-  const { lead_id } = await request.json();
-  if (!lead_id) return Response.json({ error: 'Lead ID required' }, { status: 400 });
+  const body = await request.json();
+  // Accept either a real UUID or the photo_request_token.
+  const ref = body.token || body.lead_id;
+  if (!ref) return Response.json({ error: 'Lead ID or token required' }, { status: 400 });
 
   const supabase = getSupabase();
 
+  // Resolve to the canonical lead row.
+  const { data: lead } = UUID_RE.test(String(ref))
+    ? await supabase.from('intake_leads').select('id, detailer_id, name, aircraft_model').eq('id', ref).single()
+    : await supabase.from('intake_leads').select('id, detailer_id, name, aircraft_model').eq('photo_request_token', ref).single();
+  if (!lead) return Response.json({ success: true });
+
+  const lead_id = lead.id;
+
   // Update lead status back to new (green badge — photos received, ready to quote)
   await supabase.from('intake_leads').update({ status: 'new' }).eq('id', lead_id);
-
-  // Notify detailer
-  const { data: lead } = await supabase.from('intake_leads').select('detailer_id, name, aircraft_model').eq('id', lead_id).single();
-  if (!lead) return Response.json({ success: true });
 
   const { data: detailer } = await supabase.from('detailers').select('email').eq('id', lead.detailer_id).single();
 

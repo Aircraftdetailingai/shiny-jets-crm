@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 export default function FlowRequestPage() {
   const { slug } = useParams();
+  const searchParams = useSearchParams();
+  const isEmbed = searchParams?.get('embed') === '1';
 
   // Detailer + flow state
   const [detailer, setDetailer] = useState(null);
@@ -301,26 +303,31 @@ export default function FlowRequestPage() {
   const isEnterprise = detailer?.plan === 'enterprise';
   const currentNode = flowNodes.find(n => n.id === currentNodeId);
 
-  const Header = () => (
-    <div className="px-4 pt-4">
-      <div className="flex items-center justify-between">
-        {(phase !== 'manufacturer' && phase !== 'done' && phase !== 'submitting') ? (
-          <button onClick={goBack} className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-          </button>
-        ) : <div className="w-10" />}
-        <div className="text-center">
-          {detailer?.logo_url ? (
-            <img src={detailer.logo_url} alt={detailer.company} className="h-8 object-contain mx-auto" />
-          ) : (
-            <span className="text-white/80 text-sm font-medium">{detailer?.company || 'Get a Quote'}</span>
-          )}
+  // ?embed=1 strips the page chrome (logo, "Powered by" footer) so the
+  // form renders cleanly inside an iframe on the detailer's website.
+  const Header = () => {
+    if (isEmbed) return null;
+    return (
+      <div className="px-4 pt-4">
+        <div className="flex items-center justify-between">
+          {(phase !== 'manufacturer' && phase !== 'done' && phase !== 'submitting') ? (
+            <button onClick={goBack} className="w-10 h-10 flex items-center justify-center text-white/60 hover:text-white">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+          ) : <div className="w-10" />}
+          <div className="text-center">
+            {detailer?.logo_url ? (
+              <img src={detailer.logo_url} alt={detailer.company} className="h-8 object-contain mx-auto" />
+            ) : (
+              <span className="text-white/80 text-sm font-medium">{detailer?.company || 'Get a Quote'}</span>
+            )}
+          </div>
+          <div className="w-10" />
         </div>
-        <div className="w-10" />
+        {!isEnterprise && detailer?.company && <p className="text-center text-white/20 text-[9px] mt-1">Powered by {detailer.company}</p>}
       </div>
-      {!isEnterprise && detailer?.company && <p className="text-center text-white/20 text-[9px] mt-1">Powered by {detailer.company}</p>}
-    </div>
-  );
+    );
+  };
 
   const Btn = ({ children, onClick, disabled, secondary }) => (
     <button onClick={onClick} disabled={disabled}

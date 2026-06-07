@@ -15,7 +15,7 @@ export default function UploadPhotosPage() {
     setError('');
     try {
       const formData = new FormData();
-      formData.append('lead_id', token);
+      formData.append('token', token);
       formData.append('photo_count', String(photos.length));
       photos.forEach((p, i) => {
         formData.append(`photo_${i}`, p.file);
@@ -25,11 +25,12 @@ export default function UploadPhotosPage() {
       const res = await fetch('/api/lead-intake/upload-photos', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
 
-      // Notify that photos were added
+      // Notify that photos were added — token is whatever the URL gave us
+      // (new minted token OR legacy UUID; the endpoint resolves both).
       await fetch('/api/lead-intake/photos-received', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lead_id: token }),
+        body: JSON.stringify({ token }),
       }).catch(() => {});
 
       setDone(true);

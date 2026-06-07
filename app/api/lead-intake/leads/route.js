@@ -67,8 +67,21 @@ export async function GET(request) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    console.log('[requests-list] returned rows:', leads?.length || 0);
-    return new Response(JSON.stringify({ leads: leads || [] }), {
+    // Surface a draft_quote_id per lead for the Requests row badge.
+    let enriched = leads || [];
+    if (enriched.length > 0) {
+      const leadIds = enriched.map(l => l.id);
+      const { data: drafts } = await supabase
+        .from('quotes')
+        .select('id, lead_id')
+        .in('lead_id', leadIds)
+        .eq('status', 'draft');
+      const byLead = new Map((drafts || []).map(d => [d.lead_id, d.id]));
+      enriched = enriched.map(l => ({ ...l, draft_quote_id: byLead.get(l.id) || null }));
+    }
+
+    console.log('[requests-list] returned rows:', enriched.length);
+    return new Response(JSON.stringify({ leads: enriched }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, max-age=0' },
     });
@@ -230,11 +243,12 @@ export async function POST(request) {
         return Response.json({ error: 'Lead not found' }, { status: 404 });
       }
 
-      // Create quote from lead
+      // Create quote from lead, linked via quotes.lead_id (parent ← child FK).
       const { data: quote, error: quoteError } = await supabase
         .from('quotes')
         .insert({
           detailer_id: detailerId,
+          lead_id: lead.id,
           customer_name: lead.customer_name,
           customer_email: lead.customer_email,
           customer_phone: lead.customer_phone,
@@ -252,10 +266,11 @@ export async function POST(request) {
         return Response.json({ error: quoteError.message }, { status: 500 });
       }
 
-      // Update lead status
+      // Lead status transitions to 'reviewed' on draft creation, NOT 'quoted'.
+      // 'quoted' fires only when the send endpoint succeeds (quotes/[id]/send).
       await supabase
         .from('intake_leads')
-        .update({ status: 'converted', quote_id: quote.id })
+        .update({ status: 'reviewed' })
         .eq('id', lead_id);
 
       return Response.json({ success: true, quote });

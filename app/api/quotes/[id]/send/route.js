@@ -188,6 +188,17 @@ export async function POST(request, { params }) {
     return new Response(JSON.stringify({ error: updErr.message }), { status: 500 });
   }
 
+  // After the quote is actually sent, propagate to the linked intake lead.
+  // Lead status only becomes 'quoted' here — never on draft creation.
+  if (quote.lead_id) {
+    const { error: leadErr } = await supabase
+      .from('intake_leads')
+      .update({ status: 'quoted' })
+      .eq('id', quote.lead_id)
+      .eq('detailer_id', user.id);
+    if (leadErr) console.error('[quote-send] lead propagation failed:', leadErr.message);
+  }
+
   // Fetch detailer info for email (includes currency for proper formatting)
   // Use column-stripping retry in case sms_enabled or notification_settings don't exist yet
   let detailer = null;

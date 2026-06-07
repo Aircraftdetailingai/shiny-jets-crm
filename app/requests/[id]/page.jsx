@@ -233,18 +233,35 @@ export default function RequestDetailPage() {
             <button onClick={async () => {
               setRequestingPhotos(true);
               const token = localStorage.getItem('vector_token');
+              // 24h rate limit lives server-side; if blocked, prompt to force-resend.
+              const sentAt = lead.photo_request_sent_at ? new Date(lead.photo_request_sent_at) : null;
+              const hoursAgo = sentAt ? Math.floor((Date.now() - sentAt.getTime()) / 3600000) : null;
+              let url = '/api/lead-intake/request-photos';
+              if (hoursAgo !== null && hoursAgo < 24) {
+                if (!confirm(`Photos already requested ${hoursAgo}h ago. Send again now?`)) {
+                  setRequestingPhotos(false);
+                  return;
+                }
+                url += '?force=1';
+              }
               try {
-                await fetch('/api/lead-intake/request-photos', {
+                const res = await fetch(url, {
                   method: 'POST',
                   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                   body: JSON.stringify({ lead_id: id }),
                 });
-                setLead(prev => ({ ...prev, status: 'awaiting_photos' }));
+                if (res.ok) {
+                  setLead(prev => ({ ...prev, status: 'awaiting_photos', photo_request_sent_at: new Date().toISOString() }));
+                }
               } catch {}
               setRequestingPhotos(false);
             }} disabled={requestingPhotos}
               className="flex-1 py-3 text-xs uppercase tracking-wider text-v-gold border border-v-gold/30 hover:bg-v-gold/5 rounded-lg transition-colors disabled:opacity-50">
-              {requestingPhotos ? 'Sending...' : 'Request Photos'}
+              {requestingPhotos
+                ? 'Sending...'
+                : lead.photo_request_sent_at
+                  ? `Re-request Photos${photos.length > 0 ? ` (${photos.length} received)` : ''}`
+                  : 'Request Photos'}
             </button>
 
             <button onClick={() => setShowDecline(true)}
