@@ -408,10 +408,13 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
           </View>
         )}
 
-        {/* Footer */}
-        <View style={s.footer} fixed>
-          <Text style={s.footerText}>Powered by Shiny Jets Aviation</Text>
-        </View>
+        {/* Footer — only pro/business surface "Powered by". Free has SJ in
+            the header already; enterprise is white-label. */}
+        {(plan === 'pro' || plan === 'business') && (
+          <View style={s.footer} fixed>
+            <Text style={s.footerText}>Powered by Shiny Jets Aviation</Text>
+          </View>
+        )}
       </Page>
     </Document>
   );

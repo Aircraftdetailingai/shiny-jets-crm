@@ -2492,12 +2492,12 @@ function SettingsShell({ bucket: activeBucket = null }) {
 
         )}
 
-        {show('platformFee') && (
-        /* Platform Fee */
+        {show('platformFee') && user?.plan !== 'enterprise' && (
+        /* Platform Fee — hidden for enterprise (white-label, 0% fee) */
         <div className="pb-6 mb-2">
           <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">{'Platform fee'}</h3>
           <p className="text-sm text-v-text-secondary mb-3">
-            {'Shiny Jets CRM charges a {rate}% platform fee on each job. Choose who pays it.'.replace('{rate}', user?.plan === 'enterprise' ? '0' : hasAllFeatures ? '1' : user?.plan === 'pro' ? '2' : '5')}
+            {'Shiny Jets CRM charges a {rate}% platform fee on each job. Choose who pays it.'.replace('{rate}', user?.plan === 'business' ? '1' : user?.plan === 'pro' ? '2' : '5')}
           </p>
           <div className="space-y-3">
             <label

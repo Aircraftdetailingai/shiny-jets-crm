@@ -38,7 +38,7 @@ export async function GET(request, { params }) {
   // Fetch detailer branding
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('company, logo_url, theme_primary')
+    .select('company, logo_url, theme_primary, plan')
     .eq('id', job.detailer_id)
     .single();
 

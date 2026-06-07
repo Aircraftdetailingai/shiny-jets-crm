@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { calculateCcFee } from '@/lib/cc-fee';
-import { PLATFORM_FEES } from '@/lib/pricing-tiers';
+import { PLATFORM_FEES, resolveFeeRate } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +53,7 @@ export async function POST(request) {
     // Fetch detailer
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_secret_key, stripe_mode, stripe_account_id, company, email, plan, cc_fee_mode, booking_mode, deposit_percentage, quote_package_name, quote_itemized_checkout')
+      .select('stripe_secret_key, stripe_mode, stripe_account_id, company, email, plan, platform_fee_percent, cc_fee_mode, booking_mode, deposit_percentage, quote_package_name, quote_itemized_checkout')
       .eq('id', quote.detailer_id)
       .single();
 
@@ -200,9 +200,12 @@ export async function POST(request) {
 
     if (canConnect) {
       try {
-        const feeRate = PLATFORM_FEES[detailer.plan || 'free'] || PLATFORM_FEES.free;
+        // Per-detailer override via detailer.platform_fee_percent (DB column),
+        // falls back to PLATFORM_FEES[plan] when null. Comped accounts can set
+        // platform_fee_percent=0 regardless of plan.
+        const feeRate = resolveFeeRate(detailer);
         const platformFee = Math.round(totalAmount * feeRate);
-        console.log(`[checkout-connect] dest=${detailer.stripe_account_id} plan=${detailer.plan} feeRate=${feeRate} fee=${platformFee}cents total=${totalAmount}cents`);
+        console.log(`[checkout-connect] dest=${detailer.stripe_account_id} plan=${detailer.plan} fee%=${detailer.platform_fee_percent ?? '(plan default)'} feeRate=${feeRate} fee=${platformFee}cents total=${totalAmount}cents`);
 
         const stripe = new Stripe(platformKey);
         const connectParams = {

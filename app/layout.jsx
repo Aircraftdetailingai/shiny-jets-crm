@@ -2,6 +2,7 @@ import './globals.css'
 import { Inter, Poppins } from 'next/font/google'
 import InstallPrompt from '@/components/InstallPrompt'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
+import BrandedHomescreen from '@/components/BrandedHomescreen'
 import Providers from '@/components/Providers'
 
 const inter = Inter({
@@ -26,7 +27,7 @@ export const metadata = {
   title: 'Shiny Jets CRM - Aircraft Detailing Quotes',
   description: 'Professional quoting software for aircraft detailers',
   applicationName: 'Shiny Jets CRM',
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: [
       { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -68,6 +69,7 @@ export default function RootLayout({ children }) {
         </Providers>
         <InstallPrompt />
         <ServiceWorkerRegistrar />
+        <BrandedHomescreen />
         <script dangerouslySetInnerHTML={{ __html: `
           (function(){var o=new MutationObserver(function(m){m.forEach(function(r){r.addedNodes.forEach(function(n){if(n.id==='__vercel-toolbar'||n.id==='vercel-live-feedback'||(n.tagName==='SCRIPT'&&n.src&&n.src.includes('vercel-toolbar'))){n.remove()}})})});o.observe(document.documentElement,{childList:true,subtree:true});setTimeout(function(){o.disconnect()},10000)})();
         `}} />

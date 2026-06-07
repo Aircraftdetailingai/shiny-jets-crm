@@ -187,13 +187,28 @@ async function updatePlan(supabase, detailer, newPlan, extra = {}) {
   const oldPlan = detailer.plan || 'free';
   if (oldPlan === newPlan && !extra.subscription_status) return { oldPlan, newPlan, changed: false };
 
-  await supabase.from('detailers').update({
+  // Realign platform_fee_percent to the new plan default, UNLESS this is a
+  // comp/manually-overridden account — those keep their custom rate (e.g.
+  // a comped enterprise sitting at 0% should not be reset by a Shopify
+  // event). subscription_source='comp_invite' OR status='comped' protects.
+  const isComped = detailer.subscription_source === 'comp_invite' ||
+                   detailer.subscription_status === 'comped' ||
+                   extra.subscription_source === 'comp_invite' ||
+                   extra.subscription_status === 'comped';
+
+  const { defaultFeePercentForPlan } = await import('@/lib/branding');
+  const update = {
     plan: newPlan,
     subscription_status: 'active',
     subscription_source: 'shopify',
     plan_updated_at: new Date().toISOString(),
     ...extra,
-  }).eq('id', detailer.id);
+  };
+  if (!isComped) {
+    update.platform_fee_percent = defaultFeePercentForPlan(newPlan);
+  }
+
+  await supabase.from('detailers').update(update).eq('id', detailer.id);
 
   // Confirmation email
   if (oldPlan !== newPlan) {

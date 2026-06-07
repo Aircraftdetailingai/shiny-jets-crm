@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
-import { PLATFORM_FEES } from '@/lib/pricing-tiers';
+import { PLATFORM_FEES, resolveFeeRate } from '@/lib/pricing-tiers';
 import { calculateCcFee } from '@/lib/cc-fee';
 
 export const dynamic = 'force-dynamic';
@@ -59,10 +59,10 @@ export async function POST(request, { params }) {
       return Response.json({ error: 'Cannot pay balance — deposit has not been paid yet' }, { status: 400 });
     }
 
-    // Fetch detailer for Stripe keys, plan, and CC fee pass-through mode
+    // Fetch detailer for Stripe keys, plan, fee override, and CC fee pass-through mode
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('stripe_secret_key, stripe_mode, stripe_account_id, company, plan, cc_fee_mode')
+      .select('stripe_secret_key, stripe_mode, stripe_account_id, company, plan, platform_fee_percent, cc_fee_mode')
       .eq('id', invoice.detailer_id)
       .single();
 
@@ -206,9 +206,9 @@ export async function POST(request, { params }) {
 
     if (canConnect) {
       try {
-        const feeRate = PLATFORM_FEES[detailer.plan || 'free'] || PLATFORM_FEES.free;
+        const feeRate = resolveFeeRate(detailer);
         const platformFee = Math.round(totalAmountCents * feeRate);
-        console.log(`[invoice-checkout-connect] dest=${detailer.stripe_account_id} plan=${detailer.plan} feeRate=${feeRate} fee=${platformFee}cents total=${totalAmountCents}cents`);
+        console.log(`[invoice-checkout-connect] dest=${detailer.stripe_account_id} plan=${detailer.plan} fee%=${detailer.platform_fee_percent ?? '(plan default)'} feeRate=${feeRate} fee=${platformFee}cents total=${totalAmountCents}cents`);
 
         const stripe = new Stripe(platformKey);
         const session = await stripe.checkout.sessions.create({

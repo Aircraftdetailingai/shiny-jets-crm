@@ -123,7 +123,9 @@ function ReportPDF({ type, data, detailer, startDate, endDate }) {
         {/* Footer */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>Generated {generatedDate}</Text>
-          {detailer?.plan !== 'enterprise' && <Text style={s.footerGold}>Powered by Shiny Jets Aviation</Text>}
+          {(detailer?.plan === 'pro' || detailer?.plan === 'business') && (
+            <Text style={s.footerGold}>Powered by Shiny Jets Aviation</Text>
+          )}
         </View>
       </Page>
     </Document>
