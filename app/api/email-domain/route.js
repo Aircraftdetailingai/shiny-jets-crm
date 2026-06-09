@@ -28,8 +28,9 @@ async function loadDetailer(supabase, id) {
   return data;
 }
 
-function isEnterprise(detailer) {
-  return (detailer?.plan || '').toLowerCase() === 'enterprise';
+function isEligible(detailer) {
+  const plan = (detailer?.plan || '').toLowerCase();
+  return plan === 'business' || plan === 'enterprise';
 }
 
 function noRsendKey() {
@@ -45,7 +46,9 @@ export async function GET(request) {
   if (!detailer) return Response.json({ error: 'Detailer not found' }, { status: 404 });
   return Response.json({
     plan: detailer.plan,
-    isEnterprise: isEnterprise(detailer),
+    eligible: isEligible(detailer),
+    // Back-compat for UIs that read isEnterprise — keep populated.
+    isEnterprise: (detailer?.plan || '').toLowerCase() === 'enterprise',
     domain: detailer.custom_email_domain,
     verifiedAt: detailer.custom_email_verified_at,
     resendDomainId: detailer.custom_email_resend_domain_id,

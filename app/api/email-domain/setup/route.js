@@ -36,8 +36,9 @@ export async function POST(request) {
     .eq('id', user.id)
     .single();
   if (!detailer) return Response.json({ error: 'Detailer not found' }, { status: 404 });
-  if ((detailer.plan || '').toLowerCase() !== 'enterprise') {
-    return Response.json({ error: 'Custom email domain is available on the Enterprise plan' }, { status: 403 });
+  const plan = (detailer.plan || '').toLowerCase();
+  if (plan !== 'business' && plan !== 'enterprise') {
+    return Response.json({ error: 'Custom email domain is available on the Business and Enterprise plans' }, { status: 403 });
   }
 
   // Reuse existing record if the detailer is re-setting up the same domain

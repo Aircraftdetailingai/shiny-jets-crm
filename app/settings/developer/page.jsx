@@ -159,8 +159,8 @@ export default function DeveloperPage() {
 }
 
 function CustomEmailDomainSection({ plan }) {
-  const isEnterprise = plan === 'enterprise';
-  const [state, setState] = useStateOrLoad(isEnterprise);
+  const isEligible = plan === 'business' || plan === 'enterprise';
+  const [state, setState] = useStateOrLoad(isEligible);
   const [domain, setDomain] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -230,15 +230,15 @@ function CustomEmailDomainSection({ plan }) {
     }
   };
 
-  if (!isEnterprise) {
+  if (!isEligible) {
     return (
       <section className="border border-v-border p-5 bg-v-surface">
         <h3 className="text-sm font-semibold text-v-text-primary mb-1">Custom sending domain</h3>
         <p className="text-xs text-v-text-secondary mb-3">Send customer emails from <span className="font-mono">noreply@yourcompany.com</span> instead of the platform domain.</p>
-        <p className="text-xs text-v-text-secondary mb-3">Available on the Enterprise plan.</p>
-        <a href="mailto:brett@shinyjets.com?subject=Enterprise%20plan%20-%20custom%20email%20domain"
+        <p className="text-xs text-v-text-secondary mb-3">Available on the Business and Enterprise plans.</p>
+        <a href="mailto:brett@shinyjets.com?subject=Business%20plan%20-%20custom%20email%20domain"
           className="inline-block px-4 py-2 border border-v-border text-v-text-primary text-xs uppercase tracking-wider hover:bg-white/5 transition-colors">
-          Contact about Enterprise
+          Contact about upgrading
         </a>
       </section>
     );
@@ -333,16 +333,16 @@ function CustomEmailDomainSection({ plan }) {
   );
 }
 
-function useStateOrLoad(isEnterprise) {
+function useStateOrLoad(isEligible) {
   const [state, setState] = useState(null);
   useEffect(() => {
-    if (!isEnterprise) return;
+    if (!isEligible) return;
     const token = localStorage.getItem('vector_token');
     if (!token) return;
     fetch('/api/email-domain', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setState(d); })
       .catch(() => {});
-  }, [isEnterprise]);
+  }, [isEligible]);
   return [state, setState];
 }
