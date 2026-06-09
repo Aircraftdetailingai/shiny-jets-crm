@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { getAuthUser } from '@/lib/auth';
+import { sendCustomerEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,10 +85,11 @@ export async function POST(request) {
     if (campaign.detailer_id !== user.id) return Response.json({ error: 'Forbidden' }, { status: 403 });
     if (campaign.status === 'sent') return Response.json({ error: 'Campaign already sent' }, { status: 400 });
 
-    // Fetch detailer info
+    // Fetch detailer info — include plan + custom domain so the email
+    // helper can route the From header correctly.
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('name, email, company, phone')
+      .select('name, email, company, phone, plan, logo_url, logo_dark_url, logo_light_url, custom_email_domain, custom_email_verified_at')
       .eq('id', user.id)
       .single();
 
@@ -160,16 +162,15 @@ export async function POST(request) {
 
     for (const recipient of recipients) {
       try {
-        const { error: sendErr } = await getResend().emails.send({
-          from: FROM_EMAIL,
+        const result = await sendCustomerEmail({
+          detailer,
           to: recipient.email,
           subject: campaign.subject,
           html,
           text,
-          reply_to: detailer?.email,
         });
-        if (sendErr) {
-          errors.push(`${recipient.email}: ${sendErr.message || JSON.stringify(sendErr)}`);
+        if (!result?.success) {
+          errors.push(`${recipient.email}: ${result?.error || 'unknown'}`);
         } else {
           sentCount++;
         }

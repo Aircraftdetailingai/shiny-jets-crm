@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { Resend } from 'resend';
+import { sendCustomerEmail } from '@/lib/email';
+import { getBranding } from '@/lib/branding';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,20 +32,23 @@ export async function POST(request) {
   // Update status to declined
   await supabase.from('intake_leads').update({ status: 'declined' }).eq('id', lead_id);
 
-  // Get detailer info for email signature
+  // Get detailer info for email signature + plan-aware branding.
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('name, company, email, phone')
+    .select('name, company, email, phone, plan, logo_url, logo_dark_url, logo_light_url, custom_email_domain, custom_email_verified_at')
     .eq('id', detailerId)
     .single();
 
   // Send professional decline email — NO internal reason exposed to customer
   if (send_email !== false && lead.email && process.env.RESEND_API_KEY) {
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const branding = getBranding(detailer);
     const firstName = (lead.name || '').split(' ')[0] || 'there';
     const companyName = detailer?.company || detailer?.name || 'our team';
     const sigName = detailer?.name || 'The Team';
     const sigPhone = detailer?.phone || '';
+    const platformFooter = branding.showPoweredBy
+      ? `<p style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;">Powered by Shiny Jets</p>`
+      : '';
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f7f7f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -56,25 +60,20 @@ export async function POST(request) {
     <p style="font-size:15px;color:#333;line-height:1.7;margin:0 0 24px;">We wish you the best in finding the right detailing solution for your aircraft, and hope to have the opportunity to serve you in the future.</p>
     <p style="font-size:15px;color:#333;line-height:1.5;margin:0;">Best regards,<br><strong>${sigName}</strong><br>${companyName}${sigPhone ? '<br>' + sigPhone : ''}</p>
   </div>
-  <p style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;">Shiny Jets CRM</p>
+  ${platformFooter}
 </div></body></html>`;
 
     const text = `Hi ${firstName},\n\nThank you for reaching out to ${companyName} regarding your aircraft detailing needs.\n\nAfter reviewing your request, we are unfortunately unable to accommodate your service at this time.\n\nWe wish you the best in finding the right detailing solution for your aircraft, and hope to have the opportunity to serve you in the future.\n\nBest regards,\n${sigName}\n${companyName}${sigPhone ? '\n' + sigPhone : ''}`;
 
-    try {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || `${companyName} <noreply@mail.shinyjets.com>`;
-      await resend.emails.send({
-        from: fromEmail,
-        to: lead.email,
-        subject: 'Re: Your Aircraft Detailing Request',
-        html,
-        text,
-        reply_to: detailer?.email || undefined,
-      });
-      console.log('[decline] Email sent to:', lead.email);
-    } catch (err) {
-      console.error('[decline] Email error:', err.message);
-    }
+    const result = await sendCustomerEmail({
+      detailer,
+      to: lead.email,
+      subject: 'Re: Your Aircraft Detailing Request',
+      html,
+      text,
+    });
+    if (result?.success) console.log('[decline] Email sent to:', lead.email);
+    else console.error('[decline] Email error:', result?.error);
   }
 
   // Log internally (non-blocking)

@@ -133,6 +133,9 @@ export default function DeveloperPage() {
         </div>
       </section>
 
+      {/* Section 4 — Custom email sending domain (enterprise-only) */}
+      <CustomEmailDomainSection plan={plan} />
+
       {/* Section 5 — API access (plan-gated) */}
       <section className="border border-v-border p-5 bg-v-surface">
         <h3 className="text-sm font-semibold text-v-text-primary mb-1">API access</h3>
@@ -153,4 +156,193 @@ export default function DeveloperPage() {
       </section>
     </div>
   );
+}
+
+function CustomEmailDomainSection({ plan }) {
+  const isEnterprise = plan === 'enterprise';
+  const [state, setState] = useStateOrLoad(isEnterprise);
+  const [domain, setDomain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(null);
+
+  const copy = async (text, k) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(k);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {}
+  };
+
+  const refresh = async () => {
+    const token = localStorage.getItem('vector_token');
+    const res = await fetch('/api/email-domain', { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setState(await res.json());
+  };
+
+  const setup = async () => {
+    setBusy(true); setError('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/email-domain/setup', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error || 'Setup failed');
+      setState((s) => ({ ...(s || {}), domain: d.domain, resendDomainId: d.resendDomainId, status: d.status, records: d.records, verifiedAt: null }));
+      await refresh();
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    setBusy(true); setError('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/email-domain/verify', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.error || 'Verify failed');
+      setState((s) => ({ ...(s || {}), status: d.status, verifiedAt: d.verified ? new Date().toISOString() : null, records: d.records || s?.records }));
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirm('Remove your custom email domain? Emails will revert to noreply@mail.shinyjets.com.')) return;
+    setBusy(true); setError('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      await fetch('/api/email-domain', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      setState({ isEnterprise: true, domain: null, verifiedAt: null, resendDomainId: null });
+      setDomain('');
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!isEnterprise) {
+    return (
+      <section className="border border-v-border p-5 bg-v-surface">
+        <h3 className="text-sm font-semibold text-v-text-primary mb-1">Custom sending domain</h3>
+        <p className="text-xs text-v-text-secondary mb-3">Send customer emails from <span className="font-mono">noreply@yourcompany.com</span> instead of the platform domain.</p>
+        <p className="text-xs text-v-text-secondary mb-3">Available on the Enterprise plan.</p>
+        <a href="mailto:brett@shinyjets.com?subject=Enterprise%20plan%20-%20custom%20email%20domain"
+          className="inline-block px-4 py-2 border border-v-border text-v-text-primary text-xs uppercase tracking-wider hover:bg-white/5 transition-colors">
+          Contact about Enterprise
+        </a>
+      </section>
+    );
+  }
+
+  const hasDomain = !!state?.domain;
+  const verified = !!state?.verifiedAt || state?.status === 'verified';
+
+  return (
+    <section className="border border-v-border p-5 bg-v-surface">
+      <h3 className="text-sm font-semibold text-v-text-primary mb-1">Custom sending domain</h3>
+      <p className="text-xs text-v-text-secondary mb-4">Customer emails will be sent from <span className="font-mono">noreply@yourdomain.com</span> after verification.</p>
+
+      {!hasDomain && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            placeholder="yourcompany.com"
+            className="flex-1 bg-v-charcoal border border-v-border px-3 py-2 text-xs font-mono text-v-text-primary outline-none"
+          />
+          <button onClick={setup} disabled={busy || !domain.trim()}
+            className="px-4 py-2 bg-v-gold text-white text-xs uppercase tracking-wider hover:bg-v-gold-dim transition-colors disabled:opacity-50">
+            {busy ? 'Setting up…' : 'Set up domain'}
+          </button>
+        </div>
+      )}
+
+      {hasDomain && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p className="text-xs text-v-text-secondary">Domain: <span className="font-mono text-v-text-primary">{state.domain}</span></p>
+              <p className="text-[11px] mt-1">
+                {verified ? (
+                  <span className="text-emerald-400 uppercase tracking-wider">✓ Verified — live</span>
+                ) : (
+                  <span className="text-amber-400 uppercase tracking-wider">Pending DNS verification</span>
+                )}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {!verified && (
+                <button onClick={verify} disabled={busy}
+                  className="px-4 py-2 bg-v-gold text-white text-xs uppercase tracking-wider hover:bg-v-gold-dim transition-colors disabled:opacity-50">
+                  {busy ? 'Checking…' : 'Verify'}
+                </button>
+              )}
+              <button onClick={remove} disabled={busy}
+                className="px-4 py-2 border border-red-500/30 text-red-400 text-xs uppercase tracking-wider hover:bg-red-500/10 transition-colors disabled:opacity-50">
+                Remove
+              </button>
+            </div>
+          </div>
+
+          {Array.isArray(state.records) && state.records.length > 0 && (
+            <div className="border border-v-border bg-v-charcoal p-3 mt-2">
+              <p className="text-[11px] uppercase tracking-wider text-v-text-secondary mb-2">DNS records to add at your registrar</p>
+              <div className="space-y-2">
+                {state.records.map((rec, idx) => {
+                  const value = rec.value || rec.record_value || rec.target;
+                  const name = rec.name || rec.record_name || rec.host || '';
+                  const type = rec.type || rec.record_type || '';
+                  const k = `rec_${idx}`;
+                  return (
+                    <div key={k} className="text-[11px] font-mono break-all bg-v-surface border border-v-border p-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <span className="text-v-text-secondary">{type}</span>
+                        <span className="text-v-text-primary">{name || '@'}</span>
+                      </div>
+                      <div className="flex items-start gap-2 mt-1">
+                        <span className="text-v-text-secondary flex-1 break-all">{value}</span>
+                        <button onClick={() => copy(value, k)} className="text-v-gold hover:underline shrink-0">
+                          {copied === k ? 'copied' : 'copy'}
+                        </button>
+                      </div>
+                      {rec.ttl != null && <p className="text-v-text-secondary mt-1">TTL: {rec.ttl}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+              {!verified && (
+                <p className="text-[11px] text-v-text-secondary mt-2">DNS usually propagates in 5–15 min. Click Verify after you add the records.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
+    </section>
+  );
+}
+
+function useStateOrLoad(isEnterprise) {
+  const [state, setState] = useState(null);
+  useEffect(() => {
+    if (!isEnterprise) return;
+    const token = localStorage.getItem('vector_token');
+    if (!token) return;
+    fetch('/api/email-domain', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setState(d); })
+      .catch(() => {});
+  }, [isEnterprise]);
+  return [state, setState];
 }

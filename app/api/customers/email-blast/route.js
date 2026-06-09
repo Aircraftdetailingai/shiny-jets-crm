@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { Resend } from 'resend';
+import { sendCustomerEmail } from '@/lib/email';
+import { getBranding } from '@/lib/branding';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,17 +21,18 @@ export async function POST(request) {
 
     const supabase = getSupabase();
 
-    // Fetch detailer info for branded from address
+    // Fetch detailer info for plan-aware From + Reply-To
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('company, name')
+      .select('company, name, email, plan, logo_url, logo_dark_url, logo_light_url, custom_email_domain, custom_email_verified_at')
       .eq('id', user.id)
       .single();
 
+    const branding = getBranding(detailer);
     const companyName = detailer?.company || detailer?.name || 'Shiny Jets CRM';
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>';
-    const fromDomain = (fromEmail.match(/<([^>]+)>/) || [null, fromEmail])[1];
-    const from = `${companyName} <${fromDomain}>`;
+    const platformAttribution = branding.showPoweredBy
+      ? `<p style="color:#999;font-size:12px;">Sent by ${companyName} via Shiny Jets CRM</p>`
+      : `<p style="color:#999;font-size:12px;">Sent by ${companyName}</p>`;
 
     // Fetch customers that belong to this detailer
     const { data: customers, error } = await supabase
@@ -43,7 +45,6 @@ export async function POST(request) {
       return Response.json({ error: 'No valid customers found' }, { status: 404 });
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
     let sent = 0;
     let failed = 0;
     const errors = [];
@@ -51,18 +52,18 @@ export async function POST(request) {
     for (const customer of customers) {
       if (!customer.email) { failed++; continue; }
       try {
-        await resend.emails.send({
-          from,
+        const result = await sendCustomerEmail({
+          detailer,
           to: customer.email,
           subject,
           html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
             <p>Hi ${customer.name || 'there'},</p>
             <div style="white-space:pre-wrap;">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
             <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
-            <p style="color:#999;font-size:12px;">Sent by ${companyName} via Shiny Jets CRM</p>
+            ${platformAttribution}
           </div>`,
         });
-        sent++;
+        if (result?.success) sent++; else { failed++; errors.push({ email: customer.email, error: result?.error }); }
       } catch (e) {
         failed++;
         errors.push({ email: customer.email, error: e.message });

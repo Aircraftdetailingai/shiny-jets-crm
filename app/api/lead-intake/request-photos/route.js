@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import { getAuthUser } from '@/lib/auth';
 import { getBranding } from '@/lib/branding';
-import { Resend } from 'resend';
+import { sendCustomerEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,20 +39,6 @@ function buildEmailHtml({ branding, detailer, firstName, aircraftName, uploadUrl
       ${footer}
     </div>
   `;
-}
-
-function buildFromHeader(branding, detailer) {
-  // Always send through the verified Shiny Jets sending domain. Plan only
-  // affects the display name. (Enterprise custom-domain sending is a future
-  // commit — see lib/plan-features.js hasCustomEmailDomain.)
-  const fromDomain = 'noreply@mail.shinyjets.com';
-  if (branding.isFree) {
-    const co = detailer?.company || detailer?.name || '';
-    const label = co ? `Shiny Jets — ${co}` : 'Shiny Jets';
-    return `${label} <${fromDomain}>`;
-  }
-  const display = detailer?.company || detailer?.name || 'Shiny Jets';
-  return `${display} <${fromDomain}>`;
 }
 
 export async function POST(request) {
@@ -94,7 +80,7 @@ export async function POST(request) {
 
   const { data: detailer } = await supabase
     .from('detailers')
-    .select('company, name, email, plan, logo_url, logo_dark_url, logo_light_url')
+    .select('company, name, email, plan, logo_url, logo_dark_url, logo_light_url, custom_email_domain, custom_email_verified_at')
     .eq('id', user.id)
     .single();
 
@@ -114,20 +100,17 @@ export async function POST(request) {
     })
     .eq('id', lead_id);
 
-  // Send via Resend — fail loudly so retries surface in logs.
+  // Send via the plan-aware customer email helper.
   if (process.env.RESEND_API_KEY) {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    try {
-      await resend.emails.send({
-        from: buildFromHeader(branding, detailer),
-        replyTo: detailer?.email || 'brett@shinyjets.com',
-        to: lead.email,
-        subject: `Photos needed for your ${aircraftName} detail quote`,
-        html: buildEmailHtml({ branding, detailer, firstName, aircraftName, uploadUrl }),
-      });
-    } catch (e) {
-      console.error('[request-photos] Resend send failed:', e?.message || e);
-      return Response.json({ error: 'Email send failed', detail: e?.message }, { status: 500 });
+    const result = await sendCustomerEmail({
+      detailer,
+      to: lead.email,
+      subject: `Photos needed for your ${aircraftName} detail quote`,
+      html: buildEmailHtml({ branding, detailer, firstName, aircraftName, uploadUrl }),
+    });
+    if (!result?.success) {
+      console.error('[request-photos] sendCustomerEmail failed:', result?.error);
+      return Response.json({ error: 'Email send failed', detail: result?.error }, { status: 500 });
     }
   } else {
     console.warn('[request-photos] RESEND_API_KEY missing — email NOT sent');

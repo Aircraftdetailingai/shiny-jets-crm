@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { getAuthUser } from '@/lib/auth';
+import { sendCustomerEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,7 +92,7 @@ export async function POST(request) {
     // Get quote and verify ownership
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
-      .select('*, detailers (company_name, email)')
+      .select('*, detailers (id, company, name, email, plan, logo_url, logo_dark_url, logo_light_url, custom_email_domain, custom_email_verified_at)')
       .eq('id', quote_id)
       .single();
 
@@ -132,9 +133,11 @@ export async function POST(request) {
       .update({ approval_token: approvalToken })
       .eq('id', changeOrder.id);
 
-    // Send email to customer
+    // Send email to customer (plan-aware From + Reply-To)
     if (process.env.RESEND_API_KEY && quote.client_email) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
+      const detailer = quote.detailers || null;
+      const companyName = detailer?.company || detailer?.name || 'Your detailer';
 
       const servicesList = services.map(s =>
         `<li>${s.name || s.description}: $${(s.amount || s.price || 0).toFixed(2)}</li>`
@@ -143,15 +146,15 @@ export async function POST(request) {
       const photoHtml = photo_url ? `<div style="margin:16px 0;"><img src="${photo_url}" alt="Issue photo" style="max-width:100%;border-radius:8px;" /></div>` : '';
       const descHtml = (description || reason) ? `<p><strong>Description:</strong> ${description || reason}</p>` : '';
 
-      await getResend().emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
+      await sendCustomerEmail({
+        detailer,
         to: quote.client_email,
-        subject: `Change Order — Additional Services Requested — ${quote.detailers?.company_name || 'Your Detailer'}`,
+        subject: `Change Order — Additional Services Requested — ${companyName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #1e3a5f;">Change Order — Additional Services</h2>
 
-            <p>${quote.detailers?.company_name || 'Your detailer'} has identified additional work needed on your aircraft.</p>
+            <p>${companyName} has identified additional work needed on your aircraft.</p>
 
             ${photoHtml}
             ${descHtml}
