@@ -11,7 +11,7 @@ export default function PrivacyPage() {
         <div className="mb-8">
           <a href="/" className="text-v-gold hover:text-v-gold text-sm">&larr; Back to Shiny Jets CRM</a>
           <h1 className="text-3xl font-bold text-white mt-4">Privacy Policy</h1>
-          <p className="text-gray-400 mt-2">Last updated: March 12, 2026</p>
+          <p className="text-gray-400 mt-2">Last updated: June 12, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl p-8 space-y-8 text-gray-700 leading-relaxed">
@@ -138,6 +138,15 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Law enforcement</strong> &mdash; when required by law, subpoena, or court order.
+              </li>
+              <li>
+                <strong>Successors and acquirers (business transfers)</strong> &mdash; in connection with,
+                or during negotiations of, any merger, acquisition, financing, corporate reorganization,
+                change of control, or sale or transfer of all or substantially all of our assets or equity,
+                your information&mdash;including account data and anonymized, aggregated data sets&mdash;may
+                be transferred to and assumed by the successor entity or acquirer as one of the transferred
+                business assets. The successor or acquirer may use such information in accordance with this
+                Privacy Policy.
               </li>
             </ul>
           </section>

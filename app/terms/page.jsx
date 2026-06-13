@@ -11,7 +11,7 @@ export default function TermsPage() {
         <div className="mb-8">
           <a href="/" className="text-v-gold hover:text-v-gold text-sm">&larr; Back to Shiny Jets CRM</a>
           <h1 className="text-3xl font-bold text-white mt-4">Terms of Service</h1>
-          <p className="text-gray-400 mt-2">Last updated: March 12, 2026</p>
+          <p className="text-gray-400 mt-2">Last updated: June 12, 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl p-8 space-y-8 text-gray-700 leading-relaxed">
@@ -210,9 +210,18 @@ export default function TermsPage() {
             </p>
             <p className="mb-3">
               By using the Platform, you grant Vector Aviation Artificial Intelligence LLC a perpetual,
-              non-exclusive, royalty-free license to use anonymized, aggregated data derived from your
+              irrevocable, non-exclusive, royalty-free, worldwide, sublicensable, and transferable license
+              to collect, store, process, and use anonymized, aggregated data derived from your
               usage of the Platform for analytics, product improvement, industry benchmarking, and
-              commercial purposes, including the sale of such aggregated data to third parties.
+              commercial purposes, including the sale, license, or other transfer of such aggregated data
+              to third parties.
+            </p>
+            <p className="mb-3">
+              This license, and the anonymized aggregated data sets created under it, survive the
+              termination of your account and may be assigned or transferred to a successor entity or
+              acquirer as part of a merger, acquisition, financing, reorganization, or sale of all or
+              substantially all of the assets or equity of Vector Aviation Artificial Intelligence LLC.
+              Such a successor or acquirer may continue to exercise all rights granted under this Section.
             </p>
             <p>
               This license applies only to anonymized and aggregated data. Your identifiable business
@@ -301,7 +310,7 @@ export default function TermsPage() {
               After 30 days, your data may be permanently deleted.
             </p>
             <p>
-              Sections 5, 6, 7, 8, 11, 12, 13, 15, 16, 17, 19, and 22 survive termination.
+              Sections 5, 6, 7, 8, 11, 12, 13, 15, 16, 17, 19, 22, and 24 survive termination.
             </p>
           </section>
 
@@ -399,7 +408,33 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">24. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">24. Assignment and Change of Control</h2>
+            <p className="mb-3">
+              You may not assign or transfer these Terms, or any of your rights or obligations under them,
+              without our prior written consent. Any attempted assignment in violation of this Section is void.
+            </p>
+            <p className="mb-3">
+              Vector Aviation Artificial Intelligence LLC may freely assign, transfer, or delegate these
+              Terms and any of its rights and obligations under them, in whole or in part, without your
+              consent and without notice, including in connection with a merger, acquisition, financing,
+              corporate reorganization, change of control, or the sale or transfer of all or substantially
+              all of its assets or equity.
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="font-medium text-blue-900 mb-2">Transfer of Data and Platform Assets:</p>
+              <p className="text-blue-800">
+                In any transaction described above, the anonymized and aggregated data sets, the data
+                licenses granted under Sections 12 and 13, your account data, and all other Platform assets
+                may be transferred to and assumed by the successor entity or acquirer, which will be entitled
+                to exercise all rights granted to Vector Aviation Artificial Intelligence LLC under these
+                Terms. These Terms bind and benefit the parties and their respective successors and permitted
+                assigns.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">25. Contact Information</h2>
             <p>
               For questions about these Terms of Service, contact us at:
             </p>
