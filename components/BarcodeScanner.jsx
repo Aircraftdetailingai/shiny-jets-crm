@@ -6,22 +6,48 @@ import { useEffect, useRef, useState } from 'react';
 export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
+  const decidedRef = useRef(false);
+  // Hold the latest onDetected in a ref so the camera effect can depend on
+  // [isOpen] alone. The products page passes a fresh onDetected on every
+  // render; depending on it would tear down and restart the camera constantly.
+  const onDetectedRef = useRef(onDetected);
   const [error, setError] = useState('');
   const [manualUpc, setManualUpc] = useState('');
   const [starting, setStarting] = useState(false);
+  const [detected, setDetected] = useState('');
+
+  useEffect(() => { onDetectedRef.current = onDetected; }, [onDetected]);
+
+  // Single-entry point for "we got a code" — guards against the continuous
+  // decoder firing more than once and against double cleanup.
+  const fire = (text, format) => {
+    if (decidedRef.current) return;
+    decidedRef.current = true;
+    try { controlsRef.current?.stop(); } catch {}
+    try { videoRef.current?.srcObject?.getTracks?.().forEach(t => t.stop()); } catch {}
+    setDetected(String(text || ''));
+    onDetectedRef.current?.(text, format);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
 
     let cancelled = false;
     let stream = null;
+    decidedRef.current = false;
+    setDetected('');
+    setError('');
 
     async function start() {
-      setError('');
       setStarting(true);
       try {
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        // Pull both modules up front so the hot decode callback stays sync.
+        const [{ BrowserMultiFormatReader }, lib] = await Promise.all([
+          import('@zxing/browser'),
+          import('@zxing/library'),
+        ]);
         if (cancelled) return;
+        const BarcodeFormat = lib.BarcodeFormat || {};
 
         const reader = new BrowserMultiFormatReader();
 
@@ -48,24 +74,17 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
           await videoRef.current.play().catch(() => {});
         }
 
-        // Start decoding from the video element
-        const controls = await reader.decodeFromStream(stream, videoRef.current, async (result, err) => {
-          if (cancelled) return;
-          if (result) {
-            const text = result.getText();
-            // @zxing exposes the symbology via getBarcodeFormat() → enum index;
-            // map to a stable string (UPC_A, EAN_13, QR_CODE, CODE_128, …).
-            let format = '';
-            try {
-              const { BarcodeFormat } = await import('@zxing/library');
-              const fmt = result.getBarcodeFormat?.();
-              format = Object.keys(BarcodeFormat).find((k) => BarcodeFormat[k] === fmt) || '';
-            } catch {}
-            // Cleanup before firing callback
-            try { controls?.stop(); } catch {}
-            try { stream?.getTracks().forEach(t => t.stop()); } catch {}
-            onDetected(text, format);
-          }
+        // Continuous decode. Fires repeatedly until a code is read — `fire`
+        // dedupes so only the first hit is acted on.
+        const controls = await reader.decodeFromStream(stream, videoRef.current, (result) => {
+          if (cancelled || decidedRef.current || !result) return;
+          const text = result.getText();
+          let format = '';
+          try {
+            const fmt = result.getBarcodeFormat?.();
+            format = Object.keys(BarcodeFormat).find((k) => BarcodeFormat[k] === fmt) || '';
+          } catch {}
+          fire(text, format);
         });
         controlsRef.current = controls;
         setStarting(false);
@@ -86,7 +105,8 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
       try { stream?.getTracks().forEach(t => t.stop()); } catch {}
       controlsRef.current = null;
     };
-  }, [isOpen, onDetected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -94,7 +114,7 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
     e?.preventDefault();
     const trimmed = manualUpc.replace(/\D/g, '');
     if (trimmed.length >= 8) {
-      onDetected(trimmed, '');
+      fire(trimmed, '');
     }
   };
 
@@ -146,9 +166,16 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
               <p className="text-red-300 text-xs text-center">{error}</p>
             </div>
           )}
-          {!error && !starting && (
+          {detected && !error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-900/70">
+              <div className="text-green-300 text-4xl mb-2">&#10003;</div>
+              <p className="text-white text-sm font-medium">Scanned</p>
+              <p className="text-green-200 text-xs mt-1 font-mono break-all px-6 text-center">{detected}</p>
+            </div>
+          )}
+          {!error && !detected && !starting && (
             <div className="absolute bottom-3 left-0 right-0 text-center">
-              <p className="text-white/90 text-xs font-medium drop-shadow">Tap to scan — point at the barcode</p>
+              <p className="text-white/90 text-xs font-medium drop-shadow">Point the box at one barcode or QR code</p>
             </div>
           )}
         </div>
