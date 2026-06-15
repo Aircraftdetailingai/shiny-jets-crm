@@ -103,6 +103,17 @@ export default function QuotesPage() {
       try { setUserPlan(JSON.parse(stored).plan || 'free'); } catch (e) {}
     }
 
+    // Deep-link support: /quotes?status=sent from the dashboard Conversion
+    // tile. 'sent'/'viewed' map to the 'active' funnel tab.
+    try {
+      const status = new URLSearchParams(window.location.search).get('status');
+      if (status) {
+        const alias = { sent: 'active', viewed: 'active', drafts: 'drafts', draft: 'drafts', done: 'completed' };
+        const next = alias[status] || status;
+        if (['all', 'drafts', 'active', 'paid', 'completed', 'expired'].includes(next)) setFilter(next);
+      }
+    } catch {}
+
     const fetchQuotes = async () => {
       try {
         const res = await fetch('/api/quotes', {

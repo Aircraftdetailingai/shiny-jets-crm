@@ -41,6 +41,11 @@ export default function JobsPage() {
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
     if (!token) { router.push('/login'); return; }
+    // Deep-link support: /jobs?status=completed from the dashboard tiles.
+    try {
+      const status = new URLSearchParams(window.location.search).get('status');
+      if (status && FILTER_TABS.some(f => f.key === status)) setFilter(status);
+    } catch {}
     fetchJobs(token);
   }, [router]);
 

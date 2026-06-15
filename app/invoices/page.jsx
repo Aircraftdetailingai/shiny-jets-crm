@@ -777,6 +777,17 @@ function InvoicesPageInner() {
     }
   };
 
+  // Init the status filter from the ?status= query param (dashboard tiles
+  // deep-link here, e.g. Outstanding → ?status=outstanding).
+  useEffect(() => {
+    const status = searchParams?.get('status');
+    if (!status) return;
+    const allowed = ['all', 'draft', 'sent', 'viewed', 'paid', 'overdue', 'outstanding'];
+    const alias = { unpaid: 'outstanding' };
+    const next = alias[status] || status;
+    if (allowed.includes(next)) setFilter(next);
+  }, [searchParams]);
+
   // Auto-open edit when navigated with ?edit=<id> (from job convert flow)
   useEffect(() => {
     const editId = searchParams?.get('edit');
@@ -1254,6 +1265,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
   const enriched = invoices.map(inv => ({ ...inv, displayStatus: getDisplayStatus(inv) }));
   const filtered = filter === 'all' ? enriched
     : filter === 'overdue' ? enriched.filter(inv => inv.displayStatus === 'overdue')
+    : filter === 'outstanding' ? enriched.filter(inv => inv.displayStatus !== 'paid' && inv.displayStatus !== 'draft')
     : enriched.filter(inv => inv.displayStatus === filter);
 
   const now = new Date();
@@ -1271,6 +1283,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
 
   const filterTabs = [
     { key: 'all', label: 'All' },
+    { key: 'outstanding', label: 'Outstanding' },
     { key: 'draft', label: 'Draft' },
     { key: 'sent', label: 'Sent' },
     { key: 'viewed', label: 'Viewed' },

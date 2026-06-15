@@ -65,7 +65,7 @@ export async function POST(request) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { service_id, service_name, reference_service_type, adjustment_pct } = body || {};
+    const { service_id, service_name, reference_service_type, adjustment_pct, control_aircraft_id } = body || {};
 
     if (!service_id || !service_name || !reference_service_type) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
@@ -76,20 +76,29 @@ export async function POST(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
-    // 1. Upsert calibration
-    const { error: calibErr } = await supabase
+    // 1. Upsert calibration. control_aircraft_id is the anchor airframe Brett
+    // measured this service against — everything else derives from it.
+    const calibRow = {
+      detailer_id: user.detailer_id || user.id,
+      service_id,
+      service_name,
+      reference_service_type,
+      adjustment_pct: adjPct,
+      control_aircraft_id: control_aircraft_id || null,
+      updated_at: new Date().toISOString(),
+    };
+    let { error: calibErr } = await supabase
       .from('service_calibrations')
-      .upsert(
-        {
-          detailer_id: user.detailer_id || user.id,
-          service_id,
-          service_name,
-          reference_service_type,
-          adjustment_pct: adjPct,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'detailer_id,service_id' }
-      );
+      .upsert(calibRow, { onConflict: 'detailer_id,service_id' });
+
+    // Graceful fallback if the control_aircraft_id column hasn't been migrated
+    // yet on this environment — retry without it rather than 500.
+    if (calibErr && /control_aircraft_id/.test(calibErr.message || '')) {
+      delete calibRow.control_aircraft_id;
+      ({ error: calibErr } = await supabase
+        .from('service_calibrations')
+        .upsert(calibRow, { onConflict: 'detailer_id,service_id' }));
+    }
 
     if (calibErr) {
       console.error('calibration upsert error:', calibErr);

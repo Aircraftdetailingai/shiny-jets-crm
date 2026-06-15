@@ -61,6 +61,15 @@ export default function CalibrationModal({
   const [savingOverrides, setSavingOverrides] = useState(false);
   const [overridesSavedMsg, setOverridesSavedMsg] = useState('');
 
+  // ── Control aircraft state ──
+  // The control is the single airframe Brett actually measured this service
+  // against — every other aircraft's calibrated hours derive from it. Editing
+  // the control's override recomputes adjustment_pct (the slider) so the whole
+  // catalog re-derives proportionally.
+  const [controlAircraftId, setControlAircraftId] = useState(null);
+  const [controlSearch, setControlSearch] = useState('');
+  const [controlPickerOpen, setControlPickerOpen] = useState(false);
+
   // Slider is the sole adjustment input; ratio is always "ready" because the
   // slider always carries a value. Anchor props are still received so the
   // Live Preview fetch can render rows for the detailer's chosen aircraft.
@@ -83,14 +92,18 @@ export default function CalibrationModal({
     setAcSearch('');
     setAcCategory('all');
     setPage(0);
+    setControlSearch('');
+    setControlPickerOpen(false);
     const existing = (calibrations || []).find(c => c.service_id === service?.id);
     if (existing) {
       setReferenceType(existing.reference_service_type || 'polish');
       const saved = Number.isFinite(existing.adjustment_pct) ? existing.adjustment_pct : 0;
       setManualAdjustmentPct(Math.max(-300, Math.min(300, saved)));
+      setControlAircraftId(existing.control_aircraft_id || null);
     } else {
       setReferenceType('polish');
       setManualAdjustmentPct(0);
+      setControlAircraftId(null);
     }
   }, [isOpen, service?.id, calibrations]);
 
@@ -153,6 +166,7 @@ export default function CalibrationModal({
           service_name: service.name,
           reference_service_type: referenceType,
           adjustment_pct: adjustmentPct,
+          control_aircraft_id: controlAircraftId,
         }),
       });
       const data = await res.json();
@@ -187,16 +201,123 @@ export default function CalibrationModal({
   const filteredAircraft = useMemo(() => {
     const q = acSearch.trim().toLowerCase();
     return aircraftList.filter((a) => {
+      // The control aircraft is pinned above the table — keep it out of the
+      // main (paginated) list so it isn't shown twice.
+      if (controlAircraftId && a.aircraft_id === controlAircraftId) return false;
       if (acCategory !== 'all' && a.category !== acCategory) return false;
       if (!q) return true;
       const label = `${a.make || ''} ${a.model || ''}`.toLowerCase();
       return label.includes(q);
     });
-  }, [aircraftList, acSearch, acCategory]);
+  }, [aircraftList, acSearch, acCategory, controlAircraftId]);
+
+  // Matches for the control-aircraft picker dropdown (searchable by make/model).
+  const controlOptions = useMemo(() => {
+    const q = controlSearch.trim().toLowerCase();
+    const list = !q
+      ? aircraftList
+      : aircraftList.filter((a) => `${a.make || ''} ${a.model || ''}`.toLowerCase().includes(q));
+    return list.slice(0, 30);
+  }, [aircraftList, controlSearch]);
 
   const pageCount = Math.max(1, Math.ceil(filteredAircraft.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pageRows = filteredAircraft.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  // The control aircraft row (full record from the loaded catalog).
+  const controlRow = controlAircraftId
+    ? aircraftList.find((a) => a.aircraft_id === controlAircraftId) || null
+    : null;
+
+  // Effective hours shown for the control in the summary chip: its override
+  // (pending draft or persisted) if set, else the calibrated value.
+  let controlEffectiveHours = null;
+  if (controlRow) {
+    const draft = overrideDrafts[controlRow.aircraft_id];
+    const persisted = controlRow.override?.hours;
+    const ovVal = draft !== undefined ? draft : (persisted == null ? '' : String(persisted));
+    if (ovVal !== '' && ovVal != null && Number.isFinite(parseFloat(ovVal))) {
+      controlEffectiveHours = parseFloat(ovVal);
+    } else {
+      const base = controlRow.hours?.[refKey];
+      const baseNum = base == null ? null : parseFloat(base);
+      controlEffectiveHours = baseNum == null ? null : Math.max(0, baseNum * (1 + adjustmentPct / 100));
+    }
+  }
+
+  // Editing a "Your override" cell. For the control aircraft this also
+  // back-solves adjustment_pct from (newHours / referenceBase - 1) so the
+  // slider — and therefore every other aircraft's Calibrated column — tracks
+  // the real-world measurement. Non-control rows behave exactly as before.
+  const handleOverrideChange = (row, value, isControl) => {
+    setOverrideDrafts((prev) => ({ ...prev, [row.aircraft_id]: value }));
+    if (isControl) {
+      const base = row.hours?.[refKey];
+      const baseNum = base == null ? null : parseFloat(base);
+      const nv = parseFloat(value);
+      if (baseNum && baseNum > 0 && Number.isFinite(nv)) {
+        const pct = Math.round((nv / baseNum - 1) * 100);
+        setManualAdjustmentPct(Math.max(-300, Math.min(300, pct)));
+      }
+    }
+  };
+
+  // Shared renderer for a single aircraft row (pinned control + paged rows).
+  const renderAircraftRow = (row, isControl) => {
+    const base = row.hours?.[refKey];
+    const baseNum = base == null ? null : parseFloat(base);
+    const calibrated = baseNum == null ? null : Math.max(0, baseNum * (1 + adjustmentPct / 100));
+    const draft = overrideDrafts[row.aircraft_id];
+    const persisted = row.override?.hours;
+    const inputVal =
+      draft !== undefined ? draft : (persisted == null ? '' : String(persisted));
+    const hasOverride = inputVal !== '' && inputVal != null;
+    return (
+      <div
+        key={row.aircraft_id}
+        className={`grid grid-cols-[1fr_90px_120px_110px_28px] items-center px-3 py-2 border-t border-v-border text-sm ${isControl ? 'bg-v-gold/[0.07]' : ''}`}
+      >
+        <div className="truncate pr-2">
+          {isControl && <span className="mr-1" title="Control aircraft">🎯</span>}
+          <span className="text-v-text-primary">{[row.make, row.model].filter(Boolean).join(' ') || '—'}</span>
+          {isControl && (
+            <span className="ml-2 text-[9px] font-semibold uppercase tracking-wider text-v-gold border border-v-gold/40 px-1.5 py-0.5 rounded">Control</span>
+          )}
+          {!isControl && row.category && <span className="text-v-text-secondary/60 text-[10px] ml-2">{row.category}</span>}
+        </div>
+        <div className="text-right text-xs text-v-text-secondary">
+          {baseNum == null ? '—' : `${baseNum.toFixed(1)}h`}
+        </div>
+        <div className={`text-right text-xs ${adjustmentPct === 0 ? 'text-v-text-secondary' : adjustmentPct < 0 ? 'text-red-400' : 'text-blue-400'}`}>
+          {calibrated == null ? '—' : `${calibrated.toFixed(1)}h`}
+        </div>
+        <div className="flex justify-end">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min="0"
+            value={inputVal}
+            onChange={(e) => handleOverrideChange(row, e.target.value, isControl)}
+            placeholder={calibrated == null ? '' : calibrated.toFixed(1)}
+            className={`w-20 bg-v-charcoal border ${hasOverride ? 'border-v-gold/50' : 'border-v-border'} text-v-text-primary rounded-sm px-2 py-1 text-xs text-right outline-none focus:border-v-gold/70`}
+          />
+        </div>
+        <div className="flex justify-center">
+          {hasOverride && !isControl && (
+            <button
+              type="button"
+              onClick={() => setOverrideDrafts((prev) => ({ ...prev, [row.aircraft_id]: '' }))}
+              title="Clear override"
+              className="w-5 h-5 flex items-center justify-center text-v-text-secondary hover:text-red-400 text-base leading-none"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // How many drafts are pending (changed from the persisted state)?
   const pendingChangeCount = useMemo(() => {
@@ -381,6 +502,74 @@ export default function CalibrationModal({
             </div>
           </div>
 
+          {/* Control aircraft — the anchor airframe this calibration is measured against */}
+          <div>
+            <label className="block text-xs font-medium text-v-text-secondary mb-1 uppercase tracking-wide">
+              Control Aircraft
+            </label>
+            <p className="text-[11px] text-v-text-secondary/70 mb-2 leading-relaxed">
+              The airframe you&apos;ve actually measured this service against. Other aircraft hours derive from this one proportionally.
+            </p>
+
+            {!controlAircraftId && (
+              <div className="flex items-start gap-2 px-3 py-2 mb-2 bg-v-charcoal/60 border border-v-border rounded-sm text-[11px] text-v-text-secondary">
+                <span>🎯</span>
+                <span>Set a control aircraft to anchor your calibration. Recommended: pick the airframe you service most often.</span>
+              </div>
+            )}
+
+            {controlRow ? (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 bg-v-gold/10 border border-v-gold/30 rounded-sm">
+                <div className="text-sm text-v-text-primary truncate">
+                  <span className="mr-1">🎯</span>
+                  <span className="font-medium">{[controlRow.make, controlRow.model].filter(Boolean).join(' ') || 'Aircraft'}</span>
+                  <span className="text-v-text-secondary"> — currently {controlEffectiveHours == null ? '—' : `${controlEffectiveHours.toFixed(1)}h`}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setControlPickerOpen(true); setControlSearch(''); setControlAircraftId(null); }}
+                  className="shrink-0 text-[11px] uppercase tracking-wider text-v-gold hover:text-v-gold/80"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={controlSearch}
+                  onChange={(e) => { setControlSearch(e.target.value); setControlPickerOpen(true); }}
+                  onFocus={() => setControlPickerOpen(true)}
+                  placeholder="Search aircraft by manufacturer or model"
+                  className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-sm outline-none focus:border-v-gold/50"
+                />
+                {controlPickerOpen && (
+                  <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-v-surface border border-v-border rounded-sm shadow-xl">
+                    {aircraftLoading ? (
+                      <div className="px-3 py-2 text-xs text-v-text-secondary">Loading aircraft…</div>
+                    ) : controlOptions.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-v-text-secondary">No aircraft match.</div>
+                    ) : (
+                      controlOptions.map((a) => (
+                        <button
+                          key={a.aircraft_id}
+                          type="button"
+                          onClick={() => { setControlAircraftId(a.aircraft_id); setControlPickerOpen(false); setControlSearch(''); }}
+                          className="w-full text-left px-3 py-2 text-sm text-v-text-primary hover:bg-v-gold/10 flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate">{[a.make, a.model].filter(Boolean).join(' ') || '—'}</span>
+                          {a.hours?.[refKey] != null && (
+                            <span className="shrink-0 text-[10px] text-v-text-secondary">{parseFloat(a.hours[refKey]).toFixed(1)}h</span>
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Per-aircraft override editor */}
           <div>
             <label className="block text-xs font-medium text-v-text-secondary mb-1 uppercase tracking-wide">
@@ -420,69 +609,22 @@ export default function CalibrationModal({
                 <div></div>
               </div>
 
+              {/* Pinned control row — always visible above the others,
+                  regardless of search/pagination. */}
+              {controlRow && (
+                <div className="border-b-2 border-v-gold/30">
+                  {renderAircraftRow(controlRow, true)}
+                </div>
+              )}
+
               {aircraftLoading ? (
                 <div className="p-4 text-center text-xs text-v-text-secondary">Loading aircraft…</div>
               ) : filteredAircraft.length === 0 ? (
-                <div className="p-4 text-center text-xs text-v-text-secondary">No aircraft match this filter.</div>
+                <div className="p-4 text-center text-xs text-v-text-secondary">
+                  {controlRow ? 'No other aircraft match this filter.' : 'No aircraft match this filter.'}
+                </div>
               ) : (
-                pageRows.map((row) => {
-                  const base = row.hours?.[refKey];
-                  const baseNum = base == null ? null : parseFloat(base);
-                  const calibrated = baseNum == null ? null : Math.max(0, baseNum * (1 + adjustmentPct / 100));
-                  const draft = overrideDrafts[row.aircraft_id];
-                  const persisted = row.override?.hours;
-                  // What's in the input box: pending draft if present, else
-                  // the persisted override value, else blank.
-                  const inputVal =
-                    draft !== undefined
-                      ? draft
-                      : (persisted == null ? '' : String(persisted));
-                  const hasOverride = inputVal !== '' && inputVal != null;
-                  return (
-                    <div
-                      key={row.aircraft_id}
-                      className="grid grid-cols-[1fr_90px_120px_110px_28px] items-center px-3 py-2 border-t border-v-border text-sm"
-                    >
-                      <div className="truncate pr-2">
-                        <span className="text-v-text-primary">{[row.make, row.model].filter(Boolean).join(' ') || '—'}</span>
-                        {row.category && <span className="text-v-text-secondary/60 text-[10px] ml-2">{row.category}</span>}
-                      </div>
-                      <div className="text-right text-xs text-v-text-secondary">
-                        {baseNum == null ? '—' : `${baseNum.toFixed(1)}h`}
-                      </div>
-                      <div className={`text-right text-xs ${adjustmentPct === 0 ? 'text-v-text-secondary' : adjustmentPct < 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                        {calibrated == null ? '—' : `${calibrated.toFixed(1)}h`}
-                      </div>
-                      <div className="flex justify-end">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.1"
-                          min="0"
-                          value={inputVal}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setOverrideDrafts((prev) => ({ ...prev, [row.aircraft_id]: v }));
-                          }}
-                          placeholder={calibrated == null ? '' : calibrated.toFixed(1)}
-                          className={`w-20 bg-v-charcoal border ${hasOverride ? 'border-v-gold/50' : 'border-v-border'} text-v-text-primary rounded-sm px-2 py-1 text-xs text-right outline-none focus:border-v-gold/70`}
-                        />
-                      </div>
-                      <div className="flex justify-center">
-                        {hasOverride && (
-                          <button
-                            type="button"
-                            onClick={() => setOverrideDrafts((prev) => ({ ...prev, [row.aircraft_id]: '' }))}
-                            title="Clear override"
-                            className="w-5 h-5 flex items-center justify-center text-v-text-secondary hover:text-red-400 text-base leading-none"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
+                pageRows.map((row) => renderAircraftRow(row, false))
               )}
             </div>
 

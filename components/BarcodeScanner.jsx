@@ -49,14 +49,22 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
         }
 
         // Start decoding from the video element
-        const controls = await reader.decodeFromStream(stream, videoRef.current, (result, err) => {
+        const controls = await reader.decodeFromStream(stream, videoRef.current, async (result, err) => {
           if (cancelled) return;
           if (result) {
             const text = result.getText();
+            // @zxing exposes the symbology via getBarcodeFormat() → enum index;
+            // map to a stable string (UPC_A, EAN_13, QR_CODE, CODE_128, …).
+            let format = '';
+            try {
+              const { BarcodeFormat } = await import('@zxing/library');
+              const fmt = result.getBarcodeFormat?.();
+              format = Object.keys(BarcodeFormat).find((k) => BarcodeFormat[k] === fmt) || '';
+            } catch {}
             // Cleanup before firing callback
             try { controls?.stop(); } catch {}
             try { stream?.getTracks().forEach(t => t.stop()); } catch {}
-            onDetected(text);
+            onDetected(text, format);
           }
         });
         controlsRef.current = controls;
@@ -86,7 +94,7 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
     e?.preventDefault();
     const trimmed = manualUpc.replace(/\D/g, '');
     if (trimmed.length >= 8) {
-      onDetected(trimmed);
+      onDetected(trimmed, '');
     }
   };
 

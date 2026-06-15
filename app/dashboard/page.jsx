@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AppShell from '../../components/AppShell.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -410,20 +411,20 @@ function DashboardContent() {
         <div className="mt-10">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-10 gap-y-8">
             {[
-              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthRevenue || 0).toLocaleString()}`, sub: 'This Month' },
-              { label: 'Conversion', value: conversionRate, sub: quickStats?.allTime ? `${quickStats.allTime.booked || 0} of ${quickStats.allTime.quotes || 0}` : '' },
-              { label: 'Outstanding', value: `${quickStats?.outstandingInvoices || 0}`, sub: `${currencySymbol()}${(quickStats?.outstandingTotal || 0).toLocaleString()}`, danger: true },
-              { label: 'Avg Job', value: `${currencySymbol()}${formatPriceWhole(quickStats?.avgJobValue)}` },
-              { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This Month' },
+              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthRevenue || 0).toLocaleString()}`, sub: 'This Month', href: '/invoices?status=paid&period=this_month' },
+              { label: 'Conversion', value: conversionRate, sub: quickStats?.allTime ? `${quickStats.allTime.booked || 0} of ${quickStats.allTime.quotes || 0}` : '', href: '/quotes?status=sent' },
+              { label: 'Outstanding', value: `${quickStats?.outstandingInvoices || 0}`, sub: `${currencySymbol()}${(quickStats?.outstandingTotal || 0).toLocaleString()}`, danger: true, href: '/invoices?status=outstanding' },
+              { label: 'Avg Job', value: `${currencySymbol()}${formatPriceWhole(quickStats?.avgJobValue)}`, href: '/jobs?status=completed' },
+              { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This Month', href: '/jobs?status=completed&period=this_month' },
             ].map((kpi) => (
-              <div key={kpi.label} className="min-w-0">
+              <Link key={kpi.label} href={kpi.href} className="min-w-0 group cursor-pointer">
                 <p className={`text-2xl sm:text-[2.5rem] leading-none font-extralight font-data tracking-wide ${kpi.danger ? 'text-v-danger' : 'text-v-gold'}`}>
                   {kpi.value}
                 </p>
-                <div className="w-full h-px bg-v-gold/40 mt-3 mb-2" />
-                <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">{kpi.label}</p>
+                <div className="w-full h-px bg-v-gold/40 mt-3 mb-2 group-hover:bg-v-gold transition-colors" />
+                <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary group-hover:text-v-text-primary transition-colors">{kpi.label}</p>
                 {kpi.sub && <p className="text-[10px] text-v-text-secondary/60 font-data mt-0.5">{kpi.sub}</p>}
-              </div>
+              </Link>
             ))}
           </div>
         </div>
