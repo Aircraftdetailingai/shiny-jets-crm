@@ -95,3 +95,6 @@ export async function POST(request) {
   }
   return new Response(JSON.stringify({ processed }), { status: 200 });
 }
+
+// Vercel Cron sends GET requests; expose the same handler for GET.
+export const GET = POST;

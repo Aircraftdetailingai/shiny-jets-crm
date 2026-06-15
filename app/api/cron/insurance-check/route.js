@@ -81,3 +81,6 @@ export async function POST(request) {
 
   return Response.json({ reminded, expired });
 }
+
+// Vercel Cron sends GET requests; expose the same handler for GET.
+export const GET = POST;

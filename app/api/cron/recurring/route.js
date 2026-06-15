@@ -200,3 +200,6 @@ export async function POST(request) {
     errors: errors.length > 0 ? errors : undefined,
   });
 }
+
+// Vercel Cron sends GET requests; expose the same handler for GET.
+export const GET = POST;

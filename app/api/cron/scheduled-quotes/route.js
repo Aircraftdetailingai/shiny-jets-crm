@@ -143,3 +143,6 @@ export async function POST(request) {
     total: (scheduled || []).length,
   });
 }
+
+// Vercel Cron sends GET requests; expose the same handler for GET.
+export const GET = POST;

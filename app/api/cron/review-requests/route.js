@@ -124,3 +124,6 @@ export async function POST(request) {
 
   return Response.json({ processed: sent + failed, sent, failed, jobs_checked: jobs?.length || 0 });
 }
+
+// Vercel Cron sends GET requests; expose the same handler for GET.
+export const GET = POST;
