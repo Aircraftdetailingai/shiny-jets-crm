@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
+import { logNotification } from '@/lib/notification-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +123,7 @@ export async function POST(request, { params }) {
     const brandedFrom = `${companyName} <${fromDomain}>`;
 
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error: emailError } = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: brandedFrom,
       to: invoice.customer_email,
       subject,
@@ -133,10 +134,30 @@ export async function POST(request, { params }) {
 
     if (emailError) {
       console.error('Invoice reminder email error:', emailError);
+      await logNotification({
+        detailer_id: invoice.detailer_id,
+        notification_type: 'invoice_remind',
+        recipient: invoice.customer_email,
+        channel: 'email',
+        status: 'failed',
+        error_message: emailError.message || JSON.stringify(emailError),
+        message_preview: subject,
+        invoice_id: invoice.id,
+      });
       return Response.json({ error: 'Failed to send reminder' }, { status: 500 });
     }
 
-    return Response.json({ success: true });
+    await logNotification({
+      detailer_id: invoice.detailer_id,
+      notification_type: 'invoice_remind',
+      recipient: invoice.customer_email,
+      channel: 'email',
+      status: 'sent',
+      resend_id: emailData?.id || null,
+      message_preview: subject,
+      invoice_id: invoice.id,
+    });
+    return Response.json({ success: true, resend_id: emailData?.id || null });
   } catch (err) {
     console.error('Invoice remind error:', err);
     return Response.json({ error: 'Failed to send reminder' }, { status: 500 });

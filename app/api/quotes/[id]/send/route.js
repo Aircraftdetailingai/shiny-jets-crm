@@ -4,6 +4,7 @@ import { sendQuoteSentEmail } from '@/lib/email';
 import { sendQuoteSms } from '@/lib/sms';
 import { hasPremiumAccess } from '@/lib/pricing-tiers';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
+import { logNotification } from '@/lib/notification-log';
 import { calculatePoints, POINTS_ACTIONS, TIER_MULTIPLIERS } from '@/lib/points';
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +25,8 @@ export async function POST(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { clientName, clientPhone, clientEmail, clientCompany, customerId, airport, emailSubject, emailBody } = body;
-  console.log(`[quote-send] id=${id} to=${clientEmail} subject=${emailSubject?.slice(0, 50)}`);
+  const { clientName, clientPhone, clientEmail, clientCompany, customerId, airport, emailSubject, emailBody, resend: forceResend = false } = body;
+  console.log(`[quote-send] id=${id} to=${clientEmail} subject=${emailSubject?.slice(0, 50)} resend=${forceResend}`);
 
 
   // Fetch the quote
@@ -41,6 +42,21 @@ export async function POST(request, { params }) {
 
   if (quote.detailer_id !== user.id) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+  }
+
+  // Idempotency: a quote that's already been sent doesn't fire Resend a
+  // second time unless the client explicitly opts in via { resend: true }.
+  // This is the defense-in-depth backstop for the rapid-fire-click bug
+  // Chris reported — even if the client debounce fails, the server only
+  // hits Resend once per quote per intentional resend.
+  if (!forceResend && quote.sent_at) {
+    console.log(`[quote-send] id=${id} already sent at ${quote.sent_at} — skipping (resend=false)`);
+    return new Response(JSON.stringify({
+      success: true,
+      already_sent: true,
+      sent_at: quote.sent_at,
+      message: 'Quote already sent. Pass { resend: true } to send again.',
+    }), { status: 200 });
   }
 
   // Quota enforcement for free plan — block sending if limit reached
@@ -277,9 +293,33 @@ export async function POST(request, { params }) {
           }
         }
         console.log('Email result:', JSON.stringify(result));
+        // Audit row in notification_log — captures Resend message id on
+        // success, error_message on failure. forceResend flag distinguishes
+        // an intentional "Resend" click from the original send.
+        await logNotification({
+          detailer_id: user.detailer_id || user.id,
+          notification_type: forceResend ? 'quote_resent' : 'quote_sent',
+          recipient: clientEmail,
+          channel: 'email',
+          status: result.success ? 'sent' : 'failed',
+          resend_id: result.id || null,
+          error_message: result.success ? null : (emailError || result.error || 'unknown'),
+          message_preview: emailSubject || `Quote ${updated?.aircraft_model || ''}`.trim(),
+          quote_id: id,
+        });
       } catch (e) {
         console.error('Email exception:', e.message);
         emailError = e.message;
+        await logNotification({
+          detailer_id: user.detailer_id || user.id,
+          notification_type: forceResend ? 'quote_resent' : 'quote_sent',
+          recipient: clientEmail,
+          channel: 'email',
+          status: 'failed',
+          error_message: e.message,
+          message_preview: emailSubject || 'Quote',
+          quote_id: id,
+        });
       }
     }
   } else {

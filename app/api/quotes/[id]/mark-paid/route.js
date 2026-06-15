@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { logNotification } from '@/lib/notification-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,13 +63,14 @@ export async function POST(request, { params }) {
     const resendKey = process.env.RESEND_API_KEY;
     if (resendKey) {
       const aircraft = quote.aircraft_model || quote.aircraft_type || 'Aircraft';
-      await fetch('https://api.resend.com/emails', {
+      const subj = `Payment recorded — ${aircraft} — $${paidAmount.toFixed(2)}`;
+      const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
           to: user.email,
-          subject: `Payment recorded — ${aircraft} — $${paidAmount.toFixed(2)}`,
+          subject: subj,
           html: `<div style="font-family:-apple-system,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
             <h2 style="color:#007CB1;">Payment Recorded</h2>
             <p><strong>Customer:</strong> ${quote.client_name || 'Customer'}</p>
@@ -80,8 +82,33 @@ export async function POST(request, { params }) {
           </div>`,
         }),
       });
+      let rid = null;
+      if (r.ok) {
+        try { const j = await r.json(); rid = j?.id || j?.data?.id || null; } catch (_) {}
+      }
+      await logNotification({
+        detailer_id: user.detailer_id || user.id,
+        notification_type: 'payment_recorded_detailer_notify',
+        recipient: user.email,
+        channel: 'email',
+        status: r.ok ? 'sent' : 'failed',
+        resend_id: rid,
+        error_message: r.ok ? null : await r.text().catch(() => 'unknown'),
+        message_preview: subj,
+        quote_id: id,
+      });
     }
-  } catch {}
+  } catch (e) {
+    await logNotification({
+      detailer_id: user.detailer_id || user.id,
+      notification_type: 'payment_recorded_detailer_notify',
+      recipient: user.email,
+      channel: 'email',
+      status: 'failed',
+      error_message: e?.message || String(e),
+      quote_id: id,
+    });
+  }
 
   return Response.json({ success: true, status: 'paid' });
 }

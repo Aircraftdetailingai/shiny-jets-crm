@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { logNotification } from '@/lib/notification-log';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,8 @@ export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { quote_id } = await request.json();
+  const body = await request.json();
+  const { quote_id, resend: forceResend = false } = body;
   if (!quote_id) return Response.json({ error: 'quote_id required' }, { status: 400 });
 
   const supabase = getSupabase();
@@ -23,13 +25,24 @@ export async function POST(request) {
   // Get quote
   const { data: quote, error: qErr } = await supabase
     .from('quotes')
-    .select('id, client_name, client_email, aircraft_type, aircraft_model, tail_number, share_link, detailer_id, total_price')
+    .select('id, client_name, client_email, aircraft_type, aircraft_model, tail_number, share_link, detailer_id, total_price, delivery_sent_at')
     .eq('id', quote_id)
     .eq('detailer_id', user.detailer_id || user.id)
     .single();
 
   if (qErr || !quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
   if (!quote.client_email) return Response.json({ error: 'No customer email on record' }, { status: 400 });
+
+  // Idempotency on delivery_sent_at — defends against rapid-click duplicate
+  // delivery emails. UI's "Resend Delivery" button sets resend:true to opt in.
+  if (!forceResend && quote.delivery_sent_at) {
+    return Response.json({
+      success: true,
+      already_sent: true,
+      sent_at: quote.delivery_sent_at,
+      message: 'Delivery already sent. Pass { resend: true } to send again.',
+    }, { status: 200 });
+  }
 
   // Get detailer info
   const { data: detailer } = await supabase
@@ -95,8 +108,25 @@ export async function POST(request) {
 
   if (!emailRes.ok) {
     const err = await emailRes.text();
+    await logNotification({
+      detailer_id: quote.detailer_id,
+      notification_type: forceResend ? 'delivery_resent' : 'delivery_sent',
+      recipient: quote.client_email,
+      channel: 'email',
+      status: 'failed',
+      error_message: err,
+      message_preview: `Delivery: ${aircraft}`,
+      quote_id,
+    });
     return Response.json({ error: 'Failed to send email', detail: err }, { status: 500 });
   }
+
+  // Parse Resend response for the message id (cross-reference key).
+  let resendId = null;
+  try {
+    const j = await emailRes.json();
+    resendId = j?.id || j?.data?.id || null;
+  } catch (_) { /* non-fatal */ }
 
   // Update job record
   await supabase.from('jobs')
@@ -108,5 +138,16 @@ export async function POST(request) {
     .update({ delivery_sent_at: new Date().toISOString() })
     .eq('id', quote_id);
 
-  return Response.json({ success: true, email: quote.client_email });
+  await logNotification({
+    detailer_id: quote.detailer_id,
+    notification_type: forceResend ? 'delivery_resent' : 'delivery_sent',
+    recipient: quote.client_email,
+    channel: 'email',
+    status: 'sent',
+    resend_id: resendId,
+    message_preview: `Delivery: ${aircraft}`,
+    quote_id,
+  });
+
+  return Response.json({ success: true, email: quote.client_email, resend_id: resendId });
 }

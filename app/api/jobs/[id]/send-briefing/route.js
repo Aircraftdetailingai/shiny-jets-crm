@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
+import { logNotification } from '@/lib/notification-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,9 @@ export async function POST(request, { params }) {
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const detailerId = user.detailer_id || user.id;
   const jobId = params.id;
+  let parsedBody = {};
+  try { parsedBody = await request.json(); } catch (_) { /* empty body is fine */ }
+  const forceResend = parsedBody?.resend === true;
 
   const supabase = getSupabase();
 
@@ -26,6 +30,17 @@ export async function POST(request, { params }) {
     if (quote) job = { ...quote, aircraft: quote.aircraft_model || quote.aircraft_type, client_name: quote.client_name };
   }
   if (!job) return Response.json({ error: 'Job not found' }, { status: 404 });
+
+  // Idempotency on reminder_sent_at — same pattern as other transactional
+  // sends. Prevents rapid-fire briefing re-sends to the crew.
+  if (!forceResend && job.reminder_sent_at) {
+    return Response.json({
+      success: true,
+      already_sent: true,
+      sent_at: job.reminder_sent_at,
+      message: 'Briefing already sent. Pass { resend: true } to send again.',
+    }, { status: 200 });
+  }
 
   // Parse services
   let services = [];
@@ -98,10 +113,30 @@ export async function POST(request, { params }) {
 
   for (const m of crewWithEmail) {
     try {
-      await resend.emails.send({ from: fromEmail, to: m.email, subject, html });
+      const r = await resend.emails.send({ from: fromEmail, to: m.email, subject, html });
       sent.push(m.email);
+      await logNotification({
+        detailer_id: detailerId,
+        notification_type: forceResend ? 'briefing_resent' : 'briefing_sent',
+        recipient: m.email,
+        channel: 'email',
+        status: 'sent',
+        resend_id: r?.data?.id || r?.id || null,
+        message_preview: subject,
+        quote_id: jobId,
+      });
     } catch (e) {
       console.error('[send-briefing] Failed for', m.email, e.message);
+      await logNotification({
+        detailer_id: detailerId,
+        notification_type: forceResend ? 'briefing_resent' : 'briefing_sent',
+        recipient: m.email,
+        channel: 'email',
+        status: 'failed',
+        error_message: e.message,
+        message_preview: subject,
+        quote_id: jobId,
+      });
     }
   }
 

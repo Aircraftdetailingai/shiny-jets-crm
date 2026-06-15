@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { logNotification } from '@/lib/notification-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function POST(request) {
   const supabase = getSupabase();
 
   try {
-    const { quoteId, shareLink } = await request.json();
+    const { quoteId, shareLink, resend: forceResend = false } = await request.json();
 
     if (!quoteId) {
       return new Response(JSON.stringify({ error: 'Quote ID required' }), { status: 400 });
@@ -47,10 +48,22 @@ export async function POST(request) {
       .eq('id', quote.detailer_id)
       .single();
 
+    // Idempotency on tips_sent_at — same pattern as other transactional sends.
+    if (!forceResend && quote.tips_sent_at) {
+      return new Response(JSON.stringify({
+        success: true,
+        already_sent: true,
+        sent_at: quote.tips_sent_at,
+        message: 'Tips email already sent. Pass { resend: true } to send again.',
+      }), { status: 200 });
+    }
+
     // Send tips email to customer
     if (quote.client_email) {
+      let resendId = null;
+      let sendErr = null;
       try {
-        await fetch('https://api.resend.com/emails', {
+        const r = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -96,10 +109,38 @@ export async function POST(request) {
             `
           })
         });
+        if (r.ok) {
+          try { const j = await r.json(); resendId = j?.id || j?.data?.id || null; } catch (_) {}
+        } else {
+          sendErr = await r.text().catch(() => 'unknown');
+        }
       } catch (e) {
         console.error('Failed to send tips email:', e);
+        sendErr = e.message;
+      }
+      if (sendErr) {
+        await logNotification({
+          detailer_id: quote.detailer_id,
+          notification_type: forceResend ? 'tips_resent' : 'tips_sent',
+          recipient: quote.client_email,
+          channel: 'email',
+          status: 'failed',
+          error_message: sendErr,
+          message_preview: 'Preparing for Your Aircraft Detail',
+          quote_id: quoteId,
+        });
         return new Response(JSON.stringify({ error: 'Failed to send email' }), { status: 500 });
       }
+      await logNotification({
+        detailer_id: quote.detailer_id,
+        notification_type: forceResend ? 'tips_resent' : 'tips_sent',
+        recipient: quote.client_email,
+        channel: 'email',
+        status: 'sent',
+        resend_id: resendId,
+        message_preview: 'Preparing for Your Aircraft Detail',
+        quote_id: quoteId,
+      });
     } else {
       return new Response(JSON.stringify({ error: 'No email on file for this quote' }), { status: 400 });
     }

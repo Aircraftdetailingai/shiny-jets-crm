@@ -29,6 +29,26 @@ const CATEGORY_LABELS = {
   coating: 'Coatings & Protection', brightwork: 'Brightwork', other: 'Other',
 };
 
+// "Last sent X ago" helper for the Resend label. Module-scope so the
+// component never re-creates it on render. Returns "just now" for < 60s
+// to avoid showing "0 minutes ago".
+function timeAgo(iso) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return 'just now';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} minute${min === 1 ? '' : 's'} ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} hour${hr === 1 ? '' : 's'} ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day} day${day === 1 ? '' : 's'} ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo} month${mo === 1 ? '' : 's'} ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
 export default function InvoicesPageWrapper() {
   return <Suspense fallback={<div className="min-h-screen bg-v-charcoal" />}><InvoicesPageInner /></Suspense>;
 }
@@ -1032,15 +1052,28 @@ function InvoicesPageInner() {
     return inv.status || 'draft';
   };
 
-  const sendInvoice = async (invoice) => {
+  // sendingInvoiceId scopes the "Sending…" label to the specific row being
+  // sent — prior pattern used a global actionLoading boolean which dimmed
+  // every row at once and made it impossible to tell what was in flight.
+  const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
+
+  const sendInvoice = async (invoice, isResend = false) => {
     setActionLoading(true);
+    setSendingInvoiceId(invoice.id);
     try {
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: 'POST',
-        headers: headers(),
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resend: !!isResend }),
       });
       if (res.ok) {
-        setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, status: 'sent', emailed_at: new Date().toISOString() } : inv));
+        const data = await res.json().catch(() => ({}));
+        if (data.already_sent) {
+          // Server idempotency caught a duplicate (rapid-click or stale UI).
+          // Surface gently rather than treating as a fresh send.
+          alert(`Invoice already sent ${new Date(data.sent_at).toLocaleString()}.\nClick Resend if you want to send it again.`);
+        }
+        setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, status: 'sent', sent_at: data.sent_at || new Date().toISOString(), emailed_at: new Date().toISOString() } : inv));
       } else {
         // Fallback to the old email endpoint
         const res2 = await fetch(`/api/invoices/${invoice.id}`, {
@@ -1048,7 +1081,7 @@ function InvoicesPageInner() {
           headers: headers(),
         });
         if (res2.ok) {
-          setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, status: 'sent', emailed_at: new Date().toISOString() } : inv));
+          setInvoices(invoices.map(inv => inv.id === invoice.id ? { ...inv, status: 'sent', sent_at: new Date().toISOString(), emailed_at: new Date().toISOString() } : inv));
         } else {
           const data = await res2.json();
           alert(data.error || 'Failed to send');
@@ -1058,6 +1091,7 @@ function InvoicesPageInner() {
       alert('Failed to send invoice');
     } finally {
       setActionLoading(false);
+      setSendingInvoiceId(null);
     }
   };
 
@@ -1719,14 +1753,27 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                   Edit
                 </button>
               )}
-              {getDisplayStatus(viewInvoice) === 'draft' && (
-                <button
-                  onClick={() => { sendInvoice(viewInvoice); setViewInvoice(null); }}
-                  disabled={!viewInvoice.customer_email || actionLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
-                >
-                  Send Invoice
-                </button>
+              {/* Send / Resend — visible for any non-paid invoice with a
+                  customer email. When sent_at is set, the label flips to
+                  "Resend" and the API call carries { resend: true } so the
+                  server idempotency check lets it through. */}
+              {getDisplayStatus(viewInvoice) !== 'paid' && viewInvoice.customer_email && (
+                <div className="flex flex-col items-start">
+                  <button
+                    onClick={() => { sendInvoice(viewInvoice, !!viewInvoice.sent_at); setViewInvoice(null); }}
+                    disabled={!viewInvoice.customer_email || actionLoading || sendingInvoiceId === viewInvoice.id}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                  >
+                    {sendingInvoiceId === viewInvoice.id
+                      ? (viewInvoice.sent_at ? 'Resending…' : 'Sending…')
+                      : (viewInvoice.sent_at ? 'Resend Invoice' : 'Send Invoice')}
+                  </button>
+                  {viewInvoice.sent_at && (
+                    <p className="text-[11px] text-v-text-secondary mt-1">
+                      Last sent {timeAgo(viewInvoice.sent_at)} to {viewInvoice.customer_email}
+                    </p>
+                  )}
+                </div>
               )}
               {getDisplayStatus(viewInvoice) === 'overdue' && (
                 <button

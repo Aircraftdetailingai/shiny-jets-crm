@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendBookingConfirmedEmail } from '@/lib/email';
+import { logNotification } from '@/lib/notification-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,10 +94,11 @@ export async function POST(request, { params }) {
         const aircraftDisplay = quote.aircraft_model || quote.aircraft_type || 'aircraft detail';
         const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(quote.total_price || 0);
 
-        await resend.emails.send({
+        const invoiceReqSubject = `Invoice Requested — ${aircraftDisplay}`;
+        const r = await resend.emails.send({
           from: fromEmail,
           to: detailer.email,
-          subject: `Invoice Requested — ${aircraftDisplay}`,
+          subject: invoiceReqSubject,
           html: `<p>Hi ${detailer.name || detailer.company || ''},</p>
 <p><strong>${quote.client_name || 'A customer'}</strong> accepted your quote for <strong>${aircraftDisplay}</strong> and requested an invoice.</p>
 <p>They chose to pay by check/ACH instead of credit card. Please send them an invoice directly.</p>
@@ -104,17 +106,56 @@ export async function POST(request, { params }) {
 ${quote.client_email ? `<p>Customer email: <a href="mailto:${quote.client_email}">${quote.client_email}</a></p>` : ''}
 <p style="color:#999;font-size:12px;">— Shiny Jets</p>`,
         });
+        await logNotification({
+          detailer_id: quote.detailer_id,
+          notification_type: 'invoice_requested_detailer_notify',
+          recipient: detailer.email,
+          channel: 'email',
+          status: 'sent',
+          resend_id: r?.data?.id || r?.id || null,
+          message_preview: invoiceReqSubject,
+          quote_id: id,
+        });
       } catch (emailErr) {
         console.error('Failed to send invoice request notification:', emailErr);
+        await logNotification({
+          detailer_id: quote.detailer_id,
+          notification_type: 'invoice_requested_detailer_notify',
+          recipient: detailer.email,
+          channel: 'email',
+          status: 'failed',
+          error_message: emailErr.message,
+          quote_id: id,
+        });
       }
     }
 
     // Send booking confirmation email to customer
     if (quote.client_email) {
       try {
-        await sendBookingConfirmedEmail({ quote: { ...quote, share_link: quote.share_link }, detailer });
+        const r = await sendBookingConfirmedEmail({ quote: { ...quote, share_link: quote.share_link }, detailer });
+        await logNotification({
+          detailer_id: quote.detailer_id,
+          notification_type: 'quote_accepted_customer',
+          recipient: quote.client_email,
+          channel: 'email',
+          status: r?.success === false ? 'failed' : 'sent',
+          resend_id: r?.id || null,
+          error_message: r?.success === false ? r?.error : null,
+          message_preview: 'Booking confirmed',
+          quote_id: id,
+        });
       } catch (e) {
         console.error('Failed to send booking confirmation:', e);
+        await logNotification({
+          detailer_id: quote.detailer_id,
+          notification_type: 'quote_accepted_customer',
+          recipient: quote.client_email,
+          channel: 'email',
+          status: 'failed',
+          error_message: e.message,
+          quote_id: id,
+        });
       }
     }
 

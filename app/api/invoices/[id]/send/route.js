@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
+import { logNotification } from '@/lib/notification-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,13 @@ export async function POST(request, { params }) {
 
     const { id } = await params;
     const detailerId = user.detailer_id || user.id;
-    console.log('[invoice/send] invoice_id:', id, 'detailer_id:', detailerId);
+
+    // Parse body for forceResend flag — UI's "Resend" button sets resend:true
+    // to bypass the idempotency check below.
+    let parsedBody = {};
+    try { parsedBody = await request.json(); } catch (_) { /* empty body is fine */ }
+    const forceResend = parsedBody?.resend === true;
+    console.log('[invoice/send] invoice_id:', id, 'detailer_id:', detailerId, 'resend:', forceResend);
 
     // Reject obviously bad IDs
     if (!id || id === 'undefined' || id === 'null') {
@@ -46,6 +53,21 @@ export async function POST(request, { params }) {
 
     if (!invoice.customer_email) {
       return Response.json({ error: 'No customer email on invoice' }, { status: 400 });
+    }
+
+    // Idempotency: an invoice that's already been sent doesn't fire Resend
+    // a second time unless { resend: true } is passed. The UI's "Resend"
+    // button (rendered when invoice.sent_at IS NOT NULL) is the only path
+    // that should opt in. Defense-in-depth against rapid-fire-click
+    // double-sends.
+    if (!forceResend && invoice.sent_at) {
+      console.log(`[invoice/send] id=${id} already sent at ${invoice.sent_at} — skipping`);
+      return Response.json({
+        success: true,
+        already_sent: true,
+        sent_at: invoice.sent_at,
+        message: 'Invoice already sent. Pass { resend: true } to send again.',
+      }, { status: 200 });
     }
 
     // Fetch detailer info for From block (logo, company, contact details)
@@ -146,27 +168,80 @@ export async function POST(request, { params }) {
       });
     } catch (sendErr) {
       console.error('[invoice/send] Resend exception:', sendErr.message);
+      await logNotification({
+        detailer_id: detailerId,
+        notification_type: forceResend ? 'invoice_resent' : 'invoice_sent',
+        recipient: invoice.customer_email,
+        channel: 'email',
+        status: 'failed',
+        error_message: sendErr.message,
+        message_preview: subject,
+        invoice_id: id,
+      });
       return Response.json({ error: `Email failed: ${sendErr.message}` }, { status: 500 });
     }
 
     if (emailResult?.error) {
       console.error('[invoice/send] Resend returned error:', JSON.stringify(emailResult.error));
+      await logNotification({
+        detailer_id: detailerId,
+        notification_type: forceResend ? 'invoice_resent' : 'invoice_sent',
+        recipient: invoice.customer_email,
+        channel: 'email',
+        status: 'failed',
+        error_message: emailResult.error.message || JSON.stringify(emailResult.error),
+        message_preview: subject,
+        invoice_id: id,
+      });
       return Response.json({ error: emailResult.error.message || 'Failed to send email' }, { status: 500 });
     }
 
-    // Update invoice status to 'sent', set issued_date if not set
-    const updateFields = { status: 'sent' };
+    // Update invoice status to 'sent', stamp sent_at (the audit-trail column,
+    // previously not written here — caused the "did this go out?" question
+    // mark on the invoice detail UI). Also set issued_date if unset.
+    const updateFields = {
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    };
     if (!invoice.issued_date) {
       updateFields.issued_date = new Date().toISOString();
     }
 
-    await supabase
-      .from('invoices')
-      .update(updateFields)
-      .eq('id', id)
-      .eq('detailer_id', detailerId);
+    // Column-stripping retry — sent_at may not exist on every deploy yet
+    let updErr = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const { error } = await supabase
+        .from('invoices')
+        .update(updateFields)
+        .eq('id', id)
+        .eq('detailer_id', detailerId);
+      if (!error) { updErr = null; break; }
+      updErr = error;
+      const colMatch = error.message?.match(/column "([^"]+)" of relation "invoices" does not exist/)
+        || error.message?.match(/Could not find the '([^']+)' column of 'invoices'/);
+      if (colMatch && updateFields[colMatch[1]] !== undefined) {
+        delete updateFields[colMatch[1]];
+        continue;
+      }
+      break;
+    }
+    if (updErr) console.warn('[invoice/send] update warned (non-fatal):', updErr.message);
 
-    return Response.json({ success: true });
+    // Audit row in notification_log — captures the Resend message id so the
+    // dashboard "did this customer get this invoice" query has a single
+    // source of truth keyed on resend_id.
+    await logNotification({
+      detailer_id: detailerId,
+      notification_type: forceResend ? 'invoice_resent' : 'invoice_sent',
+      recipient: invoice.customer_email,
+      channel: 'email',
+      status: 'sent',
+      resend_id: emailResult?.data?.id || emailResult?.id || null,
+      message_preview: subject,
+      invoice_id: id,
+    });
+
+    return Response.json({ success: true, resend_id: emailResult?.data?.id || emailResult?.id || null });
   } catch (err) {
     console.error('Invoice send error:', err);
     return Response.json({ error: 'Failed to send invoice' }, { status: 500 });
