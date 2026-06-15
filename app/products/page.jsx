@@ -22,6 +22,8 @@ export default function ProductsPage() {
   // 'enrich' = scan from inside the Add Product form (fill fields from lookup).
   const [scanMode, setScanMode] = useState('lookup');
   const nameInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
@@ -260,6 +262,37 @@ export default function ProductsPage() {
     setShowScanner(false);
     setBarcodeLookup(false);
     setEditingProduct(null);
+  };
+
+  // Take a photo (mobile camera) or pick an image file, upload it, and use it
+  // as the product image.
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setUploadingPhoto(true);
+    setSaveError('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/products/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setSaveError(data.error || 'Photo upload failed');
+        return;
+      }
+      setFormData(prev => ({ ...prev, imageUrl: data.url }));
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      setSaveError('Photo upload failed — please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   // Optional external enrichment (UPC → name/brand/image). Kept best-effort:
@@ -850,13 +883,34 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              {/* Image preview */}
-              {formData.imageUrl && (
-                <div className="flex items-center gap-3">
+              {/* Product photo — take a picture or upload from library */}
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <div className="flex items-center gap-3">
+                {formData.imageUrl ? (
                   <img src={formData.imageUrl} alt="" className="w-16 h-16 rounded-sm object-cover bg-v-charcoal border border-v-border" onError={(e) => { e.target.style.display = 'none'; }} />
-                  <button type="button" onClick={() => setFormData({ ...formData, imageUrl: '' })} className="text-xs text-v-text-secondary hover:text-red-500">{'Remove image'}</button>
+                ) : (
+                  <div className="w-16 h-16 rounded-sm bg-v-charcoal border border-v-border flex items-center justify-center text-v-text-secondary text-xl">&#128247;</div>
+                )}
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-500/15 border border-blue-500/30 text-blue-400 rounded-sm hover:bg-blue-500/25 disabled:opacity-50"
+                  >
+                    {uploadingPhoto ? 'Uploading…' : formData.imageUrl ? 'Replace Photo' : 'Take / Upload Photo'}
+                  </button>
+                  {formData.imageUrl && (
+                    <button type="button" onClick={() => setFormData({ ...formData, imageUrl: '' })} className="text-[11px] text-v-text-secondary hover:text-red-500 text-left">{'Remove image'}</button>
+                  )}
                 </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
