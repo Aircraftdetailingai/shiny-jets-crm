@@ -448,13 +448,29 @@ export default function ServicesPage() {
       const res = await fetch('/api/services/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ service_id: serviceId, product_id: productId, quantity_per_hour: 1 }),
+        // Seed with zero quantities — user dials them in via the inline
+        // /job, /sqft, /hr inputs after the row appears. quantity_per_hour
+        // kept for compatibility with the legacy crew-materials estimator.
+        body: JSON.stringify({
+          service_id: serviceId,
+          product_id: productId,
+          quantity_per_job: 0,
+          quantity_per_sqft: 0,
+          quantity_per_hour: 0,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
         setLinkedProducts(prev => [...prev, data.link]);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('[settings/services] addProductLink failed:', res.status, err);
+        alert(err.error || `Failed to link product (HTTP ${res.status})`);
       }
-    } catch (err) { console.error('Failed to link product:', err); }
+    } catch (err) {
+      console.error('Failed to link product:', err);
+      alert('Network error linking product. Check the console.');
+    }
   };
 
   const updateProductLink = async (linkId, updates) => {
@@ -1480,17 +1496,50 @@ export default function ServicesPage() {
                           <div className="flex items-center gap-1">
                             <input
                               type="number"
+                              step="0.01"
+                              value={link.quantity_per_job ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_job: val } : l));
+                              }}
+                              onBlur={(e) => updateProductLink(link.id, { quantity_per_job: parseFloat(e.target.value) || 0 })}
+                              className="w-16 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
+                              title="Fixed quantity used per job, regardless of size"
+                              placeholder="0"
+                            />
+                            <span className="text-[10px] text-v-text-secondary">/job</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              step="0.0001"
+                              value={link.quantity_per_sqft ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_sqft: val } : l));
+                              }}
+                              onBlur={(e) => updateProductLink(link.id, { quantity_per_sqft: parseFloat(e.target.value) || 0 })}
+                              className="w-20 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
+                              title="Variable quantity scaled by aircraft surface area"
+                              placeholder="0"
+                            />
+                            <span className="text-[10px] text-v-text-secondary">/sqft</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
                               step="0.1"
-                              value={link.quantity_per_hour || ''}
+                              value={link.quantity_per_hour ?? ''}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_hour: val } : l));
                               }}
                               onBlur={(e) => updateProductLink(link.id, { quantity_per_hour: parseFloat(e.target.value) || 0 })}
-                              className="w-16 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
-                              title="Quantity per hour"
+                              className="w-14 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right opacity-70"
+                              title="Legacy: quantity per labor hour (kept for jobs that estimate by hours)"
+                              placeholder="0"
                             />
-                            <span className="text-[10px] text-v-text-secondary">/hr</span>
+                            <span className="text-[10px] text-v-text-secondary opacity-70">/hr</span>
                           </div>
                           <button onClick={() => removeProductLink(link.id)} className="text-red-400 hover:text-red-600 text-sm">&times;</button>
                         </div>
