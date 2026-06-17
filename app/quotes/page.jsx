@@ -185,6 +185,9 @@ export default function QuotesPage() {
   };
   const feesAddonTotal = computeAddonTotal(feesRows, feesCtx);
   const feesNewTotal = Math.round((feesBase + feesAddonTotal) * 100) / 100;
+  // Suggested job days = total labor hours ÷ (staff × 8-hour shift).
+  const feesJobHours = parseFloat(feesModal?.total_hours) || 0;
+  const feesSuggDays = Math.max(1, Math.ceil(feesJobHours / ((parseInt(feesStaff, 10) || 1) * 8)));
 
   const openFeesModal = (quote) => {
     const existing = quote.addon_fees || [];
@@ -204,7 +207,7 @@ export default function QuotesPage() {
       buffer_after: f.buffer_after ?? 0,
     })));
     setFeesStaff(quote.staff_count || 1);
-    const estDays = Math.max(1, Math.ceil((parseFloat(quote.total_hours) || 0) / 8));
+    const estDays = Math.max(1, Math.ceil((parseFloat(quote.total_hours) || 0) / ((quote.staff_count || 1) * 8)));
     setFeesJobDays(quote.job_days != null ? quote.job_days : estDays);
     setFeesCatalog([]);
     setFeesModal(quote);
@@ -1038,6 +1041,11 @@ export default function QuotesPage() {
                   <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1"># of Job Days</label>
                   <input type="number" min="0" value={feesJobDays} onChange={(e) => setFeesJobDays(e.target.value)}
                     className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none" />
+                  {feesJobHours > 0 && (
+                    <button type="button" onClick={() => setFeesJobDays(feesSuggDays)} className="text-[11px] text-blue-300 hover:underline mt-1">
+                      Auto: {feesSuggDays} day{feesSuggDays !== 1 ? 's' : ''} ({feesJobHours}h ÷ {parseInt(feesStaff, 10) || 1} staff × 8h)
+                    </button>
+                  )}
                 </div>
               </div>
 

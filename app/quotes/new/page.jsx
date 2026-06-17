@@ -1808,6 +1808,7 @@ function NewQuoteContent() {
                   <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1"># of Job Days</label>
                   <input type="number" min="0" placeholder={String(businessDays)} value={jobDaysOverride} onChange={e => setJobDaysOverride(e.target.value)}
                     className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
+                  <p className="text-[10px] text-gray-500 mt-1">Auto: {businessDays} day{businessDays !== 1 ? 's' : ''} ({Math.round(totalHours)}h ÷ {effStaff} staff × 8h){jobDaysOverride === '' ? ' — in use' : ''}</p>
                 </div>
               </div>
               <div className="divide-y divide-v-border/30">

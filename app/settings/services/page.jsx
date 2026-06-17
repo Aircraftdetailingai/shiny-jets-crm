@@ -1811,7 +1811,7 @@ function AddonFeeFields({ fee, set }) {
             <div>
               <input type="number" min="0" value={fee.buffer_after ?? 0} onChange={(e) => set({ buffer_after: e.target.value })}
                 className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
-              <p className="text-[11px] text-v-text-secondary mt-1">Days after (departure)</p>
+              <p className="text-[11px] text-v-text-secondary mt-1">Days after (job complete)</p>
             </div>
           </div>
           <p className="text-[11px] text-v-text-secondary mt-1">Billed nights/days = job days + before + after.</p>

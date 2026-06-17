@@ -163,6 +163,7 @@ function InvoicesPageInner() {
   const [editFees, setEditFees] = useState([]);
   const [editStaff, setEditStaff] = useState(1);
   const [editJobDays, setEditJobDays] = useState(1);
+  const [editJobHours, setEditJobHours] = useState(0);
   const [editFeesCatalog, setEditFeesCatalog] = useState([]);
   const [editShowMailing, setEditShowMailing] = useState(false);
   const [editShowAch, setEditShowAch] = useState(false);
@@ -598,8 +599,11 @@ function InvoicesPageInner() {
         name: f.name || '', fee_type: f.fee_type || 'flat', amount: f.amount ?? 0,
         quantity: f.quantity ?? 1, buffer_before: f.buffer_before ?? 0, buffer_after: f.buffer_after ?? 0,
       })));
+      const jobHours = (full.line_items || []).reduce((s, li) => s + (parseFloat(li.hours) || 0), 0);
+      setEditJobHours(jobHours);
       setEditStaff(full.staff_count || 1);
-      setEditJobDays(full.job_days != null ? full.job_days : 1);
+      const suggDays = Math.max(1, Math.ceil(jobHours / ((full.staff_count || 1) * 8)));
+      setEditJobDays(full.job_days != null ? full.job_days : suggDays);
       setEditFeesCatalog([]);
       fetch('/api/addon-fees', { headers: headers() })
         .then(r => r.ok ? r.json() : null)
@@ -629,7 +633,7 @@ function InvoicesPageInner() {
     setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
     setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
     setEditDiscount({ type: 'percent', value: '', reason: '' });
-    setEditFees([]); setEditStaff(1); setEditJobDays(1); setEditFeesCatalog([]);
+    setEditFees([]); setEditStaff(1); setEditJobDays(1); setEditJobHours(0); setEditFeesCatalog([]);
     setEditShowMailing(false); setEditShowAch(false);
     setEditError(''); setEditSavedFlash(false);
   };
@@ -2570,6 +2574,14 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                       <label className="block text-[11px] text-v-text-secondary mb-1"># of Job Days</label>
                       <input type="number" min="0" value={editJobDays} onChange={e => setEditJobDays(e.target.value)}
                         className="w-full bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                      {editJobHours > 0 && (() => {
+                        const suggDays = Math.max(1, Math.ceil(editJobHours / ((parseInt(editStaff, 10) || 1) * 8)));
+                        return (
+                          <button type="button" onClick={() => setEditJobDays(suggDays)} className="text-[11px] text-blue-300 hover:underline mt-1">
+                            Auto: {suggDays} day{suggDays !== 1 ? 's' : ''} ({editJobHours}h ÷ {parseInt(editStaff, 10) || 1} staff × 8h)
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="space-y-2">
