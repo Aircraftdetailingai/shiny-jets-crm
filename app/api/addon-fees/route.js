@@ -60,7 +60,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, description, fee_type, amount, buffer_before, buffer_after } = body;
+    const { name, description, fee_type, amount, buffer_before, buffer_after, is_compound, sub_items } = body;
 
     if (!name) {
       return Response.json({ error: 'Name is required' }, { status: 400 });
@@ -76,6 +76,8 @@ export async function POST(request) {
         amount: parseFloat(amount) || 0,
         buffer_before: Math.max(0, parseInt(buffer_before, 10) || 0),
         buffer_after: Math.max(0, parseInt(buffer_after, 10) || 0),
+        is_compound: !!is_compound,
+        sub_items: Array.isArray(sub_items) ? sub_items : [],
       })
       .select()
       .single();

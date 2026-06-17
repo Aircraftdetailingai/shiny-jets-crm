@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import CalibrationModal from '@/components/CalibrationModal';
 import { currencySymbol } from '@/lib/formatPrice';
-import { FEE_TYPES, feeTypeMeta, PERCENT } from '@/lib/addon-fees';
+import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonTotal, PERCENT } from '@/lib/addon-fees';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -245,7 +245,7 @@ export default function ServicesPage() {
   // Addon fee form
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [editingAddon, setEditingAddon] = useState(null);
-  const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '', buffer_before: 0, buffer_after: 0 });
+  const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '', buffer_before: 0, buffer_after: 0, is_compound: false, sub_items: [] });
 
   // AI estimate state (Enterprise only)
   const [aiEstimate, setAiEstimate] = useState(null);
@@ -733,12 +733,14 @@ export default function ServicesPage() {
           amount: parseFloat(newAddon.amount) || 0,
           buffer_before: parseInt(newAddon.buffer_before, 10) || 0,
           buffer_after: parseInt(newAddon.buffer_after, 10) || 0,
+          is_compound: !!newAddon.is_compound,
+          sub_items: Array.isArray(newAddon.sub_items) ? newAddon.sub_items : [],
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to add fee'); return; }
       setAddonFees([...addonFees, data.fee]);
-      setNewAddon({ name: '', description: '', fee_type: 'flat', amount: '', buffer_before: 0, buffer_after: 0 });
+      setNewAddon({ name: '', description: '', fee_type: 'flat', amount: '', buffer_before: 0, buffer_after: 0, is_compound: false, sub_items: [] });
       setShowAddonModal(false);
       setError('');
       flashSaved('Add-on added');
@@ -762,6 +764,8 @@ export default function ServicesPage() {
           amount: parseFloat(editingAddon.amount) || 0,
           buffer_before: parseInt(editingAddon.buffer_before, 10) || 0,
           buffer_after: parseInt(editingAddon.buffer_after, 10) || 0,
+          is_compound: !!editingAddon.is_compound,
+          sub_items: Array.isArray(editingAddon.sub_items) ? editingAddon.sub_items : [],
         }),
       });
       const data = await res.json();
@@ -1347,12 +1351,21 @@ export default function ServicesPage() {
                     </div>
                   </div>
                   <div className="mt-2">
-                    <span className="text-xl font-bold text-orange-600">
-                      {fee.fee_type === 'percent' ? `${fee.amount}%` : `${currencySymbol()}${fee.amount}`}
-                    </span>
-                    <span className="text-xs text-v-text-secondary ml-2">{feeTypeMeta(fee.fee_type).unitLabel}</span>
-                    {((fee.buffer_before || 0) + (fee.buffer_after || 0)) > 0 && (
-                      <p className="text-[11px] text-v-text-secondary mt-1">+{(fee.buffer_before || 0) + (fee.buffer_after || 0)} day(s) added to the job</p>
+                    {fee.is_compound ? (
+                      <>
+                        <span className="text-xl font-bold text-orange-600">{currencySymbol()}{computeAddonTotal(fee.sub_items || [], { staffCount: 1, jobDays: 1 }).toFixed(2)}</span>
+                        <span className="text-xs text-v-text-secondary ml-2">compound · {(fee.sub_items || []).length} item{(fee.sub_items || []).length !== 1 ? 's' : ''}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold text-orange-600">
+                          {fee.fee_type === 'percent' ? `${fee.amount}%` : `${currencySymbol()}${fee.amount}`}
+                        </span>
+                        <span className="text-xs text-v-text-secondary ml-2">{feeTypeMeta(fee.fee_type).unitLabel}</span>
+                        {((fee.buffer_before || 0) + (fee.buffer_after || 0)) > 0 && (
+                          <p className="text-[11px] text-v-text-secondary mt-1">+{(fee.buffer_before || 0) + (fee.buffer_after || 0)} day(s) added to the job</p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1773,8 +1786,56 @@ export default function ServicesPage() {
 function AddonFeeFields({ fee, set }) {
   const type = fee.fee_type || 'flat';
   const meta = feeTypeMeta(type);
+  const compound = !!fee.is_compound;
+  const subItems = Array.isArray(fee.sub_items) ? fee.sub_items : [];
+  const setSub = (id, patch) => set({ sub_items: subItems.map(s => s.id === id ? { ...s, ...patch } : s) });
+  const removeSub = (id) => set({ sub_items: subItems.filter(s => s.id !== id) });
+  const addSub = (preset) => set({ sub_items: [...subItems, {
+    id: crypto.randomUUID(), name: preset?.name || '', fee_type: preset?.fee_type || 'flat', amount: preset?.amount ?? 0, note: '',
+  }] });
+  const baseTotal = computeAddonTotal(subItems, { staffCount: 1, jobDays: 1 });
+
   return (
     <>
+      <label className="flex items-center justify-between gap-2 py-1 cursor-pointer">
+        <span className="text-sm font-medium text-v-text-secondary">Compound fee (bundle of sub-items)</span>
+        <input type="checkbox" checked={compound} onChange={(e) => set({ is_compound: e.target.checked })} className="w-4 h-4 accent-orange-500" />
+      </label>
+
+      {compound ? (
+        <div>
+          <label className="block text-sm font-medium text-v-text-secondary mb-1">Sub-items</label>
+          <div className="space-y-2">
+            {subItems.length === 0 && <p className="text-[11px] text-v-text-secondary">No sub-items yet — add from the palette below.</p>}
+            {subItems.map(si => (
+              <div key={si.id} className="bg-v-charcoal border border-v-border rounded-lg p-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <input type="text" value={si.name} onChange={(e) => setSub(si.id, { name: e.target.value })} placeholder="Sub-item name"
+                    className="flex-1 bg-v-surface border border-v-border text-v-text-primary rounded px-2 py-1 text-xs" />
+                  <button type="button" onClick={() => removeSub(si.id)} className="text-red-400 hover:text-red-300 text-lg leading-none">&times;</button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select value={si.fee_type} onChange={(e) => setSub(si.id, { fee_type: e.target.value })} className="bg-v-surface border border-v-border text-v-text-primary px-2 py-1 text-xs rounded">
+                    {SUB_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-v-text-secondary">{si.fee_type === PERCENT ? '%' : currencySymbol()}</span>
+                    <input type="number" value={si.amount ?? ''} onChange={(e) => setSub(si.id, { amount: e.target.value })}
+                      className="w-20 bg-v-surface border border-v-border text-v-text-primary px-2 py-1 text-xs text-right rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {SUB_ITEM_PRESETS.map(p => (
+              <button key={p.name} type="button" onClick={() => addSub(p)} className="text-[11px] text-orange-600 border border-orange-300 rounded px-2 py-0.5 hover:bg-orange-500/10">+ {p.name}</button>
+            ))}
+          </div>
+          <p className="text-[11px] text-v-text-secondary mt-2">Base total (1 staff, 1 day): {currencySymbol()}{baseTotal.toFixed(2)} — per-staff / per-day items scale on each quote.</p>
+        </div>
+      ) : (
+      <>
       <div>
         <label className="block text-sm font-medium text-v-text-secondary mb-1">Fee Type</label>
         <div className="grid grid-cols-2 gap-2">
@@ -1816,6 +1877,8 @@ function AddonFeeFields({ fee, set }) {
           </div>
           <p className="text-[11px] text-v-text-secondary mt-1">Billed nights/days = job days + before + after.</p>
         </div>
+      )}
+      </>
       )}
     </>
   );

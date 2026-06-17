@@ -9,7 +9,7 @@ import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
 import { calculateProductEstimates } from '../../../lib/product-calculator';
 import { calculateCcFee } from '../../../lib/cc-fee';
-import { FEE_TYPES, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
+import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
 
 const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super_midsize_jet', 'large_jet', 'helicopter'];
 
@@ -83,6 +83,8 @@ function NewQuoteContent() {
   // Gate: auto-save must NOT fire until a loaded draft is fully restored,
   // otherwise the builder re-derives defaults and overwrites the saved quote.
   const [hydrated, setHydrated] = useState(false);
+  // Which compound add-ons have their sub-item breakdown expanded.
+  const [expandedAddons, setExpandedAddons] = useState({});
   const [airport, setAirport] = useState('');
   const [tailNumber, setTailNumber] = useState('');
   // Per-customer aircraft picker state (mirror of invoice modal pattern).
@@ -827,6 +829,7 @@ function NewQuoteContent() {
   const feeCtx = { staffCount: effStaff, jobDays: effJobDays, subtotal: afterDifficulty };
   const selectedAddonFees = selectedAddonsList.map(a => {
     const o = addonOverrides[a.id] || {};
+    const isComp = o.is_compound ?? a.is_compound ?? false;
     return {
       id: a.id,
       name: o.name ?? a.name,
@@ -835,6 +838,8 @@ function NewQuoteContent() {
       buffer_before: o.buffer_before ?? a.buffer_before,
       buffer_after: o.buffer_after ?? a.buffer_after,
       quantity: addonQuantities[a.id] ?? o.quantity ?? 1,
+      is_compound: isComp,
+      sub_items: isComp ? (o.sub_items ?? a.sub_items ?? []) : undefined,
     };
   });
   const addonsTotal = computeAddonTotal(selectedAddonFees, feeCtx);
@@ -899,6 +904,17 @@ function NewQuoteContent() {
   const toggleAddon = (addonId) => {
     setSelectedAddons(prev => ({ ...prev, [addonId]: !prev[addonId] }));
   };
+
+  // Compound add-on sub-item editing (per-quote override of the catalog bundle).
+  const getSubItems = (addon) => (addonOverrides[addon.id]?.sub_items) ?? (addon.sub_items) ?? [];
+  const setSubItems = (addonId, subs) => setAddonOverrides(prev => ({
+    ...prev, [addonId]: { ...(prev[addonId] || {}), is_compound: true, sub_items: subs },
+  }));
+  const updateSub = (addon, sid, patch) => setSubItems(addon.id, getSubItems(addon).map(s => s.id === sid ? { ...s, ...patch } : s));
+  const removeSub = (addon, sid) => setSubItems(addon.id, getSubItems(addon).filter(s => s.id !== sid));
+  const addSub = (addon, preset) => setSubItems(addon.id, [...getSubItems(addon), {
+    id: crypto.randomUUID(), name: preset?.name || '', fee_type: preset?.fee_type || 'flat', amount: preset?.amount ?? 0, note: '',
+  }]);
 
   const openSendModal = () => {
     if (!preselectedCustomer) {
@@ -1146,6 +1162,7 @@ function NewQuoteContent() {
           ov[f.id] = {
             name: f.name, fee_type: f.fee_type, amount: f.amount,
             buffer_before: f.buffer_before, buffer_after: f.buffer_after, quantity: f.quantity,
+            is_compound: f.is_compound, sub_items: f.sub_items,
           };
           if (f.quantity != null) qty[f.id] = f.quantity;
         });
@@ -1897,6 +1914,7 @@ function NewQuoteContent() {
                   const feeObj = { ...addon, ...o, quantity: addonQuantities[addon.id] ?? o.quantity ?? 1 };
                   const meta = feeTypeMeta(feeObj.fee_type);
                   const lineCalc = computeAddonAmount(feeObj, feeCtx);
+                  const isCompound = !!feeObj.is_compound;
                   return (
                     <div key={addon.id} className={`py-3 transition-all ${isSelected ? 'opacity-100' : 'opacity-70'}`}>
                       <div className="flex items-center justify-between min-h-[44px]">
@@ -1907,9 +1925,16 @@ function NewQuoteContent() {
                             {isSelected && <span className="text-[10px]">&#10003;</span>}
                           </div>
                           <span className="text-sm text-v-text-primary">{addon.name}</span>
+                          {isCompound && <span className="text-[9px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded px-1">bundle</span>}
                         </button>
                         <div className="flex items-center gap-2">
-                          {isSelected && meta.usesQuantity && (
+                          {isSelected && isCompound && (
+                            <button type="button" onClick={() => setExpandedAddons(prev => ({ ...prev, [addon.id]: !prev[addon.id] }))}
+                              className="text-[10px] text-blue-300 hover:underline">
+                              {expandedAddons[addon.id] ? 'Hide' : 'Breakdown'}
+                            </button>
+                          )}
+                          {isSelected && !isCompound && meta.usesQuantity && (
                             <div className="flex items-center gap-1">
                               <input type="number" min="0" value={addonQuantities[addon.id] ?? 1}
                                 onChange={e => setAddonQuantities(prev => ({ ...prev, [addon.id]: e.target.value }))}
@@ -1920,12 +1945,45 @@ function NewQuoteContent() {
                           <span className="text-sm text-gray-400 text-right">
                             {isSelected
                               ? `${currencySymbol()}${formatPrice(lineCalc)}`
-                              : (addon.fee_type === 'percent' ? `${addon.amount}%` : `${currencySymbol()}${formatPrice(addon.amount)}`)}
+                              : (isCompound
+                                  ? `${currencySymbol()}${formatPrice(computeAddonTotal(getSubItems(addon), { staffCount: 1, jobDays: 1 }))}`
+                                  : (addon.fee_type === 'percent' ? `${addon.amount}%` : `${currencySymbol()}${formatPrice(addon.amount)}`))}
                           </span>
                         </div>
                       </div>
-                      {isSelected && addon.fee_type !== 'flat' && addon.fee_type !== 'percent' && (
+                      {isSelected && !isCompound && addon.fee_type !== 'flat' && addon.fee_type !== 'percent' && (
                         <p className="text-[10px] text-gray-500 mt-1 ml-6">{describeFee(feeObj, { ...feeCtx, currencySymbol: currencySymbol() })}</p>
+                      )}
+                      {isSelected && isCompound && expandedAddons[addon.id] && (
+                        <div className="mt-2 ml-6 space-y-2 border-l border-v-border/40 pl-3">
+                          {getSubItems(addon).map(si => {
+                            const siCalc = computeAddonAmount(si, feeCtx);
+                            return (
+                              <div key={si.id} className="flex flex-wrap items-center gap-2">
+                                <input type="text" value={si.name} onChange={e => updateSub(addon, si.id, { name: e.target.value })}
+                                  placeholder="Sub-item" className="flex-1 min-w-[100px] bg-v-surface border border-v-border rounded-sm px-2 py-1 text-v-text-primary text-xs" />
+                                <select value={si.fee_type} onChange={e => updateSub(addon, si.id, { fee_type: e.target.value })}
+                                  className="bg-v-surface border border-v-border rounded-sm px-1 py-1 text-v-text-primary text-[11px]">
+                                  {SUB_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                </select>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-gray-500">{si.fee_type === 'percent' ? '%' : currencySymbol()}</span>
+                                  <input type="number" value={si.amount ?? ''} onChange={e => updateSub(addon, si.id, { amount: e.target.value })}
+                                    className="w-16 bg-v-surface border border-v-border rounded-sm px-1 py-1 text-v-text-primary text-xs text-right" />
+                                </div>
+                                <span className="text-[11px] text-v-gold w-16 text-right">{currencySymbol()}{formatPrice(siCalc)}</span>
+                                <button type="button" onClick={() => removeSub(addon, si.id)} className="text-red-400 hover:text-red-300 text-sm leading-none">&times;</button>
+                              </div>
+                            );
+                          })}
+                          <div className="flex flex-wrap gap-1">
+                            {SUB_ITEM_PRESETS.map(p => (
+                              <button key={p.name} type="button" onClick={() => addSub(addon, p)}
+                                className="text-[10px] text-blue-300 border border-blue-400/30 rounded px-1.5 py-0.5 hover:bg-blue-400/10">+ {p.name}</button>
+                            ))}
+                          </div>
+                          <p className="text-[9px] text-gray-500">Customer sees only the {addon.name} total — this breakdown is internal.</p>
+                        </div>
                       )}
                     </div>
                   );
