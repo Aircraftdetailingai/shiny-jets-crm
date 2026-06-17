@@ -39,7 +39,7 @@ const categoryLabels = {
 function NewQuoteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { success: toastSuccess } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +77,12 @@ function NewQuoteContent() {
   const [staffCount, setStaffCount] = useState(1);
   const [jobDaysOverride, setJobDaysOverride] = useState('');
   const [addonQuantities, setAddonQuantities] = useState({});
+  // Per-quote add-on overrides (amount/qty/type) loaded from a saved draft, so a
+  // custom Travel Fee isn't reset to the Settings catalog value on reload.
+  const [addonOverrides, setAddonOverrides] = useState({});
+  // Gate: auto-save must NOT fire until a loaded draft is fully restored,
+  // otherwise the builder re-derives defaults and overwrites the saved quote.
+  const [hydrated, setHydrated] = useState(false);
   const [airport, setAirport] = useState('');
   const [tailNumber, setTailNumber] = useState('');
   // Per-customer aircraft picker state (mirror of invoice modal pattern).
@@ -349,6 +355,7 @@ function NewQuoteContent() {
     }
 
     // Pre-fill from lead request (stored in localStorage)
+    let willLoadDraft = false;
     try {
       const stored = localStorage.getItem('quote_prefill');
       if (stored) {
@@ -365,7 +372,7 @@ function NewQuoteContent() {
           }
           if (prefill.airport) setAirport(prefill.airport);
           if (prefill.tail) setTailNumber(prefill.tail);
-          if (prefill.draftId) setDraftId(prefill.draftId);
+          if (prefill.draftId) { setDraftId(prefill.draftId); willLoadDraft = true; }
           if (prefill.notes) setQuoteNotes(prefill.notes);
 
           // Restore selected services — store for deferred matching after services load
@@ -429,6 +436,11 @@ function NewQuoteContent() {
         localStorage.removeItem('quote_prefill');
       }
     } catch {}
+
+    // New quote (no saved draft to load) — nothing to restore, allow saves now.
+    // For drafts (willLoadDraft) the hydration effect flips `hydrated` after the
+    // API load resolves.
+    if (!willLoadDraft) setHydrated(true);
 
     return () => {
       window.removeEventListener('vector-user-updated', onUserUpdated);
@@ -813,11 +825,18 @@ function NewQuoteContent() {
   const businessDays = Math.max(1, Math.ceil(totalHours / (effStaff * 8)));
   const effJobDays = jobDaysOverride !== '' && jobDaysOverride != null ? (parseFloat(jobDaysOverride) || 0) : businessDays;
   const feeCtx = { staffCount: effStaff, jobDays: effJobDays, subtotal: afterDifficulty };
-  const selectedAddonFees = selectedAddonsList.map(a => ({
-    id: a.id, name: a.name, fee_type: a.fee_type, amount: a.amount,
-    buffer_before: a.buffer_before, buffer_after: a.buffer_after,
-    quantity: addonQuantities[a.id] ?? 1,
-  }));
+  const selectedAddonFees = selectedAddonsList.map(a => {
+    const o = addonOverrides[a.id] || {};
+    return {
+      id: a.id,
+      name: o.name ?? a.name,
+      fee_type: o.fee_type ?? a.fee_type,
+      amount: o.amount ?? a.amount,
+      buffer_before: o.buffer_before ?? a.buffer_before,
+      buffer_after: o.buffer_after ?? a.buffer_after,
+      quantity: addonQuantities[a.id] ?? o.quantity ?? 1,
+    };
+  });
   const addonsTotal = computeAddonTotal(selectedAddonFees, feeCtx);
   const calculatedPrice = afterDifficulty + addonsTotal;
 
@@ -1014,6 +1033,9 @@ function NewQuoteContent() {
 
   const saveDraft = async (silent = false) => {
     if (!quoteData || !selectedAircraft) return;
+    // Never save a draft we haven't finished loading — would overwrite the
+    // saved quote with re-derived catalog defaults.
+    if (!hydrated) return;
     const payload = buildQuotePayload();
     if (!payload) return;
     if (!silent) setDraftSaving(true);
@@ -1092,6 +1114,63 @@ function NewQuoteContent() {
     const interval = setInterval(() => saveDraft(true), 60000);
     return () => clearInterval(interval);
   }, [selectedAircraft, selectedServices, quoteData, draftId]);
+
+  // Hydrate a saved draft from the API before any save can fire. The
+  // localStorage prefill only carries service IDs — it drops per-service hour
+  // overrides and custom add-on amounts, so the builder used to re-derive
+  // catalog defaults and the auto-save overwrote the real quote. We load the
+  // full row by id and restore those fields, then flip `hydrated`.
+  useEffect(() => {
+    if (!draftId || hydrated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem('vector_token');
+        const res = await fetch(`/api/quotes/${draftId}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error(`load failed (${res.status})`);
+        const q = await res.json();
+        if (cancelled) return;
+
+        // Per-service hour overrides, keyed by service_id to match getHoursForService.
+        const ch = {};
+        (q.line_items || []).forEach(li => {
+          if (li && li.service_id != null && li.hours != null) ch[li.service_id] = parseFloat(li.hours);
+        });
+        if (Object.keys(ch).length) setCustomHours(prev => ({ ...prev, ...ch }));
+
+        // Selected add-ons + per-quote overrides + quantities.
+        const sel = {}, ov = {}, qty = {};
+        (q.addon_fees || []).forEach(f => {
+          if (!f || f.id == null) return;
+          sel[f.id] = true;
+          ov[f.id] = {
+            name: f.name, fee_type: f.fee_type, amount: f.amount,
+            buffer_before: f.buffer_before, buffer_after: f.buffer_after, quantity: f.quantity,
+          };
+          if (f.quantity != null) qty[f.id] = f.quantity;
+        });
+        if (Object.keys(sel).length) {
+          setSelectedAddons(prev => ({ ...prev, ...sel }));
+          setAddonOverrides(ov);
+          setAddonQuantities(prev => ({ ...prev, ...qty }));
+        }
+
+        if (q.staff_count != null) setStaffCount(q.staff_count);
+        if (q.job_days != null) setJobDaysOverride(String(q.job_days));
+        if (q.notes) setQuoteNotes(q.notes);
+        if (q.tail_number) setTailNumber(q.tail_number);
+        if (q.proposed_date) setProposedDate(q.proposed_date);
+
+        if (!cancelled) setHydrated(true);
+      } catch (e) {
+        // Leave hydrated=false on failure so auto-save stays disabled and cannot
+        // overwrite the saved row. Surface it so the user refreshes.
+        console.error('[quote-hydrate] failed; auto-save disabled to protect saved quote', e);
+        if (!cancelled) toastError?.('Could not load saved quote — refresh before editing');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [draftId, hydrated]);
 
   if (loading) {
     return <LoadingSpinner message="Loading..." />;
@@ -1814,8 +1893,9 @@ function NewQuoteContent() {
               <div className="divide-y divide-v-border/30">
                 {availableAddons.map(addon => {
                   const isSelected = !!selectedAddons[addon.id];
-                  const meta = feeTypeMeta(addon.fee_type);
-                  const feeObj = { ...addon, quantity: addonQuantities[addon.id] ?? 1 };
+                  const o = addonOverrides[addon.id] || {};
+                  const feeObj = { ...addon, ...o, quantity: addonQuantities[addon.id] ?? o.quantity ?? 1 };
+                  const meta = feeTypeMeta(feeObj.fee_type);
                   const lineCalc = computeAddonAmount(feeObj, feeCtx);
                   return (
                     <div key={addon.id} className={`py-3 transition-all ${isSelected ? 'opacity-100' : 'opacity-70'}`}>
