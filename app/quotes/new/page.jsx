@@ -9,6 +9,7 @@ import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
 import { calculateProductEstimates } from '../../../lib/product-calculator';
 import { calculateCcFee } from '../../../lib/cc-fee';
+import { FEE_TYPES, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
 
 const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super_midsize_jet', 'large_jet', 'helicopter'];
 
@@ -73,6 +74,9 @@ function NewQuoteContent() {
   const [jobLocation, setJobLocation] = useState('');
   const [availableAddons, setAvailableAddons] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState({});
+  const [staffCount, setStaffCount] = useState(1);
+  const [jobDaysOverride, setJobDaysOverride] = useState('');
+  const [addonQuantities, setAddonQuantities] = useState({});
   const [airport, setAirport] = useState('');
   const [tailNumber, setTailNumber] = useState('');
   // Per-customer aircraft picker state (mirror of invoice modal pattern).
@@ -804,9 +808,17 @@ function NewQuoteContent() {
 
   const getSelectedAddonsList = () => availableAddons.filter(a => selectedAddons[a.id]);
   const selectedAddonsList = getSelectedAddonsList();
-  const flatAddonsTotal = selectedAddonsList.filter(a => a.fee_type === 'flat').reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0);
-  const percentAddonsTotal = selectedAddonsList.filter(a => a.fee_type === 'percent').reduce((sum, a) => sum + (afterDifficulty * (parseFloat(a.amount) || 0) / 100), 0);
-  const addonsTotal = flatAddonsTotal + percentAddonsTotal;
+  // Crew size + job length drive the calculated fee types (travel/lodging/rental).
+  const effStaff = parseInt(staffCount, 10) || 1;
+  const businessDays = Math.max(1, Math.ceil(totalHours / (effStaff * 8)));
+  const effJobDays = jobDaysOverride !== '' && jobDaysOverride != null ? (parseFloat(jobDaysOverride) || 0) : businessDays;
+  const feeCtx = { staffCount: effStaff, jobDays: effJobDays, subtotal: afterDifficulty };
+  const selectedAddonFees = selectedAddonsList.map(a => ({
+    id: a.id, name: a.name, fee_type: a.fee_type, amount: a.amount,
+    buffer_before: a.buffer_before, buffer_after: a.buffer_after,
+    quantity: addonQuantities[a.id] ?? 1,
+  }));
+  const addonsTotal = computeAddonTotal(selectedAddonFees, feeCtx);
   const calculatedPrice = afterDifficulty + addonsTotal;
 
   const minimumFeeApplies = () => {
@@ -863,13 +875,7 @@ function NewQuoteContent() {
     ? calculateProductEstimates(selectedServicesList, selectedAircraft, customProductRatios)
     : [];
 
-  const addonFeeItems = selectedAddonsList.map(a => ({
-    id: a.id,
-    name: a.name,
-    fee_type: a.fee_type,
-    amount: parseFloat(a.amount) || 0,
-    calculated: a.fee_type === 'percent' ? afterDifficulty * (parseFloat(a.amount) || 0) / 100 : (parseFloat(a.amount) || 0),
-  }));
+  const addonFeeItems = selectedAddonFees.map(f => normalizeFee(f, feeCtx));
 
   const toggleAddon = (addonId) => {
     setSelectedAddons(prev => ({ ...prev, [addonId]: !prev[addonId] }));
@@ -985,6 +991,8 @@ function NewQuoteContent() {
       discount_percent: quoteData.discountPercent || 0,
       addon_fees: quoteData.addonFees || [],
       addon_total: quoteData.addonsTotal || 0,
+      staff_count: parseInt(staffCount, 10) || 1,
+      job_days: effJobDays,
       airport: airport || null,
       tail_number: tailNumber || null,
       proposed_date: proposedDate || null,
@@ -1790,29 +1798,55 @@ function NewQuoteContent() {
           {selectedAircraft && selectedServicesList.length > 0 && availableAddons.length > 0 && (
             <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
               <h3 className="text-sm font-light tracking-wider uppercase text-gray-400 mb-3">Add-on Fees</h3>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1"># of Staff</label>
+                  <input type="number" min="1" value={staffCount} onChange={e => setStaffCount(e.target.value)}
+                    className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1"># of Job Days</label>
+                  <input type="number" min="0" placeholder={String(businessDays)} value={jobDaysOverride} onChange={e => setJobDaysOverride(e.target.value)}
+                    className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
+                </div>
+              </div>
               <div className="divide-y divide-v-border/30">
                 {availableAddons.map(addon => {
                   const isSelected = !!selectedAddons[addon.id];
+                  const meta = feeTypeMeta(addon.fee_type);
+                  const feeObj = { ...addon, quantity: addonQuantities[addon.id] ?? 1 };
+                  const lineCalc = computeAddonAmount(feeObj, feeCtx);
                   return (
-                    <button
-                      key={addon.id}
-                      onClick={() => toggleAddon(addon.id)}
-                      className={`w-full flex items-center justify-between py-3 text-left transition-all min-h-[44px] ${
-                        isSelected ? 'opacity-100' : 'opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-4 h-4 border flex items-center justify-center ${
-                          isSelected ? 'bg-v-gold border-v-gold text-v-charcoal' : 'border-gray-500'
-                        }`}>
-                          {isSelected && <span className="text-[10px]">&#10003;</span>}
+                    <div key={addon.id} className={`py-3 transition-all ${isSelected ? 'opacity-100' : 'opacity-70'}`}>
+                      <div className="flex items-center justify-between min-h-[44px]">
+                        <button type="button" onClick={() => toggleAddon(addon.id)} className="flex items-center gap-2 text-left flex-1">
+                          <div className={`w-4 h-4 border flex items-center justify-center ${
+                            isSelected ? 'bg-v-gold border-v-gold text-v-charcoal' : 'border-gray-500'
+                          }`}>
+                            {isSelected && <span className="text-[10px]">&#10003;</span>}
+                          </div>
+                          <span className="text-sm text-v-text-primary">{addon.name}</span>
+                        </button>
+                        <div className="flex items-center gap-2">
+                          {isSelected && meta.usesQuantity && (
+                            <div className="flex items-center gap-1">
+                              <input type="number" min="0" value={addonQuantities[addon.id] ?? 1}
+                                onChange={e => setAddonQuantities(prev => ({ ...prev, [addon.id]: e.target.value }))}
+                                className="w-14 bg-v-surface border border-v-border rounded-sm px-2 py-1 text-v-text-primary text-xs text-right focus:outline-none focus:ring-1 focus:ring-v-gold" />
+                              <span className="text-[10px] text-gray-500">qty</span>
+                            </div>
+                          )}
+                          <span className="text-sm text-gray-400 text-right">
+                            {isSelected
+                              ? `${currencySymbol()}${formatPrice(lineCalc)}`
+                              : (addon.fee_type === 'percent' ? `${addon.amount}%` : `${currencySymbol()}${formatPrice(addon.amount)}`)}
+                          </span>
                         </div>
-                        <span className="text-sm text-v-text-primary">{addon.name}</span>
                       </div>
-                      <span className="text-sm text-gray-400">
-                        {addon.fee_type === 'percent' ? `${addon.amount}%` : `${currencySymbol()}${formatPrice(addon.amount)}`}
-                      </span>
-                    </button>
+                      {isSelected && addon.fee_type !== 'flat' && addon.fee_type !== 'percent' && (
+                        <p className="text-[10px] text-gray-500 mt-1 ml-6">{describeFee(feeObj, { ...feeCtx, currencySymbol: currencySymbol() })}</p>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -1849,12 +1883,8 @@ function NewQuoteContent() {
 
           {/* 7. Scheduling */}
           {selectedAircraft && selectedServicesList.length > 0 && (() => {
-            // Business-day schedule calculation
-            // TODO: wire hoursPerDay and staffCount from detailer settings
-            const hoursPerDay = 8;
-            const staffCount = 1;
-            const dailyCapacity = staffCount * hoursPerDay;
-            const businessDays = Math.max(1, Math.ceil(totalHours / dailyCapacity));
+            // Business-day schedule calculation. businessDays is computed above
+            // from crew size (effStaff) and total hours.
 
             // Resolve start date
             const startRaw = proposedDate ? new Date(proposedDate + 'T12:00') : new Date();
@@ -1992,10 +2022,10 @@ function NewQuoteContent() {
               )}
 
               {/* Addons */}
-              {selectedAddonsList.length > 0 && selectedAddonsList.map(addon => (
+              {selectedAddonFees.length > 0 && selectedAddonFees.map(addon => (
                 <div key={addon.id} className="flex justify-between text-sm text-blue-300 mb-1">
                   <span>{addon.name}</span>
-                  <span>+{currencySymbol()}{formatPrice(addon.fee_type === 'percent' ? afterDifficulty * (parseFloat(addon.amount) || 0) / 100 : parseFloat(addon.amount) || 0)}</span>
+                  <span>+{currencySymbol()}{formatPrice(computeAddonAmount(addon, feeCtx))}</span>
                 </div>
               ))}
 

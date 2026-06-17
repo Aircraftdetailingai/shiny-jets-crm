@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { formatPrice, formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
+import { FEE_TYPES, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '@/lib/addon-fees';
 import PhoneInput from '@/components/PhoneInput';
 import ExportGate from '@/components/ExportGate';
 import AppShell from '@/components/AppShell';
@@ -64,6 +65,15 @@ export default function QuotesPage() {
   const [markPaidModal, setMarkPaidModal] = useState(null);
   const [markPaidData, setMarkPaidData] = useState({ payment_method: 'cash', amount: '', note: '' });
   const [markingPaid, setMarkingPaid] = useState(false);
+
+  // Per-quote add-on fee editor
+  const [feesModal, setFeesModal] = useState(null);
+  const [feesRows, setFeesRows] = useState([]);
+  const [feesStaff, setFeesStaff] = useState(1);
+  const [feesJobDays, setFeesJobDays] = useState(1);
+  const [feesBase, setFeesBase] = useState(0);
+  const [feesCatalog, setFeesCatalog] = useState([]);
+  const [feesSaving, setFeesSaving] = useState(false);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -163,6 +173,98 @@ export default function QuotesPage() {
     if (quote.status === 'paid' || quote.status === 'approved') return 'paid';
     if (quote.valid_until && new Date() > new Date(quote.valid_until)) return 'expired';
     return quote.status || 'draft';
+  };
+
+  // ---- Per-quote add-on fee editor ----
+  // Context fed to the shared calc lib. `subtotal` (= the quote's non-addon
+  // base) is only used by percent fees.
+  const feesCtx = {
+    staffCount: parseInt(feesStaff, 10) || 1,
+    jobDays: parseFloat(feesJobDays) || 0,
+    subtotal: feesBase,
+  };
+  const feesAddonTotal = computeAddonTotal(feesRows, feesCtx);
+  const feesNewTotal = Math.round((feesBase + feesAddonTotal) * 100) / 100;
+
+  const openFeesModal = (quote) => {
+    const existing = quote.addon_fees || [];
+    // Base = everything that isn't an add-on. total_price already includes the
+    // old add-on total, so peel it back off to get the services-only base.
+    const oldTotal = quote.addon_total != null
+      ? parseFloat(quote.addon_total) || 0
+      : existing.reduce((s, f) => s + (parseFloat(f.calculated) || 0), 0);
+    setFeesBase(Math.max(0, (parseFloat(quote.total_price) || 0) - oldTotal));
+    setFeesRows(existing.map(f => ({
+      id: f.id || crypto.randomUUID(),
+      name: f.name || '',
+      fee_type: f.fee_type || 'flat',
+      amount: f.amount ?? 0,
+      quantity: f.quantity ?? 1,
+      buffer_before: f.buffer_before ?? 0,
+      buffer_after: f.buffer_after ?? 0,
+    })));
+    setFeesStaff(quote.staff_count || 1);
+    const estDays = Math.max(1, Math.ceil((parseFloat(quote.total_hours) || 0) / 8));
+    setFeesJobDays(quote.job_days != null ? quote.job_days : estDays);
+    setFeesCatalog([]);
+    setFeesModal(quote);
+    const token = localStorage.getItem('vector_token');
+    if (token) {
+      fetch('/api/addon-fees', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.fees) setFeesCatalog(d.fees); })
+        .catch(() => {});
+    }
+  };
+
+  const updateFeeRow = (id, patch) => setFeesRows(rows => rows.map(r => r.id === id ? { ...r, ...patch } : r));
+  const removeFeeRow = (id) => setFeesRows(rows => rows.filter(r => r.id !== id));
+  const addFeeRow = (preset) => setFeesRows(rows => [...rows, {
+    id: crypto.randomUUID(),
+    name: preset?.name || '',
+    fee_type: preset?.fee_type || 'flat',
+    amount: preset?.amount ?? 0,
+    quantity: 1,
+    buffer_before: preset?.buffer_before ?? 0,
+    buffer_after: preset?.buffer_after ?? 0,
+  }]);
+
+  const saveFees = async () => {
+    if (!feesModal) return;
+    setFeesSaving(true);
+    try {
+      const ctx = { staffCount: parseInt(feesStaff, 10) || 1, jobDays: parseFloat(feesJobDays) || 0, subtotal: feesBase };
+      const normalized = feesRows.filter(r => (r.name || '').trim()).map(r => normalizeFee(r, ctx));
+      const addonTotal = computeAddonTotal(normalized, ctx);
+      const newTotal = Math.round((feesBase + addonTotal) * 100) / 100;
+      const productsTotal = parseFloat(feesModal.products_total) || 0;
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/quotes/${feesModal.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          addon_fees: normalized,
+          addon_total: addonTotal,
+          staff_count: parseInt(feesStaff, 10) || 1,
+          job_days: parseFloat(feesJobDays) || 0,
+          total_price: newTotal,
+          labor_total: Math.round((newTotal - productsTotal) * 100) / 100,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setQuotes(qs => qs.map(q => q.id === updated.id ? { ...q, ...updated } : q));
+        setFeesModal(null);
+        flashSaved('Fees updated');
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to save fees');
+      }
+    } catch (e) {
+      alert('Network error. Please try again.');
+    } finally {
+      setFeesSaving(false);
+    }
   };
 
   const openCompleteModal = (quote) => {
@@ -586,7 +688,10 @@ export default function QuotesPage() {
                   <div className="text-right">
                     <span className="text-v-text-secondary text-xs">{formatDate(q.created_at)}</span>
                   </div>
-                  <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => openFeesModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">
+                      Fees
+                    </button>
                     {status === 'draft' && (
                       <button onClick={() => {
                         localStorage.setItem('quote_prefill', JSON.stringify({
@@ -912,6 +1017,95 @@ export default function QuotesPage() {
               <div className="flex justify-end space-x-3 mt-6">
                 <button onClick={() => setChangeOrderModal(null)} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white transition-colors">Cancel</button>
                 <button onClick={submitChangeOrder} disabled={submittingChangeOrder} className="px-4 py-2 bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50 font-medium">{submittingChangeOrder ? 'Sending...' : 'Send Change Order'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Fees & Add-ons Modal */}
+        {feesModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
+            <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-1 text-white">Fees &amp; Add-ons</h3>
+              <p className="text-v-text-secondary text-sm mb-4">{feesModal.aircraft_model || feesModal.aircraft_type}{feesModal.client_name && ` — ${feesModal.client_name}`}</p>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1"># of Staff</label>
+                  <input type="number" min="1" value={feesStaff} onChange={(e) => setFeesStaff(e.target.value)}
+                    className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-v-text-secondary mb-1"># of Job Days</label>
+                  <input type="number" min="0" value={feesJobDays} onChange={(e) => setFeesJobDays(e.target.value)}
+                    className="w-full bg-v-charcoal border border-v-border text-white px-3 py-2 focus:border-v-gold/40 focus:outline-none" />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {feesRows.length === 0 && <p className="text-v-text-secondary text-sm">No fees on this quote yet.</p>}
+                {feesRows.map(row => {
+                  const meta = feeTypeMeta(row.fee_type);
+                  const calc = computeAddonAmount(row, feesCtx);
+                  return (
+                    <div key={row.id} className="bg-[#0F1117] border border-[#1A2236] p-3 rounded">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input type="text" value={row.name} onChange={(e) => updateFeeRow(row.id, { name: e.target.value })}
+                          placeholder="Fee name" className="flex-1 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm" />
+                        <button onClick={() => removeFeeRow(row.id)} className="text-red-400 hover:text-red-300 px-1 text-lg leading-none">&times;</button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select value={row.fee_type} onChange={(e) => updateFeeRow(row.id, { fee_type: e.target.value })}
+                          className="bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-xs">
+                          {FEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-v-text-secondary">{row.fee_type === 'percent' ? '%' : currencySymbol()}</span>
+                          <input type="number" value={row.amount} onChange={(e) => updateFeeRow(row.id, { amount: e.target.value })}
+                            className="w-20 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-xs text-right" />
+                        </div>
+                        {meta.usesQuantity && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-v-text-secondary">×</span>
+                            <input type="number" min="0" value={row.quantity} onChange={(e) => updateFeeRow(row.id, { quantity: e.target.value })}
+                              className="w-14 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-xs text-right" />
+                            <span className="text-xs text-v-text-secondary">qty</span>
+                          </div>
+                        )}
+                        <span className="ml-auto text-sm text-v-gold font-data">{currencySymbol()}{formatPrice(calc)}</span>
+                      </div>
+                      {meta.usesBuffer && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[11px] text-v-text-secondary">Extra days:</span>
+                          <input type="number" min="0" value={row.buffer_before} onChange={(e) => updateFeeRow(row.id, { buffer_before: e.target.value })}
+                            className="w-12 bg-v-charcoal border border-v-border text-white px-2 py-1 text-xs text-right" />
+                          <span className="text-[11px] text-v-text-secondary">before</span>
+                          <input type="number" min="0" value={row.buffer_after} onChange={(e) => updateFeeRow(row.id, { buffer_after: e.target.value })}
+                            className="w-12 bg-v-charcoal border border-v-border text-white px-2 py-1 text-xs text-right" />
+                          <span className="text-[11px] text-v-text-secondary">after</span>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-v-text-secondary mt-1">{describeFee(row, { ...feesCtx, currencySymbol: currencySymbol() })}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => addFeeRow()} className="px-3 py-1.5 text-xs uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">+ Add fee</button>
+                {feesCatalog.filter(c => !feesRows.some(r => r.name === c.name)).map(c => (
+                  <button key={c.id} onClick={() => addFeeRow(c)} className="px-3 py-1.5 text-xs text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">+ {c.name}</button>
+                ))}
+              </div>
+
+              <div className="bg-[#0F1117] border border-[#1A2236] p-3 mt-4 space-y-1">
+                <div className="flex justify-between text-sm"><span className="text-v-text-secondary">Base (services)</span><span className="text-gray-300 font-data">{currencySymbol()}{formatPrice(feesBase)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-v-text-secondary">Add-ons</span><span className="text-blue-300 font-data">+{currencySymbol()}{formatPrice(feesAddonTotal)}</span></div>
+                <div className="flex justify-between text-sm font-semibold border-t border-[#1A2236] pt-1 mt-1"><span className="text-white">New Total</span><span className="text-v-gold font-data">{currencySymbol()}{formatPrice(feesNewTotal)}</span></div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-5">
+                <button onClick={() => setFeesModal(null)} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white transition-colors">Cancel</button>
+                <button onClick={saveFees} disabled={feesSaving} className="px-4 py-2 bg-v-gold text-white hover:bg-v-gold-dim disabled:opacity-50 font-medium">{feesSaving ? 'Saving...' : 'Save Fees'}</button>
               </div>
             </div>
           </div>

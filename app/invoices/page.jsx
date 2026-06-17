@@ -6,6 +6,7 @@ import ServicesPicker from '@/components/ServicesPicker';
 import CustomerAutocomplete from '@/components/CustomerAutocomplete';
 import { computeCalibratedHours, applyMinimumPrice } from '@/lib/calibrate-hours';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
+import { FEE_TYPES, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee } from '@/lib/addon-fees';
 
 const statusColors = {
   draft: 'bg-white/10 text-white/60',
@@ -159,6 +160,10 @@ function InvoicesPageInner() {
   const [editHourOverrides, setEditHourOverrides] = useState({});
   const [editCustomLines, setEditCustomLines] = useState([]);
   const [editDiscount, setEditDiscount] = useState({ type: 'percent', value: '', reason: '' });
+  const [editFees, setEditFees] = useState([]);
+  const [editStaff, setEditStaff] = useState(1);
+  const [editJobDays, setEditJobDays] = useState(1);
+  const [editFeesCatalog, setEditFeesCatalog] = useState([]);
   const [editShowMailing, setEditShowMailing] = useState(false);
   const [editShowAch, setEditShowAch] = useState(false);
   const [detailer, setDetailer] = useState(null); // current detailer's business info for the From block
@@ -588,6 +593,19 @@ function InvoicesPageInner() {
       setEditShowMailing(!!full.show_mailing_address);
       setEditShowAch(!!full.show_ach_info);
 
+      setEditFees((full.addon_fees || []).map(f => ({
+        id: f.id || crypto.randomUUID(),
+        name: f.name || '', fee_type: f.fee_type || 'flat', amount: f.amount ?? 0,
+        quantity: f.quantity ?? 1, buffer_before: f.buffer_before ?? 0, buffer_after: f.buffer_after ?? 0,
+      })));
+      setEditStaff(full.staff_count || 1);
+      setEditJobDays(full.job_days != null ? full.job_days : 1);
+      setEditFeesCatalog([]);
+      fetch('/api/addon-fees', { headers: headers() })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.fees) setEditFeesCatalog(d.fees); })
+        .catch(() => {});
+
       setEditInvoice(full);
       setEditForm({
         customer_name: full.customer_name || '',
@@ -611,6 +629,7 @@ function InvoicesPageInner() {
     setEditServices([]); setEditModels([]); setEditAircraftHoursRef(null);
     setEditSelectedServices([]); setEditHourOverrides({}); setEditCustomLines([]);
     setEditDiscount({ type: 'percent', value: '', reason: '' });
+    setEditFees([]); setEditStaff(1); setEditJobDays(1); setEditFeesCatalog([]);
     setEditShowMailing(false); setEditShowAch(false);
     setEditError(''); setEditSavedFlash(false);
   };
@@ -751,7 +770,10 @@ function InvoicesPageInner() {
       const lineItems = [...svcLines, ...customLines];
       const subtotal = lineItems.reduce((s, li) => s + li.price, 0);
       const discountAmount = Math.round(computeDiscountAmount(subtotal, editDiscount) * 100) / 100;
-      const total = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+      const feeCtx = { staffCount: parseInt(editStaff, 10) || 1, jobDays: parseFloat(editJobDays) || 0, subtotal };
+      const addonFeesNorm = editFees.filter(r => (r.name || '').trim()).map(r => normalizeFee(r, feeCtx));
+      const addonTotal = computeAddonTotal(addonFeesNorm, feeCtx);
+      const total = Math.max(0, Math.round((subtotal - discountAmount + addonTotal) * 100) / 100);
       const discountValueNum = parseFloat(editDiscount.value);
       const discountValue = isFinite(discountValueNum) && discountValueNum > 0 ? discountValueNum : 0;
       const body = {
@@ -763,6 +785,10 @@ function InvoicesPageInner() {
         line_items: lineItems,
         subtotal,
         total,
+        addon_fees: addonFeesNorm,
+        addon_total: addonTotal,
+        staff_count: parseInt(editStaff, 10) || 1,
+        job_days: parseFloat(editJobDays) || 0,
         discount_type: editDiscount.type === 'flat' ? 'flat' : 'percent',
         discount_value: discountValue,
         discount_amount: discountAmount,
@@ -2525,6 +2551,83 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               >&times;</button>
             </div>
 
+            {/* Fees & Add-ons */}
+            <p className="text-xs text-v-text-secondary uppercase tracking-wider mb-2">Fees &amp; Add-ons</p>
+            {(() => {
+              const subtotal = editSelectedServices.reduce((s, id) => { const svc = editServices.find(x => x.id === id); return s + (svc ? getEditServiceTotal(svc) : 0); }, 0)
+                + editCustomLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0);
+              const feeCtx = { staffCount: parseInt(editStaff, 10) || 1, jobDays: parseFloat(editJobDays) || 0, subtotal };
+              const updateRow = (id, patch) => setEditFees(rows => rows.map(r => r.id === id ? { ...r, ...patch } : r));
+              return (
+                <div className="mb-4">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                      <label className="block text-[11px] text-v-text-secondary mb-1"># of Staff</label>
+                      <input type="number" min="1" value={editStaff} onChange={e => setEditStaff(e.target.value)}
+                        className="w-full bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-v-text-secondary mb-1"># of Job Days</label>
+                      <input type="number" min="0" value={editJobDays} onChange={e => setEditJobDays(e.target.value)}
+                        className="w-full bg-v-charcoal border border-v-border rounded px-2 py-1.5 text-xs text-white outline-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {editFees.map(row => {
+                      const meta = feeTypeMeta(row.fee_type);
+                      const calc = computeAddonAmount(row, feeCtx);
+                      return (
+                        <div key={row.id} className="bg-v-charcoal border border-v-border rounded p-2">
+                          <div className="flex items-center gap-2 mb-2">
+                            <input type="text" value={row.name} onChange={e => updateRow(row.id, { name: e.target.value })} placeholder="Fee name"
+                              className="flex-1 bg-v-surface border border-v-border rounded px-2 py-1 text-xs text-white outline-none" />
+                            <button type="button" onClick={() => setEditFees(rows => rows.filter(r => r.id !== row.id))} className="text-red-400 hover:text-red-300 text-lg leading-none">&times;</button>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select value={row.fee_type} onChange={e => updateRow(row.id, { fee_type: e.target.value })} className="bg-v-surface border border-v-border text-white px-2 py-1 text-xs">
+                              {FEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-v-text-secondary">{row.fee_type === 'percent' ? '%' : sym}</span>
+                              <input type="number" value={row.amount} onChange={e => updateRow(row.id, { amount: e.target.value })}
+                                className="w-20 bg-v-surface border border-v-border text-white px-2 py-1 text-xs text-right outline-none" />
+                            </div>
+                            {meta.usesQuantity && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-v-text-secondary">×</span>
+                                <input type="number" min="0" value={row.quantity} onChange={e => updateRow(row.id, { quantity: e.target.value })}
+                                  className="w-14 bg-v-surface border border-v-border text-white px-2 py-1 text-xs text-right outline-none" />
+                                <span className="text-[11px] text-v-text-secondary">qty</span>
+                              </div>
+                            )}
+                            <span className="ml-auto text-xs text-v-gold">{sym}{calc.toFixed(2)}</span>
+                          </div>
+                          {meta.usesBuffer && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-[11px] text-v-text-secondary">Extra days:</span>
+                              <input type="number" min="0" value={row.buffer_before} onChange={e => updateRow(row.id, { buffer_before: e.target.value })}
+                                className="w-12 bg-v-surface border border-v-border text-white px-1 py-1 text-xs text-right outline-none" />
+                              <span className="text-[11px] text-v-text-secondary">before</span>
+                              <input type="number" min="0" value={row.buffer_after} onChange={e => updateRow(row.id, { buffer_after: e.target.value })}
+                                className="w-12 bg-v-surface border border-v-border text-white px-1 py-1 text-xs text-right outline-none" />
+                              <span className="text-[11px] text-v-text-secondary">after</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <button type="button" onClick={() => setEditFees(rows => [...rows, { id: crypto.randomUUID(), name: '', fee_type: 'flat', amount: 0, quantity: 1, buffer_before: 0, buffer_after: 0 }])} className="text-v-gold text-xs hover:underline">+ Add fee</button>
+                    {editFeesCatalog.filter(c => !editFees.some(r => r.name === c.name)).map(c => (
+                      <button type="button" key={c.id} onClick={() => setEditFees(rows => [...rows, { id: crypto.randomUUID(), name: c.name, fee_type: c.fee_type, amount: c.amount, quantity: 1, buffer_before: c.buffer_before ?? 0, buffer_after: c.buffer_after ?? 0 }])}
+                        className="text-blue-300 text-xs border border-blue-400/30 rounded px-2 py-0.5 hover:bg-blue-400/10">+ {c.name}</button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {(() => {
               const svcSub = editSelectedServices.reduce((s, id) => {
                 const svc = editServices.find(x => x.id === id);
@@ -2533,7 +2636,8 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               const customSub = editCustomLines.reduce((s, cl) => s + (parseFloat(cl.hours) || 0) * (parseFloat(cl.rate) || 0), 0);
               const subtotal = svcSub + customSub;
               const discAmt = computeDiscountAmount(subtotal, editDiscount);
-              const total = Math.max(0, subtotal - discAmt);
+              const addonTotal = computeAddonTotal(editFees, { staffCount: parseInt(editStaff, 10) || 1, jobDays: parseFloat(editJobDays) || 0, subtotal });
+              const total = Math.max(0, subtotal - discAmt + addonTotal);
               const discValue = parseFloat(editDiscount.value);
               const discLabel = editDiscount.type === 'flat'
                 ? `${sym}${(isFinite(discValue) ? discValue : 0).toFixed(2)} off`
@@ -2552,6 +2656,12 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                       {discAmt > 0 ? '-' : ''}{sym}{discAmt.toFixed(2)}
                     </span>
                   </div>
+                  {addonTotal > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-v-text-secondary">Add-ons</span>
+                      <span className="text-blue-300">+{sym}{addonTotal.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-v-text-primary">Total</span>
                     <span className="text-lg font-bold text-v-gold">{sym}{total.toFixed(2)}</span>

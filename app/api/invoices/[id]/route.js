@@ -68,6 +68,7 @@ export async function PATCH(request, { params }) {
     const allowedFields = [
       'status', 'notes', 'customer_name', 'customer_email', 'customer_phone',
       'aircraft_model', 'tail_number', 'line_items', 'total', 'subtotal',
+      'addon_fees', 'addon_total', 'staff_count', 'job_days',
       'net_terms', 'due_date', 'issued_date', 'amount_paid', 'balance_due',
       'discount_type', 'discount_value', 'discount_amount', 'discount_reason',
       'show_mailing_address', 'show_ach_info',

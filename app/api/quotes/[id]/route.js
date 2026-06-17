@@ -12,7 +12,7 @@ function getSupabase() {
 const ALLOWED_FIELDS = [
   'aircraft_type', 'aircraft_model', 'aircraft_id',
   'services', 'selected_services', 'selected_package_id', 'selected_package_name',
-  'line_items', 'addon_fees', 'addon_total',
+  'line_items', 'addon_fees', 'addon_total', 'staff_count', 'job_days',
   'total_hours', 'base_hours', 'labor_total', 'products_total',
   'total_price', 'calculated_price', 'discounted_total', 'package_savings',
   'efficiency_factor', 'access_difficulty',

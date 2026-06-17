@@ -25,13 +25,15 @@ export async function PUT(request, { params }) {
 
     const { id } = params;
     const body = await request.json();
-    const { name, description, fee_type, amount } = body;
+    const { name, description, fee_type, amount, buffer_before, buffer_after } = body;
 
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (fee_type !== undefined) updates.fee_type = fee_type;
     if (amount !== undefined) updates.amount = parseFloat(amount) || 0;
+    if (buffer_before !== undefined) updates.buffer_before = Math.max(0, parseInt(buffer_before, 10) || 0);
+    if (buffer_after !== undefined) updates.buffer_after = Math.max(0, parseInt(buffer_after, 10) || 0);
 
     const { data: fee, error } = await supabase
       .from('addon_fees')

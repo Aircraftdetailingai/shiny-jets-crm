@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import CalibrationModal from '@/components/CalibrationModal';
 import { currencySymbol } from '@/lib/formatPrice';
+import { FEE_TYPES, feeTypeMeta, PERCENT } from '@/lib/addon-fees';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -174,8 +175,18 @@ const DEFAULT_ADDON_FEES = [
   { name: 'After Hours', description: 'Work performed outside business hours', fee_type: 'flat', amount: 150 },
   { name: 'Weekend', description: 'Weekend service surcharge', fee_type: 'flat', amount: 100 },
   { name: 'Rush / Emergency', description: 'Expedited service premium', fee_type: 'percent', amount: 25 },
-  { name: 'Travel Fee', description: 'Per-job travel surcharge', fee_type: 'flat', amount: 50 },
+  { name: 'Travel Fee', description: 'Travel surcharge per crew member', fee_type: 'per_staff', amount: 500 },
+  { name: 'Lodging', description: 'Hotel per night, per crew member', fee_type: 'per_night', amount: 200, buffer_before: 1, buffer_after: 1 },
+  { name: 'Rental Car', description: 'Rental car per day', fee_type: 'per_unit_day', amount: 75, buffer_before: 1, buffer_after: 1 },
 ];
+
+const ADDON_RATE_HELP = {
+  flat: 'Charged once, as-is.',
+  percent: 'Percent of the service subtotal.',
+  per_staff: 'Multiplied by the number of staff on the job.',
+  per_night: 'Per night, multiplied by nights and staff count.',
+  per_unit_day: 'Per unit (e.g. car) per day. Quantity is set on each quote/invoice.',
+};
 
 const AIRCRAFT_HOURS_MAP = [
   { column: 'ext_wash_hours', label: 'Exterior Wash', keywords: ['wash', 'maintenance', 'exterior wash', 'ramp wash'] },
@@ -234,7 +245,7 @@ export default function ServicesPage() {
   // Addon fee form
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [editingAddon, setEditingAddon] = useState(null);
-  const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '' });
+  const [newAddon, setNewAddon] = useState({ name: '', description: '', fee_type: 'flat', amount: '', buffer_before: 0, buffer_after: 0 });
 
   // AI estimate state (Enterprise only)
   const [aiEstimate, setAiEstimate] = useState(null);
@@ -720,12 +731,14 @@ export default function ServicesPage() {
           description: newAddon.description,
           fee_type: newAddon.fee_type,
           amount: parseFloat(newAddon.amount) || 0,
+          buffer_before: parseInt(newAddon.buffer_before, 10) || 0,
+          buffer_after: parseInt(newAddon.buffer_after, 10) || 0,
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to add fee'); return; }
       setAddonFees([...addonFees, data.fee]);
-      setNewAddon({ name: '', description: '', fee_type: 'flat', amount: '' });
+      setNewAddon({ name: '', description: '', fee_type: 'flat', amount: '', buffer_before: 0, buffer_after: 0 });
       setShowAddonModal(false);
       setError('');
       flashSaved('Add-on added');
@@ -747,6 +760,8 @@ export default function ServicesPage() {
           description: editingAddon.description,
           fee_type: editingAddon.fee_type,
           amount: parseFloat(editingAddon.amount) || 0,
+          buffer_before: parseInt(editingAddon.buffer_before, 10) || 0,
+          buffer_after: parseInt(editingAddon.buffer_after, 10) || 0,
         }),
       });
       const data = await res.json();
@@ -1335,9 +1350,10 @@ export default function ServicesPage() {
                     <span className="text-xl font-bold text-orange-600">
                       {fee.fee_type === 'percent' ? `${fee.amount}%` : `${currencySymbol()}${fee.amount}`}
                     </span>
-                    <span className="text-xs text-v-text-secondary ml-2">
-                      {fee.fee_type === 'percent' ? 'of subtotal' : 'flat fee'}
-                    </span>
+                    <span className="text-xs text-v-text-secondary ml-2">{feeTypeMeta(fee.fee_type).unitLabel}</span>
+                    {((fee.buffer_before || 0) + (fee.buffer_after || 0)) > 0 && (
+                      <p className="text-[11px] text-v-text-secondary mt-1">+{(fee.buffer_before || 0) + (fee.buffer_after || 0)} day(s) added to the job</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1704,29 +1720,7 @@ export default function ServicesPage() {
               <input type="text" value={newAddon.description} onChange={(e) => setNewAddon({ ...newAddon, description: e.target.value })}
                 placeholder="Optional description" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">Fee Type</label>
-              <div className="flex gap-2">
-                {['flat', 'percent'].map(t => (
-                  <button key={t} type="button" onClick={() => setNewAddon({ ...newAddon, fee_type: t })}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      newAddon.fee_type === t ? 'bg-orange-500 text-white border-orange-500' : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
-                    }`}>
-                    {t === 'flat' ? 'Flat $' : 'Percent %'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Amount'} *</label>
-              <div className="relative">
-                {newAddon.fee_type === 'flat' && <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>}
-                <input type="number" value={newAddon.amount} onChange={(e) => setNewAddon({ ...newAddon, amount: e.target.value })}
-                  placeholder={newAddon.fee_type === 'flat' ? '150' : '25'}
-                  className={`w-full border rounded-lg py-2 ${newAddon.fee_type === 'flat' ? 'pl-7 pr-3' : 'pl-3 pr-8'}`} />
-                {newAddon.fee_type === 'percent' && <span className="absolute right-3 top-2.5 text-v-text-secondary">%</span>}
-              </div>
-            </div>
+            <AddonFeeFields fee={newAddon} set={(p) => setNewAddon({ ...newAddon, ...p })} />
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setShowAddonModal(false)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
@@ -1752,28 +1746,7 @@ export default function ServicesPage() {
               <input type="text" value={editingAddon.description || ''} onChange={(e) => setEditingAddon({ ...editingAddon, description: e.target.value })}
                 className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">Fee Type</label>
-              <div className="flex gap-2">
-                {['flat', 'percent'].map(t => (
-                  <button key={t} type="button" onClick={() => setEditingAddon({ ...editingAddon, fee_type: t })}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      editingAddon.fee_type === t ? 'bg-orange-500 text-white border-orange-500' : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
-                    }`}>
-                    {t === 'flat' ? 'Flat $' : 'Percent %'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Amount'}</label>
-              <div className="relative">
-                {editingAddon.fee_type === 'flat' && <span className="absolute left-3 top-2.5 text-v-text-secondary">$</span>}
-                <input type="number" value={editingAddon.amount || ''} onChange={(e) => setEditingAddon({ ...editingAddon, amount: e.target.value })}
-                  className={`w-full border rounded-lg py-2 ${editingAddon.fee_type === 'flat' ? 'pl-7 pr-3' : 'pl-3 pr-8'}`} />
-                {editingAddon.fee_type === 'percent' && <span className="absolute right-3 top-2.5 text-v-text-secondary">%</span>}
-              </div>
-            </div>
+            <AddonFeeFields fee={editingAddon} set={(p) => setEditingAddon({ ...editingAddon, ...p })} />
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setEditingAddon(null)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">{'Cancel'}</button>
@@ -1792,6 +1765,59 @@ export default function ServicesPage() {
         anchorB={anchorList.find(r => r.id === anchorB) || null}
       />
     </div>
+  );
+}
+
+// Shared fee-type + rate + buffer inputs for the add/edit add-on fee modals.
+// `fee` is the working fee object; `set(partial)` merges changes into it.
+function AddonFeeFields({ fee, set }) {
+  const type = fee.fee_type || 'flat';
+  const meta = feeTypeMeta(type);
+  return (
+    <>
+      <div>
+        <label className="block text-sm font-medium text-v-text-secondary mb-1">Fee Type</label>
+        <div className="grid grid-cols-2 gap-2">
+          {FEE_TYPES.map(t => (
+            <button key={t.value} type="button" onClick={() => set({ fee_type: t.value })}
+              className={`py-2 px-2 rounded-lg text-xs font-medium border transition-colors ${
+                type === t.value ? 'bg-orange-500 text-white border-orange-500' : 'bg-v-surface text-v-text-secondary border-v-border hover:bg-white/5'
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-v-text-secondary mb-1">{type === PERCENT ? 'Percentage' : 'Rate'} *</label>
+        <div className="relative">
+          {type !== PERCENT && <span className="absolute left-3 top-2.5 text-v-text-secondary">{currencySymbol()}</span>}
+          <input type="number" value={fee.amount ?? ''} onChange={(e) => set({ amount: e.target.value })}
+            placeholder={type === PERCENT ? '25' : '150'}
+            className={`w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg py-2 ${type === PERCENT ? 'pl-3 pr-8' : 'pl-7 pr-3'}`} />
+          {type === PERCENT && <span className="absolute right-3 top-2.5 text-v-text-secondary">%</span>}
+        </div>
+        <p className="text-[11px] text-v-text-secondary mt-1">{ADDON_RATE_HELP[type]}</p>
+      </div>
+      {meta.usesBuffer && (
+        <div>
+          <label className="block text-sm font-medium text-v-text-secondary mb-1">Extra days added to the job</label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <input type="number" min="0" value={fee.buffer_before ?? 0} onChange={(e) => set({ buffer_before: e.target.value })}
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
+              <p className="text-[11px] text-v-text-secondary mt-1">Days before (arrival)</p>
+            </div>
+            <div>
+              <input type="number" min="0" value={fee.buffer_after ?? 0} onChange={(e) => set({ buffer_after: e.target.value })}
+                className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2" />
+              <p className="text-[11px] text-v-text-secondary mt-1">Days after (departure)</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-v-text-secondary mt-1">Billed nights/days = job days + before + after.</p>
+        </div>
+      )}
+    </>
   );
 }
 
