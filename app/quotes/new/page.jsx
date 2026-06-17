@@ -1223,7 +1223,7 @@ function NewQuoteContent() {
             <h1 className="text-2xl font-normal tracking-[0.2em] uppercase" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>
               {leadContext?.customerName ? `Quote for ${leadContext.customerName.split(' ')[0]}` : 'New Quote'}
             </h1>
-            <p className="text-[10px] text-gray-500 tracking-wider uppercase mt-0.5 hidden sm:block">Send a quote for customer approval &middot; <a href="/jobs/new" className="text-v-gold/60 hover:text-v-gold">Create job for already-agreed work &rarr;</a></p>
+            <p className="text-[10px] text-gray-400 tracking-wider uppercase mt-0.5 hidden sm:block">Send a quote for customer approval &middot; <a href="/jobs/new" className="text-v-gold/60 hover:text-v-gold">Create job for already-agreed work &rarr;</a></p>
           </div>
         </div>
         <div className="hidden sm:flex items-center gap-4 text-sm">
@@ -1360,11 +1360,11 @@ function NewQuoteContent() {
         <div className="max-w-3xl mx-auto bg-v-surface border border-v-border/40 p-5 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <p className="text-gray-300 text-sm">Set up your service menu</p>
-            <p className="text-gray-500 text-xs mt-0.5">Add services you offer to start building quotes.</p>
+            <p className="text-gray-400 text-xs mt-0.5">Add services you offer to start building quotes.</p>
           </div>
           <a
             href="/settings/services"
-            className="px-5 py-2.5 bg-v-gold text-v-charcoal text-xs uppercase tracking-wider font-medium hover:bg-v-gold-dim min-h-[44px] flex items-center whitespace-nowrap transition-colors"
+            className="px-5 py-2.5 bg-v-gold text-white text-xs uppercase tracking-wider font-medium hover:bg-v-gold-dim min-h-[44px] flex items-center whitespace-nowrap transition-colors"
           >
             Add Services
           </a>
@@ -1380,14 +1380,14 @@ function NewQuoteContent() {
                 <button
                   type="button"
                   onClick={() => setCustomerMode('existing')}
-                  className={`px-3 py-1 text-xs uppercase tracking-wider rounded ${customerMode === 'existing' ? 'bg-v-gold text-v-charcoal font-medium' : 'border border-v-border text-gray-400 hover:text-white'}`}
+                  className={`px-3 py-1 text-xs uppercase tracking-wider rounded ${customerMode === 'existing' ? 'bg-v-gold text-white font-medium' : 'border border-v-border text-gray-400 hover:text-white'}`}
                 >
                   Existing
                 </button>
                 <button
                   type="button"
                   onClick={() => setCustomerMode('new')}
-                  className={`px-3 py-1 text-xs uppercase tracking-wider rounded ${customerMode === 'new' ? 'bg-v-gold text-v-charcoal font-medium' : 'border border-v-border text-gray-400 hover:text-white'}`}
+                  className={`px-3 py-1 text-xs uppercase tracking-wider rounded ${customerMode === 'new' ? 'bg-v-gold text-white font-medium' : 'border border-v-border text-gray-400 hover:text-white'}`}
                 >
                   New
                 </button>
@@ -1484,7 +1484,7 @@ function NewQuoteContent() {
                     });
                   }}
                   disabled={!newCustomer.name || !newCustomer.email}
-                  className="px-4 py-2 bg-v-gold text-v-charcoal text-xs uppercase tracking-wider font-medium rounded disabled:opacity-50"
+                  className="px-4 py-2 bg-v-gold text-white text-xs uppercase tracking-wider font-medium rounded disabled:opacity-50"
                 >
                   Use This Customer
                 </button>
@@ -1498,7 +1498,7 @@ function NewQuoteContent() {
 
             {/* Manufacturer Dropdown */}
             <div className="mb-4">
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Manufacturer</label>
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Manufacturer</label>
               <select
                 value={selectedManufacturer}
                 onChange={(e) => setSelectedManufacturer(e.target.value)}
@@ -1530,7 +1530,7 @@ function NewQuoteContent() {
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => setSelectedCategory('')}
-                  className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${!selectedCategory ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                  className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${!selectedCategory ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
                 >
                   All
                 </button>
@@ -1538,7 +1538,7 @@ function NewQuoteContent() {
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
-                    className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${selectedCategory === cat ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                    className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${selectedCategory === cat ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
                   >
                     {categoryLabels[cat] || cat}
                   </button>
@@ -1565,7 +1565,7 @@ function NewQuoteContent() {
                         >
                           <p className="font-medium text-v-text-primary text-base truncate">{aircraft.model}</p>
                           {aircraft.surface_area_sqft && (
-                            <p className="text-xs text-gray-500 mt-0.5">{aircraft.surface_area_sqft} sq ft</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{aircraft.surface_area_sqft} sq ft</p>
                           )}
                         </button>
                       ))}
@@ -1595,7 +1595,7 @@ function NewQuoteContent() {
             if (!preselectedCustomer || !hasSaved || qAircraftMode === 'manual') {
               return (
                 <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-                  <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Tail Number (N-number)</label>
+                  <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Tail Number (N-number)</label>
                   <input
                     type="text"
                     value={tailNumber}
@@ -1610,7 +1610,7 @@ function NewQuoteContent() {
             if (qAircraftMode === 'add') {
               return (
                 <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-                  <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Add new aircraft for {preselectedCustomer.name}</label>
+                  <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Add new aircraft for {preselectedCustomer.name}</label>
                   <div className="grid grid-cols-[1fr,140px,auto,auto] gap-2 items-center">
                     <input value={qAircraftDraft.model} onChange={e => setQAircraftDraft(d => ({ ...d, model: e.target.value }))}
                       placeholder="Model, e.g. Falcon 20"
@@ -1642,7 +1642,7 @@ function NewQuoteContent() {
                           setQAircraftSaving(false);
                         }
                       }}
-                      className="px-3 py-2 text-xs uppercase tracking-widest bg-v-gold text-v-charcoal rounded disabled:opacity-50">
+                      className="px-3 py-2 text-xs uppercase tracking-widest bg-v-gold text-white rounded disabled:opacity-50">
                       {qAircraftSaving ? 'Saving...' : 'Save'}
                     </button>
                     <button type="button"
@@ -1659,7 +1659,7 @@ function NewQuoteContent() {
             const currentMatches = savedAircraft.some(a => String(a?.tail || '').trim().toUpperCase() === currentTail);
             return (
               <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Tail Number &mdash; {preselectedCustomer.name}</label>
+                <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Tail Number &mdash; {preselectedCustomer.name}</label>
                 <select
                   value={currentMatches ? currentTail : ''}
                   onChange={e => {
@@ -1755,7 +1755,7 @@ function NewQuoteContent() {
                                 })()}
                               </span>
                               <span className="text-gray-300 mx-0.5 hidden sm:inline">@</span>
-                              <span className="text-gray-500 text-xs hidden sm:inline">{currencySymbol()}{parseFloat(svc.hourly_rate || 0).toFixed(0)}/hr</span>
+                              <span className="text-gray-400 text-xs hidden sm:inline">{currencySymbol()}{parseFloat(svc.hourly_rate || 0).toFixed(0)}/hr</span>
                               <span className="text-gray-300 mx-0.5 hidden sm:inline">=</span>
                               <span className="font-bold text-v-text-primary min-w-[60px] text-right">
                                 {currencySymbol()}{formatPrice(price)}
@@ -1800,7 +1800,7 @@ function NewQuoteContent() {
                       {/* Save default prompt */}
                       {showPrompt && (
                         <div className="flex items-center gap-2 px-3 py-1.5 text-xs ml-7">
-                          <span className="text-gray-500">Save {(customHours[svc.id] || 0).toFixed(1)}h for {svc.name}{selectedAircraft ? ` on ${selectedAircraft.model}` : ''}?</span>
+                          <span className="text-gray-400">Save {(customHours[svc.id] || 0).toFixed(1)}h for {svc.name}{selectedAircraft ? ` on ${selectedAircraft.model}` : ''}?</span>
                           <button
                             onClick={() => saveAsDefault(svc.id)}
                             disabled={savingDefault[svc.id]}
@@ -1810,7 +1810,7 @@ function NewQuoteContent() {
                           </button>
                           <button
                             onClick={() => dismissSavePrompt(svc.id)}
-                            className="text-gray-500 hover:text-gray-300"
+                            className="text-gray-400 hover:text-gray-300"
                           >
                             Just this quote
                           </button>
@@ -1824,7 +1824,7 @@ function NewQuoteContent() {
               {/* Packages */}
               {availablePackages.length > 0 && (
                 <div className="pt-4 border-t border-v-border/30">
-                  <h4 className="text-xs uppercase tracking-wider text-gray-500 mb-3">Packages</h4>
+                  <h4 className="text-xs uppercase tracking-wider text-gray-400 mb-3">Packages</h4>
                   <div className="divide-y divide-v-border/30">
                     {availablePackages.map(pkg => {
                       const isSelected = selectedPackage?.id === pkg.id;
@@ -1843,7 +1843,7 @@ function NewQuoteContent() {
                         >
                           <div>
                             <p className="text-v-text-primary text-sm">{pkg.name}</p>
-                            <p className="text-xs text-gray-500">{pkgServices.length} services{pkg.discount_percent > 0 ? ` \u00B7 ${pkg.discount_percent}% off` : ''} &middot; {pkgHours.toFixed(1)}h</p>
+                            <p className="text-xs text-gray-400">{pkgServices.length} services{pkg.discount_percent > 0 ? ` \u00B7 ${pkg.discount_percent}% off` : ''} &middot; {pkgHours.toFixed(1)}h</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             {isSelected ? (
@@ -1883,7 +1883,7 @@ function NewQuoteContent() {
                     }`}
                   >
                     {opt.label}
-                    {opt.value !== 1.0 && <span className="block text-gray-500 mt-0.5">+{Math.round((opt.value - 1) * 100)}%</span>}
+                    {opt.value !== 1.0 && <span className="block text-gray-400 mt-0.5">+{Math.round((opt.value - 1) * 100)}%</span>}
                   </button>
                 ))}
               </div>
@@ -1896,15 +1896,15 @@ function NewQuoteContent() {
               <h3 className="text-sm font-light tracking-wider uppercase text-gray-400 mb-3">Add-on Fees</h3>
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1"># of Staff</label>
+                  <label className="block text-[10px] uppercase tracking-wider text-gray-400 mb-1"># of Staff</label>
                   <input type="number" min="1" value={staffCount} onChange={e => setStaffCount(e.target.value)}
                     className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1"># of Job Days</label>
+                  <label className="block text-[10px] uppercase tracking-wider text-gray-400 mb-1"># of Job Days</label>
                   <input type="number" min="0" placeholder={String(businessDays)} value={jobDaysOverride} onChange={e => setJobDaysOverride(e.target.value)}
                     className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
-                  <p className="text-[10px] text-gray-500 mt-1">Auto: {businessDays} day{businessDays !== 1 ? 's' : ''} ({Math.round(totalHours)}h ÷ {effStaff} staff × 8h){jobDaysOverride === '' ? ' — in use' : ''}</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Auto: {businessDays} day{businessDays !== 1 ? 's' : ''} ({Math.round(totalHours)}h ÷ {effStaff} staff × 8h){jobDaysOverride === '' ? ' — in use' : ''}</p>
                 </div>
               </div>
               <div className="divide-y divide-v-border/30">
@@ -1939,7 +1939,7 @@ function NewQuoteContent() {
                               <input type="number" min="0" value={addonQuantities[addon.id] ?? 1}
                                 onChange={e => setAddonQuantities(prev => ({ ...prev, [addon.id]: e.target.value }))}
                                 className="w-14 bg-v-surface border border-v-border rounded-sm px-2 py-1 text-v-text-primary text-xs text-right focus:outline-none focus:ring-1 focus:ring-v-gold" />
-                              <span className="text-[10px] text-gray-500">qty</span>
+                              <span className="text-[10px] text-gray-400">qty</span>
                             </div>
                           )}
                           <span className="text-sm text-gray-400 text-right">
@@ -1952,7 +1952,7 @@ function NewQuoteContent() {
                         </div>
                       </div>
                       {isSelected && !isCompound && addon.fee_type !== 'flat' && addon.fee_type !== 'percent' && (
-                        <p className="text-[10px] text-gray-500 mt-1 ml-6">{describeFee(feeObj, { ...feeCtx, currencySymbol: currencySymbol() })}</p>
+                        <p className="text-[10px] text-gray-400 mt-1 ml-6">{describeFee(feeObj, { ...feeCtx, currencySymbol: currencySymbol() })}</p>
                       )}
                       {isSelected && isCompound && expandedAddons[addon.id] && (
                         <div className="mt-2 ml-6 space-y-2 border-l border-v-border/40 pl-3">
@@ -1967,7 +1967,7 @@ function NewQuoteContent() {
                                   {SUB_ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
                                 <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-gray-500">{si.fee_type === 'percent' ? '%' : currencySymbol()}</span>
+                                  <span className="text-[10px] text-gray-400">{si.fee_type === 'percent' ? '%' : currencySymbol()}</span>
                                   <input type="number" value={si.amount ?? ''} onChange={e => updateSub(addon, si.id, { amount: e.target.value })}
                                     className="w-16 bg-v-surface border border-v-border rounded-sm px-1 py-1 text-v-text-primary text-xs text-right" />
                                 </div>
@@ -1982,7 +1982,7 @@ function NewQuoteContent() {
                                 className="text-[10px] text-blue-300 border border-blue-400/30 rounded px-1.5 py-0.5 hover:bg-blue-400/10">+ {p.name}</button>
                             ))}
                           </div>
-                          <p className="text-[9px] text-gray-500">Customer sees only the {addon.name} total — this breakdown is internal.</p>
+                          <p className="text-[9px] text-gray-400">Customer sees only the {addon.name} total — this breakdown is internal.</p>
                         </div>
                       )}
                     </div>
@@ -1995,7 +1995,7 @@ function NewQuoteContent() {
           {/* 5. Airport / Job Location */}
           {selectedAircraft && selectedServicesList.length > 0 && (
             <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Airport Code</label>
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Airport Code</label>
               <input
                 type="text"
                 value={airport}
@@ -2009,7 +2009,7 @@ function NewQuoteContent() {
           {/* 6. Notes */}
           {selectedAircraft && selectedServicesList.length > 0 && (
             <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Notes</label>
+              <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Notes</label>
               <textarea
                 value={quoteNotes}
                 onChange={(e) => setQuoteNotes(e.target.value)}
@@ -2053,13 +2053,13 @@ function NewQuoteContent() {
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Start Date</label>
+                    <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Start Date</label>
                     <input type="date" value={proposedDate}
                       onChange={e => setProposedDate(e.target.value)}
                       className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
                   </div>
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Start Time</label>
+                    <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Start Time</label>
                     <input type="time" value={proposedTime}
                       onChange={e => setProposedTime(e.target.value)}
                       className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
@@ -2068,7 +2068,7 @@ function NewQuoteContent() {
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Buffer Time</label>
+                    <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Buffer Time</label>
                     <select value={bufferMinutes} onChange={e => setBufferMinutes(Number(e.target.value))}
                       className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-v-gold">
                       <option value={30}>30 min</option>
@@ -2091,15 +2091,15 @@ function NewQuoteContent() {
                 <div className="bg-white/5 rounded p-3">
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Start Date</p>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Start Date</p>
                       <p className="text-sm text-white font-medium">{fmtD(start)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Finish Date</p>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Finish Date</p>
                       <p className="text-sm text-white font-medium">{fmtD(finish)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Duration</p>
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Duration</p>
                       <p className="text-sm text-white font-medium">{businessDays} Business Day{businessDays !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
@@ -2127,8 +2127,8 @@ function NewQuoteContent() {
                         {source.type === 'aircraft' && <span className="text-v-gold text-[10px] ml-1">✦</span>}
                       </span>
                       <span className="text-gray-400 tabular-nums">
-                        <span className="text-gray-500">{hrs.toFixed(1)}h × {currencySymbol()}{rate.toFixed(0)}</span>
-                        <span className="text-gray-600 mx-1">=</span>
+                        <span className="text-gray-400">{hrs.toFixed(1)}h × {currencySymbol()}{rate.toFixed(0)}</span>
+                        <span className="text-gray-400 mx-1">=</span>
                         <span className="text-white">{currencySymbol()}{formatPrice(getServicePrice(svc))}</span>
                       </span>
                     </div>
@@ -2148,7 +2148,7 @@ function NewQuoteContent() {
 
               {/* Subtotal */}
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-500">Subtotal</span>
+                <span className="text-gray-400">Subtotal</span>
                 <span className="text-gray-300">{currencySymbol()}{formatPrice(afterDiscount)}</span>
               </div>
 
@@ -2218,7 +2218,7 @@ function NewQuoteContent() {
                           placeholder={userDiscountType === 'percentage' ? '10' : '100'}
                           className="w-full bg-white/10 border border-white/20 text-white rounded px-3 py-1.5 text-sm outline-none focus:border-green-500/50"
                         />
-                        <span className="absolute right-3 top-1.5 text-gray-500 text-sm">{userDiscountType === 'percentage' ? '%' : '$'}</span>
+                        <span className="absolute right-3 top-1.5 text-gray-400 text-sm">{userDiscountType === 'percentage' ? '%' : '$'}</span>
                       </div>
                       <input
                         type="text"
@@ -2249,7 +2249,7 @@ function NewQuoteContent() {
                 <span className="text-sm text-gray-400 uppercase tracking-wider">Total</span>
                 <div className="text-right">
                   {userDiscountAmt > 0 && (
-                    <span className="text-sm text-gray-500 line-through mr-2">{currencySymbol()}{formatPrice(priceBeforeUserDiscount)}</span>
+                    <span className="text-sm text-gray-400 line-through mr-2">{currencySymbol()}{formatPrice(priceBeforeUserDiscount)}</span>
                   )}
                   <span className="text-[2.5rem] font-extralight text-v-gold">{currencySymbol()}{formatPrice(totalPrice)}</span>
                 </div>
@@ -2258,7 +2258,7 @@ function NewQuoteContent() {
               {/* CC Processing Fee */}
               {ccFeeMode === 'pass' && ccFeeAmount > 0 && (
                 <div className="mt-2 pt-2 border-t border-white/10">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>CC Processing Fee (2.9% + $0.30)</span>
                     <span>+{currencySymbol()}{ccFeeAmount.toFixed(2)}</span>
                   </div>
@@ -2272,7 +2272,7 @@ function NewQuoteContent() {
               {/* Platform Fee + Net to Detailer */}
               {platformFeeRate > 0 && totalPrice > 0 && (
                 <div className="mt-2 pt-2 border-t border-white/10">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>Platform fee ({(platformFeeRate * 100).toFixed(0)}%)</span>
                     <span>-{currencySymbol()}{platformFeeAmount.toFixed(2)}</span>
                   </div>
@@ -2329,7 +2329,7 @@ function NewQuoteContent() {
                   <p className="text-xs text-gray-400 mb-1">Equipment Needed</p>
                   {quoteData.linkedEquipment.map((e, i) => (
                     <div key={i} className="text-xs text-gray-300">
-                      {e.equipment_name} {e.brand && <span className="text-gray-500">({e.brand})</span>}
+                      {e.equipment_name} {e.brand && <span className="text-gray-400">({e.brand})</span>}
                     </div>
                   ))}
                 </div>
@@ -2340,7 +2340,7 @@ function NewQuoteContent() {
                 type="button"
                 onClick={openSendModal}
                 disabled={totalPrice === 0 || !airport || airport.length < 3}
-                className="w-full mt-6 px-6 py-4 bg-v-gold text-v-charcoal font-medium uppercase tracking-[0.2em] hover:bg-v-gold-dim disabled:opacity-40 disabled:cursor-not-allowed text-sm min-h-[52px] transition-colors"
+                className="w-full mt-6 px-6 py-4 bg-v-gold text-white font-medium uppercase tracking-[0.2em] hover:bg-v-gold-dim disabled:bg-v-surface disabled:text-gray-400 disabled:cursor-not-allowed text-sm min-h-[52px] transition-colors"
               >
                 {!airport || airport.length < 3 ? 'Enter Airport to Send' : 'Send to Client'}
               </button>
@@ -2349,9 +2349,9 @@ function NewQuoteContent() {
                 type="button"
                 onClick={() => saveDraft(false)}
                 disabled={draftSaving || !selectedAircraft}
-                className="w-full mt-2 px-6 py-3 border border-v-gold/30 text-v-gold font-medium uppercase tracking-[0.15em] hover:bg-v-gold/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs min-h-[44px] transition-colors"
+                className="w-full mt-2 px-6 py-3 border border-v-gold/30 text-v-gold font-medium uppercase tracking-[0.15em] hover:bg-v-gold/10 disabled:bg-v-surface disabled:text-gray-400 disabled:cursor-not-allowed text-xs min-h-[44px] transition-colors"
               >
-                {draftSaving ? 'Saving...' : draftId ? 'Update Draft' : 'Save Draft'}
+                {draftSaving ? 'Saving...' : draftId ? 'Save' : 'Save Draft'}
               </button>
 
               {autoSaveLabel && (
@@ -2362,7 +2362,7 @@ function NewQuoteContent() {
               <button
                 type="button"
                 onClick={resetQuoteForm}
-                className="w-full mt-2 px-4 py-3 border border-v-border/30 text-gray-500 hover:text-white hover:border-v-border text-xs uppercase tracking-wider min-h-[44px] transition-colors"
+                className="w-full mt-2 px-4 py-3 border border-v-border/30 text-gray-400 hover:text-white hover:border-v-border text-xs uppercase tracking-wider min-h-[44px] transition-colors"
               >
                 Start New Quote
               </button>
@@ -2378,7 +2378,7 @@ function NewQuoteContent() {
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="min-w-0">
                   <p className="text-white text-sm truncate">{selectedAircraft.manufacturer} {selectedAircraft.model}</p>
-                  <p className="text-gray-500 text-xs">{selectedServicesList.length} service{selectedServicesList.length !== 1 ? 's' : ''} &middot; {totalHours.toFixed(1)}h</p>
+                  <p className="text-gray-400 text-xs">{selectedServicesList.length} service{selectedServicesList.length !== 1 ? 's' : ''} &middot; {totalHours.toFixed(1)}h</p>
                 </div>
                 <span className="text-v-gold text-2xl font-extralight flex-shrink-0">{currencySymbol()}{formatPrice(totalPrice)}</span>
               </div>
@@ -2390,14 +2390,14 @@ function NewQuoteContent() {
                 disabled={draftSaving || !selectedAircraft}
                 className="px-4 py-3 border border-white/20 text-white/70 hover:text-white hover:border-white/40 text-xs uppercase tracking-wider transition-colors whitespace-nowrap min-h-[44px]"
               >
-                {draftSaving ? 'Saving...' : autoSaveLabel ? '✓ Saved' : draftId ? '💾 Update Draft' : '💾 Save Draft'}
+                {draftSaving ? 'Saving...' : autoSaveLabel ? '✓ Saved' : draftId ? '💾 Save' : '💾 Save Draft'}
               </button>
               {selectedAircraft && selectedServicesList.length > 0 && (
                 <button
                   type="button"
                   onClick={openSendModal}
                   disabled={totalPrice === 0 || !airport || airport.length < 3}
-                  className="flex-1 px-5 py-3 bg-v-gold text-v-charcoal font-medium uppercase tracking-[0.15em] hover:bg-v-gold-dim disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm min-h-[44px] whitespace-nowrap transition-colors"
+                  className="flex-1 px-5 py-3 bg-v-gold text-white font-medium uppercase tracking-[0.15em] hover:bg-v-gold-dim disabled:bg-v-surface disabled:text-gray-400 disabled:cursor-not-allowed text-xs sm:text-sm min-h-[44px] whitespace-nowrap transition-colors"
                 >
                   {!airport || airport.length < 3 ? 'Enter Airport' : 'Send to Client'}
                 </button>
