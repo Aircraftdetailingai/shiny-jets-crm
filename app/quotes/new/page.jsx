@@ -902,7 +902,14 @@ function NewQuoteContent() {
   const addonFeeItems = selectedAddonFees.map(f => normalizeFee(f, feeCtx));
 
   const toggleAddon = (addonId) => {
+    const willBeSelected = !selectedAddons[addonId];
     setSelectedAddons(prev => ({ ...prev, [addonId]: !prev[addonId] }));
+    // On uncheck, drop any per-quote override/quantity so a later re-check
+    // starts fresh from the catalog config instead of stale hydrated values.
+    if (!willBeSelected) {
+      setAddonOverrides(prev => { const next = { ...prev }; delete next[addonId]; return next; });
+      setAddonQuantities(prev => { const next = { ...prev }; delete next[addonId]; return next; });
+    }
   };
 
   // Compound add-on sub-item editing (per-quote override of the catalog bundle).
