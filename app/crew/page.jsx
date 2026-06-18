@@ -94,6 +94,12 @@ export default function CrewDashboard() {
   const [progressError, setProgressError] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
+  // Service SOPs (Stage 1) — loaded once per selectedJob. Crew needs to
+  // see both the service default and any aircraft-specific override
+  // mid-job without calling owner. Internal only.
+  const [sopServicesByName, setSopServicesByName] = useState(new Map());
+  const [sopOverridesByServiceId, setSopOverridesByServiceId] = useState(new Map());
+
   // Messages
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('success');
@@ -281,14 +287,46 @@ export default function CrewDashboard() {
           .then(d => setStandingNotes(d.notes || []))
           .catch(() => {});
       }
+
+      // Load Service SOPs (Stage 1): service catalog + per-aircraft overrides.
+      // Crew references these mid-job — default link is the canonical
+      // procedure, override is flagged distinctly when this aircraft has
+      // a non-standard pass spec'd by the owner.
+      if (token) {
+        const auth = { Authorization: `Bearer ${token}` };
+        fetch('/api/services', { headers: auth })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => {
+            const m = new Map();
+            for (const svc of (d?.services || [])) {
+              const key = String(svc.name || '').trim().toLowerCase();
+              if (key && !m.has(key)) m.set(key, svc);
+            }
+            setSopServicesByName(m);
+          })
+          .catch(() => {});
+        if (selectedJob.tail_number) {
+          fetch(`/api/aircraft-service-sops?tail=${encodeURIComponent(selectedJob.tail_number)}`, { headers: auth })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+              const m = new Map();
+              for (const o of (d?.overrides || [])) m.set(o.service_id, o);
+              setSopOverridesByServiceId(m);
+            })
+            .catch(() => {});
+        } else {
+          setSopOverridesByServiceId(new Map());
+        }
+      }
     } else {
       setJobMaterials(null);
       setCheckedProducts({});
       setCheckedEquipment({});
       setStandingNotes([]);
       setJobCrewNotes('');
+      setSopOverridesByServiceId(new Map());
     }
-  }, [selectedJob, fetchPhotos, fetchJobMaterials]);
+  }, [selectedJob, fetchPhotos, fetchJobMaterials, token]);
 
   // Clock elapsed timer
   useEffect(() => {
@@ -952,12 +990,52 @@ export default function CrewDashboard() {
                 <div className="mb-3">
                   <p className="text-white/50 text-xs uppercase tracking-wide mb-1">{'Services'}</p>
                   <div className="space-y-1">
-                    {selectedJob.services.map((s, i) => (
-                      <div key={i} className="text-white text-sm flex justify-between">
-                        <span>{s.description}</span>
-                        {s.hours > 0 && <span className="text-white/50">{s.hours}{'h'}</span>}
-                      </div>
-                    ))}
+                    {selectedJob.services.map((s, i) => {
+                      // Stage 1 SOP resolution per line. Shape-tolerant
+                      // (matches lib/resolve-sop) — bare string, object
+                      // with service_id, or object with name. custom:true
+                      // intentionally renders no SOP affordance.
+                      const isCustom = s && typeof s === 'object' && s.custom === true;
+                      let svcMatch = null;
+                      if (!isCustom) {
+                        const name = typeof s === 'string' ? s : (s?.description || s?.name || s?.service_name);
+                        const key = String(name || '').trim().toLowerCase();
+                        if (s?.service_id) {
+                          for (const v of sopServicesByName.values()) {
+                            if (v.id === s.service_id) { svcMatch = v; break; }
+                          }
+                        }
+                        if (!svcMatch && key) svcMatch = sopServicesByName.get(key) || null;
+                      }
+                      const def = svcMatch?.sop_url
+                        ? { url: svcMatch.sop_url, summary: svcMatch.sop_summary }
+                        : null;
+                      const override = svcMatch?.id ? sopOverridesByServiceId.get(svcMatch.id) : null;
+                      return (
+                        <div key={i} className="text-white text-sm">
+                          <div className="flex justify-between gap-2">
+                            <span className="min-w-0">{s.description || s.name || s}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {def && (
+                                <a href={def.url} target="_blank" rel="noreferrer"
+                                  className="text-[11px] text-v-gold hover:underline whitespace-nowrap"
+                                  title={def.summary || 'Open default SOP'}>
+                                  📖 SOP
+                                </a>
+                              )}
+                              {override && (
+                                <a href={override.sop_url} target="_blank" rel="noreferrer"
+                                  className="text-[11px] text-amber-400 hover:underline whitespace-nowrap"
+                                  title={override.sop_summary || 'Aircraft-specific SOP'}>
+                                  ⚠️ Aircraft SOP
+                                </a>
+                              )}
+                              {s.hours > 0 && <span className="text-white/50 whitespace-nowrap">{s.hours}{'h'}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

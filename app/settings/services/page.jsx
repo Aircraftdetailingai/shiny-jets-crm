@@ -617,6 +617,8 @@ export default function ServicesPage() {
           hours_field: editingService.hours_field || null,
           product_cost_per_hour: parseFloat(editingService.product_cost_per_hour) || 0,
           product_notes: editingService.product_notes || '',
+          sop_url: editingService.sop_url || null,
+          sop_summary: editingService.sop_summary || null,
           minimum_price: editingService.minimum_price === '' || editingService.minimum_price == null
             ? null
             : parseFloat(editingService.minimum_price),
@@ -1486,6 +1488,33 @@ export default function ServicesPage() {
                   placeholder="0.00" className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg pl-7 pr-3 py-2" />
               </div>
               <p className="text-xs text-v-text-secondary mt-1">Optional floor. Line item price will be at least this amount.</p>
+            </div>
+            {/* Level 1 SOP — default procedure link + summary. Internal only;
+                never rendered on customer-facing surfaces. Aircraft-specific
+                overrides (Level 2) live on the aircraft detail page. */}
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium text-v-text-secondary mb-3">Service SOP <span className="text-xs text-v-text-secondary font-normal">(internal only — default procedure)</span></p>
+              <div>
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">SOP URL</label>
+                <input
+                  type="url"
+                  value={editingService.sop_url || ''}
+                  onChange={(e) => setEditingService({ ...editingService, sop_url: e.target.value })}
+                  placeholder="https://docs.google.com/document/d/…"
+                  className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2"
+                />
+                <p className="text-xs text-v-text-secondary mt-1">Link to the procedure document. Shown to crew on job detail + in briefing emails.</p>
+              </div>
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">SOP Summary</label>
+                <textarea
+                  rows={2}
+                  value={editingService.sop_summary || ''}
+                  onChange={(e) => setEditingService({ ...editingService, sop_summary: e.target.value })}
+                  placeholder="One-line callout shown next to the link (optional)"
+                  className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2"
+                />
+              </div>
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-v-text-secondary mb-3">Product Cost Tracking <span className="text-xs text-v-text-secondary font-normal">(internal only)</span></p>

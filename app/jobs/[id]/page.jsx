@@ -19,6 +19,10 @@ export default function JobDetailPage() {
   const [labor, setLabor] = useState(null);
   const [standingNotes, setStandingNotes] = useState([]);
   const [newStandingNote, setNewStandingNote] = useState('');
+  // Service SOPs (Stage 1) — same shape as the crew page so the resolver
+  // works identically. Loaded once per job (effect below).
+  const [sopServicesByName, setSopServicesByName] = useState(new Map());
+  const [sopOverridesByServiceId, setSopOverridesByServiceId] = useState(new Map());
   const [crewNotes, setCrewNotes] = useState('');
   const [crewNotesSaving, setCrewNotesSaving] = useState(false);
   // Pre/Post detail state
@@ -50,6 +54,34 @@ export default function JobDetailPage() {
     if (!token) { router.push('/login'); return; }
     fetchJob(token);
   }, [jobId]);
+
+  // Load Service SOPs (Stage 1) for this job's tail. Separate effect so
+  // re-fetching the job (after a save) doesn't churn the catalog.
+  useEffect(() => {
+    if (!job?.tail_number) { setSopOverridesByServiceId(new Map()); return; }
+    const token = localStorage.getItem('vector_token');
+    if (!token) return;
+    const auth = { Authorization: `Bearer ${token}` };
+    fetch('/api/services', { headers: auth })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const m = new Map();
+        for (const svc of (d?.services || [])) {
+          const key = String(svc.name || '').trim().toLowerCase();
+          if (key && !m.has(key)) m.set(key, svc);
+        }
+        setSopServicesByName(m);
+      })
+      .catch(() => {});
+    fetch(`/api/aircraft-service-sops?tail=${encodeURIComponent(job.tail_number)}`, { headers: auth })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const m = new Map();
+        for (const o of (d?.overrides || [])) m.set(o.service_id, o);
+        setSopOverridesByServiceId(m);
+      })
+      .catch(() => {});
+  }, [job?.tail_number]);
 
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1053,12 +1085,41 @@ export default function JobDetailPage() {
                 ? linkedProducts.find(lp => lp.product_id === selectedProduct.product_id)?.product
                 : defaultProduct?.product;
 
+              // SOP resolution (Stage 1) — shape-tolerant match against
+                // the loaded catalog + per-aircraft overrides. svcId from
+                // above feeds the direct lookup; falls back to name match.
+                let sopSvcMatch = null;
+                if (svc && !svc.custom) {
+                  if (svcId) {
+                    for (const v of sopServicesByName.values()) {
+                      if (v.id === svcId) { sopSvcMatch = v; break; }
+                    }
+                  }
+                  if (!sopSvcMatch) {
+                    const key = String(svc.name || svc.description || '').trim().toLowerCase();
+                    if (key) sopSvcMatch = sopServicesByName.get(key) || null;
+                  }
+                }
+                const sopDefault = sopSvcMatch?.sop_url
+                  ? { url: sopSvcMatch.sop_url, summary: sopSvcMatch.sop_summary }
+                  : null;
+                const sopOverride = sopSvcMatch?.id ? sopOverridesByServiceId.get(sopSvcMatch.id) : null;
               return (
                 <div key={i} className="text-sm">
                   <div className="flex justify-between items-center">
-                    <div>
+                    <div className="flex items-center gap-3 min-w-0">
                       <span className="text-v-text-primary">{svc.name}</span>
-                      {svc.hours > 0 && <span className="text-v-text-secondary text-xs ml-2">{svc.hours.toFixed(1)}h</span>}
+                      {svc.hours > 0 && <span className="text-v-text-secondary text-xs">{svc.hours.toFixed(1)}h</span>}
+                      {sopDefault && (
+                        <a href={sopDefault.url} target="_blank" rel="noreferrer"
+                          className="text-[11px] text-v-gold hover:underline whitespace-nowrap"
+                          title={sopDefault.summary || 'Open default SOP'}>📖 SOP</a>
+                      )}
+                      {sopOverride && (
+                        <a href={sopOverride.sop_url} target="_blank" rel="noreferrer"
+                          className="text-[11px] text-amber-400 hover:underline whitespace-nowrap"
+                          title={sopOverride.sop_summary || 'Aircraft-specific SOP'}>⚠️ Aircraft SOP</a>
+                      )}
                     </div>
                     <div className="text-right">
                       {svc.price > 0 && <span className="text-v-text-primary font-medium">{currencySymbol()}{formatPrice(svc.price)}</span>}

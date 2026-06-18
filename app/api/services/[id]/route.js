@@ -25,7 +25,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category, minimum_price } = body;
+    const { name, description, hourly_rate, hours_field, product_cost_per_hour, product_notes, default_hours, category, minimum_price, sop_url, sop_summary } = body;
 
     const updates = {};
     if (name !== undefined) updates.name = name;
@@ -40,6 +40,12 @@ export async function PUT(request, { params }) {
       const mp = minimum_price === null || minimum_price === '' ? null : parseFloat(minimum_price);
       updates.minimum_price = Number.isFinite(mp) && mp > 0 ? mp : null;
     }
+    // Level 1 service SOP — Stage 1 of the SOP feature. Both fields are
+    // optional; either being explicitly set to '' (empty string) is treated
+    // as "clear" (null in DB) so the owner can remove without juggling
+    // null/undefined in the UI.
+    if (sop_url !== undefined) updates.sop_url = sop_url ? String(sop_url).trim() : null;
+    if (sop_summary !== undefined) updates.sop_summary = sop_summary ? String(sop_summary) : null;
     updates.updated_at = new Date().toISOString();
 
     let { data: service, error } = await supabase
