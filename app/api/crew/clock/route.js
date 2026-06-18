@@ -86,6 +86,27 @@ export async function GET(request) {
     .eq('date', today);
   const todayHours = (todayEntries || []).reduce((sum, e) => sum + (parseFloat(e.hours_worked) || 0), 0);
 
+  // All open (un-clocked-out) entries for this member, ANY date. Prior-day ones
+  // are surfaced in the UI so they get resolved before a fresh clock-in.
+  const { data: allOpen } = await supabase
+    .from('time_entries')
+    .select('id, date, clock_in, job_id, quote_id')
+    .eq('team_member_id', user.id)
+    .is('clock_out', null)
+    .not('clock_in', 'is', null)
+    .order('clock_in', { ascending: true });
+  const openEntries = [];
+  for (const e of (allOpen || [])) {
+    const entryDate = e.date || (e.clock_in || '').split('T')[0];
+    openEntries.push({
+      id: e.id,
+      date: entryDate,
+      clock_in: e.clock_in,
+      job_label: await getJobLabel(supabase, { job_id: e.job_id, quote_id: e.quote_id }),
+      is_prior_day: entryDate < today,
+    });
+  }
+
   // Resolve current job label if clocked in
   let currentJobLabel = null;
   if (openEntry) {
@@ -103,6 +124,8 @@ export async function GET(request) {
     current_quote_id: openEntry?.quote_id || null,
     current_job_label: currentJobLabel,
     today_hours: todayHours,
+    open_entries: openEntries,
+    prior_day_open: openEntries.filter((e) => e.is_prior_day),
   });
 }
 
@@ -153,7 +176,7 @@ export async function POST(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { action, job_id, quote_id, notes } = await request.json();
+  const { action, job_id, quote_id, notes, service_type, override, entry_id, new_clock_out } = await request.json();
   const supabase = getSupabase();
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
@@ -178,6 +201,9 @@ export async function POST(request) {
     if (existing) {
       return Response.json({ error: 'Already clocked in. Use "switch" to change jobs.' }, { status: 400 });
     }
+    if (!service_type) {
+      return Response.json({ error: 'Service type required.' }, { status: 400 });
+    }
 
     console.log('[crew/clock] clock_in attempt:', { user_id: user.id, detailer_id: user.detailer_id, job_id, quote_id });
 
@@ -187,6 +213,7 @@ export async function POST(request) {
       date: today,
       clock_in: now,
       hours_worked: 0,
+      service_type: service_type,
       notes: notes || null,
     };
     // Set job_id or quote_id — the crew page may send the job under either field
@@ -217,6 +244,9 @@ export async function POST(request) {
     if (!job_id && !quote_id) {
       return Response.json({ error: 'job_id or quote_id required to switch' }, { status: 400 });
     }
+    if (!service_type) {
+      return Response.json({ error: 'Service type required.' }, { status: 400 });
+    }
 
     // Close current entry at the switch timestamp
     const { hoursWorked, error: closeErr } = await closeEntry(supabase, existing.id, now);
@@ -234,6 +264,7 @@ export async function POST(request) {
       hours_worked: 0,
       job_id: job_id || null,
       quote_id: quote_id || null,
+      service_type: service_type,
       notes: notes || null,
     };
     const { data: newEntry, error: insertErr } = await insertEntry(supabase, entry);
@@ -258,6 +289,14 @@ export async function POST(request) {
     const existing = await findOpenEntry();
     if (!existing) {
       return Response.json({ error: 'Not clocked in' }, { status: 400 });
+    }
+
+    // Sub-minute guard: a clock-out under 60s is almost always a fat-finger.
+    // The UI offers Discard (DELETE) or Keep (re-post with override=true).
+    const { data: openRow } = await supabase.from('time_entries').select('clock_in').eq('id', existing.id).single();
+    const durSec = openRow?.clock_in ? (new Date(now) - new Date(openRow.clock_in)) / 1000 : 0;
+    if (durSec < 60 && !override) {
+      return Response.json({ error: 'Clocked out under a minute — discard or keep?', code: 'SUB_MINUTE', entry_id: existing.id }, { status: 400 });
     }
 
     const { hoursWorked, error } = await closeEntry(supabase, existing.id, now);
@@ -298,6 +337,22 @@ export async function POST(request) {
       hours_worked: hoursWorked,
       job_label: label,
     });
+  }
+
+  if (action === 'close_entry') {
+    // Close a specific (possibly prior-day) open entry by id — used by the
+    // prior-day open-clock banner ([Close now] / [Edit hours]).
+    if (!entry_id) return Response.json({ error: 'entry_id required' }, { status: 400 });
+    const { data: own } = await supabase
+      .from('time_entries')
+      .select('id, clock_in')
+      .eq('id', entry_id)
+      .eq('team_member_id', user.id)
+      .maybeSingle();
+    if (!own) return Response.json({ error: 'Entry not found' }, { status: 404 });
+    const { hoursWorked, error } = await closeEntry(supabase, entry_id, new_clock_out || now);
+    if (error) return Response.json({ error: 'Failed to close entry' }, { status: 500 });
+    return Response.json({ success: true, hours_worked: hoursWorked });
   }
 
   if (action === 'adjust_clock_in') {
@@ -350,5 +405,27 @@ export async function POST(request) {
     return Response.json({ success: true, entry_id: inserted.id, hours_worked: hoursWorked });
   }
 
-  return Response.json({ error: 'Invalid action. Use clock_in, switch, clock_out, adjust_clock_in, or manual_entry.' }, { status: 400 });
+  return Response.json({ error: 'Invalid action. Use clock_in, switch, clock_out, close_entry, adjust_clock_in, or manual_entry.' }, { status: 400 });
+}
+
+// DELETE - discard a time entry (used by the sub-minute and prior-day flows)
+export async function DELETE(request) {
+  const user = await getCrewUser(request);
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const supabase = getSupabase();
+  const { searchParams } = new URL(request.url);
+  const entryId = searchParams.get('entry_id');
+  if (!entryId) return Response.json({ error: 'entry_id required' }, { status: 400 });
+
+  const { error } = await supabase
+    .from('time_entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('team_member_id', user.id);
+  if (error) {
+    console.error('[crew/clock] delete error:', error.message);
+    return Response.json({ error: 'Failed to discard entry' }, { status: 500 });
+  }
+  return Response.json({ success: true });
 }
