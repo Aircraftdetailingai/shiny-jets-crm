@@ -313,9 +313,15 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
 
         {/* ─── PROPOSED SCHEDULE (business days) ─── */}
         {(() => {
+          const SHIFT_HOURS = 8; // TODO: wire from detailers.default_shift_hours
           const totalHrs = parseFloat(quote.total_hours) || 0;
-          const dailyCap = 8; // TODO: wire from detailer settings (hours_per_day * staff_count)
-          const bizDays = totalHrs > 0 ? Math.max(1, Math.ceil(totalHrs / dailyCap)) : 0;
+          const staff = Math.max(1, parseInt(quote.staff_count, 10) || 1);
+          // job_days is the value the detailer explicitly set on the builder — the
+          // source of truth. Fall back to hours / staff / shift only for legacy
+          // quotes where job_days was never saved.
+          const bizDays = quote.job_days != null
+            ? Math.max(1, Math.ceil(parseFloat(quote.job_days) || 0))
+            : (totalHrs > 0 ? Math.max(1, Math.ceil(totalHrs / staff / SHIFT_HOURS)) : 0);
           const startRaw = quote.proposed_date || quote.scheduled_date;
           let start = startRaw ? new Date(startRaw) : null;
           if (start) {
