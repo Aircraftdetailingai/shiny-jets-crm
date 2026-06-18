@@ -10,6 +10,10 @@ function getSupabase() {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  // Crew members need can_log_products; owners (non-crew sessions) always can.
+  if (user.role === 'crew' && user.can_log_products === false) {
+    return Response.json({ error: 'Not authorized to log product usage' }, { status: 403 });
+  }
 
   const { quote_id, products } = await request.json();
   if (!quote_id || !products?.length) return Response.json({ error: 'Missing data' }, { status: 400 });

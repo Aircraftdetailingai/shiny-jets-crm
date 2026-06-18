@@ -1225,8 +1225,8 @@ export default function CrewDashboard() {
               )}
             </div>
 
-            {/* Product usage on this job (if inventory access) */}
-            {user.can_see_inventory && (
+            {/* Product usage on this job (needs inventory access + log permission) */}
+            {user.can_see_inventory && user.can_log_products !== false && (
               <div className="bg-white/10 backdrop-blur rounded-xl p-4">
                 <h3 className="text-white font-semibold mb-3">Log Product Usage</h3>
                 {products.length === 0 ? (

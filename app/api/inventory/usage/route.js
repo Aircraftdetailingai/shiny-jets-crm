@@ -44,6 +44,10 @@ export async function GET(request) {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  // Crew members need can_log_products; owners (non-crew sessions) always can.
+  if (user.role === 'crew' && user.can_log_products === false) {
+    return Response.json({ error: 'Not authorized to log product usage' }, { status: 403 });
+  }
 
   const { job_id, entries } = await request.json();
 

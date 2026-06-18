@@ -68,6 +68,9 @@ export async function POST(request) {
   if (!user.can_see_inventory) {
     return Response.json({ error: 'No inventory access' }, { status: 403 });
   }
+  if (user.can_log_products === false) {
+    return Response.json({ error: 'Not authorized to log product usage' }, { status: 403 });
+  }
 
   const body = await request.json();
   const { quote_id, job_id, product_id, amount_used, unit, notes, is_unlisted, product_name: bodyName, product_brand: bodyBrand } = body;
