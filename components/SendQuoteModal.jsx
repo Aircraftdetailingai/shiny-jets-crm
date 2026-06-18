@@ -157,11 +157,14 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
     // If quote already has id, just update client info
     if (quote?.id && quote?.share_link) {
-      await fetch(`/api/quotes/${quote.id}`, { method: "PUT", headers, body: JSON.stringify({
+      const putRes = await fetch(`/api/quotes/${quote.id}`, { method: "PUT", headers, body: JSON.stringify({
         client_name: effectiveName, client_email: effectiveEmail, client_phone: effectivePhone || null,
-        customer_id: resolvedCustomerId, airport: quote?.airport || null,
+        customer_account_id: resolvedCustomerId, airport: quote?.airport || null,
       }) });
-      return { id: quote.id, share_link: quote.share_link };
+      const putData = await putRes.json().catch(() => ({}));
+      // Carry updated_at so the PDF cache-bust (&t=) has a stable, change-aware
+      // value instead of re-evaluating Date.now() on every render.
+      return { id: quote.id, share_link: quote.share_link, updated_at: putData?.updated_at || Date.now() };
     }
 
     // Create new quote
@@ -190,6 +193,9 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       discount_percent: quote?.discountPercent || 0,
       addon_fees: quote?.addonFees || [],
       addon_total: quote?.addonsTotal || 0,
+      staff_count: parseInt(quote?.staffCount, 10) || 1,
+      job_days: quote?.jobDays ?? null,
+      customer_account_id: resolvedCustomerId,
       customer_id: resolvedCustomerId,
       customer_phone: effectivePhone || null,
       customer_company: effectiveCompany || null,

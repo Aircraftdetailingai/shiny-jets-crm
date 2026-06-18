@@ -68,6 +68,10 @@ function NewQuoteContent() {
   // known, closing that window.
   const draftIdRef = useRef(null);
   const creatingDraftRef = useRef(false);
+  // share_link is needed so the Send modal operates on THIS draft (PUT) instead
+  // of POSTing a sibling. Mirrored in a ref for synchronous reads when opening.
+  const [draftShareLink, setDraftShareLink] = useState(null);
+  const draftShareLinkRef = useRef(null);
   const [draftSaving, setDraftSaving] = useState(false);
   const [autoSaveLabel, setAutoSaveLabel] = useState('');
   const [showDiscount, setShowDiscount] = useState(false);
@@ -929,12 +933,16 @@ function NewQuoteContent() {
     id: crypto.randomUUID(), name: preset?.name || '', fee_type: preset?.fee_type || 'flat', amount: preset?.amount ?? 0, note: '',
   }]);
 
-  const openSendModal = () => {
+  const openSendModal = async () => {
     if (!preselectedCustomer) {
       alert('Please select or add a customer before sending the quote.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    // Persist the draft (id + share_link) BEFORE the modal mounts so it operates
+    // on this draft (PUT) instead of POSTing a sibling quote. Reuses saveDraft's
+    // hydrated + creatingDraftRef guards.
+    await saveDraft(true);
     setModalOpen(true);
   };
   const closeSendModal = () => setModalOpen(false);
@@ -1089,6 +1097,7 @@ function NewQuoteContent() {
           const data = await res.json();
           // Set the ref synchronously so a save firing before the state commit PUTs.
           if (data.id) { draftIdRef.current = data.id; setDraftId(data.id); }
+          if (data.share_link) { draftShareLinkRef.current = data.share_link; setDraftShareLink(data.share_link); }
           // Lead status transitions are owned server-side now:
           //  - convert_to_quote action sets lead.status='reviewed' (draft created)
           //  - quotes/[id]/send sets lead.status='quoted' (actually emailed)
@@ -1211,6 +1220,7 @@ function NewQuoteContent() {
         if (q.notes) setQuoteNotes(q.notes);
         if (q.tail_number) setTailNumber(q.tail_number);
         if (q.proposed_date) setProposedDate(q.proposed_date);
+        if (q.share_link) { draftShareLinkRef.current = q.share_link; setDraftShareLink(q.share_link); }
 
         // Customer: prefer the linked account; fall back to the quote's
         // denormalized fields so the panel never blanks to "choose customer".
@@ -2493,6 +2503,10 @@ function NewQuoteContent() {
           preselectedCustomer={preselectedCustomer}
           initialStep={preselectedCustomer ? 2 : 1}
           quote={{
+            id: draftIdRef.current || draftId,
+            share_link: draftShareLinkRef.current || draftShareLink,
+            staffCount: effStaff,
+            jobDays: effJobDays,
             aircraft: quoteData.aircraft,
             selectedServices: quoteData.selectedServices,
             selectedPackage: quoteData.selectedPackage,
