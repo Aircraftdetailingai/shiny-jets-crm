@@ -1100,10 +1100,13 @@ export default function JobDetailPage() {
                     if (key) sopSvcMatch = sopServicesByName.get(key) || null;
                   }
                 }
-                const sopDefault = sopSvcMatch?.sop_url
-                  ? { url: sopSvcMatch.sop_url, summary: sopSvcMatch.sop_summary }
+                // Prefer signed PDF URL when present; fall back to plain link.
+                const sopDefaultUrl = sopSvcMatch?.sop_signed_url || sopSvcMatch?.sop_url || null;
+                const sopDefault = sopDefaultUrl
+                  ? { url: sopDefaultUrl, summary: sopSvcMatch.sop_summary, isFile: !!sopSvcMatch?.sop_file_path }
                   : null;
                 const sopOverride = sopSvcMatch?.id ? sopOverridesByServiceId.get(sopSvcMatch.id) : null;
+                const sopOverrideUrl = sopOverride?.sop_signed_url || sopOverride?.sop_url || null;
               return (
                 <div key={i} className="text-sm">
                   <div className="flex justify-between items-center">
@@ -1115,10 +1118,10 @@ export default function JobDetailPage() {
                           className="text-[11px] text-v-gold hover:underline whitespace-nowrap"
                           title={sopDefault.summary || 'Open default SOP'}>📖 SOP</a>
                       )}
-                      {sopOverride && (
-                        <a href={sopOverride.sop_url} target="_blank" rel="noreferrer"
+                      {sopOverride && sopOverrideUrl && (
+                        <a href={sopOverrideUrl} target="_blank" rel="noreferrer"
                           className="text-[11px] text-amber-400 hover:underline whitespace-nowrap"
-                          title={sopOverride.sop_summary || 'Aircraft-specific SOP'}>⚠️ Aircraft SOP</a>
+                          title={sopOverride.sop_summary || 'Aircraft-specific SOP'}>⚠️ Aircraft SOP{sopOverride.sop_file_path ? ' (PDF)' : ''}</a>
                       )}
                     </div>
                     <div className="text-right">

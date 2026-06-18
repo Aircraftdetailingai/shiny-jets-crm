@@ -1007,10 +1007,11 @@ export default function CrewDashboard() {
                         }
                         if (!svcMatch && key) svcMatch = sopServicesByName.get(key) || null;
                       }
-                      const def = svcMatch?.sop_url
-                        ? { url: svcMatch.sop_url, summary: svcMatch.sop_summary }
-                        : null;
+                      // Prefer signed PDF URL when present; fall back to plain link.
+                      const defUrl = svcMatch?.sop_signed_url || svcMatch?.sop_url || null;
+                      const def = defUrl ? { url: defUrl, summary: svcMatch.sop_summary } : null;
                       const override = svcMatch?.id ? sopOverridesByServiceId.get(svcMatch.id) : null;
+                      const overrideUrl = override?.sop_signed_url || override?.sop_url || null;
                       return (
                         <div key={i} className="text-white text-sm">
                           <div className="flex justify-between gap-2">
@@ -1023,11 +1024,11 @@ export default function CrewDashboard() {
                                   📖 SOP
                                 </a>
                               )}
-                              {override && (
-                                <a href={override.sop_url} target="_blank" rel="noreferrer"
+                              {override && overrideUrl && (
+                                <a href={overrideUrl} target="_blank" rel="noreferrer"
                                   className="text-[11px] text-amber-400 hover:underline whitespace-nowrap"
                                   title={override.sop_summary || 'Aircraft-specific SOP'}>
-                                  ⚠️ Aircraft SOP
+                                  ⚠️ Aircraft SOP{override.sop_file_path ? ' (PDF)' : ''}
                                 </a>
                               )}
                               {s.hours > 0 && <span className="text-white/50 whitespace-nowrap">{s.hours}{'h'}</span>}

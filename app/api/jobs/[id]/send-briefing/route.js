@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { logNotification } from '@/lib/notification-log';
 import { resolveAircraftIdByTail } from '@/lib/resolve-aircraft';
 import { loadSopContext } from '@/lib/resolve-sop';
+import { signSopUrl, BRIEFING_EXPIRY_SECONDS } from '@/lib/sop-signed-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,28 +104,45 @@ export async function POST(request, { params }) {
   // brand blue; aircraft-specific override flagged in amber per the
   // spec so crew sees it as distinct from the canonical default. CSV
   // fallback when there are no items.
+  //
+  // Link resolution (Option B per Brett's spec): when an SOP has a
+  // sop_file_path, sign it with BRIEFING_EXPIRY_SECONDS (7 days) so the
+  // emailed link opens without login. Plain URLs (sop_url) inline as-is.
+  // Files are preferred over URLs when both are set on the same SOP.
   let servicesHtml;
   if (serviceItems.length === 0) {
     servicesHtml = '<span style="color:#666;">See job details</span>';
   } else {
-    servicesHtml = '<ul style="margin:0;padding-left:18px;font-size:14px;color:#333;line-height:1.7;">'
-      + serviceItems.map(item => {
-        const displayName = typeof item === 'string'
-          ? item
-          : (item?.name || item?.description || item?.service_name || 'Service');
-        const { default: def, override } = sopCtx.resolve(item);
-        const defLink = def?.url
-          ? ` &middot; <a href="${escapeHtml(def.url)}" style="color:#007CB1;text-decoration:none;font-weight:600;">📖 SOP</a>`
-          : '';
-        const ovLink = override?.url
-          ? ` &middot; <a href="${escapeHtml(override.url)}" style="color:#b45309;text-decoration:none;font-weight:600;">⚠️ Aircraft SOP</a>`
-          : '';
-        const ovSummary = override?.summary
-          ? `<div style="font-size:12px;color:#92400e;margin-top:2px;">${escapeHtml(override.summary)}</div>`
-          : '';
-        return `<li style="margin-bottom:6px;">${escapeHtml(displayName)}${defLink}${ovLink}${ovSummary}</li>`;
-      }).join('')
-      + '</ul>';
+    const rows = await Promise.all(serviceItems.map(async (item) => {
+      const displayName = typeof item === 'string'
+        ? item
+        : (item?.name || item?.description || item?.service_name || 'Service');
+      const { default: def, override } = sopCtx.resolve(item);
+
+      let defHref = null;
+      if (def?.file_path) {
+        defHref = await signSopUrl(supabase, def.file_path, { expiresIn: BRIEFING_EXPIRY_SECONDS });
+      }
+      if (!defHref && def?.url) defHref = def.url;
+
+      let ovHref = null;
+      if (override?.file_path) {
+        ovHref = await signSopUrl(supabase, override.file_path, { expiresIn: BRIEFING_EXPIRY_SECONDS });
+      }
+      if (!ovHref && override?.url) ovHref = override.url;
+
+      const defLink = defHref
+        ? ` &middot; <a href="${escapeHtml(defHref)}" style="color:#007CB1;text-decoration:none;font-weight:600;">📖 SOP</a>`
+        : '';
+      const ovLink = ovHref
+        ? ` &middot; <a href="${escapeHtml(ovHref)}" style="color:#b45309;text-decoration:none;font-weight:600;">⚠️ Aircraft SOP</a>`
+        : '';
+      const ovSummary = override?.summary
+        ? `<div style="font-size:12px;color:#92400e;margin-top:2px;">${escapeHtml(override.summary)}</div>`
+        : '';
+      return `<li style="margin-bottom:6px;">${escapeHtml(displayName)}${defLink}${ovLink}${ovSummary}</li>`;
+    }));
+    servicesHtml = '<ul style="margin:0;padding-left:18px;font-size:14px;color:#333;line-height:1.7;">' + rows.join('') + '</ul>';
   }
 
   const standingHtml = standingNotes.length > 0 ? standingNotes.map(n => `<li style="margin-bottom:6px;">${n}</li>`).join('') : '<li style="color:#999;">No standing notes</li>';

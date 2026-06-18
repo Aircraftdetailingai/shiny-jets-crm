@@ -115,6 +115,27 @@ export async function GET(request) {
       }
     }
 
+    // Sign SOP file paths so the client can render PDFs without ever
+    // touching the bucket directly. Short expiry — these are page loads,
+    // not emailed links. Falls back gracefully (no signed URL field) if
+    // the helper isn't available on a given deploy.
+    try {
+      const { signSopUrls } = await import('@/lib/sop-signed-url');
+      const paths = (mergedServices || [])
+        .map((s) => s?.sop_file_path)
+        .filter(Boolean);
+      if (paths.length > 0) {
+        const signedMap = await signSopUrls(supabase, paths);
+        mergedServices = mergedServices.map((s) =>
+          s?.sop_file_path && signedMap.has(s.sop_file_path)
+            ? { ...s, sop_signed_url: signedMap.get(s.sop_file_path) }
+            : s,
+        );
+      }
+    } catch (e) {
+      console.warn('[services GET] sign SOPs failed (non-fatal):', e?.message || e);
+    }
+
     return Response.json({ services: mergedServices });
 
   } catch (err) {

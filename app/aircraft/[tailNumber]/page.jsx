@@ -28,8 +28,9 @@ export default function AircraftDetailPage() {
   const [overrides, setOverrides] = useState([]);
   const [showAllServices, setShowAllServices] = useState(false);
   const [editingOverrideFor, setEditingOverrideFor] = useState(null);
-  const [overrideForm, setOverrideForm] = useState({ sop_url: '', sop_summary: '' });
+  const [overrideForm, setOverrideForm] = useState({ sop_url: '', sop_summary: '', sop_file_path: null, sop_file_name: null });
   const [savingOverride, setSavingOverride] = useState(false);
+  const [uploadingOverride, setUploadingOverride] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -115,12 +116,60 @@ export default function AircraftDetailPage() {
     setOverrideForm({
       sop_url: existing?.sop_url || '',
       sop_summary: existing?.sop_summary || '',
+      sop_file_path: existing?.sop_file_path || null,
+      sop_file_name: existing?.sop_file_name || null,
     });
+  };
+
+  // Uploads to /api/sop-upload — scope is 'aircraft' so the path lands
+  // under {detailer_id}/{aircraft_id}/{filename}.pdf in the private
+  // sop-documents bucket. Requires aircraftId to be known; auto-creates
+  // a customer_aircraft row on the server when first override saves if
+  // aircraftId is still null.
+  const uploadOverrideFile = async (file) => {
+    if (!editingOverrideFor || !aircraftId) {
+      alert('Save a URL once first so we can register this aircraft, then re-open to upload a PDF.');
+      return;
+    }
+    if (file.type !== 'application/pdf') { alert('Only PDF files accepted.'); return; }
+    setUploadingOverride(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('scope', 'aircraft');
+      fd.append('scope_id', aircraftId);
+      const res = await fetch('/api/sop-upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Upload failed (HTTP ${res.status})`);
+        return;
+      }
+      const out = await res.json();
+      setOverrideForm(f => ({
+        ...f,
+        sop_file_path: out.sop_file_path,
+        sop_file_name: out.sop_file_name,
+      }));
+    } catch (err) {
+      alert(`Upload failed: ${err.message || err}`);
+    } finally {
+      setUploadingOverride(false);
+    }
   };
 
   const saveOverride = async () => {
     if (!editingOverrideFor) return;
-    if (!overrideForm.sop_url.trim()) { alert('SOP URL is required.'); return; }
+    const hasUrl = overrideForm.sop_url.trim();
+    const hasFile = overrideForm.sop_file_path;
+    if (!hasUrl && !hasFile) {
+      alert('Provide a SOP URL or upload a PDF.');
+      return;
+    }
     setSavingOverride(true);
     try {
       const token = localStorage.getItem('vector_token');
@@ -131,8 +180,10 @@ export default function AircraftDetailPage() {
           tail_number: tailNumber,
           aircraft_id: aircraftId || undefined,
           service_id: editingOverrideFor.id,
-          sop_url: overrideForm.sop_url.trim(),
+          sop_url: hasUrl ? overrideForm.sop_url.trim() : null,
           sop_summary: overrideForm.sop_summary || null,
+          sop_file_path: overrideForm.sop_file_path || null,
+          sop_file_name: overrideForm.sop_file_name || null,
         }),
       });
       if (!res.ok) {
@@ -249,10 +300,16 @@ export default function AircraftDetailPage() {
         ) : (
           <div className="space-y-2">
             {servicesToRender.map(({ key, name, service, used }) => {
-              const def = service?.sop_url
-                ? { url: service.sop_url, summary: service.sop_summary || null }
+              // Read-side resolution prefers the signed PDF URL when set
+              // (GET responses generate it for sop_file_path), falls back
+              // to the plain link. Both default + override use the same
+              // pattern so behavior is consistent across L1 and L2.
+              const defUrl = service?.sop_signed_url || service?.sop_url || null;
+              const def = defUrl
+                ? { url: defUrl, summary: service.sop_summary || null, isFile: !!service?.sop_file_path }
                 : null;
               const override = service?.id ? overridesByServiceId.get(service.id) : null;
+              const overrideUrl = override?.sop_signed_url || override?.sop_url || null;
               return (
                 <div key={key || name} className="bg-v-surface border border-v-border rounded-lg p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -275,11 +332,11 @@ export default function AircraftDetailPage() {
                         <p className="text-[11px] text-v-text-secondary mt-2 italic">No default SOP set for this service.</p>
                       )}
                       {/* Level 2 — aircraft-specific override (flagged distinctly) */}
-                      {override && (
+                      {override && overrideUrl && (
                         <div className="mt-2 pl-3 border-l-2 border-amber-500/50">
-                          <a href={override.sop_url} target="_blank" rel="noreferrer"
+                          <a href={overrideUrl} target="_blank" rel="noreferrer"
                             className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:underline">
-                            ⚠️ Aircraft-specific SOP
+                            ⚠️ Aircraft-specific SOP{override.sop_file_path ? ' (PDF)' : ''}
                           </a>
                           {override.sop_summary && <p className="text-[11px] text-v-text-secondary mt-1">{override.sop_summary}</p>}
                           <button
@@ -323,7 +380,7 @@ export default function AircraftDetailPage() {
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-v-text-secondary mb-1">SOP URL</label>
+                <label className="block text-xs text-v-text-secondary mb-1">SOP URL <span className="text-v-text-secondary/60">(or upload a PDF below)</span></label>
                 <input
                   type="url"
                   value={overrideForm.sop_url}
@@ -331,6 +388,36 @@ export default function AircraftDetailPage() {
                   placeholder="https://docs.google.com/document/d/…"
                   className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2 text-sm"
                 />
+              </div>
+              <div>
+                <label className="block text-xs text-v-text-secondary mb-1">SOP PDF</label>
+                {overrideForm.sop_file_path ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 bg-v-charcoal border border-v-border rounded-lg">
+                    <span className="text-sm text-v-text-primary truncate">
+                      📄 {overrideForm.sop_file_name || 'Uploaded SOP'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setOverrideForm(f => ({ ...f, sop_file_path: null, sop_file_name: null }))}
+                      className="text-xs text-red-400 hover:text-red-300 shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    disabled={uploadingOverride}
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (f) await uploadOverrideFile(f);
+                      e.target.value = '';
+                    }}
+                    className="block w-full text-sm text-v-text-primary file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-v-gold/10 file:text-v-gold hover:file:bg-v-gold/20 disabled:opacity-50"
+                  />
+                )}
+                {uploadingOverride && <p className="text-xs text-v-gold mt-1">Uploading…</p>}
               </div>
               <div>
                 <label className="block text-xs text-v-text-secondary mb-1">Summary (optional)</label>

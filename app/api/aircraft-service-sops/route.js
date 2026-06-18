@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { findOrCreateAircraftByTail, resolveAircraftIdByTail } from '@/lib/resolve-aircraft';
+import { signSopUrls } from '@/lib/sop-signed-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,7 @@ export async function GET(request) {
 
   const { data, error } = await supabase
     .from('aircraft_service_sops')
-    .select('id, aircraft_id, service_id, sop_url, sop_summary, created_at, updated_at')
+    .select('id, aircraft_id, service_id, sop_url, sop_summary, sop_file_path, sop_file_name, created_at, updated_at')
     .eq('detailer_id', detailerId)
     .eq('aircraft_id', aircraftId);
 
@@ -55,7 +56,25 @@ export async function GET(request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ aircraft_id: aircraftId, overrides: data || [] });
+  // Sign any sop_file_path values so the client can render PDFs through
+  // the private bucket without ever holding a public URL. Same expiry
+  // as the services catalog GET.
+  let overrides = data || [];
+  const paths = overrides.map((o) => o.sop_file_path).filter(Boolean);
+  if (paths.length > 0) {
+    try {
+      const signedMap = await signSopUrls(supabase, paths);
+      overrides = overrides.map((o) =>
+        o.sop_file_path && signedMap.has(o.sop_file_path)
+          ? { ...o, sop_signed_url: signedMap.get(o.sop_file_path) }
+          : o,
+      );
+    } catch (e) {
+      console.warn('[aircraft-service-sops GET] sign SOPs failed (non-fatal):', e?.message || e);
+    }
+  }
+
+  return Response.json({ aircraft_id: aircraftId, overrides });
 }
 
 // POST — create or upsert an override.
@@ -68,11 +87,13 @@ export async function POST(request) {
 
   const supabase = getSupabase();
   const body = await request.json().catch(() => ({}));
-  const { service_id, sop_url, sop_summary, aircraft_id: bodyAircraftId, tail_number } = body;
+  const { service_id, sop_url, sop_summary, sop_file_path, sop_file_name, aircraft_id: bodyAircraftId, tail_number } = body;
   const detailerId = user.detailer_id || user.id;
 
-  if (!service_id || !sop_url) {
-    return Response.json({ error: 'service_id and sop_url are required' }, { status: 400 });
+  // One of sop_url or sop_file_path must be provided. Either form is
+  // valid; the read surfaces prefer file when both are set.
+  if (!service_id || (!sop_url && !sop_file_path)) {
+    return Response.json({ error: 'service_id and one of sop_url / sop_file_path are required' }, { status: 400 });
   }
 
   // Verify the service belongs to this detailer before binding an
@@ -116,8 +137,10 @@ export async function POST(request) {
     detailer_id: detailerId,
     aircraft_id: aircraftId,
     service_id,
-    sop_url: String(sop_url).trim(),
+    sop_url: sop_url ? String(sop_url).trim() : null,
     sop_summary: sop_summary ? String(sop_summary) : null,
+    sop_file_path: sop_file_path ? String(sop_file_path) : null,
+    sop_file_name: sop_file_name ? String(sop_file_name) : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -125,7 +148,7 @@ export async function POST(request) {
     ? supabase.from('aircraft_service_sops').update(row).eq('id', existing.id)
     : supabase.from('aircraft_service_sops').insert(row);
   const { data: saved, error } = await q
-    .select('id, aircraft_id, service_id, sop_url, sop_summary, created_at, updated_at')
+    .select('id, aircraft_id, service_id, sop_url, sop_summary, sop_file_path, sop_file_name, created_at, updated_at')
     .single();
 
   if (error) {
@@ -146,20 +169,22 @@ export async function PUT(request) {
 
   const supabase = getSupabase();
   const body = await request.json().catch(() => ({}));
-  const { id, sop_url, sop_summary } = body;
+  const { id, sop_url, sop_summary, sop_file_path, sop_file_name } = body;
   if (!id) return Response.json({ error: 'id required' }, { status: 400 });
 
   const detailerId = user.detailer_id || user.id;
   const updates = { updated_at: new Date().toISOString() };
   if (sop_url !== undefined) updates.sop_url = sop_url ? String(sop_url).trim() : null;
   if (sop_summary !== undefined) updates.sop_summary = sop_summary ? String(sop_summary) : null;
+  if (sop_file_path !== undefined) updates.sop_file_path = sop_file_path ? String(sop_file_path) : null;
+  if (sop_file_name !== undefined) updates.sop_file_name = sop_file_name ? String(sop_file_name) : null;
 
   const { data, error } = await supabase
     .from('aircraft_service_sops')
     .update(updates)
     .eq('id', id)
     .eq('detailer_id', detailerId)
-    .select('id, aircraft_id, service_id, sop_url, sop_summary, created_at, updated_at')
+    .select('id, aircraft_id, service_id, sop_url, sop_summary, sop_file_path, sop_file_name, created_at, updated_at')
     .single();
 
   if (error) {

@@ -619,6 +619,8 @@ export default function ServicesPage() {
           product_notes: editingService.product_notes || '',
           sop_url: editingService.sop_url || null,
           sop_summary: editingService.sop_summary || null,
+          sop_file_path: editingService.sop_file_path || null,
+          sop_file_name: editingService.sop_file_name || null,
           minimum_price: editingService.minimum_price === '' || editingService.minimum_price == null
             ? null
             : parseFloat(editingService.minimum_price),
@@ -1495,7 +1497,7 @@ export default function ServicesPage() {
             <div className="border-t pt-4">
               <p className="text-sm font-medium text-v-text-secondary mb-3">Service SOP <span className="text-xs text-v-text-secondary font-normal">(internal only — default procedure)</span></p>
               <div>
-                <label className="block text-sm font-medium text-v-text-secondary mb-1">SOP URL</label>
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">SOP URL <span className="text-xs text-v-text-secondary font-normal">(or upload a PDF below)</span></label>
                 <input
                   type="url"
                   value={editingService.sop_url || ''}
@@ -1504,6 +1506,66 @@ export default function ServicesPage() {
                   className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded-lg px-3 py-2"
                 />
                 <p className="text-xs text-v-text-secondary mt-1">Link to the procedure document. Shown to crew on job detail + in briefing emails.</p>
+              </div>
+              {/* PDF upload alongside the URL field. Either field is valid;
+                  read surfaces prefer the uploaded file when both are set
+                  (file → signed URL → opens without login from email). */}
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">SOP PDF</label>
+                {editingService.sop_file_path ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 bg-v-charcoal border border-v-border rounded-lg">
+                    <span className="text-sm text-v-text-primary truncate">
+                      📄 {editingService.sop_file_name || 'Uploaded SOP'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingService({ ...editingService, sop_file_path: null, sop_file_name: null })}
+                      className="text-xs text-red-400 hover:text-red-300 shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.type !== 'application/pdf') { alert('Only PDF files accepted.'); return; }
+                      const token = getToken();
+                      const fd = new FormData();
+                      fd.append('file', f);
+                      fd.append('scope', 'service');
+                      fd.append('scope_id', editingService.id);
+                      try {
+                        const res = await fetch('/api/sop-upload', {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${token}` },
+                          body: fd,
+                        });
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}));
+                          alert(err.error || `Upload failed (HTTP ${res.status})`);
+                          return;
+                        }
+                        const out = await res.json();
+                        setEditingService({
+                          ...editingService,
+                          sop_file_path: out.sop_file_path,
+                          sop_file_name: out.sop_file_name,
+                        });
+                      } catch (err) {
+                        alert(`Upload failed: ${err.message || err}`);
+                      } finally {
+                        // Reset input so re-selecting the same file fires onChange again
+                        e.target.value = '';
+                      }
+                    }}
+                    className="block w-full text-sm text-v-text-primary file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-v-gold/10 file:text-v-gold hover:file:bg-v-gold/20"
+                  />
+                )}
+                <p className="text-xs text-v-text-secondary mt-1">Stored in a private bucket. Email links sign for 7-day access; in-app links for 1 hour.</p>
               </div>
               <div className="mt-3">
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">SOP Summary</label>
