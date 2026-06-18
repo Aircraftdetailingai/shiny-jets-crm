@@ -176,7 +176,10 @@ export async function POST(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { action, job_id, quote_id, notes, service_type, override, entry_id, new_clock_out } = await request.json();
+  // Single read of the request body — it can only be consumed once. Every action
+  // pulls what it needs from here (manual_entry/adjust_clock_in previously called
+  // request.json() a second time, which returned {} and broke them).
+  const { action, job_id, quote_id, notes, service_type, override, entry_id, new_clock_out, clock_in, clock_out, date, hours_worked, new_clock_in } = await request.json();
   const supabase = getSupabase();
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
@@ -356,8 +359,8 @@ export async function POST(request) {
   }
 
   if (action === 'adjust_clock_in') {
-    // Adjust the clock_in time on the current open entry
-    const { new_clock_in, entry_id } = await request.json().catch(() => ({}));
+    // Adjust the clock_in time on the current open entry (fields come from the
+    // single top-level request.json()).
     if (!entry_id || !new_clock_in) {
       return Response.json({ error: 'entry_id and new_clock_in required' }, { status: 400 });
     }
@@ -374,28 +377,34 @@ export async function POST(request) {
   }
 
   if (action === 'manual_entry') {
-    // Create a complete time entry (both clock_in and clock_out set)
-    const { clock_in: manualIn, clock_out: manualOut, job_id: manualJobId, quote_id: manualQuoteId, date: manualDate } = await request.json().catch(() => ({}));
-    if (!manualIn || !manualOut) {
-      return Response.json({ error: 'clock_in and clock_out required' }, { status: 400 });
+    // Create a complete (already-closed) time entry. Accepts either explicit
+    // clock_in + clock_out (what the "Add missed entry" UI sends) or a direct
+    // hours_worked + date. All fields come from the single top-level read.
+    const start = clock_in ? new Date(clock_in) : null;
+    const end = clock_out ? new Date(clock_out) : null;
+    let hoursWorked;
+    if (start && end && !isNaN(start) && !isNaN(end)) {
+      hoursWorked = Math.round(((end - start) / (1000 * 60 * 60)) * 100) / 100;
+    } else if (hours_worked != null) {
+      hoursWorked = Math.round((parseFloat(hours_worked) || 0) * 100) / 100;
+    } else {
+      return Response.json({ error: 'clock_in and clock_out (or hours_worked) required' }, { status: 400 });
     }
-    const start = new Date(manualIn);
-    const end = new Date(manualOut);
-    const hoursWorked = Math.round(((end - start) / (1000 * 60 * 60)) * 100) / 100;
     if (hoursWorked <= 0) {
-      return Response.json({ error: 'End time must be after start time' }, { status: 400 });
+      return Response.json({ error: 'Duration must be greater than zero' }, { status: 400 });
     }
 
     const entry = {
       team_member_id: user.id,
       detailer_id: user.detailer_id,
-      date: manualDate || start.toISOString().split('T')[0],
-      clock_in: start.toISOString(),
-      clock_out: end.toISOString(),
+      date: date || (start ? start.toISOString().split('T')[0] : today),
+      clock_in: start ? start.toISOString() : null,
+      clock_out: end ? end.toISOString() : null,
       hours_worked: hoursWorked,
-      job_id: manualJobId || null,
-      quote_id: manualQuoteId || null,
-      notes: 'Manual entry',
+      job_id: job_id || null,
+      quote_id: quote_id || null,
+      service_type: service_type || null,
+      notes: notes || 'Manual entry',
     };
     const { data: inserted, error: insertErr } = await insertEntry(supabase, entry);
     if (insertErr) {
