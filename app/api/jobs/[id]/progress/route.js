@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { supersedePendingAssignments } from '@/lib/supersede-assignments';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -72,7 +73,13 @@ export async function POST(request, { params }) {
     let payload = { ...jobsUpdates };
     for (let attempt = 0; attempt < 3; attempt++) {
       const { error } = await supabase.from('jobs').update(payload).eq('id', id).eq('detailer_id', detailerId);
-      if (!error) return Response.json({ success: true, ...jobsUpdates }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
+      if (!error) {
+        // Job just completed → close out any still-pending assignments.
+        if (jobsUpdates.status === 'complete') {
+          try { await supersedePendingAssignments(supabase, id); } catch (e) { console.error('[jobs/progress] supersede error:', e?.message || e); }
+        }
+        return Response.json({ success: true, ...jobsUpdates }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
+      }
       const colMatch = error.message?.match(/column "([^"]+)".*does not exist/) || error.message?.match(/Could not find the '([^']+)' column/);
       if (colMatch) { delete payload[colMatch[1]]; continue; }
       // CHECK constraint violation surfaces as code 23514. Drop the offending field

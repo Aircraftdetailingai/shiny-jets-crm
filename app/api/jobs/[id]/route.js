@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { supersedePendingAssignments } from '@/lib/supersede-assignments';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -102,6 +103,11 @@ export async function PATCH(request, { params }) {
 
   if (!updated) {
     return Response.json({ error: 'Failed to update job' }, { status: 500 });
+  }
+
+  // Job just completed → close out any still-pending assignments.
+  if (update.status === 'complete' || update.status === 'completed') {
+    try { await supersedePendingAssignments(supabase, jobId); } catch (e) { console.error('[jobs/PATCH] supersede error:', e?.message || e); }
   }
 
   return Response.json({ success: true, job: updated }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });

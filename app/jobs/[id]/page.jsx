@@ -1353,13 +1353,14 @@ export default function JobDetailPage() {
               {assignments.map(a => {
                 const member = teamMembers.find(m => m.id === a.team_member_id);
                 if (!member) return null;
+                const isSuperseded = a.status === 'superseded';
                 const statusBadge = a.status === 'accepted'
                   ? { color: 'text-green-400 bg-green-500/10 border-green-500/30', icon: '✓', label: 'Accepted' }
                   : a.status === 'declined'
                   ? { color: 'text-red-400 bg-red-500/10 border-red-500/30', icon: '✕', label: 'Declined' }
                   : { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: '◷', label: 'Pending' };
                 return (
-                  <div key={a.id} className="flex items-center justify-between p-3 bg-v-charcoal border border-v-border rounded">
+                  <div key={a.id} className={`flex items-center justify-between p-3 bg-v-charcoal border border-v-border rounded ${isSuperseded ? 'opacity-40' : ''}`}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-v-gold/20 text-v-gold flex items-center justify-center text-xs font-semibold shrink-0">
                         {(member.name || '?').charAt(0)}
@@ -1370,10 +1371,14 @@ export default function JobDetailPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge.color}`}>
-                        <span>{statusBadge.icon}</span>
-                        {statusBadge.label}
-                      </span>
+                      {isSuperseded ? (
+                        <span className="text-white/40 text-[10px] italic text-right max-w-[180px]">Did not work this job (auto-closed when job completed)</span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge.color}`}>
+                          <span>{statusBadge.icon}</span>
+                          {statusBadge.label}
+                        </span>
+                      )}
                       <button
                         onClick={() => handleUnassignCrew(a.team_member_id)}
                         className="text-v-text-secondary/60 hover:text-red-400 text-lg leading-none px-1"

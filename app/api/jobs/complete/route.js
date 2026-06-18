@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
+import { supersedePendingAssignments } from '@/lib/supersede-assignments';
 import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -226,6 +227,8 @@ export async function POST(request) {
           completion_notes: notes,
           updated_at: completedAt,
         }).eq('id', existingJob.id);
+        // Close out any still-pending assignments on the completed job.
+        try { await supersedePendingAssignments(supabase, existingJob.id); } catch (e) { console.error('[jobs/complete] supersede error:', e?.message || e); }
       } else {
         await supabase.from('jobs').insert({
           quote_id,
