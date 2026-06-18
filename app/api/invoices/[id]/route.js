@@ -55,7 +55,7 @@ export async function PATCH(request, { params }) {
     // decisions (e.g. revert 'viewed' → 'sent' when the invoice is edited).
     const { data: existing, error: fetchError } = await supabase
       .from('invoices')
-      .select('id, status')
+      .select('id, status, line_items, addon_total, discount_amount, amount_paid')
       .eq('id', id)
       .eq('detailer_id', user.detailer_id || user.id)
       .single();
@@ -80,6 +80,26 @@ export async function PATCH(request, { params }) {
       if (body[key] !== undefined) {
         updates[key] = body[key];
       }
+    }
+
+    // Authoritative money math: whenever any input changes, recompute the three
+    // derived fields server-side so client-sent (or omitted) values can't drift.
+    // The edit UI sends subtotal/total but never balance_due, so balance_due was
+    // going stale (e.g. an edit that applied a discount left balance_due pinned).
+    const touchesMoney = ['line_items', 'addon_total', 'discount_amount', 'amount_paid']
+      .some((k) => updates[k] !== undefined);
+    if (touchesMoney) {
+      const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+      const pick = (k) => (updates[k] !== undefined ? updates[k] : existing[k]);
+      const liArr = Array.isArray(pick('line_items')) ? pick('line_items') : [];
+      const subtotal = r2(liArr.reduce((s, li) => s + (parseFloat(li?.price) || 0), 0));
+      const addonTotal = r2(parseFloat(pick('addon_total')) || 0);
+      const discountAmt = r2(parseFloat(pick('discount_amount')) || 0);
+      const amountPaid = r2(parseFloat(pick('amount_paid')) || 0);
+      const total = Math.max(0, r2(subtotal + addonTotal - discountAmt));
+      updates.subtotal = subtotal;
+      updates.total = total;
+      updates.balance_due = r2(total - amountPaid);
     }
 
     if (Object.keys(updates).length === 0) {

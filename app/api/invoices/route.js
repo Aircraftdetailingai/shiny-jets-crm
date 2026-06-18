@@ -86,6 +86,8 @@ export async function POST(request) {
       tail_number,
       line_items,
       total,
+      addon_total,
+      discount_amount,
       net_terms,
       notes,
       issued_date: body_issued_date,
@@ -184,6 +186,18 @@ export async function POST(request) {
       ? new Date(body_due_date).toISOString()
       : new Date(Date.now() + (net_terms || 30) * 24 * 60 * 60 * 1000).toISOString();
 
+    // Authoritative money math — never trust a client-sent total. subtotal was
+    // previously never written (defaulted to 0); balance_due was pinned to the
+    // raw client total. Compute all three from line_items + addon_total -
+    // discount_amount, and balance_due = total - amount_paid (0 at create).
+    const liArr = Array.isArray(line_items) ? line_items : [];
+    const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+    const subtotalCalc = r2(liArr.reduce((s, li) => s + (parseFloat(li?.price) || 0), 0));
+    const addonTotalCalc = r2(parseFloat(addon_total) || 0);
+    const discountAmtCalc = r2(parseFloat(discount_amount) || 0);
+    const totalCalc = Math.max(0, r2(subtotalCalc + addonTotalCalc - discountAmtCalc));
+    const balanceDueCalc = r2(totalCalc - 0);
+
     const invoiceRow = {
       detailer_id: user.detailer_id || user.id,
       job_id: job_id || null,
@@ -191,10 +205,13 @@ export async function POST(request) {
       customer_email,
       aircraft_model: aircraft_model || '',
       tail_number: tail_number || '',
-      line_items: Array.isArray(line_items) ? line_items : [],
-      total: parseFloat(total) || 0,
+      line_items: liArr,
+      subtotal: subtotalCalc,
+      addon_total: addonTotalCalc,
+      discount_amount: discountAmtCalc,
+      total: totalCalc,
       amount_paid: 0,
-      balance_due: parseFloat(total) || 0,
+      balance_due: balanceDueCalc,
       net_terms: net_terms || 30,
       notes: notes || '',
       status: 'draft',
