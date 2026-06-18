@@ -506,6 +506,11 @@ export async function GET(request, { params }) {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="${filename}"`,
+      // No caching: the PDF is regenerated from live quote data on every edit,
+      // so a cached copy (browser or edge) serves a stale quote in the Send
+      // modal iframe after a change ships.
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
     },
   });
 }
