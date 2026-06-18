@@ -1044,6 +1044,10 @@ function NewQuoteContent() {
       linked_equipment: quoteData.linkedEquipment || [],
       client_name: preselectedCustomer?.name || '',
       client_email: preselectedCustomer?.email || '',
+      client_phone: preselectedCustomer?.phone || null,
+      // customer_account_id is the canonical link the builder reads on load.
+      // (customer_id / customer_phone kept for the POST-create path.)
+      customer_account_id: preselectedCustomer?.id || null,
       customer_id: preselectedCustomer?.id || null,
       customer_phone: preselectedCustomer?.phone || null,
       discount_type: showDiscount && userDiscountAmt > 0 ? userDiscountType : null,
@@ -1138,6 +1142,15 @@ function NewQuoteContent() {
     return () => clearInterval(interval);
   }, [selectedAircraft, selectedServices, quoteData, draftId]);
 
+  // Persist the customer link (+ denormalized name/email/phone) shortly after the
+  // attached customer changes — quoteData doesn't depend on the customer, so the
+  // other autosaves wouldn't fire on a customer-only change.
+  useEffect(() => {
+    if (!hydrated || !preselectedCustomer || !selectedAircraft) return;
+    const t = setTimeout(() => saveDraft(true), 800);
+    return () => clearTimeout(t);
+  }, [preselectedCustomer?.id, preselectedCustomer?.name, preselectedCustomer?.email, preselectedCustomer?.phone, hydrated]);
+
   // Hydrate a saved draft from the API before any save can fire. The
   // localStorage prefill only carries service IDs — it drops per-service hour
   // overrides and custom add-on amounts, so the builder used to re-derive
@@ -1184,6 +1197,25 @@ function NewQuoteContent() {
         if (q.notes) setQuoteNotes(q.notes);
         if (q.tail_number) setTailNumber(q.tail_number);
         if (q.proposed_date) setProposedDate(q.proposed_date);
+
+        // Customer: prefer the linked account; fall back to the quote's
+        // denormalized fields so the panel never blanks to "choose customer".
+        const denorm = (q.client_name || q.client_email)
+          ? { id: q.customer_account_id || null, name: q.client_name || '', email: q.client_email || '', phone: q.client_phone || '' }
+          : null;
+        if (q.customer_account_id) {
+          try {
+            const cRes = await fetch(`/api/customers/${q.customer_account_id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const cData = cRes.ok ? await cRes.json() : null;
+            const c = cData?.customer || cData;
+            const matches = c?.id && (c.email === q.client_email || c.name === q.client_name || (!q.client_email && !q.client_name));
+            if (!cancelled) setPreselectedCustomer(matches ? c : (denorm || c || null));
+          } catch {
+            if (!cancelled && denorm) setPreselectedCustomer(denorm);
+          }
+        } else if (denorm && !cancelled) {
+          setPreselectedCustomer(denorm);
+        }
 
         if (!cancelled) setHydrated(true);
       } catch (e) {
@@ -1480,8 +1512,32 @@ function NewQuoteContent() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newCustomer.name || !newCustomer.email) return;
+                    // Insert (or dedupe to) a real customers row so the quote can
+                    // link to it via customer_account_id, not just denormalized text.
+                    try {
+                      const token = localStorage.getItem('vector_token');
+                      const res = await fetch('/api/customers', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                          name: newCustomer.name, email: newCustomer.email,
+                          phone: newCustomer.phone, company_name: newCustomer.company_name,
+                        }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      const c = data.customer || data;
+                      if (res.ok && c?.id) {
+                        setPreselectedCustomer(c); // has id → autosave persists customer_account_id
+                        return;
+                      }
+                      toastError?.(data.error || 'Could not save customer — attached without link');
+                    } catch (e) {
+                      console.error('[quote/new-customer]', e);
+                    }
+                    // Fallback: attach typed values so the user isn't blocked; the
+                    // link can be set later by re-picking from search.
                     setPreselectedCustomer({
                       name: newCustomer.name,
                       email: newCustomer.email,
