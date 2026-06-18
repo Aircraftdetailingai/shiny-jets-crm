@@ -212,7 +212,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       throw new Error(errData?.error || 'Failed to create');
     }
     const data = await res.json();
-    return { id: data.id, share_link: data.share_link };
+    return { id: data.id, share_link: data.share_link, updated_at: data.updated_at || Date.now() };
   };
 
   // ─── Step 1 → Step 2: Save & Review ───
@@ -359,7 +359,13 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
   };
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
-  const pdfUrl = createdQuote ? `/api/quotes/${createdQuote.id}/pdf?shareToken=${createdQuote.share_link}` : null;
+  // Cache-bust the edge: no-store on the response can't invalidate an
+  // already-cached entry, only a changed URL can. `t` shifts whenever the quote
+  // changes (updated_at) and on each modal open, so the preview/download never
+  // serve a stale pre-edit PDF.
+  const pdfUrl = createdQuote
+    ? `/api/quotes/${createdQuote.id}/pdf?shareToken=${createdQuote.share_link}&t=${encodeURIComponent(createdQuote.updated_at || Date.now())}`
+    : null;
   const quoteLink = createdQuote ? `${appUrl}/q/${createdQuote.share_link}` : '';
 
   // ─── STEP 2: Email Compose + Quote Preview ───
