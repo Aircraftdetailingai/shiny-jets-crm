@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import SendQuoteModal from '../../../components/SendQuoteModal.jsx';
 import CustomerAutocomplete from '../../../components/CustomerAutocomplete.jsx';
@@ -62,6 +62,12 @@ function NewQuoteContent() {
   const [accessDifficulty, setAccessDifficulty] = useState(1.0);
   const [quoteNotes, setQuoteNotes] = useState('');
   const [draftId, setDraftId] = useState(null);
+  // Synchronous mirror of draftId + a create-in-flight flag. draftId is async
+  // state, so concurrent autosaves could each read it as null and POST a second
+  // draft before setDraftId committed. The ref is set the instant a draft id is
+  // known, closing that window.
+  const draftIdRef = useRef(null);
+  const creatingDraftRef = useRef(false);
   const [draftSaving, setDraftSaving] = useState(false);
   const [autoSaveLabel, setAutoSaveLabel] = useState('');
   const [showDiscount, setShowDiscount] = useState(false);
@@ -374,7 +380,7 @@ function NewQuoteContent() {
           }
           if (prefill.airport) setAirport(prefill.airport);
           if (prefill.tail) setTailNumber(prefill.tail);
-          if (prefill.draftId) { setDraftId(prefill.draftId); willLoadDraft = true; }
+          if (prefill.draftId) { setDraftId(prefill.draftId); draftIdRef.current = prefill.draftId; willLoadDraft = true; }
           if (prefill.notes) setQuoteNotes(prefill.notes);
 
           // Restore selected services — store for deferred matching after services load
@@ -1063,19 +1069,26 @@ function NewQuoteContent() {
     // Never save a draft we haven't finished loading — would overwrite the
     // saved quote with re-derived catalog defaults.
     if (!hydrated) return;
+    // One create at a time: if a brand-new draft POST is already in flight and we
+    // don't have an id yet, skip — stops concurrent autosaves (service toggle,
+    // 60s interval, customer effect) from each POSTing a duplicate draft.
+    const existingId = draftId || draftIdRef.current;
+    if (!existingId && creatingDraftRef.current) return;
     const payload = buildQuotePayload();
     if (!payload) return;
     if (!silent) setDraftSaving(true);
     try {
       const token = localStorage.getItem('vector_token');
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-      if (draftId) {
-        await fetch(`/api/quotes/${draftId}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      if (existingId) {
+        await fetch(`/api/quotes/${existingId}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
       } else {
+        creatingDraftRef.current = true;
         const res = await fetch('/api/quotes', { method: 'POST', headers, body: JSON.stringify(payload) });
         if (res.ok) {
           const data = await res.json();
-          if (data.id) setDraftId(data.id);
+          // Set the ref synchronously so a save firing before the state commit PUTs.
+          if (data.id) { draftIdRef.current = data.id; setDraftId(data.id); }
           // Lead status transitions are owned server-side now:
           //  - convert_to_quote action sets lead.status='reviewed' (draft created)
           //  - quotes/[id]/send sets lead.status='quoted' (actually emailed)
@@ -1117,6 +1130,7 @@ function NewQuoteContent() {
       if (!silent) toastError?.('Failed to save draft');
       console.error('[saveDraft]', err);
     } finally {
+      creatingDraftRef.current = false;
       if (!silent) setDraftSaving(false);
     }
   };
