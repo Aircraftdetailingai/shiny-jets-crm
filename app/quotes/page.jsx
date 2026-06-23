@@ -507,6 +507,37 @@ export default function QuotesPage() {
     return `${names[0]}, ${names[1]} +${names.length - 2}`;
   };
 
+  // Open a quote in the builder, prefilled for editing.
+  const openInBuilder = (q) => {
+    localStorage.setItem('quote_prefill', JSON.stringify({
+      draftId: q.id,
+      name: q.client_name || '',
+      email: q.client_email || '',
+      phone: q.customer_phone || q.client_phone || '',
+      aircraft: q.aircraft_model || '',
+      tail: q.tail_number || '',
+      airport: q.airport || q.job_location || '',
+      service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
+      notes: q.notes || '',
+      selected_services: Array.isArray(q.selected_services) ? q.selected_services : [],
+      line_items: q.line_items || [],
+      discount_type: q.discount_type || null,
+      discount_value: q.discount_value || null,
+      discount_reason: q.discount_reason || null,
+      timestamp: Date.now(),
+    }));
+    router.push('/quotes/new');
+  };
+
+  // Row click. A quote that was never emailed to a customer (no sent_at) opens
+  // in the builder so the owner can keep editing it. Only quotes that actually
+  // went out open the public share page — never route the owner onto the
+  // customer accept/pay page for their own un-sent draft.
+  const openQuote = (q) => {
+    if (!q.sent_at) { openInBuilder(q); return; }
+    if (q.share_link) window.open(`/q/${q.share_link}`, '_blank');
+  };
+
   const stats = {
     total: quotes.length,
     drafts: quotes.filter(q => getStatus(q) === 'draft').length,
@@ -601,7 +632,7 @@ export default function QuotesPage() {
           ) : filteredQuotes.map((q) => {
             const status = getStatus(q);
             return (
-              <div key={q.id} onClick={() => { if (q.share_link) window.open(`/q/${q.share_link}`, '_blank'); }}
+              <div key={q.id} onClick={() => openQuote(q)}
                 className="bg-white/[0.02] border border-[#1A2236] p-4 cursor-pointer active:bg-white/[0.04]">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-white text-sm font-medium truncate mr-2">{getDisplayName(q)}</span>
@@ -641,31 +672,7 @@ export default function QuotesPage() {
               const status = getStatus(q);
               const isSelected = selectedIds.has(q.id);
               return (
-                <div key={q.id} onClick={() => {
-                    if (status === 'draft') {
-                      // Open draft in quote builder with prefilled data
-                      localStorage.setItem('quote_prefill', JSON.stringify({
-                        draftId: q.id,
-                        name: q.client_name || '',
-                        email: q.client_email || '',
-                        phone: q.customer_phone || q.client_phone || '',
-                        aircraft: q.aircraft_model || '',
-                        tail: q.tail_number || '',
-                        airport: q.airport || q.job_location || '',
-                        service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
-                        notes: q.notes || '',
-                        selected_services: Array.isArray(q.selected_services) ? q.selected_services : [],
-                        line_items: q.line_items || [],
-                        discount_type: q.discount_type || null,
-                        discount_value: q.discount_value || null,
-                        discount_reason: q.discount_reason || null,
-                        timestamp: Date.now(),
-                      }));
-                      router.push('/quotes/new');
-                    } else if (q.share_link) {
-                      window.open(`/q/${q.share_link}`, '_blank');
-                    }
-                  }}
+                <div key={q.id} onClick={() => openQuote(q)}
                   className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
@@ -696,18 +703,7 @@ export default function QuotesPage() {
                       Fees
                     </button>
                     {status === 'draft' && (
-                      <button onClick={() => {
-                        localStorage.setItem('quote_prefill', JSON.stringify({
-                          draftId: q.id, name: q.client_name || '', email: q.client_email || '', phone: q.customer_phone || q.client_phone || '',
-                          aircraft: q.aircraft_model || '', tail: q.tail_number || '', airport: q.airport || q.job_location || '',
-                          service: (q.line_items || []).map(i => i.description).filter(Boolean).join(', '),
-                          notes: q.notes || '', timestamp: Date.now(),
-                          selected_services: Array.isArray(q.selected_services) ? q.selected_services : [],
-                          line_items: q.line_items || [],
-                          discount_type: q.discount_type || null, discount_value: q.discount_value || null, discount_reason: q.discount_reason || null,
-                        }));
-                        router.push('/quotes/new');
-                      }}
+                      <button onClick={() => openInBuilder(q)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">
                         Continue
                       </button>
