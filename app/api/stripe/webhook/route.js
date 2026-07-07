@@ -235,9 +235,23 @@ export async function POST(request) {
           .eq('id', quoteId)
           .single();
 
+        // Idempotency (mirrors the invoice helper): if the quote already
+        // reflects the payment we're about to apply, skip — a duplicate/re-fired
+        // event must not re-run the update, auto-invoice, or notifications.
+        if (quote) {
+          if (isDeposit && quote.status === 'deposit_paid') {
+            console.log(`[stripe webhook checkout.session.completed] Quote ${quoteId} already deposit_paid — idempotent skip`);
+            break;
+          }
+          if (!isDeposit && (quote.status === 'paid' || quote.status === 'approved')) {
+            console.log(`[stripe webhook checkout.session.completed] Quote ${quoteId} already paid — idempotent skip`);
+            break;
+          }
+        }
+
         if (isDeposit && quote) {
           const depositAmount = Math.round((quote.total_price || 0) * depositPct) / 100;
-          await supabase
+          const { error: depUpdErr } = await supabase
             .from('quotes')
             .update({
               status: 'deposit_paid',
@@ -248,13 +262,14 @@ export async function POST(request) {
               balance_due: (quote.total_price || 0) - depositAmount,
             })
             .eq('id', quoteId);
+          if (depUpdErr) console.error(`[stripe webhook checkout.session.completed] deposit quote update failed for ${quoteId}:`, depUpdErr.message);
 
           // Auto-create partially_paid invoice for deposit
           try {
             const { nanoid } = await import('nanoid');
             const invoiceNumber = `INV-${new Date().getFullYear().toString().slice(-2)}${String(new Date().getMonth() + 1).padStart(2, '0')}-${nanoid(4).toUpperCase()}`;
             const detailer = quote.detailers;
-            await supabase.from('invoices').insert({
+            const { error: invErr } = await supabase.from('invoices').insert({
               detailer_id: quote.detailer_id,
               quote_id: quote.id,
               invoice_number: invoiceNumber,
@@ -265,6 +280,7 @@ export async function POST(request) {
               detailer_email: detailer?.email || '',
               detailer_company: detailer?.company || '',
               aircraft: quote.aircraft_model || quote.aircraft_type || '',
+              aircraft_model: quote.aircraft_model || quote.aircraft_type || '',
               total: quote.total_price || 0,
               subtotal: quote.total_price || 0,
               amount_paid: depositAmount,
@@ -273,10 +289,11 @@ export async function POST(request) {
               booking_mode: 'deposit',
               due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             });
+            if (invErr) console.error(`[stripe webhook checkout.session.completed] deposit auto-invoice insert failed for quote ${quote.id}:`, invErr.message);
           } catch (e) { console.error('Auto-invoice for deposit failed:', e); }
         } else {
           // Full payment — update quote as paid
-          await supabase
+          const { error: fullUpdErr } = await supabase
             .from('quotes')
             .update({
               status: 'paid',
@@ -287,6 +304,7 @@ export async function POST(request) {
               balance_due: 0,
             })
             .eq('id', quoteId);
+          if (fullUpdErr) console.error(`[stripe webhook checkout.session.completed] full quote update failed for ${quoteId}:`, fullUpdErr.message);
         }
 
         if (quote) {

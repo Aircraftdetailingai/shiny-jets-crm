@@ -57,35 +57,46 @@ export async function GET(request, { params }) {
     .eq('id', quote.detailer_id)
     .single();
 
-  // Track view (only if not already paid)
-  if (quote.status !== 'paid' && quote.status !== 'approved') {
+  // Track the view on EVERY load, regardless of status. Only the status
+  // transition is gated: a quote may flip to 'viewed' ONLY from 'sent' or
+  // 'viewed'. Any other status (draft, accepted, scheduled, deposit_paid,
+  // paid, approved, expired, …) keeps its status while still recording the view.
+  {
     const now = new Date().toISOString();
     const isFirstView = !quote.viewed_at;
     const viewCount = (quote.view_count || 0) + 1;
     const viewerIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
     const viewerDevice = request.headers.get('user-agent') || null;
 
-    // Update quote with view tracking
+    // View-tracking fields update on every load.
     const updateData = {
-      status: 'viewed',
       last_viewed_at: now,
       view_count: viewCount,
       viewer_ip: viewerIp,
       viewer_device: viewerDevice,
     };
 
-    // Only set viewed_at on first view
+    // Only set viewed_at on first view.
     if (isFirstView) {
       updateData.viewed_at = now;
     }
 
-    await supabase
+    // Status only advances to 'viewed' from 'sent'/'viewed'.
+    if (quote.status === 'sent' || quote.status === 'viewed') {
+      updateData.status = 'viewed';
+    }
+
+    const { error: viewErr } = await supabase
       .from('quotes')
       .update(updateData)
       .eq('id', quote.id);
+    if (viewErr) {
+      console.error(`[quote-view] view-tracking update failed for ${quote.id}:`, viewErr.message);
+    }
 
-    // Send notifications on first view only, if detailer opted in
-    if (isFirstView && detailer?.notify_quote_viewed) {
+    // Send notifications on first view only, if detailer opted in — unchanged:
+    // still only fires for not-yet-paid quotes.
+    if (isFirstView && detailer?.notify_quote_viewed && quote.status !== 'paid' && quote.status !== 'approved') {
       // Send push notification
       if (detailer?.fcm_token) {
         notifyQuoteViewed({ fcmToken: detailer.fcm_token, quote }).catch(console.error);

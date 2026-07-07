@@ -30,6 +30,11 @@ export default function QuoteViewPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [invoiceRequesting, setInvoiceRequesting] = useState(false);
   const [invoiceAccepted, setInvoiceAccepted] = useState(false);
+  const [requestError, setRequestError] = useState('');
+  const [tipsError, setTipsError] = useState('');
+  const [paymentReturn, setPaymentReturn] = useState(null); // 'success' | 'cancelled' | null
+  const [confirmTimedOut, setConfirmTimedOut] = useState(false);
+  const [cancelDismissed, setCancelDismissed] = useState(false);
 
   // Scheduling state
   const [availableDates, setAvailableDates] = useState([]);
@@ -65,6 +70,47 @@ export default function QuoteViewPage() {
     };
     if (params.shareLink) fetchQuote();
   }, [params.shareLink]);
+
+  // Detect the Stripe return (?payment=success|cancelled). Read from the URL
+  // directly to avoid a useSearchParams Suspense boundary on this page.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('payment');
+      if (p === 'success' || p === 'cancelled') setPaymentReturn(p);
+    } catch (e) {
+      console.error('[quote-view] failed to read payment param:', e);
+    }
+  }, []);
+
+  // After a successful Stripe return, poll until the webhook flips the quote to
+  // paid/deposit_paid (max ~10 tries @ 3s). Pay buttons stay hidden meanwhile.
+  useEffect(() => {
+    if (paymentReturn !== 'success' || !quote?.id) return;
+    const alreadyPaid = quote.status === 'paid' || quote.status === 'approved' || quote.status === 'deposit_paid';
+    if (alreadyPaid) return;
+    let tries = 0;
+    let cancelled = false;
+    const iv = setInterval(async () => {
+      tries += 1;
+      try {
+        const res = await fetch(`/api/quotes/view/${params.shareLink}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && data.quote) {
+            setQuote(data.quote);
+            const nowPaid = data.quote.status === 'paid' || data.quote.status === 'approved' || data.quote.status === 'deposit_paid';
+            if (nowPaid) { clearInterval(iv); return; }
+          }
+        } else {
+          console.error('[quote-view] payment confirm poll failed:', res.status);
+        }
+      } catch (e) {
+        console.error('[quote-view] payment confirm poll error:', e);
+      }
+      if (tries >= 10) { clearInterval(iv); if (!cancelled) setConfirmTimedOut(true); }
+    }, 3000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [paymentReturn, quote?.id, params.shareLink]);
 
   // Inject detailer theme as CSS variables
   useEffect(() => {
@@ -102,6 +148,10 @@ export default function QuoteViewPage() {
   const isExpired = quote && new Date() > new Date(quote.valid_until);
   const isPaid = quote && (quote.status === 'paid' || quote.status === 'approved' || quote.status === 'accepted' || quote.status === 'scheduled' || quote.status === 'deposit_paid');
   const isDepositPaid = quote?.status === 'deposit_paid';
+  // Money actually collected (distinct from the broader isPaid which includes
+  // accepted/scheduled). Drives the post-Stripe "confirming" state.
+  const isMoneyPaid = quote && (quote.status === 'paid' || quote.status === 'approved' || quote.status === 'deposit_paid');
+  const paymentConfirming = paymentReturn === 'success' && quote && !isMoneyPaid;
   // Prefer the booking terms locked on the quote at create time, fall back to
   // the detailer's current default, fall back to a hardcoded sane default.
   // Once F7a starts persisting these on insert, the quote's stored value is
@@ -239,15 +289,19 @@ export default function QuoteViewPage() {
 
   const handleRequestNewQuote = async () => {
     setPaymentLoading(true);
+    setRequestError('');
     try {
       const res = await fetch('/api/quotes/request-new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ originalQuoteId: quote.id, shareLink: params.shareLink }),
       });
+      const data = await res.json().catch(() => ({}));
+      // A 200 (including already_requested) means the detailer has it.
       if (res.ok) setRequestSent(true);
+      else setRequestError(data.error || 'Could not send your request. Please try again.');
     } catch (err) {
-      setError('Failed to request new quote');
+      setRequestError('Network error — could not send your request. Please try again.');
     } finally {
       setPaymentLoading(false);
     }
@@ -255,6 +309,7 @@ export default function QuoteViewPage() {
 
   const handleSendTips = async () => {
     setPaymentLoading(true);
+    setTipsError('');
     try {
       const res = await fetch('/api/quotes/send-tips', {
         method: 'POST',
@@ -262,8 +317,9 @@ export default function QuoteViewPage() {
         body: JSON.stringify({ quoteId: quote.id, shareLink: params.shareLink }),
       });
       if (res.ok) setTipsSent(true);
+      else setTipsError("Couldn't send tips — try again");
     } catch (err) {
-      // Silently fail
+      setTipsError("Couldn't send tips — try again");
     } finally {
       setPaymentLoading(false);
     }
@@ -355,6 +411,7 @@ export default function QuoteViewPage() {
               >
                 {paymentLoading ? 'Requesting...' : 'Request New Quote'}
               </button>
+              {requestError && <p className="text-red-400 text-xs text-center mt-3">{requestError}</p>}
             </>
           ) : (
             <div className="border border-[var(--brand-border-strong,#2A3A50)] p-6 text-center">
@@ -797,6 +854,7 @@ export default function QuoteViewPage() {
               <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase">Tips sent to your email</p>
             </div>
           )}
+          {tipsError && <p className="text-red-400 text-xs text-center mt-2">{tipsError}</p>}
 
           {/* Contact */}
           {detailer && (
@@ -834,6 +892,12 @@ export default function QuoteViewPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--brand-bg,#0A0E17)] p-4" style={brandFontBody ? { fontFamily: brandFontBody } : undefined}>
       <div className="bg-[var(--brand-surface,#111827)] w-full max-w-[640px] rounded-[4px] px-8 py-10 sm:px-10">
+        {paymentReturn === 'cancelled' && !cancelDismissed && (
+          <div className="flex items-start justify-between gap-3 border border-amber-500/30 bg-amber-500/5 p-3 mb-6 rounded">
+            <p className="text-amber-400 text-xs">Payment canceled — you can try again whenever you&rsquo;re ready.</p>
+            <button onClick={() => setCancelDismissed(true)} className="text-amber-400/70 hover:text-amber-400 text-sm leading-none flex-shrink-0" aria-label="Dismiss">&times;</button>
+          </div>
+        )}
         {/* Header */}
         <div className="text-center mb-10">
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Quote</p>
@@ -1035,7 +1099,7 @@ export default function QuoteViewPage() {
         )}
 
         {/* Terms checkbox */}
-        {stripeConnected && !isPaid && !isExpired && (
+        {stripeConnected && !isPaid && !isExpired && !paymentConfirming && (
           <label htmlFor="agreeCustomerTerms" className="flex items-start gap-3 mb-6 cursor-pointer group">
             <div className="relative mt-0.5 flex-shrink-0">
               <input
@@ -1071,7 +1135,21 @@ export default function QuoteViewPage() {
         )}
 
         {/* CTA Buttons */}
-        {invoiceAccepted ? (
+        {paymentConfirming ? (
+          <div className="border border-[var(--brand-border-strong,#2A3A50)] p-6 text-center">
+            {!confirmTimedOut ? (
+              <>
+                <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase mb-1">Payment received &mdash; confirming&hellip;</p>
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">Hang tight, this only takes a moment.</p>
+              </>
+            ) : (
+              <>
+                <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase mb-1">Payment is processing</p>
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">You&rsquo;ll receive confirmation shortly. You will not be charged twice.</p>
+              </>
+            )}
+          </div>
+        ) : invoiceAccepted ? (
           <div className="border border-[var(--brand-border-strong,#2A3A50)] p-6 text-center">
             <p className="text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase mb-1">{bookingMode === 'book_later' ? 'Booking Confirmed' : 'Invoice Requested'}</p>
             <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">
@@ -1169,7 +1247,7 @@ export default function QuoteViewPage() {
         )}
 
         {/* Payment disclaimer */}
-        {stripeConnected && !isPaid && !isExpired && (
+        {stripeConnected && !isPaid && !isExpired && !paymentConfirming && (
           <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[9px] leading-relaxed mt-4 text-center">
             Payments are processed securely by Stripe. All payment disputes and refund requests
             should be directed to {detailer?.company || 'your service provider'}.

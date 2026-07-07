@@ -51,6 +51,8 @@ export default function QuotesPage() {
   const [submittingChangeOrder, setSubmittingChangeOrder] = useState(false);
   const [servicesMap, setServicesMap] = useState({});
   const [userPlan, setUserPlan] = useState('free');
+  const [defaultValidityDays, setDefaultValidityDays] = useState(30);
+  const [savingValidity, setSavingValidity] = useState(false);
   const [duplicateModal, setDuplicateModal] = useState(null);
   const [duplicateData, setDuplicateData] = useState({
     client_name: '',
@@ -145,9 +147,50 @@ export default function QuotesPage() {
       }
     };
 
+    const fetchUserDefaults = async () => {
+      try {
+        const res = await fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          const d = data.user?.default_quote_validity_days;
+          if (d != null) setDefaultValidityDays(d);
+        }
+      } catch (err) {
+        console.error('Failed to fetch quote validity default:', err);
+      }
+    };
+
     fetchQuotes();
     fetchServices();
+    fetchUserDefaults();
   }, [router]);
+
+  const saveDefaultValidity = async (days) => {
+    const prev = defaultValidityDays;
+    setDefaultValidityDays(days); // optimistic
+    setSavingValidity(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/user/quote-validity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ days }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDefaultValidityDays(prev); // revert
+        alert(data.error || 'Failed to update quote validity');
+        return;
+      }
+      flashSaved('Default validity updated');
+    } catch (err) {
+      console.error('Failed to save quote validity default:', err);
+      setDefaultValidityDays(prev);
+      alert('Network error updating quote validity');
+    } finally {
+      setSavingValidity(false);
+    }
+  };
 
   const getProductCost = (quote) => {
     const items = quote.line_items || [];
@@ -171,7 +214,10 @@ export default function QuotesPage() {
   const getStatus = (quote) => {
     if (quote.status === 'completed') return 'completed';
     if (quote.status === 'paid' || quote.status === 'approved') return 'paid';
-    if (quote.valid_until && new Date() > new Date(quote.valid_until)) return 'expired';
+    // Expiry is send-anchored: only a quote that was actually sent can read as
+    // expired. Unsent drafts carry a provisional valid_until that must not
+    // surface as "expired" on the dashboard.
+    if (quote.sent_at && quote.valid_until && new Date() > new Date(quote.valid_until)) return 'expired';
     return quote.status || 'draft';
   };
 
@@ -561,6 +607,20 @@ export default function QuotesPage() {
           <div className="px-6 pt-5 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h1 className="text-[1.75rem] font-light tracking-[0.2em] uppercase text-white" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>Quotes</h1>
             <div className="flex items-center gap-3 flex-wrap">
+              <label className="flex items-center gap-1.5 text-v-text-secondary text-xs uppercase tracking-widest">
+                Quotes valid for
+                <select
+                  value={defaultValidityDays}
+                  onChange={(e) => saveDefaultValidity(parseInt(e.target.value, 10))}
+                  disabled={savingValidity}
+                  className="bg-transparent border border-[#1A2236] text-white text-xs px-2 py-1 focus:outline-none focus:border-v-gold/40 disabled:opacity-50"
+                >
+                  {Array.from({ length: 90 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d} className="bg-v-charcoal">{d}</option>
+                  ))}
+                </select>
+                days
+              </label>
               <ExportGate plan={userPlan}>
                 <button
                   onClick={() => {
@@ -652,7 +712,7 @@ export default function QuotesPage() {
 
         {/* Desktop Table */}
         <div className="hidden sm:block overflow-x-auto">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_180px] min-w-[980px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
             <div className="flex items-center justify-center">
               <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer" onClick={(e) => e.stopPropagation()} />
             </div>
@@ -673,7 +733,7 @@ export default function QuotesPage() {
               const isSelected = selectedIds.has(q.id);
               return (
                 <div key={q.id} onClick={() => openQuote(q)}
-                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_80px] min-w-[880px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
+                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_180px] min-w-[980px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
@@ -698,7 +758,7 @@ export default function QuotesPage() {
                   <div className="text-right">
                     <span className="text-v-text-secondary text-xs">{formatDate(q.created_at)}</span>
                   </div>
-                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end gap-1 flex-shrink-0 [&>button]:flex-shrink-0 [&>button]:whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => openFeesModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">
                       Fees
                     </button>

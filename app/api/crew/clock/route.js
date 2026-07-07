@@ -184,7 +184,7 @@ export async function POST(request) {
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
 
-  // Find current open entry (if any)
+  // Find current open entry (if any) — TODAY only. Used by switch/clock_out.
   async function findOpenEntry() {
     const { data } = await supabase
       .from('time_entries')
@@ -199,10 +199,31 @@ export async function POST(request) {
     return data;
   }
 
+  // Find ANY open entry regardless of date — a prior-day open entry must block a
+  // fresh clock-in (otherwise its hours never close and never count).
+  async function findAnyOpenEntry() {
+    const { data } = await supabase
+      .from('time_entries')
+      .select('id, date, clock_in')
+      .eq('team_member_id', user.id)
+      .is('clock_out', null)
+      .not('clock_in', 'is', null)
+      .order('clock_in', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return data;
+  }
+
   if (action === 'clock_in') {
-    const existing = await findOpenEntry();
+    const existing = await findAnyOpenEntry();
     if (existing) {
-      return Response.json({ error: 'Already clocked in. Use "switch" to change jobs.' }, { status: 400 });
+      const entryDate = existing.date || (existing.clock_in || '').split('T')[0];
+      return Response.json({
+        error: `You have an open time entry from ${entryDate} — clock out of it first`,
+        code: 'open_entry_exists',
+        open_entry_id: existing.id,
+        open_entry_date: entryDate,
+      }, { status: 400 });
     }
     if (!service_type) {
       return Response.json({ error: 'Service type required.' }, { status: 400 });

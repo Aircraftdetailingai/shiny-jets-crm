@@ -286,6 +286,25 @@ export async function POST(request) {
 
       console.log('[public-quote-request] detailer_id:', detailer_id, 'source:', source, 'photos:', Array.isArray(photo_urls) ? photo_urls.length : 0, 'name:', name, 'email:', email);
 
+      // Dedupe: public forms can double-submit (retry / double-tap). If a lead
+      // with the same detailer_id + lower(email) was created in the last 2
+      // minutes, return it instead of inserting a duplicate.
+      if (email) {
+        const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const { data: recentLeads, error: dupeErr } = await supabase
+          .from('intake_leads')
+          .select('*')
+          .eq('detailer_id', detailer_id)
+          .gte('created_at', since)
+          .order('created_at', { ascending: false });
+        if (dupeErr) console.error('[public-quote-request] dedupe check failed:', dupeErr.message);
+        const match = (recentLeads || []).find(l => (l.email || '').toLowerCase() === email.toLowerCase());
+        if (match) {
+          console.log(`[public-quote-request] dedupe HIT — returning existing lead ${match.id} for detailer ${detailer_id} email ${email}`);
+          return Response.json({ success: true, lead: match, deduped: true });
+        }
+      }
+
       const { data: lead, error } = await supabase
         .from('intake_leads')
         .insert({

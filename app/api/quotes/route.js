@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { nanoid } from 'nanoid';
 import { upsertCustomerAircraft } from '@/lib/upsertCustomerAircraft';
+import { resolveValidityDays, computeValidUntil } from '@/lib/quote-validity';
 
 export const dynamic = 'force-dynamic';
 
@@ -211,6 +212,7 @@ export async function POST(request) {
       deposit_percentage,
       deposit_amount,
       payment_method,
+      quote_validity_days,
     } = body;
 
     // Inherit booking terms from the detailer's current defaults at quote
@@ -222,7 +224,7 @@ export async function POST(request) {
     // (computed/selected per-quote) and have no detailer-level fallback.
     const { data: detailerDefaults } = await supabase
       .from('detailers')
-      .select('booking_mode, deposit_percentage')
+      .select('booking_mode, deposit_percentage, default_quote_validity_days')
       .eq('id', user.id)
       .maybeSingle();
     const effectiveBookingMode = booking_mode ?? detailerDefaults?.booking_mode ?? null;
@@ -264,7 +266,13 @@ export async function POST(request) {
     }
 
     const shareLink = nanoid(8);
-    const validUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    // Provisional expiry for draft display only. The authoritative valid_until is
+    // written send-anchored on first send (see app/api/quotes/[id]/send/route.js).
+    const provisionalValidityDays = resolveValidityDays({
+      quoteValidityDays: quote_validity_days,
+      detailerDefaultDays: detailerDefaults?.default_quote_validity_days,
+    });
+    const validUntil = computeValidUntil(new Date().toISOString(), provisionalValidityDays);
 
     // Store all extra pricing data as JSON metadata for columns that may not exist yet
     const quoteMetadata = {
@@ -335,6 +343,7 @@ export async function POST(request) {
       discount_value: discount_value ? parseFloat(discount_value) : null,
       discount_reason: discount_reason || null,
       discounted_total: discounted_total ? parseFloat(discounted_total) : null,
+      quote_validity_days: quote_validity_days != null && quote_validity_days !== '' ? parseInt(quote_validity_days, 10) : null,
       metadata: quoteMetadata,
       poc_name: poc_name || null,
       poc_phone: poc_phone || null,

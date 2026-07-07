@@ -112,6 +112,27 @@ export async function POST(request) {
       invite_status: body.email ? 'pending' : 'not_invited',
     };
 
+    // Reject a duplicate active PIN within this detailer before insert. The DB
+    // partial unique index enforces the same rule — a violation there is caught
+    // below and returned as the same friendly 409, never a raw 500.
+    if (insertData.pin_code) {
+      const { data: pinClash, error: pinChkErr } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('detailer_id', insertData.detailer_id)
+        .eq('pin_code', insertData.pin_code)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+      if (pinChkErr) {
+        console.error('[team POST] PIN conflict check failed:', pinChkErr.message);
+        return Response.json({ error: 'Failed to add team member' }, { status: 500 });
+      }
+      if (pinClash) {
+        return Response.json({ error: 'That PIN is already used by another active team member — choose a different one', code: 'pin_taken' }, { status: 409 });
+      }
+    }
+
     const { data, error } = await supabase
       .from('team_members')
       .insert(insertData)
@@ -120,6 +141,9 @@ export async function POST(request) {
 
     if (error) {
       console.error('Team create error:', error);
+      if (error.code === '23505' || /team_members_active_pin_per_detailer|duplicate key/i.test(error.message || '')) {
+        return Response.json({ error: 'That PIN is already used by another active team member — choose a different one', code: 'pin_taken' }, { status: 409 });
+      }
       return Response.json({ error: error.message }, { status: 500 });
     }
 

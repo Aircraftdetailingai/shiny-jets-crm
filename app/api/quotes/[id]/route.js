@@ -24,7 +24,7 @@ const ALLOWED_FIELDS = [
   'customer_account_id',
   'tail_number', 'airport',
   'scheduled_date', 'proposed_date', 'proposed_time', 'time_preference', 'scheduling_notes',
-  'valid_until',
+  'valid_until', 'quote_validity_days',
   'sent_at', 'viewed_at', 'last_viewed_at', 'view_count', 'email_opened_at',
   'viewer_ip', 'viewer_device', 'customer_ip_address',
   'customer_agreed_terms_at', 'customer_agreed_ip',

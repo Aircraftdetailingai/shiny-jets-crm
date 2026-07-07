@@ -81,7 +81,7 @@ export async function GET(request, { params }) {
     if (user.can_see_inventory) {
       const { data: spLinks } = await supabase
         .from('service_products')
-        .select('service_id, quantity_per_hour, fixed_quantity, notes, products(id, name, category, unit, quantity, reorder_level, brand, image_url)')
+        .select('service_id, quantity_per_job, notes, products(id, name, category, unit, quantity, reorder_level, brand, image_url)')
         .in('service_id', svcIds);
 
       if (spLinks) {
@@ -93,19 +93,12 @@ export async function GET(request, { params }) {
         const svcMap = {};
         (svcs || []).forEach(s => { svcMap[s.id] = s.name; });
 
-        // Also get hours per service from line_items for quantity calc
-        const hoursMap = {};
-        (quote.line_items || []).forEach(li => {
-          if (li.service_id && li.hours) hoursMap[li.service_id] = parseFloat(li.hours) || 0;
-        });
-
         // Deduplicate by product_id, summing quantities
         const productMap = {};
         spLinks.forEach(link => {
           const p = link.products;
           if (!p) return;
-          const hours = hoursMap[link.service_id] || 0;
-          const qty = (parseFloat(link.fixed_quantity) || 0) + ((parseFloat(link.quantity_per_hour) || 0) * hours);
+          const qty = parseFloat(link.quantity_per_job) || 0;
 
           if (productMap[p.id]) {
             productMap[p.id].quantity_needed += qty;

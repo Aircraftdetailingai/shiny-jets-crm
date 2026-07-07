@@ -43,8 +43,8 @@ export async function POST(request) {
     if (quoteError || !quote) {
       return new Response(JSON.stringify({ error: 'Quote not found' }), { status: 404 });
     }
-    if (quote.status === 'paid' || quote.status === 'approved') {
-      return new Response(JSON.stringify({ error: 'Quote already paid' }), { status: 400 });
+    if (quote.status === 'paid' || quote.status === 'approved' || quote.status === 'deposit_paid') {
+      return new Response(JSON.stringify({ error: 'Quote already paid', code: 'already_paid' }), { status: 400 });
     }
     if (new Date() > new Date(quote.valid_until)) {
       return new Response(JSON.stringify({ error: 'Quote has expired', code: 'quote_expired' }), { status: 400 });

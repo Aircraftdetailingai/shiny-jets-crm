@@ -459,15 +459,10 @@ export default function ServicesPage() {
       const res = await fetch('/api/services/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        // Seed with zero quantities — user dials them in via the inline
-        // /job, /sqft, /hr inputs after the row appears. quantity_per_hour
-        // kept for compatibility with the legacy crew-materials estimator.
         body: JSON.stringify({
           service_id: serviceId,
           product_id: productId,
           quantity_per_job: 0,
-          quantity_per_sqft: 0,
-          quantity_per_hour: 0,
         }),
       });
       if (res.ok) {
@@ -495,8 +490,15 @@ export default function ServicesPage() {
       if (res.ok) {
         const data = await res.json();
         setLinkedProducts(prev => prev.map(l => l.id === linkId ? data.link : l));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('[settings/services] updateProductLink failed:', res.status, err);
+        alert(err.error || `Failed to update product link (HTTP ${res.status})`);
       }
-    } catch (err) { console.error('Failed to update link:', err); }
+    } catch (err) {
+      console.error('Failed to update link:', err);
+      alert('Network error updating product link. Check the console.');
+    }
   };
 
   const removeProductLink = async (linkId) => {
@@ -518,8 +520,15 @@ export default function ServicesPage() {
       if (res.ok) {
         const data = await res.json();
         setLinkedEquipment(prev => [...prev, data.link]);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('[settings/services] addEquipmentLink failed:', res.status, err);
+        alert(err.error || `Failed to link equipment (HTTP ${res.status})`);
       }
-    } catch (err) { console.error('Failed to link equipment:', err); }
+    } catch (err) {
+      console.error('Failed to link equipment:', err);
+      alert('Network error linking equipment. Check the console.');
+    }
   };
 
   const removeEquipmentLink = async (linkId) => {
@@ -1613,7 +1622,7 @@ export default function ServicesPage() {
                             <p className="text-sm font-medium text-v-text-primary truncate">{link.products?.name}</p>
                             <p className="text-[10px] text-v-text-secondary">{link.products?.category} &middot; {currencySymbol()}{link.products?.cost_per_unit}/{link.products?.unit}</p>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex flex-col items-end gap-0.5">
                             <input
                               type="number"
                               step="0.01"
@@ -1623,43 +1632,12 @@ export default function ServicesPage() {
                                 setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_job: val } : l));
                               }}
                               onBlur={(e) => updateProductLink(link.id, { quantity_per_job: parseFloat(e.target.value) || 0 })}
-                              className="w-16 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
-                              title="Fixed quantity used per job, regardless of size"
-                              placeholder="0"
-                            />
-                            <span className="text-[10px] text-v-text-secondary">/job</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="0.0001"
-                              value={link.quantity_per_sqft ?? ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_sqft: val } : l));
-                              }}
-                              onBlur={(e) => updateProductLink(link.id, { quantity_per_sqft: parseFloat(e.target.value) || 0 })}
                               className="w-20 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
-                              title="Variable quantity scaled by aircraft surface area"
+                              title="Typical per job (optional). Seeds the forecast until it learns from logged usage."
                               placeholder="0"
+                              aria-label="Typical per job"
                             />
-                            <span className="text-[10px] text-v-text-secondary">/sqft</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={link.quantity_per_hour ?? ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_hour: val } : l));
-                              }}
-                              onBlur={(e) => updateProductLink(link.id, { quantity_per_hour: parseFloat(e.target.value) || 0 })}
-                              className="w-14 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right opacity-70"
-                              title="Legacy: quantity per labor hour (kept for jobs that estimate by hours)"
-                              placeholder="0"
-                            />
-                            <span className="text-[10px] text-v-text-secondary opacity-70">/hr</span>
+                            <span className="text-[10px] text-v-text-secondary">Typical per job</span>
                           </div>
                           <button onClick={() => removeProductLink(link.id)} className="text-red-400 hover:text-red-600 text-sm">&times;</button>
                         </div>

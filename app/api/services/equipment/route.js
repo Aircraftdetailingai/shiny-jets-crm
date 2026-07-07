@@ -19,17 +19,16 @@ export async function GET(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
+    const detailerId = user.detailer_id || user.id;
     const { searchParams } = new URL(request.url);
     const serviceId = searchParams.get('service_id');
 
     let query = supabase
       .from('service_equipment')
-      .select('*, equipment(id, name, brand, model, status, image_url), services!inner(detailer_id)')
-      .eq('services.detailer_id', user.id);
+      .select('*, equipment(id, name, brand, model, status, image_url)')
+      .eq('detailer_id', detailerId);
 
-    if (serviceId) {
-      query = query.eq('service_id', serviceId);
-    }
+    if (serviceId) query = query.eq('service_id', serviceId);
 
     const { data, error } = await query.order('created_at', { ascending: true });
 
@@ -38,16 +37,14 @@ export async function GET(request) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    const links = (data || []).map(({ services, ...rest }) => rest);
-
-    return Response.json({ links });
+    return Response.json({ links: data || [] });
   } catch (err) {
     console.error('Service equipment GET error:', err);
     return Response.json({ error: 'Failed to fetch service equipment' }, { status: 500 });
   }
 }
 
-// POST - Link equipment to a service
+// POST - Link equipment to a service (idempotent via unique constraint)
 export async function POST(request) {
   try {
     const user = await getAuthUser(request);
@@ -56,6 +53,7 @@ export async function POST(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
+    const detailerId = user.detailer_id || user.id;
     const body = await request.json();
     const { service_id, equipment_id, notes } = body;
 
@@ -63,17 +61,18 @@ export async function POST(request) {
       return Response.json({ error: 'service_id and equipment_id are required' }, { status: 400 });
     }
 
-    // Verify service belongs to user
+    // Verify service belongs to this detailer.
     const { data: svc } = await supabase
       .from('services')
       .select('id')
       .eq('id', service_id)
-      .eq('detailer_id', user.detailer_id || user.id)
+      .eq('detailer_id', detailerId)
       .single();
 
     if (!svc) return Response.json({ error: 'Service not found' }, { status: 404 });
 
     const row = {
+      detailer_id: detailerId,
       service_id,
       equipment_id,
       notes: notes || '',
@@ -86,11 +85,11 @@ export async function POST(request) {
       .single();
 
     if (error) {
-      console.error('Failed to link equipment:', error);
+      console.error('[service-equipment POST] upsert failed:', error.message);
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({ link }, { status: 201 });
+    return Response.json({ link });
   } catch (err) {
     console.error('Service equipment POST error:', err);
     return Response.json({ error: 'Failed to link equipment' }, { status: 500 });
@@ -106,17 +105,17 @@ export async function DELETE(request) {
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
 
+    const detailerId = user.detailer_id || user.id;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) return Response.json({ error: 'Link ID required' }, { status: 400 });
 
-    // Verify ownership
     const { data: existing } = await supabase
       .from('service_equipment')
-      .select('id, services!inner(detailer_id)')
+      .select('id')
       .eq('id', id)
-      .eq('services.detailer_id', user.id)
+      .eq('detailer_id', detailerId)
       .single();
 
     if (!existing) return Response.json({ error: 'Not found' }, { status: 404 });

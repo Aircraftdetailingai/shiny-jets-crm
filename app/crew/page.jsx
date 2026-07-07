@@ -26,6 +26,9 @@ export default function CrewDashboard() {
   const [assignments, setAssignments] = useState([]);
   const [pendingAssignments, setPendingAssignments] = useState(0);
   const [assignmentActioning, setAssignmentActioning] = useState(null);
+  const [completing, setCompleting] = useState(false);
+  const [usageLogging, setUsageLogging] = useState(false);
+  const [togglingProduct, setTogglingProduct] = useState(null);
 
   // Clock state
   const [clockStatus, setClockStatus] = useState(null);
@@ -146,28 +149,29 @@ export default function CrewDashboard() {
 
   // Handle accept/decline of an assignment
   const handleAssignmentAction = async (assignmentId, action) => {
+    if (assignmentActioning) return; // one action in flight at a time — kills double-tap races
     setAssignmentActioning(assignmentId);
-
-    // Optimistic: immediately remove from pending list
-    setAssignments(prev => prev.map(a =>
-      a.id === assignmentId ? { ...a, status: action === 'accept' ? 'accepted' : 'declined' } : a
-    ));
-    setPendingAssignments(prev => Math.max(0, prev - 1));
-
-    const data = await API('/api/crew/assignments', token, {
-      method: 'PATCH',
-      body: JSON.stringify({ assignment_id: assignmentId, action }),
-    });
-    if (data.success) {
-      showMsg(action === 'accept' ? 'Assignment accepted!' : 'Assignment declined');
-      // Refetch real data (removes declined assignments entirely)
+    try {
+      const data = await API('/api/crew/assignments', token, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignment_id: assignmentId, action }),
+      });
+      if (data.success) {
+        showMsg(action === 'accept' ? 'Assignment accepted!' : 'Assignment declined');
+      } else {
+        showMsg(data.error || 'Failed', 'error');
+      }
+      // Reconcile from real data either way — no optimistic list/count mutation.
+      // pendingAssignments is derived inside fetchAssignments from the truth, so
+      // there is no double-decrement and no ghost removal.
       await Promise.all([fetchAssignments(), fetchJobs()]);
-    } else {
-      showMsg(data.error || 'Failed', 'error');
-      // Revert optimistic update
+    } catch (e) {
+      console.error('[crew] assignment action failed:', e);
+      showMsg('Network error — please try again', 'error');
       await fetchAssignments();
+    } finally {
+      setAssignmentActioning(null);
     }
-    setAssignmentActioning(null);
   };
 
   // Fetch clock status
@@ -410,17 +414,23 @@ export default function CrewDashboard() {
 
   // Mark job complete
   const handleComplete = async (jobId) => {
+    if (completing) return;
     if (!confirm('Mark this job as complete?')) return;
-    const data = await API('/api/crew/complete', token, {
-      method: 'POST',
-      body: JSON.stringify({ quote_id: jobId }),
-    });
-    if (data.success) {
-      showMsg('Job marked complete!');
-      fetchJobs();
-      setSelectedJob(null);
-    } else {
-      showMsg(data.error || 'Failed', 'error');
+    setCompleting(true);
+    try {
+      const data = await API('/api/crew/complete', token, {
+        method: 'POST',
+        body: JSON.stringify({ quote_id: jobId }),
+      });
+      if (data.success) {
+        showMsg('Job marked complete!');
+        fetchJobs();
+        setSelectedJob(null);
+      } else {
+        showMsg(data.error || 'Failed', 'error');
+      }
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -610,26 +620,32 @@ export default function CrewDashboard() {
 
   // Log product usage
   const handleLogUsage = async () => {
+    if (usageLogging) return;
     if (!selectedJob || !usageForm.product_id || !usageForm.amount_used) {
       showMsg('Select a product and enter amount', 'error');
       return;
     }
-    const data = await API('/api/crew/products', token, {
-      method: 'POST',
-      body: JSON.stringify({
-        job_id: selectedJob.id,
-        product_id: usageForm.product_id,
-        amount_used: parseFloat(usageForm.amount_used),
-        notes: usageForm.notes,
-      }),
-    });
-    if (data.success) {
-      showMsg('Product usage logged!');
-      setUsageForm({ product_id: '', amount_used: '', notes: '' });
-      fetchProducts();
-      if (selectedJob?.id) fetchJobMaterials(selectedJob.id);
-    } else {
-      showMsg(data.error || 'Failed', 'error');
+    setUsageLogging(true);
+    try {
+      const data = await API('/api/crew/products', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          job_id: selectedJob.id,
+          product_id: usageForm.product_id,
+          amount_used: parseFloat(usageForm.amount_used),
+          notes: usageForm.notes,
+        }),
+      });
+      if (data.success) {
+        showMsg('Product usage logged!');
+        setUsageForm({ product_id: '', amount_used: '', notes: '' });
+        fetchProducts();
+        if (selectedJob?.id) fetchJobMaterials(selectedJob.id);
+      } else {
+        showMsg(data.error || 'Failed', 'error');
+      }
+    } finally {
+      setUsageLogging(false);
     }
   };
 
@@ -672,18 +688,32 @@ export default function CrewDashboard() {
 
   // Toggle product checked (log usage when checking, no undo)
   const handleToggleProduct = async (product) => {
-    if (checkedProducts[product.id]) return; // already checked
+    if (checkedProducts[product.id]) return; // already checked (no undo)
+    if (togglingProduct === product.id) return; // in-flight guard — no double deduction
+    setTogglingProduct(product.id);
     setCheckedProducts(prev => ({ ...prev, [product.id]: true }));
-    // Log minimal usage to mark it as used
-    await API('/api/crew/products', token, {
-      method: 'POST',
-      body: JSON.stringify({
-        quote_id: selectedJob.id,
-        product_id: product.id,
-        amount_used: product.quantity_needed || 1,
-        notes: 'Auto-logged from job checklist',
-      }),
-    });
+    try {
+      const data = await API('/api/crew/products', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          quote_id: selectedJob.id,
+          product_id: product.id,
+          amount_used: product.quantity_needed || 1,
+          notes: 'Auto-logged from job checklist',
+        }),
+      });
+      if (!data.success) {
+        // Roll back the check so it can be retried, and surface the error.
+        setCheckedProducts(prev => ({ ...prev, [product.id]: false }));
+        showMsg(data.error || 'Failed to log product', 'error');
+      }
+    } catch (e) {
+      console.error('[crew] toggle product failed:', e);
+      setCheckedProducts(prev => ({ ...prev, [product.id]: false }));
+      showMsg('Network error — please try again', 'error');
+    } finally {
+      setTogglingProduct(null);
+    }
   };
 
   // Toggle equipment checked (local only, no DB tracking needed)
@@ -1113,7 +1143,8 @@ export default function CrewDashboard() {
                       <button
                         key={p.id}
                         onClick={() => handleToggleProduct(p)}
-                        className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+                        disabled={checkedProducts[p.id] || togglingProduct === p.id}
+                        className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left disabled:opacity-60 ${
                           checkedProducts[p.id] ? 'bg-green-500/20' : 'bg-white/5 hover:bg-white/10'
                         }`}
                       >
@@ -1186,9 +1217,10 @@ export default function CrewDashboard() {
                 {['paid', 'accepted', 'scheduled', 'in_progress'].includes(selectedJob.status) && user.can_mark_complete !== false && (
                   <button
                     onClick={() => handleComplete(selectedJob.id)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium text-sm transition-colors"
+                    disabled={completing}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-3 rounded-lg font-medium text-sm transition-colors"
                   >
-                    Mark Complete
+                    {completing ? 'Marking…' : 'Mark Complete'}
                   </button>
                 )}
                 {['paid', 'accepted', 'scheduled', 'in_progress'].includes(selectedJob.status) && (
@@ -1349,10 +1381,10 @@ export default function CrewDashboard() {
                     </div>
                     <button
                       onClick={handleLogUsage}
-                      disabled={!usageForm.product_id || !usageForm.amount_used}
+                      disabled={usageLogging || !usageForm.product_id || !usageForm.amount_used}
                       className="w-full bg-[#0081b8] hover:bg-[#006a9a] text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                     >
-                      Log Usage
+                      {usageLogging ? 'Logging…' : 'Log Usage'}
                     </button>
                   </div>
                 )}

@@ -27,6 +27,8 @@ export default function RequestDetailPage() {
   const [sendDeclineEmail, setSendDeclineEmail] = useState(true);
   const [declining, setDeclining] = useState(false);
   const [requestingPhotos, setRequestingPhotos] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const [photoWarning, setPhotoWarning] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -232,6 +234,8 @@ export default function RequestDetailPage() {
           <div className="flex gap-3">
             <button onClick={async () => {
               setRequestingPhotos(true);
+              setPhotoError('');
+              setPhotoWarning('');
               const token = localStorage.getItem('vector_token');
               // 24h rate limit lives server-side; if blocked, prompt to force-resend.
               const sentAt = lead.photo_request_sent_at ? new Date(lead.photo_request_sent_at) : null;
@@ -250,10 +254,16 @@ export default function RequestDetailPage() {
                   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                   body: JSON.stringify({ lead_id: id }),
                 });
+                const data = await res.json().catch(() => ({}));
                 if (res.ok) {
                   setLead(prev => ({ ...prev, status: 'awaiting_photos', photo_request_sent_at: new Date().toISOString() }));
+                  if (data.tracking_warning) setPhotoWarning(data.tracking_warning);
+                } else {
+                  setPhotoError(data.error || data.message || 'Could not request photos. Please try again.');
                 }
-              } catch {}
+              } catch (e) {
+                setPhotoError('Network error — could not request photos. Please try again.');
+              }
               setRequestingPhotos(false);
             }} disabled={requestingPhotos}
               className="flex-1 py-3 text-xs uppercase tracking-wider text-v-gold border border-v-gold/30 hover:bg-v-gold/5 rounded-lg transition-colors disabled:opacity-50">
@@ -269,6 +279,9 @@ export default function RequestDetailPage() {
               Decline
             </button>
           </div>
+
+          {photoError && <p className="text-red-400 text-xs text-center">{photoError}</p>}
+          {photoWarning && <p className="text-amber-400 text-xs text-center">{photoWarning}</p>}
 
           <button onClick={handleDismiss} disabled={dismissing}
             className="w-full py-2 text-[10px] uppercase tracking-wider text-v-text-secondary/50 hover:text-v-text-secondary transition-colors">

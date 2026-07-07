@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { recordUsageAndLearn } from '@/lib/record-usage';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -73,7 +74,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { quote_id, job_id, product_id, amount_used, unit, notes, is_unlisted, product_name: bodyName, product_brand: bodyBrand } = body;
+  const { quote_id, job_id, product_id, amount_used, unit, notes, is_unlisted, product_name: bodyName, product_brand: bodyBrand, service_id } = body;
   const refId = job_id || quote_id;
 
   // Two paths: catalog product (requires product_id, deducts stock) and
@@ -184,6 +185,67 @@ export async function POST(request) {
   // Unlisted entries have no inventory to subtract from.
   if (!is_unlisted && product) {
     await supabase.from('products').update({ quantity: newQty }).eq('id', product_id);
+  }
+
+  // Feed the learning loop for catalog products. Unlisted entries skip — they
+  // have no catalog product_id, so they can't contribute to per-product
+  // averages. Resolve aircraft context from the underlying quote (matching
+  // the inventory/usage route's pattern). Failures here are non-fatal: the
+  // job_product_usage write already succeeded above and stock was deducted.
+  if (!is_unlisted && product_id) {
+    try {
+      const lookupId = resolvedQuoteId || resolvedJobId;
+      let aircraftCategory = 'unknown';
+      let aircraftMake = '';
+      let aircraftModel = '';
+
+      // Prefer quote (has aircraft_id/aircraft_model). Fall back to jobs row.
+      const { data: quoteRow } = await supabase
+        .from('quotes')
+        .select('aircraft_type, aircraft_model, aircraft_id')
+        .eq('id', lookupId)
+        .maybeSingle();
+      if (quoteRow) {
+        aircraftCategory = quoteRow.aircraft_type || 'unknown';
+        aircraftModel = quoteRow.aircraft_model || '';
+        if (quoteRow.aircraft_id) {
+          const { data: ac } = await supabase
+            .from('aircraft')
+            .select('category, manufacturer')
+            .eq('id', quoteRow.aircraft_id)
+            .single();
+          if (ac) {
+            aircraftCategory = ac.category || aircraftCategory;
+            aircraftMake = ac.manufacturer || '';
+          }
+        }
+      } else if (resolvedJobId) {
+        const { data: jobRow2 } = await supabase
+          .from('jobs')
+          .select('aircraft_make, aircraft_model')
+          .eq('id', resolvedJobId)
+          .maybeSingle();
+        if (jobRow2) {
+          aircraftMake = jobRow2.aircraft_make || '';
+          aircraftModel = jobRow2.aircraft_model || '';
+        }
+      }
+
+      await recordUsageAndLearn(supabase, {
+        detailerId: user.detailer_id,
+        jobId: resolvedJobId || resolvedQuoteId,
+        productId: product_id,
+        serviceId: service_id || null,
+        quantityUsed: amount,
+        unit: resolvedUnit,
+        aircraftMake,
+        aircraftModel,
+        aircraftCategory,
+        loggedBy: user.id,
+      });
+    } catch (e) {
+      console.error('[crew/products] learning loop failed (non-fatal):', e.message);
+    }
   }
 
   // Log to crew_activity_log (non-blocking)

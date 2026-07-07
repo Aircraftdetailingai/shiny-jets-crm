@@ -6,6 +6,7 @@ import { hasPremiumAccess } from '@/lib/pricing-tiers';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
 import { logNotification } from '@/lib/notification-log';
 import { calculatePoints, POINTS_ACTIONS, TIER_MULTIPLIERS } from '@/lib/points';
+import { resolveValidityDays, computeValidUntil, clampFuture } from '@/lib/quote-validity';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +163,29 @@ export async function POST(request, { params }) {
 
   // Update quote with client info and status - retry stripping unknown columns
   const now = new Date().toISOString();
+
+  // Send-anchored validity clock: valid_until is written ONLY on the first send
+  // (sent_at + resolvedDays). Resends/revisions leave valid_until untouched so a
+  // revision never restarts the clock — original expiry holds.
+  const isFirstSend = !quote.sent_at;
+  let validityWarning = null;
+  let firstSendValidUntil = null;
+  if (isFirstSend) {
+    const { data: vdRow, error: vdErr } = await supabase
+      .from('detailers')
+      .select('default_quote_validity_days')
+      .eq('id', quote.detailer_id)
+      .single();
+    if (vdErr) console.error('[quote-send] default validity load failed, using fallback:', vdErr.message);
+    const days = resolveValidityDays({
+      quoteValidityDays: quote.quote_validity_days,
+      detailerDefaultDays: vdRow?.default_quote_validity_days,
+    });
+    const clamp = clampFuture(computeValidUntil(now, days));
+    firstSendValidUntil = clamp.validUntil;
+    if (clamp.clamped) validityWarning = 'Resolved quote expiry was in the past; clamped to 24h from now.';
+  }
+
   let updateFields = {
     client_name: clientName,
     client_phone: clientPhone || null,
@@ -173,6 +197,7 @@ export async function POST(request, { params }) {
     viewed_at: null,
     view_count: 0,
     last_viewed_at: null,
+    ...(isFirstSend ? { valid_until: firstSendValidUntil } : {}),
   };
 
   let updated = null;
@@ -399,5 +424,6 @@ export async function POST(request, { params }) {
     smsSent,
     smsError: smsError || undefined,
     customer_id: resolvedCustomerId || undefined,
+    validityWarning: validityWarning || undefined,
   }), { status: 200 });
 }

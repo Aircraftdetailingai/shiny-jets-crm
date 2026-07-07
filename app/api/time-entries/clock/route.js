@@ -16,34 +16,50 @@ export async function POST(request) {
 
   const supabase = getSupabase();
 
-  // Verify PIN
-  const { data: member, error: pinErr } = await supabase
+  // Verify PIN — fetch ALL active matches (platform-wide) and never auto-pick.
+  const { data: pinMembers, error: pinErr } = await supabase
     .from('team_members')
     .select('id, detailer_id, name, status')
     .eq('pin_code', pin_code)
-    .eq('status', 'active')
-    .single();
+    .eq('status', 'active');
 
-  if (pinErr || !member) {
+  if (pinErr) {
+    console.error('[time-entries/clock] PIN lookup failed:', pinErr.message);
+    return Response.json({ error: 'Failed to verify PIN' }, { status: 500 });
+  }
+  const activeMembers = pinMembers || [];
+  if (activeMembers.length === 0) {
     return Response.json({ error: 'Invalid PIN' }, { status: 401 });
   }
+  if (activeMembers.length > 1) {
+    return Response.json({ error: 'This PIN matches more than one worker. Contact your manager for a unique PIN.', code: 'pin_ambiguous' }, { status: 409 });
+  }
+  const member = activeMembers[0];
 
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
 
   if (action === 'clock_in') {
-    // Check if already clocked in
+    // Check for ANY open entry (any date) — a prior-day open entry must block
+    // a fresh clock-in so its hours don't leak.
     const { data: existing } = await supabase
       .from('time_entries')
-      .select('id')
+      .select('id, date, clock_in')
       .eq('team_member_id', member.id)
-      .eq('date', today)
       .is('clock_out', null)
       .not('clock_in', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (existing) {
-      return Response.json({ error: 'Already clocked in' }, { status: 400 });
+      const entryDate = existing.date || (existing.clock_in || '').split('T')[0];
+      return Response.json({
+        error: `You have an open time entry from ${entryDate} — clock out of it first`,
+        code: 'open_entry_exists',
+        open_entry_id: existing.id,
+        open_entry_date: entryDate,
+      }, { status: 400 });
     }
 
     let entry = {

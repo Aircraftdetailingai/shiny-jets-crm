@@ -20,7 +20,7 @@ export async function POST(request) {
     // Fetch original quote - require share_link match to prevent enumeration
     const { data: originalQuote, error: quoteError } = await supabase
       .from('quotes')
-      .select('id, detailer_id, client_name, client_email, client_phone, aircraft_type, aircraft_model, services, total_price, valid_until, share_link')
+      .select('id, detailer_id, client_name, client_email, client_phone, aircraft_type, aircraft_model, services, total_price, valid_until, share_link, metadata')
       .eq('id', originalQuoteId)
       .eq('share_link', shareLink)
       .single();
@@ -29,27 +29,25 @@ export async function POST(request) {
       return new Response(JSON.stringify({ error: 'Quote not found' }), { status: 404 });
     }
 
-    // Create a quote request record
-    const { data: quoteRequest, error: insertError } = await supabase
-      .from('quote_requests')
-      .insert({
-        detailer_id: originalQuote.detailer_id,
-        original_quote_id: originalQuoteId,
-        client_name: originalQuote.client_name,
-        client_email: originalQuote.client_email,
-        client_phone: originalQuote.client_phone,
-        aircraft_type: originalQuote.aircraft_type,
-        aircraft_model: originalQuote.aircraft_model,
-        services: originalQuote.services,
-        notes: `Requested update for expired quote. Original price: $${originalQuote.total_price}`,
-        status: 'pending',
-      })
-      .select()
-      .single();
+    // NOTE: there is no `quote_requests` table in this project (verified live),
+    // so the request is anchored on the original quote via quotes.metadata.
+    // Dedupe: a second click for the same quote is a no-op that reports
+    // already_requested — no duplicate detailer notification.
+    if (originalQuote.metadata?.new_quote_requested_at) {
+      return new Response(JSON.stringify({ success: true, already_requested: true }), { status: 200 });
+    }
 
-    if (insertError) {
-      // If quote_requests table doesn't exist, just notify detailer
-      console.log('Could not create quote request record:', insertError);
+    // Record the request on the quote BEFORE emailing. If this stamp fails we
+    // return 500 and do NOT notify the detailer or claim success.
+    const stampedMeta = { ...(originalQuote.metadata || {}), new_quote_requested_at: new Date().toISOString() };
+    const { error: stampError } = await supabase
+      .from('quotes')
+      .update({ metadata: stampedMeta })
+      .eq('id', originalQuoteId)
+      .eq('share_link', shareLink);
+    if (stampError) {
+      console.error(`[request-new] failed to record request for quote ${originalQuoteId}:`, stampError.message);
+      return new Response(JSON.stringify({ error: 'Could not record your request. Please try again.' }), { status: 500 });
     }
 
     // Fetch detailer for notification
@@ -111,7 +109,7 @@ export async function POST(request) {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, requestId: quoteRequest?.id }), { status: 200 });
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (err) {
     console.error('Request new quote error:', err);
     return new Response(JSON.stringify({ error: 'Failed to request quote' }), { status: 500 });

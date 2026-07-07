@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { recordUsageAndLearn } from '@/lib/record-usage';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export async function POST(request) {
   if (!quote_id || !products?.length) return Response.json({ error: 'Missing data' }, { status: 400 });
 
   const supabase = getSupabase();
+  const detailerId = user.detailer_id || user.id;
 
   // Get the job record for this quote
   const { data: job } = await supabase
@@ -27,17 +29,32 @@ export async function POST(request) {
     .eq('quote_id', quote_id)
     .maybeSingle();
 
-  // Get quote for aircraft type
+  // Get quote for aircraft context (also drives the learning loop below)
   const { data: quote } = await supabase
     .from('quotes')
-    .select('aircraft_type, aircraft_model')
+    .select('aircraft_type, aircraft_model, aircraft_id')
     .eq('id', quote_id)
     .single();
+
+  let aircraftCategory = quote?.aircraft_type || 'unknown';
+  let aircraftMake = '';
+  const aircraftModel = quote?.aircraft_model || '';
+  if (quote?.aircraft_id) {
+    const { data: ac } = await supabase
+      .from('aircraft')
+      .select('category, manufacturer')
+      .eq('id', quote.aircraft_id)
+      .single();
+    if (ac) {
+      aircraftCategory = ac.category || aircraftCategory;
+      aircraftMake = ac.manufacturer || '';
+    }
+  }
 
   const rows = products.map(p => ({
     job_id: job?.id || null,
     quote_id,
-    detailer_id: user.detailer_id || user.id,
+    detailer_id: detailerId,
     service_id: p.service_id || null,
     product_name: p.product_name,
     estimated_quantity: parseFloat(p.estimated_quantity) || 0,
@@ -50,6 +67,32 @@ export async function POST(request) {
   if (error) {
     console.error('Failed to save product usage:', error);
     return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  // Feed the learning loop for any product with a real catalog product_id.
+  // Entries here are free-form (product_name) plus optional product_id from
+  // the caller — skip ones without it. Failures are non-fatal.
+  const jobRefId = job?.id || quote_id;
+  for (const p of products) {
+    if (!p.product_id) continue;
+    const qty = parseFloat(p.actual_quantity);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    try {
+      await recordUsageAndLearn(supabase, {
+        detailerId,
+        jobId: jobRefId,
+        productId: p.product_id,
+        serviceId: p.service_id || null,
+        quantityUsed: qty,
+        unit: p.unit || 'oz',
+        aircraftMake,
+        aircraftModel,
+        aircraftCategory,
+        loggedBy: user.id,
+      });
+    } catch (e) {
+      console.error('[jobs/product-usage] learning loop failed (non-fatal):', e.message);
+    }
   }
 
   return Response.json({ success: true, count: rows.length });

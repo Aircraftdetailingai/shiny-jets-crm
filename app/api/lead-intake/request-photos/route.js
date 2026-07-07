@@ -90,30 +90,32 @@ export async function POST(request) {
   const aircraftName = lead.aircraft_model || 'aircraft';
   const uploadUrl = `${appUrl}/upload-photos/${token}`;
 
-  // Stamp token + sent_at + bump status to awaiting_photos.
-  await supabase
+  // (1) Persist the upload token FIRST. The emailed link is dead without it,
+  // so a failure here must abort before we send anything.
+  const { error: tokenErr } = await supabase
     .from('intake_leads')
-    .update({
-      photo_request_token: token,
-      photo_request_sent_at: new Date().toISOString(),
-      status: 'awaiting_photos',
-    })
+    .update({ photo_request_token: token })
     .eq('id', lead_id);
+  if (tokenErr) {
+    console.error(`[request-photos] token persist failed for lead ${lead_id}:`, tokenErr.message);
+    return Response.json({ error: 'Could not save upload token' }, { status: 500 });
+  }
 
-  // Send via the plan-aware customer email helper.
-  if (process.env.RESEND_API_KEY) {
-    const result = await sendCustomerEmail({
-      detailer,
-      to: lead.email,
-      subject: `Photos needed for your ${aircraftName} detail quote`,
-      html: buildEmailHtml({ branding, detailer, firstName, aircraftName, uploadUrl }),
-    });
-    if (!result?.success) {
-      console.error('[request-photos] sendCustomerEmail failed:', result?.error);
-      return Response.json({ error: 'Email send failed', detail: result?.error }, { status: 500 });
-    }
-  } else {
-    console.warn('[request-photos] RESEND_API_KEY missing — email NOT sent');
+  // (2) Send the email. A missing key or a send failure returns 500 — we never
+  // claim success without an email actually going out.
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[request-photos] RESEND_API_KEY missing — cannot send photo request');
+    return Response.json({ error: 'Email service not configured' }, { status: 500 });
+  }
+  const result = await sendCustomerEmail({
+    detailer,
+    to: lead.email,
+    subject: `Photos needed for your ${aircraftName} detail quote`,
+    html: buildEmailHtml({ branding, detailer, firstName, aircraftName, uploadUrl }),
+  });
+  if (!result?.success) {
+    console.error('[request-photos] sendCustomerEmail failed:', result?.error);
+    return Response.json({ error: 'Email send failed', detail: result?.error }, { status: 500 });
   }
 
   // Audit row in notification_log so the dashboard has proof of send.
@@ -127,6 +129,25 @@ export async function POST(request) {
   }).then(({ error: nErr }) => {
     if (nErr) console.warn('[request-photos] notification_log insert failed:', nErr.message);
   });
+
+  // (3) Stamp sent_at + status AFTER a successful send. The email already went
+  // out, so a failure here is a soft tracking warning, not a hard error.
+  const { error: stampErr } = await supabase
+    .from('intake_leads')
+    .update({
+      photo_request_sent_at: new Date().toISOString(),
+      status: 'awaiting_photos',
+    })
+    .eq('id', lead_id);
+  if (stampErr) {
+    console.error(`[request-photos] status stamp failed after send for lead ${lead_id}:`, stampErr.message);
+    return Response.json({
+      success: true,
+      token,
+      upload_url: uploadUrl,
+      tracking_warning: 'Email sent but status tracking failed',
+    }, { status: 200 });
+  }
 
   return Response.json({ success: true, token, upload_url: uploadUrl });
 }

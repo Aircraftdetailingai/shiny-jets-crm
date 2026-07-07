@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { recalculateAverages, updateNetworkAverages } from '@/lib/record-usage';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,6 @@ export async function GET(request) {
   const supabase = getSupabase();
 
   if (jobId) {
-    // Get logs for a specific job
     const { data: logs } = await supabase
       .from('product_usage_log')
       .select('*')
@@ -29,7 +29,6 @@ export async function GET(request) {
     return Response.json({ logs: logs || [] });
   }
 
-  // Get recent logs
   const { data: logs } = await supabase
     .from('product_usage_log')
     .select('*')
@@ -142,119 +141,14 @@ export async function POST(request) {
     });
   }
 
-  // Recalculate averages for each product+service+category combo
-  await recalculateAverages(supabase, user.id, rows);
-
-  // Update network averages
+  // Recalculate averages + network learning. Helpers extracted to
+  // lib/record-usage so the per-entry writers (crew/products and
+  // jobs/product-usage) feed the same loop.
+  await recalculateAverages(supabase, user.detailer_id || user.id, rows);
   await updateNetworkAverages(supabase, rows, job).catch(() => {});
 
   return Response.json({
     success: true,
     logged: inserted?.length || rows.length,
   });
-}
-
-async function recalculateAverages(supabase, detailerId, entries) {
-  // Group by product+service+category
-  const combos = new Map();
-  for (const e of entries) {
-    const key = `${e.product_id}|${e.service_id || 'none'}|${e.aircraft_category}`;
-    if (!combos.has(key)) {
-      combos.set(key, { product_id: e.product_id, service_id: e.service_id, aircraft_category: e.aircraft_category });
-    }
-  }
-
-  for (const combo of combos.values()) {
-    // Query all logs for this combo
-    let query = supabase
-      .from('product_usage_log')
-      .select('quantity_used')
-      .eq('detailer_id', detailerId)
-      .eq('product_id', combo.product_id)
-      .eq('aircraft_category', combo.aircraft_category);
-
-    if (combo.service_id) {
-      query = query.eq('service_id', combo.service_id);
-    } else {
-      query = query.is('service_id', null);
-    }
-
-    const { data: logs } = await query;
-    if (!logs || logs.length === 0) continue;
-
-    const avgQty = logs.reduce((sum, l) => sum + parseFloat(l.quantity_used), 0) / logs.length;
-
-    // Upsert average
-    await supabase
-      .from('product_consumption_averages')
-      .upsert({
-        detailer_id: detailerId,
-        product_id: combo.product_id,
-        service_id: combo.service_id || null,
-        aircraft_category: combo.aircraft_category,
-        avg_quantity: Math.round(avgQty * 100) / 100,
-        sample_count: logs.length,
-        last_updated: new Date().toISOString(),
-      }, {
-        onConflict: 'detailer_id,product_id,service_id,aircraft_category',
-      });
-  }
-}
-
-async function updateNetworkAverages(supabase, entries, job) {
-  // Get product and service names for network aggregation
-  const productIds = [...new Set(entries.map(e => e.product_id))];
-  const serviceIds = [...new Set(entries.filter(e => e.service_id).map(e => e.service_id))];
-
-  const { data: products } = await supabase
-    .from('products')
-    .select('id, name, category')
-    .in('id', productIds);
-
-  const { data: services } = serviceIds.length > 0
-    ? await supabase.from('services').select('id, name').in('id', serviceIds)
-    : { data: [] };
-
-  const productMap = Object.fromEntries((products || []).map(p => [p.id, p]));
-  const serviceMap = Object.fromEntries((services || []).map(s => [s.id, s]));
-
-  for (const entry of entries) {
-    const product = productMap[entry.product_id];
-    const service = entry.service_id ? serviceMap[entry.service_id] : null;
-    if (!product) continue;
-
-    const productName = product.name?.toLowerCase().trim();
-    const productCategory = product.category || 'other';
-    const serviceName = service?.name?.toLowerCase().trim() || 'general';
-    const aircraftCategory = entry.aircraft_category || 'unknown';
-
-    // Get all network logs for this combo
-    const { data: networkLogs } = await supabase
-      .from('product_usage_log')
-      .select('quantity_used')
-      .eq('aircraft_category', aircraftCategory)
-      .in('product_id', (await supabase
-        .from('products')
-        .select('id')
-        .ilike('name', productName)
-      ).data?.map(p => p.id) || []);
-
-    if (!networkLogs || networkLogs.length === 0) continue;
-
-    const avgQty = networkLogs.reduce((sum, l) => sum + parseFloat(l.quantity_used), 0) / networkLogs.length;
-
-    await supabase
-      .from('network_consumption_averages')
-      .upsert({
-        product_name: productName,
-        product_category: productCategory,
-        service_name: serviceName,
-        aircraft_category: aircraftCategory,
-        avg_quantity: Math.round(avgQty * 100) / 100,
-        sample_count: networkLogs.length,
-        last_updated: new Date().toISOString(),
-      }, {
-        onConflict: 'product_name,product_category,service_name,aircraft_category',
-      });
-  }
 }

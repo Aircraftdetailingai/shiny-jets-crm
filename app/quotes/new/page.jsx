@@ -10,6 +10,7 @@ import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
 import { calculateProductEstimates } from '../../../lib/product-calculator';
 import { calculateCcFee } from '../../../lib/cc-fee';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
+import { resolveValidityDays } from '../../../lib/quote-validity';
 
 const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super_midsize_jet', 'large_jet', 'helicopter'];
 
@@ -105,6 +106,9 @@ function NewQuoteContent() {
   const [qAircraftSaving, setQAircraftSaving] = useState(false);
   const [proposedDate, setProposedDate] = useState('');
   const [proposedTime, setProposedTime] = useState('08:00');
+  const [quoteValidityDays, setQuoteValidityDays] = useState(null);
+  const [detailerDefaultValidity, setDetailerDefaultValidity] = useState(30);
+  const [loadedQuote, setLoadedQuote] = useState(null);
   const [bufferMinutes, setBufferMinutes] = useState(60);
   const [excludeWeekends, setExcludeWeekends] = useState(true);
   const [calendarSuggestion, setCalendarSuggestion] = useState(null);
@@ -1053,6 +1057,7 @@ function NewQuoteContent() {
       tail_number: tailNumber || null,
       proposed_date: proposedDate || null,
       proposed_time: proposedTime || null,
+      quote_validity_days: quoteValidityDays != null && quoteValidityDays !== '' ? parseInt(quoteValidityDays, 10) : null,
       product_estimates: quoteData.productEstimates || [],
       linked_products: quoteData.linkedProducts || [],
       linked_equipment: quoteData.linkedEquipment || [],
@@ -1179,6 +1184,22 @@ function NewQuoteContent() {
   // overrides and custom add-on amounts, so the builder used to re-derive
   // catalog defaults and the auto-save overwrote the real quote. We load the
   // full row by id and restore those fields, then flip `hydrated`.
+  // Load the detailer's default quote-validity window (for the live resolved
+  // expiry display + provisional payload). Falls back to 30 on any failure.
+  useEffect(() => {
+    const token = localStorage.getItem('vector_token');
+    if (!token) return;
+    let cancelled = false;
+    fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const v = d?.user?.default_quote_validity_days;
+        if (!cancelled && v != null) setDetailerDefaultValidity(v);
+      })
+      .catch(e => console.error('Failed to load default quote validity:', e));
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     if (!draftId || hydrated) return;
     let cancelled = false;
@@ -1189,6 +1210,8 @@ function NewQuoteContent() {
         if (!res.ok) throw new Error(`load failed (${res.status})`);
         const q = await res.json();
         if (cancelled) return;
+        setLoadedQuote(q);
+        if (q.quote_validity_days != null) setQuoteValidityDays(q.quote_validity_days);
 
         // Per-service hour overrides, keyed by service_id to match getHoursForService.
         const ch = {};
@@ -2106,6 +2129,37 @@ function NewQuoteContent() {
               />
             </div>
           )}
+
+          {/* 6b. Quote validity */}
+          {selectedAircraft && selectedServicesList.length > 0 && (() => {
+            const isSentQuote = !!loadedQuote?.sent_at;
+            const resolvedValidity = resolveValidityDays({ quoteValidityDays, detailerDefaultDays: detailerDefaultValidity });
+            return (
+              <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
+                <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Quote Validity (days)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={quoteValidityDays ?? ''}
+                  disabled={isSentQuote}
+                  placeholder={`Default: ${detailerDefaultValidity}`}
+                  onChange={(e) => setQuoteValidityDays(e.target.value === '' ? null : parseInt(e.target.value, 10))}
+                  className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:ring-2 focus:ring-v-gold focus:border-v-gold text-base disabled:opacity-50"
+                />
+                {isSentQuote ? (
+                  <p className="text-xs text-v-text-secondary mt-1.5">
+                    {loadedQuote?.valid_until
+                      ? `Valid until ${new Date(loadedQuote.valid_until).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}. `
+                      : ''}
+                    To change expiry, use Extend.
+                  </p>
+                ) : (
+                  <p className="text-xs text-v-text-secondary mt-1.5">Valid for {resolvedValidity} days — starts when sent.</p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* 7. Scheduling */}
           {selectedAircraft && selectedServicesList.length > 0 && (() => {
