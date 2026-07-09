@@ -940,6 +940,16 @@ export default function QuoteViewPage() {
           )}
         </div>
 
+        {/* View Quote — prominent top CTA (same PDF link as the bottom) */}
+        <a
+          href={`/api/quotes/${quote.id}/pdf?token=${params.shareLink}`}
+          target="_blank"
+          rel="noreferrer"
+          className="block w-full py-4 mb-8 text-center border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
+        >
+          View Quote
+        </a>
+
         {/* Services */}
         <div className="mb-8">
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
@@ -1273,7 +1283,7 @@ export default function QuoteViewPage() {
           </div>
         )}
 
-        {/* Download PDF */}
+        {/* View Quote */}
         <div className="mt-6 text-center">
           <a
             href={`/api/quotes/${quote.id}/pdf?token=${params.shareLink}`}
@@ -1281,7 +1291,7 @@ export default function QuoteViewPage() {
             rel="noreferrer"
             className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-[10px] tracking-[0.15em] uppercase hover:text-[var(--brand-primary,#007CB1)] transition-colors"
           >
-            Download PDF
+            View Quote
           </a>
         </div>
       </div>
