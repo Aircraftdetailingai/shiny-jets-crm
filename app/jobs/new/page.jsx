@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import { HOURS_FIELD_TO_HRS_COL } from '@/lib/calibration-reference';
 
 const CATEGORY_ORDER = ['exterior', 'interior', 'paint_correction', 'coating', 'brightwork', 'other'];
 const CATEGORY_LABELS = {
@@ -107,6 +108,8 @@ export default function NewJobPage() {
     const name = (svc.name || '').toLowerCase();
     if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(aircraftHoursRef.maintenance_wash_hrs) || 0;
     if (name.includes('decon')) return parseFloat(aircraftHoursRef.decon_paint_hrs) || 0;
+    // brightwork/bright/chrome BEFORE polish (mirrors the /quotes/new fix).
+    if (name.includes('brightwork') || name.includes('bright') || name.includes('chrome')) return parseFloat(aircraftHoursRef.brightwork_hrs) || 0;
     if (name.includes('polish')) return parseFloat(aircraftHoursRef.one_step_polish_hrs) || 0;
     if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(aircraftHoursRef.spray_ceramic_hrs) || 0;
     if (name.includes('ceramic')) return parseFloat(aircraftHoursRef.ceramic_coating_hrs) || 0;
@@ -122,6 +125,19 @@ export default function NewJobPage() {
   };
 
   const getDefaultHours = (svc) => {
+    // Explicit hours_field wins over name-keyword matching — mapped to the
+    // equivalent aircraft_hours column, else the aircraft catalog column.
+    if (svc.hours_field) {
+      const hrsCol = HOURS_FIELD_TO_HRS_COL[svc.hours_field];
+      if (hrsCol && aircraftHoursRef) {
+        const v = parseFloat(aircraftHoursRef[hrsCol]);
+        if (v > 0) return v;
+      }
+      if (selectedAircraft && selectedAircraft[svc.hours_field]) {
+        const v = parseFloat(selectedAircraft[svc.hours_field]);
+        if (v > 0) return v;
+      }
+    }
     const refHrs = getRefHours(svc);
     if (refHrs > 0) return refHrs;
     if (selectedAircraft) {

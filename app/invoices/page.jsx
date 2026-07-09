@@ -5,6 +5,7 @@ import AppShell from '@/components/AppShell';
 import ServicesPicker from '@/components/ServicesPicker';
 import CustomerAutocomplete from '@/components/CustomerAutocomplete';
 import { computeCalibratedHours, applyMinimumPrice } from '@/lib/calibrate-hours';
+import { HOURS_FIELD_TO_HRS_COL } from '@/lib/calibration-reference';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 import { FEE_TYPES, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee } from '@/lib/addon-fees';
 
@@ -449,6 +450,9 @@ function InvoicesPageInner() {
     const name = (svc?.name || '').toLowerCase();
     if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(ref.maintenance_wash_hrs) || 0;
     if (name.includes('decon')) return parseFloat(ref.decon_paint_hrs) || 0;
+    // brightwork/bright/chrome BEFORE polish — must not fall through to
+    // one_step_polish_hrs (mirrors the /quotes/new fix).
+    if (name.includes('brightwork') || name.includes('bright') || name.includes('chrome')) return parseFloat(ref.brightwork_hrs) || 0;
     if (name.includes('polish')) return parseFloat(ref.one_step_polish_hrs) || 0;
     if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(ref.spray_ceramic_hrs) || 0;
     if (name.includes('ceramic')) return parseFloat(ref.ceramic_coating_hrs) || 0;
@@ -484,6 +488,19 @@ function InvoicesPageInner() {
     // exists or the calibration's baseline column is null/0 on this aircraft.
     const cal = computeCalibratedHours({ service: svc, aircraftHoursRef: blankAircraftHoursRef, calibrations: blankCalibrations, services: blankServices });
     if (cal.source === 'calibrated') return cal.hours;
+    // Explicit hours_field wins over name-keyword matching — mapped to the
+    // equivalent aircraft_hours column, else the aircraft catalog column.
+    if (svc?.hours_field) {
+      const hrsCol = HOURS_FIELD_TO_HRS_COL[svc.hours_field];
+      if (hrsCol && blankAircraftHoursRef) {
+        const v = parseFloat(blankAircraftHoursRef[hrsCol]);
+        if (v > 0) return v;
+      }
+      if (blankAircraftRow && blankAircraftRow[svc.hours_field] !== undefined) {
+        const v = parseFloat(blankAircraftRow[svc.hours_field]);
+        if (v > 0) return v;
+      }
+    }
     const ref = getBlankRefHours(svc);
     if (ref > 0) return ref;
     const row = getBlankRowHours(svc);
@@ -730,6 +747,8 @@ function InvoicesPageInner() {
     const name = (svc.name || '').toLowerCase();
     if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(editAircraftHoursRef.maintenance_wash_hrs) || 0;
     if (name.includes('decon')) return parseFloat(editAircraftHoursRef.decon_paint_hrs) || 0;
+    // brightwork/bright/chrome BEFORE polish (mirrors the /quotes/new fix).
+    if (name.includes('brightwork') || name.includes('bright') || name.includes('chrome')) return parseFloat(editAircraftHoursRef.brightwork_hrs) || 0;
     if (name.includes('polish')) return parseFloat(editAircraftHoursRef.one_step_polish_hrs) || 0;
     if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(editAircraftHoursRef.spray_ceramic_hrs) || 0;
     if (name.includes('ceramic')) return parseFloat(editAircraftHoursRef.ceramic_coating_hrs) || 0;
@@ -739,6 +758,15 @@ function InvoicesPageInner() {
     return 0;
   };
   const getEditDefaultHours = (svc) => {
+    // Explicit hours_field wins over name-keyword matching. The edit path has
+    // only the aircraft_hours reference row (no legacy aircraft catalog row).
+    if (svc.hours_field) {
+      const hrsCol = HOURS_FIELD_TO_HRS_COL[svc.hours_field];
+      if (hrsCol && editAircraftHoursRef) {
+        const v = parseFloat(editAircraftHoursRef[hrsCol]);
+        if (v > 0) return v;
+      }
+    }
     const ref = getEditRefHours(svc);
     if (ref > 0) return ref;
     return parseFloat(svc.default_hours) || 0;
