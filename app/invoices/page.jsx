@@ -482,7 +482,7 @@ function InvoicesPageInner() {
     // chain — they're the detailer's explicit per-service ratio for *this*
     // airframe family. Only fall through to the chain when no calibration
     // exists or the calibration's baseline column is null/0 on this aircraft.
-    const cal = computeCalibratedHours({ service: svc, aircraftHoursRef: blankAircraftHoursRef, calibrations: blankCalibrations });
+    const cal = computeCalibratedHours({ service: svc, aircraftHoursRef: blankAircraftHoursRef, calibrations: blankCalibrations, services: blankServices });
     if (cal.source === 'calibrated') return cal.hours;
     const ref = getBlankRefHours(svc);
     if (ref > 0) return ref;

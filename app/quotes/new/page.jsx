@@ -717,7 +717,7 @@ function NewQuoteContent() {
   const getHoursForService = (svc) => {
     if (customHours[svc.id] !== undefined) return customHours[svc.id];
     if (aircraftOverrides[svc.id] !== undefined) return aircraftOverrides[svc.id];
-    const cal = computeCalibratedHours({ service: svc, aircraftHoursRef, calibrations });
+    const cal = computeCalibratedHours({ service: svc, aircraftHoursRef, calibrations, services: availableServices });
     if (cal.source === 'calibrated') return cal.hours;
     if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
     const community = getCommunityHours(svc);

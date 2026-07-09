@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { resolveReferenceColumn } from '@/lib/calibration-reference';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,20 +23,11 @@ const REFERENCE_MAP = {
 
 // aircraft_hours uses different column names than `aircraft`. Anchor rows come
 // from aircraft_hours, so we map reference_type → that table's *_hrs columns
-// when building the anchor preview rows.
-const ANCHOR_HOURS_COLUMN = {
-  wash: 'maintenance_wash_hrs',
-  polish: 'one_step_polish_hrs',
-  compound: 'one_step_polish_hrs',
-  wax: 'wax_hrs',
-  ceramic: 'ceramic_coating_hrs',
-  detail_interior: 'carpet_hrs',
-  leather: 'leather_hrs',
-};
-
+// via the shared calibration-reference module (single source of truth for the
+// preview and the apply path — they can no longer drift).
 function anchorRefHours(row, type) {
   if (!row) return null;
-  const col = ANCHOR_HOURS_COLUMN[type] || 'maintenance_wash_hrs';
+  const col = resolveReferenceColumn(type);
   const raw = row[col];
   const num = typeof raw === 'number' ? raw : parseFloat(raw);
   return Number.isFinite(num) && num > 0 ? num : null;
