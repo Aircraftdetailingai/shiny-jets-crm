@@ -27,6 +27,27 @@ const HOURS_FIELD_OPTIONS = {
   brightwork_hours: 'Brightwork',
 };
 
+// Legacy services.hours_field (aircraft table columns) -> the equivalent
+// aircraft_hours reference column, when one exists. Lets a service's explicit
+// hours_field resolve against the aircraft_hours sheet before any name-keyword
+// matching.
+// NOTE: int_detail_hours is intentionally omitted — interior detail has no
+// aircraft_hours equivalent (carpet_hrs is carpet only, not the full interior),
+// so it falls back to the aircraft table's int_detail_hours column instead.
+// FLAG: lib/calibration-reference.js maps int_detail_hours -> carpet_hrs, which
+// is WRONG for this same reason and should be corrected separately.
+const HOURS_FIELD_TO_HRS_COL = {
+  ext_wash_hours: 'maintenance_wash_hrs',
+  decon_hours: 'decon_paint_hrs',
+  leather_hours: 'leather_hrs',
+  carpet_hours: 'carpet_hrs',
+  wax_hours: 'wax_hrs',
+  polish_hours: 'one_step_polish_hrs',
+  ceramic_hours: 'ceramic_coating_hrs',
+  spray_ceramic_hours: 'spray_ceramic_hrs',
+  brightwork_hours: 'brightwork_hrs',
+};
+
 const categoryLabels = {
   piston: 'Pistons',
   turboprop: 'Turboprops',
@@ -656,6 +677,9 @@ function NewQuoteContent() {
     const name = (svc.name || '').toLowerCase();
     if (name.includes('maintenance') || (name.includes('wash') && !name.includes('decon'))) return parseFloat(aircraftHoursRef.maintenance_wash_hrs) || 0;
     if (name.includes('decon')) return parseFloat(aircraftHoursRef.decon_paint_hrs) || 0;
+    // brightwork/bright/chrome BEFORE polish — "Polish Brightwork" and friends
+    // must not fall through to one_step_polish_hrs (the $6,756 bug).
+    if (name.includes('brightwork') || name.includes('bright') || name.includes('chrome')) return parseFloat(aircraftHoursRef.brightwork_hrs) || 0;
     if (name.includes('polish')) return parseFloat(aircraftHoursRef.one_step_polish_hrs) || 0;
     if (name.includes('spray ceramic') || name.includes('spray coat') || name.includes('topcoat') || name.includes('air guard')) return parseFloat(aircraftHoursRef.spray_ceramic_hrs) || 0;
     if (name.includes('ceramic')) return parseFloat(aircraftHoursRef.ceramic_coating_hrs) || 0;
@@ -692,8 +716,25 @@ function NewQuoteContent() {
     return parseFloat(selectedAircraft.ext_wash_hours) || 0;
   };
 
-  // Combined: aircraft_hours reference > old aircraft table
+  // Combined resolver. Priority:
+  //   1. explicit services.hours_field — mapped to the equivalent aircraft_hours
+  //      column, else the aircraft table column. Must win over name matching,
+  //      otherwise the name-keyword chains below silently mis-resolve services
+  //      whose name doesn't match their field (e.g. "Polish Brightwork").
+  //   2. aircraft_hours name-keyword reference
+  //   3. old aircraft table name-keyword fallback
   const getAircraftHours = (svc) => {
+    if (svc.hours_field) {
+      const hrsCol = HOURS_FIELD_TO_HRS_COL[svc.hours_field];
+      if (hrsCol && aircraftHoursRef) {
+        const v = parseFloat(aircraftHoursRef[hrsCol]);
+        if (v > 0) return v;
+      }
+      if (selectedAircraft && selectedAircraft[svc.hours_field] !== undefined) {
+        const v = parseFloat(selectedAircraft[svc.hours_field]);
+        if (v > 0) return v;
+      }
+    }
     const refHrs = getRefHours(svc);
     if (refHrs > 0) return refHrs;
     return getOldAircraftHours(svc);
