@@ -1,15 +1,34 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  familyOfService,
+  familyOfReferenceType,
+  isCrossFamily,
+  FAMILY_PAINT,
+  FAMILY_INTERIOR,
+  FAMILY_LEADING_EDGE,
+} from '@/lib/calibration-reference';
 
+// Built-in reference types, tagged with their measurement family. A service can
+// only be calibrated against references in its OWN family (see filtering below).
 const STANDARD_REFERENCES = [
-  { value: 'wash', label: 'Wash (Maintenance Wash)' },
-  { value: 'polish', label: 'Polish' },
-  { value: 'compound', label: 'Compound' },
-  { value: 'wax', label: 'Wax' },
-  { value: 'ceramic', label: 'Ceramic Coating' },
-  { value: 'detail_interior', label: 'Interior Detail' },
-  { value: 'leather', label: 'Leather Conditioning' },
+  // Paint surface
+  { value: 'wash', label: 'Wash (Maintenance Wash)', family: FAMILY_PAINT },
+  { value: 'polish', label: 'Polish', family: FAMILY_PAINT },
+  { value: 'compound', label: 'Compound', family: FAMILY_PAINT },
+  { value: 'ceramic', label: 'Ceramic Coating', family: FAMILY_PAINT },
+  { value: 'wax', label: 'Wax', family: FAMILY_PAINT },
+  { value: 'decon', label: 'Decon', family: FAMILY_PAINT },
+  { value: 'spray_ceramic', label: 'Spray Ceramic', family: FAMILY_PAINT },
+  // Interior
+  { value: 'detail_interior', label: 'Interior Detail', family: FAMILY_INTERIOR },
+  { value: 'leather', label: 'Leather Conditioning', family: FAMILY_INTERIOR },
+  { value: 'carpet', label: 'Carpet Extraction', family: FAMILY_INTERIOR },
+  // Leading edge
+  { value: 'brightwork', label: 'Brightwork', family: FAMILY_LEADING_EDGE },
 ];
+
+const STANDARD_LABELS = Object.fromEntries(STANDARD_REFERENCES.map((r) => [r.value, r.label]));
 
 // Map reference_type → the key in the GET endpoint's per-aircraft `hours`
 // dict (server normalizes aircraft_hours columns to these names). Keep in
@@ -21,7 +40,11 @@ const REF_TO_HOURS_KEY = {
   wax: 'wax',
   ceramic: 'ceramic_coating',
   detail_interior: 'carpet',
+  carpet: 'carpet',
   leather: 'leather',
+  decon: 'decon_paint',
+  spray_ceramic: 'spray_ceramic',
+  brightwork: 'brightwork',
 };
 
 const INPUT_CLASS =
@@ -83,13 +106,18 @@ export default function CalibrationModal({
     setAcSearch('');
     setAcCategory('all');
     setPage(0);
+    // Default an uncalibrated service to an in-family reference so a fresh
+    // leading-edge / interior service doesn't open on a paint type (which would
+    // trip the cross-family warning immediately).
+    const famDefault = { [FAMILY_PAINT]: 'polish', [FAMILY_INTERIOR]: 'detail_interior', [FAMILY_LEADING_EDGE]: 'brightwork' };
+    const defaultRef = famDefault[familyOfService(service?.hours_field)] || 'polish';
     const existing = (calibrations || []).find(c => c.service_id === service?.id);
     if (existing) {
-      setReferenceType(existing.reference_service_type || 'polish');
+      setReferenceType(existing.reference_service_type || defaultRef);
       const saved = Number.isFinite(existing.adjustment_pct) ? existing.adjustment_pct : 0;
       setManualAdjustmentPct(Math.max(-300, Math.min(300, saved)));
     } else {
-      setReferenceType('polish');
+      setReferenceType(defaultRef);
       setManualAdjustmentPct(0);
     }
   }, [isOpen, service?.id, calibrations]);
@@ -261,14 +289,41 @@ export default function CalibrationModal({
   const multiplier = (1 + adjustmentPct / 100).toFixed(2).replace(/\.?0+$/, '');
   const calibratedIds = new Set((calibrations || []).map(c => c.service_id));
 
+  // A service can only be calibrated against references in its OWN measurement
+  // family. Filter both the built-in types and the detailer's own services to
+  // the family of the service being calibrated. When the service's family is
+  // unknown (no hours_field), fall back to showing everything.
+  const serviceFamily = familyOfService(service?.hours_field);
+
+  const standardReferences = serviceFamily
+    ? STANDARD_REFERENCES.filter(o => o.family === serviceFamily)
+    : STANDARD_REFERENCES;
+
   // Build grouped reference options: detailer's own services first, then standard
   const ownServices = (detailerServices || [])
     .filter(s => s.id !== service.id)
+    .filter(s => !serviceFamily || familyOfService(s.hours_field) === serviceFamily)
     .map(s => ({
       value: `svc:${s.id}`,
       label: s.name,
       calibrated: calibratedIds.has(s.id),
     }));
+
+  // Existing bad data: if the currently-selected reference is outside this
+  // service's family it was filtered out above. Keep it visible (marked) so the
+  // owner can see and re-point it — never silently hide or change it.
+  const currentIsOwn = (referenceType || '').startsWith('svc:');
+  const currentInList = currentIsOwn
+    ? ownServices.some(o => o.value === referenceType)
+    : standardReferences.some(o => o.value === referenceType);
+  const crossFamily = isCrossFamily(service?.hours_field, referenceType, detailerServices);
+  let strayOption = null;
+  if (referenceType && !currentInList) {
+    const label = currentIsOwn
+      ? ((detailerServices || []).find(s => `svc:${s.id}` === referenceType)?.name || 'Removed service')
+      : (STANDARD_LABELS[referenceType] || referenceType);
+    strayOption = { value: referenceType, label: `⚠ ${label} — outside this family` };
+  }
 
   const adjustmentLabel = !computedReady
     ? '—'
@@ -316,16 +371,27 @@ export default function CalibrationModal({
             </div>
           )}
 
-          {/* Reference dropdown — own services + standard types */}
+          {/* Reference dropdown — own services + standard types, filtered to family */}
           <div>
             <label className="block text-xs font-medium text-v-text-secondary mb-1.5 uppercase tracking-wide">
               This service is most similar to:
             </label>
+            {crossFamily && (
+              <div className="flex items-start gap-2 mb-2 px-3 py-2 bg-amber-500/10 border border-amber-500/40 rounded-sm text-xs text-amber-300">
+                <span className="mt-0.5">&#9888;</span>
+                <span>Reference is outside this service&apos;s bucket — pick one from the same family below to fix it.</span>
+              </div>
+            )}
             <select
               value={referenceType}
               onChange={(e) => setReferenceType(e.target.value)}
               className={INPUT_CLASS}
             >
+              {strayOption && (
+                <optgroup label="⚠ OUTSIDE THIS FAMILY">
+                  <option value={strayOption.value}>{strayOption.label}</option>
+                </optgroup>
+              )}
               {ownServices.length > 0 && (
                 <optgroup label="YOUR SERVICES">
                   {ownServices.map((opt) => (
@@ -336,7 +402,7 @@ export default function CalibrationModal({
                 </optgroup>
               )}
               <optgroup label="STANDARD REFERENCES">
-                {STANDARD_REFERENCES.map((opt) => (
+                {standardReferences.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>

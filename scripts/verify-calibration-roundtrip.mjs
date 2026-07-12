@@ -53,9 +53,10 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const DETAILER_ID = 'e9dc3f74-4472-4e37-a1fe-efd823ab7eee'; // real detailer with services
-const STD_TYPES = ['wash', 'polish', 'compound', 'wax', 'spray_ceramic', 'ceramic', 'interior', 'leather', 'decon'];
+const STD_TYPES = ['wash', 'polish', 'compound', 'wax', 'spray_ceramic', 'ceramic', 'interior', 'carpet', 'leather', 'decon', 'brightwork'];
 
 const r3 = (n) => Math.round(n * 1000) / 1000;
+const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : NaN; };
 
 let failures = 0;
 function assert(cond, msg) {
@@ -143,14 +144,52 @@ async function main() {
     assert(per.G650.res.hours > per.Phenom300.res.hours,
       `[${label}] G650 ${per.G650.res.hours} > Phenom300 ${per.Phenom300.res.hours}`);
 
-    // (d) ceramic on the Gulfstream is a genuine data gap -> derived, still ordered
+    // (d) a genuine data gap must resolve 'derived' (not flat). Prefer G650
+    // ceramic when it's actually NULL; otherwise find any row where the ceramic
+    // column is NULL so the derived path is exercised regardless of live data.
     if (type === 'ceramic') {
-      assert(per.G650.ref.source === 'derived',
-        `[ceramic] G650 ceramic_coating_hrs NULL -> derived (source=${per.G650.ref.source}, hours=${per.G650.ref.hours})`);
-      assert(per.G650.res.hours > per.Phenom300.res.hours,
-        `[ceramic] derived G650 ${per.G650.res.hours} > Phenom300 ${per.Phenom300.res.hours}`);
+      if (!(num(g650.ceramic_coating_hrs) > 0)) {
+        assert(per.G650.ref.source === 'derived',
+          `[ceramic] G650 ceramic_coating_hrs NULL -> derived (source=${per.G650.ref.source}, hours=${per.G650.ref.hours})`);
+        assert(per.G650.res.hours > per.Phenom300.res.hours,
+          `[ceramic] derived G650 ${per.G650.res.hours} > Phenom300 ${per.Phenom300.res.hours}`);
+      } else {
+        const gap = allHoursRows.find((r) => !(num(r.ceramic_coating_hrs) > 0) && num(r.one_step_polish_hrs) > 0);
+        if (gap) {
+          const ref = resolveReferenceHours(gap, 'ceramic', ctx);
+          assert(ref.source === 'derived',
+            `[ceramic] data-gap ${gap.model}: ceramic_coating_hrs NULL -> derived (source=${ref.source}, hours=${ref.hours})`);
+        } else {
+          console.log('SKIP  [ceramic] no ceramic_coating_hrs data gap in current data');
+        }
+      }
+    }
+
+    // (e) brightwork resolves off brightwork_hrs (column) for both anchors —
+    // never off a paint field. Proves the "calibrate brightwork vs polish" bug.
+    if (type === 'brightwork') {
+      assert(per.G650.ref.column === 'brightwork_hrs' && per.Phenom300.ref.column === 'brightwork_hrs',
+        `[brightwork] resolves to brightwork_hrs (G650=${per.G650.ref.column}, Phenom=${per.Phenom300.ref.column})`);
     }
   }
+
+  // ── Brightwork geometry fallback: NEVER a paint ratio (deterministic) ──
+  // Synthetic rows so the formula is proven regardless of live data coverage.
+  // Both carry one_step_polish_hrs to confirm the ratio path is NOT taken.
+  const geomRow = { brightwork_hrs: null, wingspan_ft: 90, one_step_polish_hrs: 100 };
+  const geomRef = resolveReferenceHours(geomRow, 'brightwork', ctx);
+  const geomExpected = r3(1.4 * 90 / 9); // 14.0
+  assert(geomRef.source === 'derived' && geomRef.basis === 'geometry',
+    `[brightwork-geom] brightwork_hrs NULL, wingspan=90 -> derived/geometry (source=${geomRef.source}, basis=${geomRef.basis})`);
+  assert(geomRef.hours === geomExpected,
+    `[brightwork-geom] hours ${geomRef.hours} == 1.4×90÷9 == ${geomExpected}`);
+  assert(geomRef.ratio === null,
+    `[brightwork-geom] no polish ratio used despite one_step_polish_hrs=100 (ratio=${geomRef.ratio})`);
+
+  const noDataRow = { brightwork_hrs: null, wingspan_ft: null, one_step_polish_hrs: 100 };
+  const noDataRef = resolveReferenceHours(noDataRow, 'brightwork', ctx);
+  assert(noDataRef.source === 'none' && !(noDataRef.hours > 0),
+    `[brightwork-nodata] no brightwork_hrs & no wingspan -> source='none' hours=${noDataRef.hours} (never a paint ratio despite polish=100)`);
 }
 
 async function teardown() {

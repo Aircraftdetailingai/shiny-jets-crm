@@ -17,8 +17,12 @@ const REFERENCE_MAP = {
   compound: { column: 'polish_hours', fallback: 16 },
   wax: { column: 'wax_hours', fallback: 6 },
   ceramic: { column: 'ceramic_hours', fallback: 18 },
+  decon: { column: 'decon_hours', fallback: 3 },
+  spray_ceramic: { column: 'spray_ceramic_hours', fallback: 8 },
   detail_interior: { column: 'int_detail_hours', fallback: 6 },
+  carpet: { column: 'carpet_hours', fallback: 3 },
   leather: { column: 'leather_hours', fallback: 4 },
+  brightwork: { column: 'brightwork_hours', fallback: 6 },
 };
 
 function getReferenceInfo(type) {

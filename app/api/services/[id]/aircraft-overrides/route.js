@@ -104,6 +104,7 @@ export async function GET(request, { params }) {
       decon_paint: a.decon_paint_hrs ?? null,
       carpet: a.carpet_hrs ?? null,
       leather: a.leather_hrs ?? null,
+      brightwork: a.brightwork_hrs ?? null,
     },
     override: byAircraft[a.id]
       ? { id: byAircraft[a.id].id, hours: byAircraft[a.id].hours }
