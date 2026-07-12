@@ -8,6 +8,7 @@ import LoadingSpinner from '../../../components/LoadingSpinner.jsx';
 import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
 import { calculateProductEstimates } from '../../../lib/product-calculator';
+import { computeLinkedProductQuantity } from '../../../lib/product-quantity';
 import { calculateCcFee } from '../../../lib/cc-fee';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
 import { resolveValidityDays } from '../../../lib/quote-validity';
@@ -941,17 +942,54 @@ function NewQuoteContent() {
     };
   });
 
-  const estimatedProductCost = selectedServicesList.reduce((sum, svc) => {
+  // Aircraft exterior surface area drives per-sqft product quantities. The
+  // authoritative value lives on the aircraft_hours reference row
+  // (surface_area); fall back to the aircraft record only if that's absent.
+  const aircraftSqft = parseFloat(aircraftHoursRef?.surface_area)
+    || parseFloat(selectedAircraft?.surface_area_sqft) || 0;
+
+  // Real, tagged products for the selected services — quantities computed from
+  // the honest schema (per_job + per_sqft * sqft), NOT the phantom per-hour /
+  // fixed columns the old code read (which don't exist, so rendered 0.0).
+  const linkedProducts = serviceProductLinks
+    .filter(l => selectedServicesList.some(s => s.id === l.service_id))
+    .map(l => ({
+      product_id: l.product_id,
+      product_name: l.products?.name,
+      unit: l.products?.unit,
+      quantity: computeLinkedProductQuantity(l, aircraftSqft),
+      cost_per_unit: l.products?.cost_per_unit || 0,
+    }));
+
+  // Services with at least one tagged product use those real products; the
+  // rest fall back to the generic estimator (rendered as "(estimate)").
+  const taggedServiceIds = new Set(
+    serviceProductLinks
+      .filter(l => selectedServicesList.some(s => s.id === l.service_id))
+      .map(l => l.service_id)
+  );
+  const untaggedServices = selectedServicesList.filter(s => !taggedServiceIds.has(s.id));
+
+  // Est. Product Cost / Est. Profit flow from real quantities x cost_per_unit
+  // for tagged services, plus the per-hour heuristic for untagged services.
+  const linkedProductsCost = linkedProducts.reduce(
+    (sum, p) => sum + (p.quantity || 0) * (p.cost_per_unit || 0), 0);
+  const perHourProductCost = untaggedServices.reduce((sum, svc) => {
     const hours = getHoursForService(svc);
     const costPerHour = parseFloat(svc.product_cost_per_hour) || 0;
     return sum + (hours * costPerHour);
   }, 0);
+  const estimatedProductCost = linkedProductsCost + perHourProductCost;
   const estimatedProfit = totalPrice - estimatedProductCost;
   const laborTotal = totalPrice - estimatedProductCost;
   const productsTotal = estimatedProductCost;
 
-  const productEstimates = selectedAircraft && selectedServicesList.length > 0
-    ? calculateProductEstimates(selectedServicesList, selectedAircraft, customProductRatios)
+  const productEstimates = selectedAircraft && untaggedServices.length > 0
+    ? calculateProductEstimates(
+        untaggedServices,
+        { ...selectedAircraft, surface_area_sqft: aircraftSqft || selectedAircraft.surface_area_sqft },
+        customProductRatios,
+      )
     : [];
 
   const addonFeeItems = selectedAddonFees.map(f => normalizeFee(f, feeCtx));
@@ -1018,7 +1056,7 @@ function NewQuoteContent() {
           id: selectedAircraft.id,
           name: `${selectedAircraft.manufacturer} ${selectedAircraft.model}`,
           category: selectedAircraft.category,
-          surface_area_sqft: selectedAircraft.surface_area_sqft,
+          surface_area_sqft: aircraftSqft || selectedAircraft.surface_area_sqft || null,
         },
         selectedServices: selectedServicesList,
         selectedPackage,
@@ -1042,17 +1080,7 @@ function NewQuoteContent() {
         proposedTime: proposedTime || null,
         bufferMinutes,
         productEstimates,
-        linkedProducts: serviceProductLinks.filter(l => selectedServicesList.some(s => s.id === l.service_id)).map(l => {
-          const svc = selectedServicesList.find(s => s.id === l.service_id);
-          const hours = svc ? getHoursForService(svc) : 0;
-          return {
-            product_id: l.product_id,
-            product_name: l.products?.name,
-            unit: l.products?.unit,
-            quantity: l.fixed_quantity > 0 ? l.fixed_quantity : (l.quantity_per_hour || 0) * hours,
-            cost_per_unit: l.products?.cost_per_unit || 0,
-          };
-        }),
+        linkedProducts,
         linkedEquipment: (() => {
           const eqLinks = serviceEquipmentLinks.filter(l => selectedServicesList.some(s => s.id === l.service_id));
           const unique = [];
@@ -2479,27 +2507,22 @@ function NewQuoteContent() {
                 </div>
               )}
 
-              {/* Product estimates */}
-              {productEstimates.length > 0 && (
+              {/* Products — real tagged products first (with computed
+                  quantities), then generic estimates for any selected service
+                  that has no tags, marked "(estimate)". One honest panel. */}
+              {(quoteData?.linkedProducts?.length > 0 || productEstimates.length > 0) && (
                 <div className="mt-3 pt-3 border-t border-white/10">
-                  <p className="text-xs text-gray-400 mb-1">Estimated Products</p>
-                  {productEstimates.map((pe, i) => (
-                    <div key={i} className="flex justify-between text-xs text-gray-300">
-                      <span>{pe.product_name}</span>
-                      <span>{pe.amount} {pe.unit}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Linked Products */}
-              {quoteData?.linkedProducts?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-white/10">
-                  <p className="text-xs text-gray-400 mb-1">Products Needed</p>
-                  {quoteData.linkedProducts.map((p, i) => (
-                    <div key={i} className="flex justify-between text-xs text-gray-300">
+                  <p className="text-xs text-gray-400 mb-1">Products</p>
+                  {quoteData?.linkedProducts?.map((p, i) => (
+                    <div key={`lp-${i}`} className="flex justify-between text-xs text-gray-300">
                       <span>{p.product_name}</span>
                       <span>{(p.quantity || 0).toFixed(1)} {p.unit}</span>
+                    </div>
+                  ))}
+                  {productEstimates.map((pe, i) => (
+                    <div key={`pe-${i}`} className="flex justify-between text-xs text-gray-300">
+                      <span>{pe.product_name} <span className="text-gray-500">(estimate)</span></span>
+                      <span>{pe.amount} {pe.unit}</span>
                     </div>
                   ))}
                 </div>

@@ -55,7 +55,7 @@ export async function POST(request) {
 
     const detailerId = user.detailer_id || user.id;
     const body = await request.json();
-    const { service_id, product_id, quantity_per_job, notes } = body;
+    const { service_id, product_id, quantity_per_job, quantity_per_sqft, notes } = body;
 
     if (!service_id || !product_id) {
       return Response.json({ error: 'service_id and product_id are required' }, { status: 400 });
@@ -79,6 +79,7 @@ export async function POST(request) {
       service_id,
       product_id,
       quantity_per_job: parseFloat(quantity_per_job) || 0,
+      quantity_per_sqft: parseFloat(quantity_per_sqft) || 0,
       notes: notes || '',
     };
 

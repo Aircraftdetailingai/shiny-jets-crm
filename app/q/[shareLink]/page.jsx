@@ -940,14 +940,26 @@ export default function QuoteViewPage() {
           )}
         </div>
 
-        {/* View Quote — prominent top CTA (same PDF link as the bottom) */}
+        {/* Quote document — embedded inline so the customer reads the full
+            quote first, then approves/pays below. Falls back to the new-tab
+            link (kept as a small secondary action) if the browser can't render
+            the PDF inline (common on mobile). */}
+        <div className="mb-3 border border-[var(--brand-border,#1A2236)] rounded overflow-hidden">
+          <iframe
+            src={`/api/quotes/${quote.id}/pdf?token=${params.shareLink}`}
+            className="w-full border-0"
+            style={{ height: '70vh', minHeight: '420px' }}
+            title="Quote PDF"
+          />
+        </div>
+        {/* Secondary action: open the PDF in its own tab (mobile-safe fallback) */}
         <a
           href={`/api/quotes/${quote.id}/pdf?token=${params.shareLink}`}
           target="_blank"
           rel="noreferrer"
-          className="block w-full py-4 mb-8 text-center border border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text-secondary,#8A9BB0)] text-sm tracking-[0.2em] uppercase hover:border-[var(--brand-primary,#007CB1)] hover:text-[var(--brand-primary,#007CB1)] transition-colors"
+          className="block w-full mb-8 text-center text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs tracking-[0.2em] uppercase hover:text-[var(--brand-primary,#007CB1)] transition-colors"
         >
-          View Quote
+          View Quote in New Tab
         </a>
 
         {/* Services */}

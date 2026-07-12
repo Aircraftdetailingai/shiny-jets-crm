@@ -233,8 +233,7 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
       const companyName = user?.company || 'Your Detailer';
       const firstName = (effectiveName || '').split(' ')[0] || 'there';
       const aircraft = aircraftName || 'your aircraft';
-      const price = `${currencySymbol()}${formatPrice(totalPrice)}`;
-      setEmailSubject(`Your Quote from ${companyName} — ${aircraft} — ${price}`);
+      setEmailSubject(`Your Quote from ${companyName} — ${aircraft}`);
       setEmailBody(
 `Hi ${firstName},
 

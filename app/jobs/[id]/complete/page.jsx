@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { computeLinkedProductQuantity } from '@/lib/product-quantity';
 
 const SURFACE_TAGS = [
   { key: 'exterior', label: 'Exterior' },
@@ -58,10 +59,10 @@ export default function JobCompletePage() {
           try {
             const spData = await spRes.json();
             const links = spData.links || [];
-            const totalHours = parseFloat(q.total_hours) || 1;
+            const aircraftSqft = parseFloat(q.surface_area_sqft) || 0;
             const products = links.map(l => ({
               name: l.product_name || l.products?.name || 'Product',
-              estimated: Math.round((parseFloat(l.quantity_per_hour) || 0) * totalHours * 10) / 10,
+              estimated: Math.round(computeLinkedProductQuantity(l, aircraftSqft) * 10) / 10,
               actual: '',
               unit: l.products?.unit || 'oz',
               service_id: l.service_id,

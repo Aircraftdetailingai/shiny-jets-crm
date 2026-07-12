@@ -3,6 +3,7 @@ import { useState, useEffect, Fragment, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import CalibrationModal from '@/components/CalibrationModal';
+import { isCrossFamily } from '@/lib/calibration-reference';
 import { currencySymbol } from '@/lib/formatPrice';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonTotal, PERCENT } from '@/lib/addon-fees';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -11,7 +12,10 @@ import { CSS } from '@dnd-kit/utilities';
 
 const CATEGORY_OPTIONS = {
   exterior: 'Exterior',
+  paint_correction: 'Paint Correction',
+  coating: 'Coating',
   interior: 'Interior',
+  brightwork: 'Brightwork',
   package: 'Package',
   other: 'Other',
 };
@@ -196,6 +200,8 @@ const AIRCRAFT_HOURS_MAP = [
   { column: 'ceramic_hours', label: 'Ceramic', keywords: ['ceramic', 'spray ceramic', 'ceramic spray', 'sio2', 'coating', 'nano'] },
   { column: 'leather_hours', label: 'Leather', keywords: ['leather', 'condition', 'interior leather'] },
   { column: 'carpet_hours', label: 'Carpet', keywords: ['carpet', 'extraction', 'steam'] },
+  { column: 'decon_hours', label: 'Decon', keywords: ['decon', 'iron', 'clay', 'fallout'] },
+  { column: 'spray_ceramic_hours', label: 'Spray Ceramic', keywords: ['spray ceramic', 'spray coat', 'topcoat'] },
   { column: 'brightwork_hours', label: 'Brightwork', keywords: ['brightwork', 'metal polish', 'chrome', 'aluminum'] },
 ];
 
@@ -463,6 +469,7 @@ export default function ServicesPage() {
           service_id: serviceId,
           product_id: productId,
           quantity_per_job: 0,
+          quantity_per_sqft: 0,
         }),
       });
       if (res.ok) {
@@ -1158,6 +1165,18 @@ export default function ServicesPage() {
                             <div>
                               <p className="font-medium flex items-center gap-1.5">
                                 {svc.name}
+                                {(() => {
+                                  const cal = (calibrations || []).find(c => c.service_id === svc.id);
+                                  if (!cal || !isCrossFamily(svc.hours_field, cal.reference_service_type, services)) return null;
+                                  return (
+                                    <span
+                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                                      title="Calibration reference is outside this service's bucket — open Calibrate to re-point it"
+                                    >
+                                      &#9888; ref outside bucket
+                                    </span>
+                                  );
+                                })()}
                                 {serviceAccuracy[svc.name] && serviceAccuracy[svc.name].sample_size >= 3 && (() => {
                                   const acc = serviceAccuracy[svc.name];
                                   const v = acc.avg_variance_pct;
@@ -1191,7 +1210,7 @@ export default function ServicesPage() {
                                 )}
                               </div>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setCalibratingService({ id: svc.id, name: svc.name }); }}
+                                onClick={(e) => { e.stopPropagation(); setCalibratingService({ id: svc.id, name: svc.name, hours_field: svc.hours_field }); }}
                                 title="Calibrate Hours"
                                 className="px-2 py-1 text-[10px] font-medium text-v-text-secondary border border-v-border rounded hover:text-v-gold hover:border-v-gold/50 hover:bg-v-gold/10"
                               >
@@ -1205,7 +1224,7 @@ export default function ServicesPage() {
                         {serviceSuggestions[svc.id] && (
                           <div
                             className="ml-8 mr-3 p-3 bg-v-gold/5 border border-v-gold/20 rounded-lg flex items-start gap-3 cursor-pointer hover:bg-v-gold/10 transition-colors"
-                            onClick={() => setCalibratingService({ id: svc.id, name: svc.name })}
+                            onClick={() => setCalibratingService({ id: svc.id, name: svc.name, hours_field: svc.hours_field })}
                           >
                             <span className="text-v-gold text-sm mt-0.5">&#10022;</span>
                             <div className="flex-1 text-sm text-v-text-secondary">
@@ -1633,11 +1652,28 @@ export default function ServicesPage() {
                               }}
                               onBlur={(e) => updateProductLink(link.id, { quantity_per_job: parseFloat(e.target.value) || 0 })}
                               className="w-20 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
-                              title="Typical per job (optional). Seeds the forecast until it learns from logged usage."
+                              title="Flat amount used every job, regardless of aircraft size (optional)."
                               placeholder="0"
-                              aria-label="Typical per job"
+                              aria-label="Quantity per job"
                             />
-                            <span className="text-[10px] text-v-text-secondary">Typical per job</span>
+                            <span className="text-[10px] text-v-text-secondary">{link.products?.unit || 'units'} / job</span>
+                          </div>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <input
+                              type="number"
+                              step="0.0001"
+                              value={link.quantity_per_sqft ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setLinkedProducts(prev => prev.map(l => l.id === link.id ? { ...l, quantity_per_sqft: val } : l));
+                              }}
+                              onBlur={(e) => updateProductLink(link.id, { quantity_per_sqft: parseFloat(e.target.value) || 0 })}
+                              className="w-20 border border-v-border bg-v-charcoal text-v-text-primary rounded px-1.5 py-1 text-xs text-right"
+                              title="Amount that scales with the aircraft's exterior surface area (per sq ft)."
+                              placeholder="0"
+                              aria-label="Quantity per square foot"
+                            />
+                            <span className="text-[10px] text-v-text-secondary">{link.products?.unit || 'units'} / ft&sup2;</span>
                           </div>
                           <button onClick={() => removeProductLink(link.id)} className="text-red-400 hover:text-red-600 text-sm">&times;</button>
                         </div>

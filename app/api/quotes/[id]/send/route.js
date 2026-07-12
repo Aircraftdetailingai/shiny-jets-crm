@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { sendQuoteSentEmail } from '@/lib/email';
+import { generateQuotePdf } from '@/lib/quote-pdf';
 import { sendQuoteSms } from '@/lib/sms';
 import { hasPremiumAccess } from '@/lib/pricing-tiers';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
@@ -302,12 +303,26 @@ export async function POST(request, { params }) {
         const fromAddr = process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>';
         console.log(`Email: to=${clientEmail}, from=${fromAddr}`);
         const emailQuote = { ...updated, share_link: quote.share_link, client_email: clientEmail };
+
+        // Attach the quote PDF, generated from the same server-side logic the
+        // customer-facing /pdf route uses (no HTTP round-trip). Guard: if
+        // generation throws, fall through and send WITHOUT the attachment —
+        // a PDF failure must never block delivery of the quote email.
+        let quoteAttachments;
+        try {
+          const { buffer, filename } = await generateQuotePdf(emailQuote, { supabase });
+          quoteAttachments = [{ filename, content: buffer }];
+        } catch (pdfErr) {
+          console.error('[quote-send] PDF attachment generation failed, sending without attachment:', pdfErr?.message || pdfErr);
+        }
+
         const result = await sendQuoteSentEmail({
           quote: emailQuote,
           detailer,
           language: customerLanguage,
           customSubject: emailSubject || null,
           customBody: emailBody || null,
+          attachments: quoteAttachments,
         });
         emailSent = result.success;
         if (!result.success) {
