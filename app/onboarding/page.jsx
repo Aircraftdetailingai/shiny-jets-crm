@@ -120,6 +120,15 @@ export default function OnboardingPage() {
     Authorization: `Bearer ${token}`,
   };
 
+  // A 401 from the initial load or any wizard save means the stored session is
+  // stale/invalid. Clear it and bounce to /login rather than stranding the user
+  // on a dead "Unauthorized" wizard.
+  const handleAuthFailure = () => {
+    localStorage.removeItem('vector_token');
+    localStorage.removeItem('vector_user');
+    router.push('/login');
+  };
+
   useEffect(() => {
     const t = localStorage.getItem('vector_token');
     const stored = localStorage.getItem('vector_user');
@@ -127,8 +136,12 @@ export default function OnboardingPage() {
     setToken(t);
 
     fetch('/api/onboarding', { headers: { Authorization: `Bearer ${t}` } })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) { handleAuthFailure(); return null; }
+        return res.json();
+      })
       .then(data => {
+        if (!data) return; // 401 already handled — redirecting to /login
         if (data.onboarding_complete) { router.push('/dashboard'); return; }
         if (data.onboarding_step > 0 && data.onboarding_step <= 5) setScreen(data.onboarding_step);
         if (data.company) setCompany(data.company);
@@ -181,6 +194,7 @@ export default function OnboardingPage() {
           agreed_to_terms_at: new Date().toISOString(), terms_accepted_version: TERMS_VERSION,
         }),
       });
+      if (res.status === 401) { handleAuthFailure(); return; }
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to save profile'); return; }
       if (data.user) localStorage.setItem('vector_user', JSON.stringify(data.user));
@@ -241,6 +255,7 @@ export default function OnboardingPage() {
         headers: { Authorization: `Bearer ${t}` },
         body: formData,
       });
+      if (res.status === 401) { handleAuthFailure(); return; }
       const data = await res.json();
       if (res.ok && data.logo_url) {
         setLogoUrl(data.logo_url);
@@ -287,6 +302,7 @@ export default function OnboardingPage() {
     setError('');
     try {
       const importRes = await fetch('/api/services/import', { method: 'POST', headers, body: JSON.stringify({ services: allServices }) });
+      if (importRes.status === 401) { handleAuthFailure(); return; }
       if (!importRes.ok) { const d = await importRes.json(); setError(d.error || 'Failed to save services'); return; }
       await fetch('/api/onboarding', { method: 'POST', headers, body: JSON.stringify({ action: 'save_services' }) });
       goNext();
@@ -311,6 +327,7 @@ export default function OnboardingPage() {
           theme_logo_url: logoUrl || null,
         }),
       });
+      if (brandRes.status === 401) { handleAuthFailure(); return; }
       if (!brandRes.ok) { const d = await brandRes.json(); setError(d.error || 'Failed to save branding'); return; }
       // Update localStorage so sidebar picks up the color and mode
       try {
@@ -357,6 +374,7 @@ export default function OnboardingPage() {
         method: 'POST', headers,
         body: JSON.stringify({ email: referralEmail }),
       });
+      if (res.status === 401) { handleAuthFailure(); return; }
       if (!res.ok) { const d = await res.json(); setError(d.error || 'Failed to send invite'); return; }
       await fetch('/api/onboarding', { method: 'POST', headers, body: JSON.stringify({ action: 'save_step', step: 4 }) });
       setReferralSent(true);
