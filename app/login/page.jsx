@@ -140,8 +140,14 @@ function LoginContent() {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 px-4 py-3 mb-4">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div className="mb-4">
+              <div className="bg-red-500/10 border border-red-500/30 px-4 py-3">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+              <p className="mt-3 text-sm text-v-text-secondary text-center">
+                New to Shiny Jets?{' '}
+                <a href="/signup" className="text-v-gold hover:text-v-gold-dim font-medium transition-colors">Create your account &rarr;</a>
+              </p>
             </div>
           )}
 
