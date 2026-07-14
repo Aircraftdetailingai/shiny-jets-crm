@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendRecurringReminderEmail } from '@/lib/email';
+import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,17 @@ export async function POST(request) {
 
   let generated = 0;
   let reminders = 0;
+  let skippedUnsubscribed = 0;
   const errors = [];
+
+  // Load the opt-out list once. Fail closed: if we can't verify it, don't email.
+  let unsubscribed;
+  try {
+    unsubscribed = await loadUnsubscribedEmails(supabase);
+  } catch (e) {
+    console.error('[cron/recurring]', e.message);
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 
   try {
     // 1. AUTO-GENERATE QUOTES: Find recurring quotes where next_service_date <= today
@@ -135,9 +146,12 @@ export async function POST(request) {
           .update({ next_service_date: nextDate })
           .eq('id', quote.id);
 
-        // Send email to customer about new service
+        // Send email to customer about new service — unless they've opted out.
+        // The quote is still generated and next_service_date still advances.
         const clientEmail = quote.customer_email || quote.client_email;
-        if (clientEmail) {
+        if (clientEmail && isUnsubscribed(unsubscribed, clientEmail)) {
+          skippedUnsubscribed++;
+        } else if (clientEmail) {
           const detailer = quote.detailers || {};
           try {
             await sendRecurringReminderEmail({
@@ -174,6 +188,7 @@ export async function POST(request) {
       try {
         const clientEmail = quote.customer_email || quote.client_email;
         if (!clientEmail) continue;
+        if (isUnsubscribed(unsubscribed, clientEmail)) { skippedUnsubscribed++; continue; }
 
         const detailer = quote.detailers || {};
         await sendRecurringReminderEmail({
@@ -197,6 +212,7 @@ export async function POST(request) {
     success: true,
     generated,
     reminders,
+    skipped_unsubscribed: skippedUnsubscribed,
     errors: errors.length > 0 ? errors : undefined,
   });
 }

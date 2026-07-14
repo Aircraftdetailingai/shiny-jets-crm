@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendExpirationAlertSms, sendExpirationWarningSms } from '@/lib/sms';
 import { sendQuoteExpiringEmail, sendQuoteExpiredDetailerEmail } from '@/lib/email';
+import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import { hasPremiumAccess } from '@/lib/pricing-tiers';
 import { notifyQuoteExpired } from '@/lib/notifications';
 
@@ -25,6 +26,16 @@ export async function POST(request) {
 
   let warningsSent = 0;
   let expiredProcessed = 0;
+  let skippedUnsubscribed = 0;
+
+  // Load the opt-out list once. Fail closed: if we can't verify it, don't email.
+  let unsubscribed;
+  try {
+    unsubscribed = await loadUnsubscribedEmails(supabase);
+  } catch (e) {
+    console.error('[cron/expirations]', e.message);
+    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+  }
 
   // --- 1. Send 24-hour expiration warnings ---
   const { data: expiringQuotes, error: expiringErr } = await supabase
@@ -51,8 +62,10 @@ export async function POST(request) {
       const settings = detailer.notification_settings || {};
       const plan = detailer.plan || 'free';
 
-      // Email to customer (always - all plans)
-      if (quote.client_email) {
+      // Email to customer (all plans) — unless they've unsubscribed.
+      if (quote.client_email && isUnsubscribed(unsubscribed, quote.client_email)) {
+        skippedUnsubscribed++;
+      } else if (quote.client_email) {
         sendQuoteExpiringEmail({ quote, detailer }).catch(err =>
           console.error(`Expiring email failed for ${quote.id}:`, err.message)
         );
@@ -113,6 +126,7 @@ export async function POST(request) {
   return Response.json({
     warningsSent,
     expiredProcessed,
+    skipped_unsubscribed: skippedUnsubscribed,
     timestamp: nowISO,
   });
 }

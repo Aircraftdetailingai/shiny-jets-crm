@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendFeedbackRequestEmail } from '@/lib/email';
+import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -45,8 +46,19 @@ export async function POST(request) {
 
   let sent = 0;
   let failed = 0;
+  let skippedUnsubscribed = 0;
+
+  // Load the opt-out list once. Fail closed: if we can't verify it, don't email.
+  let unsubscribed;
+  try {
+    unsubscribed = await loadUnsubscribedEmails(supabase);
+  } catch (e) {
+    console.error('[cron/review-requests]', e.message);
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 
   for (const job of jobs || []) {
+    if (isUnsubscribed(unsubscribed, job.customer_email)) { skippedUnsubscribed++; continue; }
     try {
       // Get detailer info
       const { data: detailer } = await supabase
@@ -122,7 +134,7 @@ export async function POST(request) {
     }
   }
 
-  return Response.json({ processed: sent + failed, sent, failed, jobs_checked: jobs?.length || 0 });
+  return Response.json({ processed: sent + failed, sent, failed, skipped_unsubscribed: skippedUnsubscribed, jobs_checked: jobs?.length || 0 });
 }
 
 // Vercel Cron sends GET requests; expose the same handler for GET.

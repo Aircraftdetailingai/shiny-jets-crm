@@ -6,6 +6,7 @@ import {
   sendFollowupAvailabilityConflictEmail,
   sendFollowupExpiredRecoveryEmail,
 } from '@/lib/email';
+import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import { createNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -58,7 +59,16 @@ export async function GET(request) {
 
   const supabase = getSupabase();
   const now = new Date();
-  const results = { notViewed: 0, viewedNotAccepted: 0, expiryWarning: 0, availabilityConflict: 0, expiredRecovery: 0, errors: [] };
+  const results = { notViewed: 0, viewedNotAccepted: 0, expiryWarning: 0, availabilityConflict: 0, expiredRecovery: 0, skippedUnsubscribed: 0, errors: [] };
+
+  // Load the opt-out list once. Fail closed: if we can't verify it, don't email.
+  let unsubscribed;
+  try {
+    unsubscribed = await loadUnsubscribedEmails(supabase);
+  } catch (e) {
+    console.error('[cron/followups]', e.message);
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 
   try {
     // Fetch all active detailers with their settings + availability
@@ -96,6 +106,7 @@ export async function GET(request) {
         for (const quote of quotes || []) {
           try {
             if (!quote.client_email) continue;
+            if (isUnsubscribed(unsubscribed, quote.client_email)) { results.skippedUnsubscribed++; continue; }
             const result = await sendFollowupNotViewedEmail({ quote, detailer });
             if (result.success) {
               await supabase.from('quotes').update({ followup_notviewed_sent: now.toISOString() }).eq('id', quote.id);
@@ -131,6 +142,7 @@ export async function GET(request) {
         for (const quote of quotes || []) {
           try {
             if (!quote.client_email) continue;
+            if (isUnsubscribed(unsubscribed, quote.client_email)) { results.skippedUnsubscribed++; continue; }
             const result = await sendFollowupViewedNotAcceptedEmail({ quote, detailer, availableDates });
             if (result.success) {
               await supabase.from('quotes').update({ followup_viewednotaccepted_sent: now.toISOString() }).eq('id', quote.id);
@@ -166,6 +178,7 @@ export async function GET(request) {
         for (const quote of quotes || []) {
           try {
             if (!quote.client_email) continue;
+            if (isUnsubscribed(unsubscribed, quote.client_email)) { results.skippedUnsubscribed++; continue; }
             const result = await sendFollowupExpiryWarningEmail({ quote, detailer, availableDates });
             if (result.success) {
               await supabase.from('quotes').update({ followup_expirywarning_sent: now.toISOString() }).eq('id', quote.id);
@@ -201,6 +214,7 @@ export async function GET(request) {
           for (const quote of scheduledQuotes || []) {
             try {
               if (!quote.client_email || !quote.scheduled_date) continue;
+              if (isUnsubscribed(unsubscribed, quote.client_email)) { results.skippedUnsubscribed++; continue; }
               const scheduledDateStr = new Date(quote.scheduled_date).toISOString().split('T')[0];
               if (!blockedSet.has(scheduledDateStr)) continue;
 
@@ -241,6 +255,7 @@ export async function GET(request) {
         for (const quote of expiredQuotes || []) {
           try {
             if (!quote.client_email) continue;
+            if (isUnsubscribed(unsubscribed, quote.client_email)) { results.skippedUnsubscribed++; continue; }
             const result = await sendFollowupExpiredRecoveryEmail({ quote, detailer });
             if (result.success) {
               await supabase.from('quotes').update({ followup_expired_recovery_sent: now.toISOString() }).eq('id', quote.id);
@@ -268,6 +283,7 @@ export async function GET(request) {
   return Response.json({
     success: true,
     ...results,
+    skipped_unsubscribed: results.skippedUnsubscribed,
     total: results.notViewed + results.viewedNotAccepted + results.expiryWarning + results.availabilityConflict + results.expiredRecovery,
     timestamp: now.toISOString(),
   });

@@ -3,6 +3,7 @@ import {
   sendFollowUpReminderEmail,
   sendExpiryDiscountEmail,
 } from '@/lib/email';
+import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import { createNotification } from '@/lib/notifications';
 import { sendSms } from '@/lib/sms';
 
@@ -25,7 +26,16 @@ export async function GET(request) {
 
   const supabase = getSupabase();
   const now = new Date();
-  const results = { notifications: 0, reminderEmails: 0, discountEmails: 0, sms: 0, errors: [] };
+  const results = { notifications: 0, reminderEmails: 0, discountEmails: 0, sms: 0, skippedUnsubscribed: 0, errors: [] };
+
+  // Load the opt-out list once. Fail closed: if we can't verify it, don't email.
+  let unsubscribed;
+  try {
+    unsubscribed = await loadUnsubscribedEmails(supabase);
+  } catch (e) {
+    console.error('[cron/smart-followups]', e.message);
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 
   try {
     // ======================================================
@@ -117,7 +127,9 @@ export async function GET(request) {
         const quoteUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://crm.shinyjets.com'}/q/${q.share_link}`;
 
         // Send reminder email (SMS disabled pending 10DLC, always send email)
-        if (q.client_email) {
+        if (q.client_email && isUnsubscribed(unsubscribed, q.client_email)) {
+          results.skippedUnsubscribed++;
+        } else if (q.client_email) {
           await sendFollowUpReminderEmail({
             to: q.client_email,
             clientName: q.client_name,
@@ -185,7 +197,9 @@ export async function GET(request) {
         const quoteUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://crm.shinyjets.com'}/q/${q.share_link}`;
 
         // Send discount email (SMS disabled pending 10DLC, always send email)
-        if (q.client_email) {
+        if (q.client_email && isUnsubscribed(unsubscribed, q.client_email)) {
+          results.skippedUnsubscribed++;
+        } else if (q.client_email) {
           await sendExpiryDiscountEmail({
             to: q.client_email,
             clientName: q.client_name,
@@ -227,6 +241,7 @@ export async function GET(request) {
   return Response.json({
     success: true,
     ...results,
+    skipped_unsubscribed: results.skippedUnsubscribed,
     timestamp: now.toISOString(),
   });
 }

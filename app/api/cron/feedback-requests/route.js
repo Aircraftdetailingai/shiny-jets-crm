@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendFeedbackRequestEmail } from '@/lib/email';
+import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,17 @@ export async function POST(request) {
 
   let sent = 0;
   let failed = 0;
+  let skippedUnsubscribed = 0;
   const now = new Date();
+
+  // Load the opt-out list once. Fail closed: if we can't verify it, don't email.
+  let unsubscribed;
+  try {
+    unsubscribed = await loadUnsubscribedEmails(supabase);
+  } catch (e) {
+    console.error('[cron/feedback-requests]', e.message);
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 
   for (const detailer of detailers || []) {
     const delayDays = detailer.review_request_delay_days || 1;
@@ -67,6 +78,7 @@ export async function POST(request) {
     }
 
     for (const quote of quotes || []) {
+      if (isUnsubscribed(unsubscribed, quote.client_email)) { skippedUnsubscribed++; continue; }
       try {
         const feedbackToken = crypto.randomBytes(16).toString('hex');
 
@@ -100,6 +112,7 @@ export async function POST(request) {
     processed: sent + failed,
     sent,
     failed,
+    skipped_unsubscribed: skippedUnsubscribed,
   });
 }
 
