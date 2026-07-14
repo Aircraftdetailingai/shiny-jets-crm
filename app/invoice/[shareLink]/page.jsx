@@ -105,7 +105,15 @@ export default function InvoiceViewPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Payment failed');
+        // The detailer hasn't connected Stripe (no account, no keys). Show a
+        // calm, human message pointing the customer to the business rather than
+        // the raw "Payment processing unavailable" backend error.
+        if (data.code === 'stripe_not_configured') {
+          const biz = detailer?.company || 'your service provider';
+          setError(`Online payment isn't set up for this invoice yet — contact ${biz} to arrange payment.`);
+        } else {
+          setError(data.error || 'Payment failed');
+        }
         return;
       }
       if (data.url) window.location.href = data.url;

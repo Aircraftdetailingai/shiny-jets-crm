@@ -169,6 +169,11 @@ function InvoicesPageInner() {
   const [editShowMailing, setEditShowMailing] = useState(false);
   const [editShowAch, setEditShowAch] = useState(false);
   const [detailer, setDetailer] = useState(null); // current detailer's business info for the From block
+  // Whether this detailer can accept online payment (Connect account OR direct
+  // Stripe keys). null = unknown/not yet checked, false = /api/stripe/status
+  // reported NOT_CONNECTED — i.e. no stripe_account_id AND no stripe_secret_key.
+  // Used to warn (non-blocking) before sending an invoice the customer can't pay.
+  const [stripeConnected, setStripeConnected] = useState(null);
 
   const sym = currencySymbol();
 
@@ -211,7 +216,26 @@ function InvoicesPageInner() {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.user) setDetailer(d.user); })
       .catch(() => {});
+    // Authoritative payment-readiness check (covers both Connect accounts and
+    // direct API keys — the client never sees the secret key itself). Only
+    // flips stripeConnected to a definitive boolean; leaves it null on failure
+    // so a flaky check never blocks or falsely warns before a send.
+    fetch('/api/stripe/status', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && typeof d.connected === 'boolean') setStripeConnected(d.connected); })
+      .catch(() => {});
   }, [router]);
+
+  // Non-blocking pre-send warning. When we know the detailer can't accept
+  // online payment, confirm before sending — they can still proceed (some
+  // collect offline). Returns false only if they cancel to go connect first.
+  // stripeConnected===false is the only case we warn on; null (unknown) sends.
+  const confirmSendWithoutStripe = () => {
+    if (stripeConnected === false) {
+      return window.confirm("You haven't connected Stripe — your customer won't be able to pay this invoice online. Connect in Settings → Payments.");
+    }
+    return true;
+  };
 
   const getToken = () => localStorage.getItem('vector_token');
   const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` });
@@ -905,6 +929,7 @@ function InvoicesPageInner() {
 
   const createInvoiceFromJob = async ({ send = false } = {}) => {
     if (!selectedQuoteId) return;
+    if (send && !confirmSendWithoutStripe()) return;
     setActionLoading(true);
     setError('');
     try {
@@ -941,6 +966,9 @@ function InvoicesPageInner() {
       setError('Customer name and email are required');
       return;
     }
+    // Same non-blocking Stripe warning as the row Send action — only gates the
+    // create-and-send path; plain "Create" (send=false) is never interrupted.
+    if (send && !confirmSendWithoutStripe()) return;
     // Assemble line items in the canonical DB shape { name, hours, rate, price }
     // used by the edit modal. When a flat-priced package is picked, emit a
     // single line at the package price instead of per-service hours × rate —
@@ -1116,6 +1144,7 @@ function InvoicesPageInner() {
   const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
 
   const sendInvoice = async (invoice, isResend = false) => {
+    if (!confirmSendWithoutStripe()) return;
     setActionLoading(true);
     setSendingInvoiceId(invoice.id);
     try {
