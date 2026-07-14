@@ -31,37 +31,18 @@ async function handle(request) {
   // and haven't been invited yet
   const cutoff = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
 
-  // First try with directory_invite_sent_at filter (column may not exist yet)
-  let detailers = null;
-  let queryError = null;
-  try {
-    const result = await supabase
-      .from('detailers')
-      .select('id, email, name, company, plan, created_at, listed_in_directory, directory_invite_sent_at')
-      .or('listed_in_directory.eq.false,listed_in_directory.is.null')
-      .eq('status', 'active')
-      .lt('created_at', cutoff)
-      .is('directory_invite_sent_at', null)
-      .limit(50);
-    detailers = result.data;
-    queryError = result.error;
-  } catch (e) {
-    queryError = { message: e.message };
-  }
-
-  // Fallback: column doesn't exist yet — query without that filter
-  if (queryError && queryError.message?.includes('directory_invite_sent_at')) {
-    console.log('[directory-invite] directory_invite_sent_at column missing, querying without filter');
-    const result = await supabase
-      .from('detailers')
-      .select('id, email, name, company, plan, created_at, listed_in_directory')
-      .or('listed_in_directory.eq.false,listed_in_directory.is.null')
-      .eq('status', 'active')
-      .lt('created_at', cutoff)
-      .limit(50);
-    detailers = result.data;
-    queryError = result.error;
-  }
+  // Query detailers eligible for a directory invite. If this errors (e.g. a
+  // missing column) we fail with a 500 and surface the error — we must NEVER
+  // re-query without the directory_invite_sent_at filter, or we'd re-spam
+  // everyone who was already invited.
+  const { data: detailers, error: queryError } = await supabase
+    .from('detailers')
+    .select('id, email, name, company, plan, created_at, listed_in_directory, directory_invite_sent_at, unsubscribed_at')
+    .or('listed_in_directory.eq.false,listed_in_directory.is.null')
+    .eq('status', 'active')
+    .lt('created_at', cutoff)
+    .is('directory_invite_sent_at', null)
+    .limit(50);
 
   if (queryError) {
     console.error('[directory-invite] Query error:', queryError.message);
@@ -76,15 +57,35 @@ async function handle(request) {
     return Response.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 });
   }
 
+  // Load every opted-out email once (lowercased) so we can honor unsubscribes.
+  // If we can't verify the opt-out list, fail closed — do NOT send.
+  const unsubscribedEmails = new Set();
+  const { data: unsubRows, error: unsubError } = await supabase
+    .from('email_unsubscribes')
+    .select('email');
+  if (unsubError) {
+    console.error('[directory-invite] Failed to load email_unsubscribes:', unsubError.message);
+    return Response.json({ error: unsubError.message }, { status: 500 });
+  }
+  for (const row of unsubRows || []) {
+    if (row.email) unsubscribedEmails.add(row.email.toLowerCase());
+  }
+
   const { Resend } = require('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   let sent = 0;
   let failed = 0;
   let skipped = 0;
+  let skippedUnsubscribed = 0;
+  let markFailed = 0;
 
   for (const detailer of detailers) {
     if (!detailer.email) { skipped++; continue; }
+    // Honor unsubscribes: skip anyone flagged on their record or present in the
+    // email_unsubscribes list (case-insensitive).
+    if (detailer.unsubscribed_at) { skippedUnsubscribed++; continue; }
+    if (unsubscribedEmails.has(detailer.email.toLowerCase())) { skippedUnsubscribed++; continue; }
     if (detailer.listed_in_directory === true) { skipped++; continue; }
 
     const firstName = (detailer.name || '').split(' ')[0] || 'there';
@@ -182,14 +183,16 @@ Founder, Shiny Jets`;
         reply_to: 'brett@shinyjets.com',
       });
 
-      // Mark as invited (column-stripping retry in case column doesn't exist yet)
-      try {
-        await supabase
-          .from('detailers')
-          .update({ directory_invite_sent_at: new Date().toISOString() })
-          .eq('id', detailer.id);
-      } catch (e) {
-        console.log('[directory-invite] Could not mark sent_at (column may be missing):', e?.message);
+      // Mark as invited. .update() does not throw, so capture { error }
+      // explicitly — a failure here means this detailer could be re-invited on
+      // the next run, so it must be counted, never silently forgotten.
+      const { error: markError } = await supabase
+        .from('detailers')
+        .update({ directory_invite_sent_at: new Date().toISOString() })
+        .eq('id', detailer.id);
+      if (markError) {
+        markFailed++;
+        console.error('[directory-invite] Failed to mark sent_at for', detailer.email, markError.message);
       }
 
       sent++;
@@ -200,5 +203,5 @@ Founder, Shiny Jets`;
     }
   }
 
-  return Response.json({ total: detailers.length, sent, failed, skipped });
+  return Response.json({ total: detailers.length, sent, failed, skipped, skipped_unsubscribed: skippedUnsubscribed, mark_failed: markFailed });
 }
