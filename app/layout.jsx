@@ -4,6 +4,7 @@ import InstallPrompt from '@/components/InstallPrompt'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import BrandedHomescreen from '@/components/BrandedHomescreen'
 import Providers from '@/components/Providers'
+import SessionGuard from '@/components/SessionGuard'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -64,6 +65,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={`${inter.variable} ${poppins.variable} ${inter.className} bg-v-charcoal text-v-text-primary antialiased`}>
+        <SessionGuard />
         <Providers>
           {children}
         </Providers>

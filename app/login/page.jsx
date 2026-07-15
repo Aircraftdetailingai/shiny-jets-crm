@@ -151,6 +151,13 @@ function LoginContent() {
             </div>
           )}
 
+          {/* Expired-session notice — set by SessionGuard on a 401 redirect */}
+          {params.get('expired') === '1' && (
+            <div className="bg-amber-500/10 border border-amber-500/30 px-4 py-3 mb-4">
+              <p className="text-amber-400 text-sm">Your session expired — please sign in again.</p>
+            </div>
+          )}
+
           {/* Email Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
