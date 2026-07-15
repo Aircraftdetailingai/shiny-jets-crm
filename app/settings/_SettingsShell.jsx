@@ -330,10 +330,20 @@ function SettingsShell({ bucket: activeBucket = null }) {
       .then(data => {
         if (data?.user) {
           console.log('[settings] Refreshed user:', data.user.company, 'rate:', data.user.default_labor_rate);
-          hydrateFromUser(data.user);
-          savedUserRef.current = { ...data.user };
-          // Don't persist ACH fields to localStorage (they're sensitive).
+          // Extract the sensitive ACH fields FIRST, then hydrate. safeUser is
+          // what we persist to localStorage (bank numbers must never land
+          // there); the four setters below are fed from the extracted values
+          // so form hydration can never accidentally run against the stripped
+          // object. Keeping these in this order is load-bearing — feeding the
+          // setters from safeUser would render the fields empty and a save
+          // would then null the stored bank info.
           const { ach_routing_number, ach_account_number, ach_account_name, ach_bank_name, ...safeUser } = data.user;
+          hydrateFromUser(safeUser);
+          setAchBankName(ach_bank_name || '');
+          setAchAccountName(ach_account_name || '');
+          setAchRoutingNumber(ach_routing_number || '');
+          setAchAccountNumber(ach_account_number || '');
+          savedUserRef.current = { ...data.user };
           localStorage.setItem('vector_user', JSON.stringify(safeUser));
         }
       })
@@ -1681,7 +1691,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
               </div>
             </div>
             <p className="text-[11px] text-v-text-secondary/60 mt-3">
-              Routing and account numbers are stored and transmitted in plaintext inside Vector. Only share with customers you trust.
+              Routing and account numbers are stored and transmitted in plaintext inside Shiny Jets CRM. Only share with customers you trust.
             </p>
           </div>
         </div>
