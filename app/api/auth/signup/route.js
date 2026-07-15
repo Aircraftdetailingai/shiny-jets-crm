@@ -319,10 +319,15 @@ export async function POST(request) {
           .maybeSingle();
 
         if (courseAccess) {
+          // Course bundle includes one year of Pro; stamp the expiry so the
+          // plan-expirations cron downgrades them automatically when it lapses.
+          const courseExpiry = new Date();
+          courseExpiry.setFullYear(courseExpiry.getFullYear() + 1);
           await supabase.from('detailers').update({
             plan: 'pro',
             subscription_status: 'active',
             subscription_source: 'course_bundle',
+            plan_expires_at: courseExpiry.toISOString(),
           }).eq('id', detailer.id);
           detailer.plan = 'pro';
           detailer.subscription_source = 'course_bundle';

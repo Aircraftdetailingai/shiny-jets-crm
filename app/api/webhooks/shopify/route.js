@@ -369,10 +369,23 @@ async function handleOrderPaid(supabase, payload) {
   const shopifyCustomerId = String(payload?.customer?.id || '');
 
   const subscriptionSource = hasCourseProGrant ? 'course_bundle' : 'shopify';
+  // Course-bundle grants include one year of Pro; stamp plan_expires_at so the
+  // plan-expirations cron auto-downgrades them when the year lapses. Recurring
+  // Shopify subscriptions stay null (never auto-expired).
+  let courseExpiryISO = null;
+  if (hasCourseProGrant) {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    courseExpiryISO = d.toISOString();
+  }
 
   if (detailer) {
     // Reactivate if suspended
-    const extra = { shopify_customer_id: shopifyCustomerId, subscription_source: subscriptionSource };
+    const extra = {
+      shopify_customer_id: shopifyCustomerId,
+      subscription_source: subscriptionSource,
+      ...(courseExpiryISO ? { plan_expires_at: courseExpiryISO } : {}),
+    };
     if (detailer.status === 'suspended') extra.status = 'active';
     // Don't downgrade a paid subscription user if they also buy a course
     if (hasCourseProGrant && ['pro', 'business', 'enterprise'].includes(detailer.plan)) {
@@ -413,6 +426,7 @@ async function handleOrderPaid(supabase, payload) {
         subscription_status: 'active',
         subscription_source: subscriptionSource,
         shopify_customer_id: shopifyCustomerId,
+        ...(courseExpiryISO ? { plan_expires_at: courseExpiryISO } : {}),
       })
       .select()
       .maybeSingle();
