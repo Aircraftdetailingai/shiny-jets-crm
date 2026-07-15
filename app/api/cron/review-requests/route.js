@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendFeedbackRequestEmail } from '@/lib/email';
+import { sendEmail } from '@/lib/email';
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import crypto from 'crypto';
 
@@ -88,18 +88,14 @@ export async function POST(request) {
       const reviewUrl = detailer.google_review_url || `https://crm.shinyjets.com/feedback/${feedbackToken}`;
       const portalUrl = shareLink ? `https://crm.shinyjets.com/q/${shareLink}` : null;
 
-      const resendKey = process.env.RESEND_API_KEY;
-      if (!resendKey) continue;
-
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: job.customer_email,
-          from: process.env.RESEND_FROM_EMAIL || 'Shiny Jets CRM <noreply@mail.shinyjets.com>',
-          reply_to: detailer.email,
-          subject: `How did we do? - ${companyName}`,
-          html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+      // Route through the shared lib/email path so the CAN-SPAM footer and
+      // List-Unsubscribe / List-Unsubscribe-Post headers are applied. Posting
+      // raw to api.resend.com (the previous approach) bypassed both.
+      await sendEmail({
+        to: job.customer_email,
+        replyTo: detailer.email,
+        subject: `How did we do? - ${companyName}`,
+        html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
             <h2 style="color:#333;">How did we do?</h2>
             <p>Hi ${job.customer_name || 'there'},</p>
             <p>It's been a week since <strong>${companyName}</strong> detailed ${aircraft}${job.tail_number ? ` (${job.tail_number})` : ''}. We'd love to hear how everything turned out.</p>
@@ -110,7 +106,6 @@ export async function POST(request) {
             ${portalUrl ? `<p style="margin-top:16px;"><a href="${portalUrl}" style="color:#007CB1;text-decoration:underline;font-size:13px;">View your job details</a></p>` : ''}
             <p style="color:#999;font-size:12px;margin-top:24px;">Shiny Jets CRM</p>
           </body></html>`,
-        }),
       });
 
       // Mark as sent
