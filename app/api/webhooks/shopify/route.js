@@ -34,14 +34,21 @@ function resolvePlan(item) {
     if (sku.includes(prefix)) return plan;
   }
 
-  // 3. Title match
-  const title = (item.title || '').toLowerCase();
-  if (title.includes('enterprise')) return 'enterprise';
-  if (title.includes('business')) return 'business';
-  if (title.includes('pro')) return 'pro';
-  if (title.includes('free')) return 'free';
+  // 3. Keyword match on the product + variant title. The $0 "Free Starter"
+  //    tier is a variant of a product whose title contains "Pro", and its
+  //    Shopify line items don't always carry the SJ-CRM-FREE sku. The old code
+  //    looked only at item.title (the product title, not the variant), matched
+  //    paid tiers with greedy substrings, and checked "pro" BEFORE "free" — so
+  //    a $0 Free Starter resolved to 'pro'. Now: include variant_title, match
+  //    free/starter FIRST, and use word boundaries so "product"/"professional"
+  //    never read as "pro".
+  const title = `${item.title || ''} ${item.variant_title || ''}`.toLowerCase();
+  if (/\bfree\b/.test(title) || title.includes('starter')) return 'free';
+  if (/\benterprise\b/.test(title)) return 'enterprise';
+  if (/\bbusiness\b/.test(title)) return 'business';
+  if (/\bpro\b/.test(title)) return 'pro';
 
-  // 4. Price fallback
+  // 4. Price fallback ($0 → free)
   return planFromPrice(item.price);
 }
 
