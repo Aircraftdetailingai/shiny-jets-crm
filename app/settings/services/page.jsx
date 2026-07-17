@@ -265,21 +265,6 @@ export default function ServicesPage() {
   const [calibratingService, setCalibratingService] = useState(null);
   const [calibrations, setCalibrations] = useState([]);
 
-  // Calibration anchors — detailer picks two aircraft they know cold.
-  // Per-service calibration math is computed against THESE anchors instead
-  // of any hardcoded reference aircraft, so a Cessna 172 detailer and a
-  // Gulfstream G450 detailer each get a calibration that's grounded in
-  // aircraft they actually estimate accurately.
-  const [anchorA, setAnchorA] = useState(null); // uuid
-  const [anchorB, setAnchorB] = useState(null); // uuid
-  const [anchorALabel, setAnchorALabel] = useState(null);
-  const [anchorBLabel, setAnchorBLabel] = useState(null);
-  const [anchorList, setAnchorList] = useState([]); // aircraft_hours rows
-  const [anchorAMake, setAnchorAMake] = useState('');
-  const [anchorBMake, setAnchorBMake] = useState('');
-  const [anchorSaving, setAnchorSaving] = useState(false);
-  const [anchorError, setAnchorError] = useState('');
-
   // Error state
   const [error, setError] = useState('');
   const [savedFlash, setSavedFlash] = useState('');
@@ -311,15 +296,13 @@ export default function ServicesPage() {
   const fetchData = async () => {
     const token = localStorage.getItem('vector_token');
     try {
-      const [svcRes, pkgRes, feeRes, prodRes, equipRes, calRes, meRes, anchorsRes] = await Promise.all([
+      const [svcRes, pkgRes, feeRes, prodRes, equipRes, calRes] = await Promise.all([
         fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/packages', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/addon-fees', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
         fetch('/api/equipment', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
         fetch('/api/services/calibrations', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('/api/detailers/me', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('/api/aircraft-hours/list', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
       ]);
       if (svcRes.ok) {
         const data = await svcRes.json();
@@ -345,35 +328,6 @@ export default function ServicesPage() {
         try {
           const data = await calRes.json();
           setCalibrations(data.calibrations || []);
-        } catch {}
-      }
-      let loadedAnchorA = null, loadedAnchorB = null;
-      if (meRes?.ok) {
-        try {
-          const me = await meRes.json();
-          loadedAnchorA = me.calibration_anchor_a || null;
-          loadedAnchorB = me.calibration_anchor_b || null;
-          setAnchorA(loadedAnchorA);
-          setAnchorB(loadedAnchorB);
-          setAnchorALabel(me.calibration_anchor_a_label || null);
-          setAnchorBLabel(me.calibration_anchor_b_label || null);
-        } catch {}
-      }
-      if (anchorsRes?.ok) {
-        try {
-          const a = await anchorsRes.json();
-          const items = a.items || [];
-          setAnchorList(items);
-          // Seed the make selectors so the model dropdown can render the
-          // currently-saved anchor without forcing the user to re-pick.
-          if (loadedAnchorA) {
-            const r = items.find(i => i.id === loadedAnchorA);
-            if (r) setAnchorAMake(r.make);
-          }
-          if (loadedAnchorB) {
-            const r = items.find(i => i.id === loadedAnchorB);
-            if (r) setAnchorBMake(r.make);
-          }
         } catch {}
       }
       // Fetch all service links for badge counts
@@ -965,41 +919,6 @@ export default function ServicesPage() {
     setPkgSvcDragIdx(null);
   };
 
-  // Derived: distinct makes from aircraft_hours, sorted; models for a chosen make
-  const anchorMakes = Array.from(new Set((anchorList || []).map(i => i.make).filter(Boolean))).sort((x, y) => x.localeCompare(y));
-  const anchorAModels = (anchorList || []).filter(i => i.make === anchorAMake).sort((x, y) => (x.model || '').localeCompare(y.model || ''));
-  const anchorBModels = (anchorList || []).filter(i => i.make === anchorBMake).sort((x, y) => (x.model || '').localeCompare(y.model || ''));
-
-  const anchorsBothSet = !!anchorA && !!anchorB;
-  const anchorsSameAircraft = !!anchorA && !!anchorB && anchorA === anchorB;
-  const canSaveAnchors = !!anchorA && !!anchorB && !anchorsSameAircraft && !anchorSaving;
-
-  const saveAnchors = async () => {
-    if (!canSaveAnchors) return;
-    setAnchorSaving(true);
-    setAnchorError('');
-    try {
-      const res = await fetch('/api/detailers/me', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ calibration_anchor_a: anchorA, calibration_anchor_b: anchorB }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setAnchorError(data.error || 'Failed to save calibration aircraft');
-        setAnchorSaving(false);
-        return;
-      }
-      setAnchorALabel(data.calibration_anchor_a_label || null);
-      setAnchorBLabel(data.calibration_anchor_b_label || null);
-      flashSaved('Calibration aircraft saved');
-    } catch (e) {
-      setAnchorError(e?.message || 'Failed to save calibration aircraft');
-    } finally {
-      setAnchorSaving(false);
-    }
-  };
-
   if (loading) {
     return <LoadingSpinner message="Loading services..." />;
   }
@@ -1032,97 +951,6 @@ export default function ServicesPage() {
           When you build a quote, hours come from the aircraft database and multiply by your rate.
           Packages bundle services with an optional discount %. Add-on fees are flat or % surcharges added on top.
         </p>
-      </div>
-
-      {/* Calibration Aircraft picker */}
-      <div className="rounded-lg p-4 mb-6 border bg-v-surface border-v-border">
-        <div className="flex items-start justify-between gap-4 mb-2">
-          <div>
-            <h3 className="text-sm font-semibold text-v-text-primary uppercase tracking-wide">Calibration Aircraft</h3>
-            <p className="text-xs text-v-text-secondary mt-1">
-              {anchorsBothSet
-                ? 'Per-service calibration uses these two aircraft as the baseline. Change them anytime.'
-                : 'Pick two aircraft you know well. We\'ll use them as the baseline for calibrating your service times.'}
-            </p>
-          </div>
-          {!anchorsBothSet && (
-            <span className="text-[10px] uppercase tracking-wider text-v-gold whitespace-nowrap">Required</span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-          {/* Anchor A */}
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Anchor A</label>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={anchorAMake}
-                onChange={(e) => { setAnchorAMake(e.target.value); setAnchorA(null); }}
-                className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded-sm px-2 py-2 text-sm outline-none focus:border-v-gold/50"
-              >
-                <option value="">Manufacturer</option>
-                {anchorMakes.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <select
-                value={anchorA || ''}
-                onChange={(e) => setAnchorA(e.target.value || null)}
-                disabled={!anchorAMake}
-                className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded-sm px-2 py-2 text-sm outline-none focus:border-v-gold/50 disabled:opacity-50"
-              >
-                <option value="">Model</option>
-                {anchorAModels.map(r => <option key={r.id} value={r.id}>{r.model}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Anchor B */}
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Anchor B</label>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={anchorBMake}
-                onChange={(e) => { setAnchorBMake(e.target.value); setAnchorB(null); }}
-                className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded-sm px-2 py-2 text-sm outline-none focus:border-v-gold/50"
-              >
-                <option value="">Manufacturer</option>
-                {anchorMakes.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <select
-                value={anchorB || ''}
-                onChange={(e) => setAnchorB(e.target.value || null)}
-                disabled={!anchorBMake}
-                className="w-full bg-v-charcoal border border-v-border text-v-text-primary rounded-sm px-2 py-2 text-sm outline-none focus:border-v-gold/50 disabled:opacity-50"
-              >
-                <option value="">Model</option>
-                {anchorBModels.map(r => <option key={r.id} value={r.id}>{r.model}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {anchorsSameAircraft && (
-          <p className="mt-2 text-xs text-red-400">Anchor A and Anchor B must be different aircraft.</p>
-        )}
-        {anchorError && (
-          <p className="mt-2 text-xs text-red-400">{anchorError}</p>
-        )}
-
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            onClick={saveAnchors}
-            disabled={!canSaveAnchors}
-            className="px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-sm bg-v-gold text-v-charcoal hover:bg-v-gold-dim disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {anchorSaving ? 'Saving...' : 'Save anchor aircraft'}
-          </button>
-          {anchorsBothSet && anchorALabel && anchorBLabel && (
-            <p className="text-[11px] text-v-text-secondary">
-              Saved: <span className="text-v-text-primary">{anchorALabel}</span>
-              {' + '}
-              <span className="text-v-text-primary">{anchorBLabel}</span>
-            </p>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -1879,8 +1707,6 @@ export default function ServicesPage() {
         service={calibratingService}
         detailerServices={services}
         calibrations={calibrations}
-        anchorA={anchorList.find(r => r.id === anchorA) || null}
-        anchorB={anchorList.find(r => r.id === anchorB) || null}
       />
     </div>
   );

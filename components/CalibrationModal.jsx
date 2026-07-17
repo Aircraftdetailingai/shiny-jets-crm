@@ -8,6 +8,7 @@ import {
   FAMILY_INTERIOR,
   FAMILY_LEADING_EDGE,
 } from '@/lib/calibration-reference';
+import { derivePctFromHours } from '@/lib/calibration-derive';
 
 // Built-in reference types, tagged with their measurement family. A service can
 // only be calibrated against references in its OWN family (see filtering below).
@@ -57,11 +58,13 @@ export default function CalibrationModal({
   service,
   detailerServices,
   calibrations,
-  anchorA,
-  anchorB,
 }) {
   const [referenceType, setReferenceType] = useState('polish');
   const [manualAdjustmentPct, setManualAdjustmentPct] = useState(0);
+  // "Set from your real hours" flow: pick an aircraft you've detailed + enter
+  // real hours → derive the adjustment % (manual slider stays the default).
+  const [deriveAircraftId, setDeriveAircraftId] = useState('');
+  const [deriveRealHours, setDeriveRealHours] = useState('');
   const [preview, setPreview] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,8 +88,8 @@ export default function CalibrationModal({
   const [overridesSavedMsg, setOverridesSavedMsg] = useState('');
 
   // Slider is the sole adjustment input; ratio is always "ready" because the
-  // slider always carries a value. Anchor props are still received so the
-  // Live Preview fetch can render rows for the detailer's chosen aircraft.
+  // slider always carries a value. The "Set from your real hours" panel can
+  // pre-fill the slider by deriving the % from a detailer's real hours.
   // Symmetric -300..+300 range so 0% sits in the geometric middle of the
   // track while still giving Brett headroom for fixed-minimum and 3x-of-
   // reference services. Existing rows saved against the old -50..+200 or
@@ -103,6 +106,8 @@ export default function CalibrationModal({
     setError('');
     setOverridesSavedMsg('');
     setOverrideDrafts({});
+    setDeriveAircraftId('');
+    setDeriveRealHours('');
     setAcSearch('');
     setAcCategory('all');
     setPage(0);
@@ -163,7 +168,7 @@ export default function CalibrationModal({
   const handleSave = async () => {
     if (!service) return;
     if (!computedReady) {
-      setError('Enter your actual hours for at least one anchor aircraft.');
+      setError('Set a calibration adjustment first.');
       return;
     }
     setSaving(true);
@@ -206,6 +211,18 @@ export default function CalibrationModal({
   // automatically when adjustmentPct / referenceType change because both
   // are in the render closure.
   const refKey = REF_TO_HOURS_KEY[referenceType] || 'maintenance_wash';
+
+  // "Set from your real hours" derivation. Baseline = the selected aircraft's
+  // hours for the current reference type (the same value computeCalibratedHours
+  // treats as ref.hours); derivedPct is the exact inverse of the apply formula.
+  const deriveAircraftOptions = useMemo(() => (
+    (aircraftList || [])
+      .map((a) => ({ aircraft_id: a.aircraft_id, label: [a.make, a.model].filter(Boolean).join(' ') || '—' }))
+      .sort((x, y) => x.label.localeCompare(y.label))
+  ), [aircraftList]);
+  const deriveRow = aircraftList.find((a) => a.aircraft_id === deriveAircraftId) || null;
+  const deriveBaseline = deriveRow ? parseFloat(deriveRow.hours?.[refKey]) : null;
+  const derivedPct = derivePctFromHours(deriveRealHours, deriveBaseline);
   const categories = useMemo(() => {
     const set = new Set();
     aircraftList.forEach((a) => { if (a.category) set.add(a.category); });
@@ -409,6 +426,67 @@ export default function CalibrationModal({
                 ))}
               </optgroup>
             </select>
+          </div>
+
+          {/* Set from your real hours — derive the % from an aircraft you've
+              actually detailed. Optional; the manual slider below is the default. */}
+          <div className="border border-v-border rounded-sm p-3 bg-v-charcoal/40">
+            <label className="block text-xs font-medium text-v-text-secondary mb-1 uppercase tracking-wide">
+              Set from your real hours <span className="text-v-text-secondary/60 normal-case">(optional)</span>
+            </label>
+            <p className="text-[11px] text-v-text-secondary/70 mb-2 leading-relaxed">
+              Pick an aircraft you&apos;ve detailed and enter your real hours for {service.name}. We&apos;ll derive the calibration % — or just drag the slider below.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">1 &middot; Reference aircraft</label>
+                <select
+                  value={deriveAircraftId}
+                  onChange={(e) => setDeriveAircraftId(e.target.value)}
+                  className={INPUT_CLASS}
+                >
+                  <option value="">Select aircraft…</option>
+                  {deriveAircraftOptions.map((o) => (
+                    <option key={o.aircraft_id} value={o.aircraft_id}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">2 &middot; Your real hours</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                  value={deriveRealHours}
+                  onChange={(e) => setDeriveRealHours(e.target.value)}
+                  placeholder="e.g. 6.5"
+                  className={INPUT_CLASS}
+                />
+              </div>
+            </div>
+            {deriveAircraftId && (
+              <p className="mt-2 text-[11px]">
+                {!(deriveBaseline > 0) ? (
+                  <span className="text-amber-300">No reference hours for this aircraft — pick another, or set the % manually below.</span>
+                ) : (
+                  <span className="text-v-text-secondary">
+                    Reference baseline: <span className="text-v-text-primary">{deriveBaseline.toFixed(1)}h</span>
+                    {derivedPct != null && (
+                      <> &middot; Derived: <span className={derivedPct >= 0 ? 'text-blue-400' : 'text-red-400'}>{derivedPct > 0 ? '+' : ''}{derivedPct}%</span></>
+                    )}
+                  </span>
+                )}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => { if (derivedPct != null) setManualAdjustmentPct(Math.max(-300, Math.min(300, Math.round(derivedPct)))); }}
+              disabled={derivedPct == null}
+              className="mt-2 px-3 py-1.5 text-[11px] uppercase tracking-wider bg-v-gold text-v-charcoal rounded-sm disabled:opacity-40 hover:bg-v-gold/90"
+            >
+              3 &middot; Use this calibration
+            </button>
           </div>
 
           {/* Manual adjustment slider — sole adjustment input */}
