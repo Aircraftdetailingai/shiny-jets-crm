@@ -4,6 +4,45 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import SocialLoginButtons from '@/components/SocialLoginButtons';
 
+// Fire ad-conversion events on successful signup. Both are gated on their
+// NEXT_PUBLIC_* env var being present — if unset, this no-ops silently. Wrapped
+// so an analytics hiccup can never affect the signup flow.
+function fireSignupConversions() {
+  if (typeof window === 'undefined') return;
+  try {
+    // Meta Pixel — CompleteRegistration
+    const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+    if (pixelId) {
+      if (!window.fbq) {
+        /* eslint-disable */
+        !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+        /* eslint-enable */
+        window.fbq('init', pixelId);
+      }
+      window.fbq('track', 'CompleteRegistration');
+    }
+
+    // GA4 — sign_up
+    const ga4Id = process.env.NEXT_PUBLIC_GA4_ID;
+    if (ga4Id) {
+      if (!window.gtag) {
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = `https://www.googletagmanager.com/gtag/js?id=${ga4Id}`;
+        document.head.appendChild(s);
+        window.gtag('js', new Date());
+        window.gtag('config', ga4Id);
+      }
+      window.gtag('event', 'sign_up', { method: 'email' });
+    }
+  } catch (e) {
+    // Never let analytics break signup.
+    console.error('[signup] conversion event failed:', e?.message || e);
+  }
+}
+
 function SignupForm() {
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get('invite');
@@ -83,6 +122,9 @@ function SignupForm() {
 
       localStorage.setItem('vector_token', data.token);
       localStorage.setItem('vector_user', JSON.stringify(data.user));
+
+      // Fire ad-conversion events on the confirmed registration, before redirect.
+      fireSignupConversions();
 
       setSuccess(true);
       setTimeout(() => {
