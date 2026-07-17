@@ -276,6 +276,10 @@ export async function POST(request) {
 
     // Store all extra pricing data as JSON metadata for columns that may not exist yet
     const quoteMetadata = {
+      // Source lead linkage. The top-level lead_id column may not exist (and is
+      // stripped on insert if so), which silently dropped the link; metadata is
+      // jsonb and always persists, so the request page can find its quote here.
+      lead_id: body.lead_id || null,
       line_items: line_items || [],
       selected_services: selected_services || [],
       selected_package_id: selected_package_id || null,

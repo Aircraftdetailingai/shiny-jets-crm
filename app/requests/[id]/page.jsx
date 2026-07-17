@@ -19,6 +19,7 @@ export default function RequestDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [lead, setLead] = useState(null);
+  const [linkedQuote, setLinkedQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dismissing, setDismissing] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
@@ -60,6 +61,22 @@ export default function RequestDetailPage() {
       setLoading(false);
     };
     fetchLead();
+
+    // Find the quote created from this lead (linked via quotes.metadata.lead_id)
+    // so we can surface its view state. Read-only — tracking is written by
+    // /api/quotes/view/[shareLink]; we only display the existing fields.
+    const fetchLinkedQuote = async () => {
+      try {
+        const res = await fetch('/api/quotes', { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const match = (data.quotes || []).find(q => q.metadata?.lead_id === id);
+        if (match) setLinkedQuote(match);
+      } catch (err) {
+        console.error('Failed to fetch linked quote:', err);
+      }
+    };
+    fetchLinkedQuote();
   }, [id, router]);
 
   const handleDismiss = async () => {
@@ -88,6 +105,23 @@ export default function RequestDetailPage() {
   const style = STATUS_STYLES[lead.status] || STATUS_STYLES.new;
   const notes = (lead.notes || '').split('\n').filter(Boolean);
   const photos = lead.photo_urls || [];
+
+  // Read-only view-state chip for the quote linked to this lead. Nothing shows
+  // until a quote exists and has actually been sent; once the customer opens it,
+  // the existing tracking fields (viewed_at / last_viewed_at / view_count) flip
+  // it to "Viewed …". No new tracking is written here.
+  const quoteChip = (() => {
+    const q = linkedQuote;
+    if (!q || (q.status === 'draft' && !q.sent_at)) return null;
+    const viewedAt = q.last_viewed_at || q.viewed_at;
+    const isViewed = (q.view_count || 0) > 0 || !!viewedAt;
+    if (isViewed && viewedAt) {
+      const hrs = Math.floor((Date.now() - new Date(viewedAt).getTime()) / 3600000);
+      const ago = hrs <= 0 ? '<1h ago' : hrs < 48 ? `${hrs}h ago` : `${Math.floor(hrs / 24)}d ago`;
+      return { label: `Viewed ${ago}`, cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+    }
+    return { label: 'Quote sent', cls: 'bg-purple-500/20 text-purple-400 border-purple-500/30' };
+  })();
   const handleCreateQuote = () => {
     localStorage.setItem('quote_prefill', JSON.stringify({
       leadId: lead.id,
@@ -230,6 +264,14 @@ export default function RequestDetailPage() {
             className="w-full py-4 text-center text-sm font-semibold uppercase tracking-wider bg-v-gold text-v-charcoal hover:bg-v-gold-dim rounded-lg transition-colors">
             Create Quote
           </button>
+
+          {quoteChip && (
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border ${quoteChip.cls}`}>
+                {quoteChip.label}
+              </span>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button onClick={async () => {
