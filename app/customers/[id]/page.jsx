@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { formatPrice } from '@/lib/formatPrice';
 
 const ACTIVITY_CONFIG = {
   quote_created: { icon: '+', color: 'bg-v-gold', label: 'Quote', group: 'quotes' },
