@@ -19,6 +19,7 @@ const NAV_GROUPS = [
       { href: '/requests', label: 'Requests', icon: RequestsIcon, badge: true },
       { href: '/quotes', label: 'Quotes', icon: QuotesIcon },
       { href: '/customers', label: 'Customers', icon: CustomersIcon },
+      { href: '/aircraft', label: 'Aircraft', icon: AircraftIcon },
       { href: '/jobs', label: 'Jobs', icon: JobsIcon },
       { href: '/dispatch', label: 'Dispatch', icon: DispatchIcon },
       { href: '/calendar', label: 'Schedule', icon: CalendarIcon },
@@ -63,6 +64,9 @@ function CalendarIcon() {
 }
 function CustomersIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75" /></svg>;
+}
+function AircraftIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L11 19v-5.5l8 2.5z" /></svg>;
 }
 function InvoicesIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" /></svg>;
