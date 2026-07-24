@@ -16,9 +16,9 @@ export default function DeveloperPage() {
     try {
       const stored = localStorage.getItem('vector_user');
       const u = stored ? JSON.parse(stored) : null;
-      if (!u?.is_admin) { setAllowed(false); return; }
-      setAllowed(true);
       const token = localStorage.getItem('vector_token');
+      if (!u || !token) { setAllowed(false); return; }
+      setAllowed(true);
       fetch('/api/detailers/me', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
         .then(d => setMe(d?.detailer || d))
@@ -30,7 +30,7 @@ export default function DeveloperPage() {
 
   if (allowed === null) return <div className="p-4 text-v-text-secondary text-sm">Loading…</div>;
   if (!allowed) {
-    if (typeof window !== 'undefined') router.replace('/404');
+    if (typeof window !== 'undefined') router.replace('/login');
     return null;
   }
 

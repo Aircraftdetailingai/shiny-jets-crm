@@ -37,7 +37,7 @@ const BUCKETS = [
   { href: '/settings/automations', label: 'Automations', Icon: ZapIcon },
   { href: '/settings/connections', label: 'Connections', Icon: PlugIcon },
   { href: '/settings/team-access', label: 'Team & Access', Icon: UsersIcon },
-  { href: '/settings/developer', label: 'Developer', Icon: TerminalIcon, adminOnly: true },
+  { href: '/settings/developer', label: 'Developer', Icon: TerminalIcon },
 ];
 
 export default function SettingsLayout({ children }) {

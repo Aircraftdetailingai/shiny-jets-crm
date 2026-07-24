@@ -117,7 +117,6 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
   // it. The actual charge is appended at Stripe checkout as its own line item.
   // Compute for both 'pass' and 'customer_choice' so the disclosure can render.
   const ccFee = (ccFeeMode === 'pass' || ccFeeMode === 'customer_choice') ? calculateCcFee(subtotalWithService) : 0;
-  const displayTotal = subtotalWithService;
 
   const discountPercent = quote.discount_percent || 0;
   const displayPref = detailer?.quote_display_preference || 'package';
@@ -127,9 +126,22 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
   // Check if line items have hours/rate data
   const hasHoursData = lineItems.some(li => li.hours > 0 && li.rate > 0);
 
-  // Subtotal from line items
-  const lineItemsSubtotal = lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0);
-  const addonTotal = addonFees.reduce((sum, f) => sum + (parseFloat(f.calculated || f.amount) || 0), 0);
+  // Add-on fees are itemized below the services subtotal. They're suppressed for
+  // minimum-fee quotes (which are a single flat charge), so their total is zero
+  // there too. Compound fees carry their summed total in `calculated`.
+  const addonTotal = quote.minimum_fee_applied
+    ? 0
+    : addonFees.reduce((sum, f) => sum + (parseFloat(f.calculated || f.amount) || 0), 0);
+
+  // Services-only subtotal. total_price folds the add-on fees in, so the package
+  // / service rows must show the pre-fee services amount — total minus fees.
+  // Anchoring to basePrice (rather than the raw line-item sum) keeps the printed
+  // total identical to what's charged even when a discount or minimum applies.
+  const servicesSubtotal = Math.max(0, basePrice - addonTotal);
+  // Total is the honest sum of what's shown: services + every add-on fee, plus
+  // the pass-through platform service fee (serviceFee, unchanged). Equals
+  // basePrice + serviceFee. The CC fee stays a separate disclosure below.
+  const displayTotal = servicesSubtotal + addonTotal + serviceFee;
 
   // Terms snippet
   const termsSnippet = detailer?.terms_text
@@ -231,11 +243,11 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
                   </Text>
                 )}
               </View>
-              <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(basePrice)}</Text>
+              <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(servicesSubtotal)}</Text>
             </View>
             <View style={s.subtotalRow}>
-              <Text style={s.subtotalLabel}>Subtotal</Text>
-              <Text style={s.subtotalValue}>{fmt(basePrice)}</Text>
+              <Text style={s.subtotalLabel}>Subtotal (services)</Text>
+              <Text style={s.subtotalValue}>{fmt(servicesSubtotal)}</Text>
             </View>
           </View>
         )}
@@ -258,8 +270,8 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
               </View>
             ))}
             <View style={s.subtotalRow}>
-              <Text style={s.subtotalLabel}>Subtotal</Text>
-              <Text style={s.subtotalValue}>{fmt(lineItemsSubtotal)}</Text>
+              <Text style={s.subtotalLabel}>Subtotal (services)</Text>
+              <Text style={s.subtotalValue}>{fmt(servicesSubtotal)}</Text>
             </View>
           </View>
         )}
@@ -278,33 +290,39 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
               </View>
             ))}
             <View style={s.subtotalRow}>
-              <Text style={s.subtotalLabel}>Subtotal</Text>
-              <Text style={s.subtotalValue}>{fmt(lineItemsSubtotal)}</Text>
+              <Text style={s.subtotalLabel}>Subtotal (services)</Text>
+              <Text style={s.subtotalValue}>{fmt(servicesSubtotal)}</Text>
             </View>
           </View>
         )}
 
-        {/* Labor/Products split */}
-        {!packageName && showLaborProducts && (
-          <View style={{ marginBottom: 4 }}>
-            <View style={s.tableHeader}>
-              <Text style={[s.tableHeaderText, { flex: 3 }]}>Description</Text>
-              <Text style={[s.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Amount</Text>
+        {/* Labor/Products split — services-only decomposition. Add-on fees are
+            itemized separately below, so labor + products sum to the services
+            subtotal (not the fee-inclusive total_price). */}
+        {!packageName && showLaborProducts && (() => {
+          const productsPortion = parseFloat(quote.products_total) || servicesSubtotal * 0.3;
+          const laborPortion = Math.max(0, servicesSubtotal - productsPortion);
+          return (
+            <View style={{ marginBottom: 4 }}>
+              <View style={s.tableHeader}>
+                <Text style={[s.tableHeaderText, { flex: 3 }]}>Description</Text>
+                <Text style={[s.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Amount</Text>
+              </View>
+              <View style={s.tableRow}>
+                <Text style={[s.tableCell, { flex: 3 }]}>Labor</Text>
+                <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(laborPortion)}</Text>
+              </View>
+              <View style={s.tableRow}>
+                <Text style={[s.tableCell, { flex: 3 }]}>Products & Materials</Text>
+                <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(productsPortion)}</Text>
+              </View>
+              <View style={s.subtotalRow}>
+                <Text style={s.subtotalLabel}>Subtotal (services)</Text>
+                <Text style={s.subtotalValue}>{fmt(servicesSubtotal)}</Text>
+              </View>
             </View>
-            <View style={s.tableRow}>
-              <Text style={[s.tableCell, { flex: 3 }]}>Labor</Text>
-              <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(parseFloat(quote.labor_total) || basePrice * 0.7)}</Text>
-            </View>
-            <View style={s.tableRow}>
-              <Text style={[s.tableCell, { flex: 3 }]}>Products & Materials</Text>
-              <Text style={[s.tableCellBold, { flex: 1 }]}>{fmt(parseFloat(quote.products_total) || basePrice * 0.3)}</Text>
-            </View>
-            <View style={s.subtotalRow}>
-              <Text style={s.subtotalLabel}>Subtotal</Text>
-              <Text style={s.subtotalValue}>{fmt(basePrice)}</Text>
-            </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* ─── PROPOSED SCHEDULE (business days) ─── */}
         {(() => {

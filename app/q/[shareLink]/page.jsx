@@ -887,7 +887,19 @@ export default function QuoteViewPage() {
   // checkout time. This keeps the displayed quote amount honest to what was
   // agreed, while still passing the fee through when the customer pays.
   const ccFee = (ccFeeMode === 'pass' || ccFeeMode === 'customer_choice') ? calculateCcFee(subtotalWithService) : 0;
-  const displayTotal = subtotalWithService;
+
+  // total_price folds add-on fees in, so the package/service row must show the
+  // pre-fee services amount (total minus fees) and each fee is itemized on its
+  // own row below — matching the PDF (lib/quote-pdf.jsx). Anchoring to basePrice
+  // keeps the displayed total identical to what's charged. Fees are suppressed
+  // for minimum-fee quotes, so their total is zero there too.
+  const addonTotal = quote.minimum_fee_applied
+    ? 0
+    : (Array.isArray(quote.addon_fees)
+        ? quote.addon_fees.reduce((sum, f) => sum + (parseFloat(f.calculated || f.amount) || 0), 0)
+        : 0);
+  const servicesSubtotal = Math.max(0, basePrice - addonTotal);
+  const displayTotal = servicesSubtotal + addonTotal + serviceFee;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--brand-bg,#0A0E17)] p-4" style={brandFontBody ? { fontFamily: brandFontBody } : undefined}>
@@ -970,7 +982,7 @@ export default function QuoteViewPage() {
           {detailer?.quote_display_mode === 'package' && (
             <div className="text-center py-4">
               <p className="text-[var(--brand-text,#F5F5F5)] text-lg font-semibold">{detailer.quote_package_name || 'Aircraft Detail Package'}</p>
-              <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-bold mt-2">{sym}{formatPrice(quote.total_price)}</p>
+              <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-bold mt-2">{sym}{formatPrice(servicesSubtotal)}</p>
               {detailer.quote_show_breakdown && services.length > 0 && (
                 <details>
                   <summary className="text-sm cursor-pointer text-blue-400 hover:underline mt-2">View service breakdown</summary>
@@ -1017,19 +1029,25 @@ export default function QuoteViewPage() {
                 </div>
               )}
 
-              {/* Labor/products split */}
-              {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'labor_products' && (
-                <div className="divide-y divide-[var(--brand-border,#1A2236)]">
-                  <div className="flex justify-between py-3">
-                    <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Labor</span>
-                    <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(parseFloat(quote.labor_total) || basePrice * 0.7)}</span>
+              {/* Labor/products split — services-only decomposition. Add-on fees
+                  are itemized separately below, so labor + products sum to the
+                  services subtotal (not the fee-inclusive total_price). */}
+              {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'labor_products' && (() => {
+                const productsPortion = parseFloat(quote.products_total) || servicesSubtotal * 0.3;
+                const laborPortion = Math.max(0, servicesSubtotal - productsPortion);
+                return (
+                  <div className="divide-y divide-[var(--brand-border,#1A2236)]">
+                    <div className="flex justify-between py-3">
+                      <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Labor</span>
+                      <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(laborPortion)}</span>
+                    </div>
+                    <div className="flex justify-between py-3">
+                      <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Products & Materials</span>
+                      <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(productsPortion)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between py-3">
-                    <span className="text-[var(--brand-text,#F5F5F5)] text-sm">Products & Materials</span>
-                    <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">{sym}{formatPrice(parseFloat(quote.products_total) || basePrice * 0.3)}</span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Default / package: service names + prices */}
               {(quote.minimum_fee_applied || !detailer?.quote_display_preference || detailer?.quote_display_preference === 'total_only' || detailer?.quote_display_preference === 'package') && services.length > 0 && (
@@ -1057,13 +1075,18 @@ export default function QuoteViewPage() {
           </div>
         )}
 
-        {/* Add-on fees */}
+        {/* Add-on fees — services subtotal first, then one row per fee (compound
+            fees carry their summed total in `calculated`), matching the PDF. */}
         {!quote.minimum_fee_applied && quote.addon_fees && quote.addon_fees.length > 0 && (
           <div className="border-t border-[var(--brand-border,#1A2236)] pt-2 mb-2">
+            <div className="flex justify-between py-2 text-sm">
+              <span className="text-[var(--brand-text-secondary,#8A9BB0)]">Subtotal (services)</span>
+              <span className="text-[var(--brand-text-secondary,#8A9BB0)]">{sym}{formatPrice(servicesSubtotal)}</span>
+            </div>
             {quote.addon_fees.map((fee, i) => (
               <div key={i} className="flex justify-between py-2 text-sm">
                 <span className="text-[var(--brand-text-secondary,#8A9BB0)]">{fee.name}{fee.fee_type === 'percent' ? ` (${fee.amount}%)` : ''}</span>
-                <span className="text-[var(--brand-text-secondary,#8A9BB0)]">+{sym}{formatPrice(fee.calculated)}</span>
+                <span className="text-[var(--brand-text-secondary,#8A9BB0)]">+{sym}{formatPrice(fee.calculated || fee.amount)}</span>
               </div>
             ))}
           </div>

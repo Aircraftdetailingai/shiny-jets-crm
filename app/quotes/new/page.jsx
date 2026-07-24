@@ -7,7 +7,6 @@ import { computeCalibratedHours, applyMinimumPrice } from '../../../lib/calibrat
 import LoadingSpinner from '../../../components/LoadingSpinner.jsx';
 import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
-import { calculateProductEstimates } from '../../../lib/product-calculator';
 import { computeLinkedProductQuantity } from '../../../lib/product-quantity';
 import { calculateCcFee } from '../../../lib/cc-fee';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
@@ -984,14 +983,6 @@ function NewQuoteContent() {
   const laborTotal = totalPrice - estimatedProductCost;
   const productsTotal = estimatedProductCost;
 
-  const productEstimates = selectedAircraft && untaggedServices.length > 0
-    ? calculateProductEstimates(
-        untaggedServices,
-        { ...selectedAircraft, surface_area_sqft: aircraftSqft || selectedAircraft.surface_area_sqft },
-        customProductRatios,
-      )
-    : [];
-
   const addonFeeItems = selectedAddonFees.map(f => normalizeFee(f, feeCtx));
 
   const toggleAddon = (addonId) => {
@@ -1079,7 +1070,6 @@ function NewQuoteContent() {
         proposedDate: proposedDate || null,
         proposedTime: proposedTime || null,
         bufferMinutes,
-        productEstimates,
         linkedProducts,
         linkedEquipment: (() => {
           const eqLinks = serviceEquipmentLinks.filter(l => selectedServicesList.some(s => s.id === l.service_id));
@@ -2507,24 +2497,19 @@ function NewQuoteContent() {
                 </div>
               )}
 
-              {/* Products — real tagged products first (with computed
-                  quantities), then generic estimates for any selected service
-                  that has no tags, marked "(estimate)". One honest panel. */}
-              {(quoteData?.linkedProducts?.length > 0 || productEstimates.length > 0) && (
+              {/* Products — only real tagged products (from service↔product
+                  links) with a computed quantity above zero. One honest panel. */}
+              {quoteData?.linkedProducts?.some(p => (p.quantity || 0) > 0) && (
                 <div className="mt-3 pt-3 border-t border-white/10">
                   <p className="text-xs text-gray-400 mb-1">Products</p>
-                  {quoteData?.linkedProducts?.map((p, i) => (
-                    <div key={`lp-${i}`} className="flex justify-between text-xs text-gray-300">
-                      <span>{p.product_name}</span>
-                      <span>{(p.quantity || 0).toFixed(1)} {p.unit}</span>
-                    </div>
-                  ))}
-                  {productEstimates.map((pe, i) => (
-                    <div key={`pe-${i}`} className="flex justify-between text-xs text-gray-300">
-                      <span>{pe.product_name} <span className="text-gray-500">(estimate)</span></span>
-                      <span>{pe.amount} {pe.unit}</span>
-                    </div>
-                  ))}
+                  {quoteData.linkedProducts
+                    .filter(p => (p.quantity || 0) > 0)
+                    .map((p, i) => (
+                      <div key={`lp-${i}`} className="flex justify-between text-xs text-gray-300">
+                        <span>{p.product_name}</span>
+                        <span>{(p.quantity || 0).toFixed(1)} {p.unit}</span>
+                      </div>
+                    ))}
                 </div>
               )}
 
