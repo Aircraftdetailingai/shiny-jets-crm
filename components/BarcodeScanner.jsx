@@ -122,7 +122,7 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
 
           {/* Viewfinder overlay */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-3/4 h-1/3 border-2 border-white/70 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+            <div className="h-3/5 aspect-square border-2 border-white/70 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
               <div className="w-full h-px bg-red-500/80 mt-1/2 animate-pulse" style={{ marginTop: '50%' }} />
             </div>
           </div>
