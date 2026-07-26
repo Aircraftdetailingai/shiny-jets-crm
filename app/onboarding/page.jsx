@@ -71,6 +71,10 @@ export default function OnboardingPage() {
 
   // Screen 0: Welcome
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  // True when the loaded user has already accepted the current TERMS_VERSION —
+  // e.g. they're in the wizard for a forced password change, not first-run.
+  // The terms checkbox is then skipped entirely and agreement is implied.
+  const [termsAlreadyCurrent, setTermsAlreadyCurrent] = useState(false);
 
   // Screen 1: Business Profile
   const [company, setCompany] = useState('');
@@ -125,6 +129,16 @@ export default function OnboardingPage() {
     const stored = localStorage.getItem('vector_user');
     if (!t || !stored) { router.push('/login'); return; }
     setToken(t);
+
+    // If this user already accepted the current terms version, don't re-ask —
+    // pre-agree and hide the checkbox row.
+    try {
+      const u = JSON.parse(stored);
+      if (u?.terms_accepted_version === TERMS_VERSION) {
+        setAgreedToTerms(true);
+        setTermsAlreadyCurrent(true);
+      }
+    } catch {}
 
     fetch('/api/onboarding', { headers: { Authorization: `Bearer ${t}` } })
       .then(res => res.json())
@@ -402,24 +416,26 @@ export default function OnboardingPage() {
             ))}
           </div>
 
-          <label className="flex items-start gap-3 text-sm text-v-text-secondary mb-6 cursor-pointer text-left">
-            <input
-              type="checkbox"
-              checked={agreedToTerms}
-              onChange={(e) => setAgreedToTerms(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded accent-v-gold"
-            />
-            <span>
-              I agree to the{' '}
-              <a href="/terms" target="_blank" rel="noreferrer" className="text-v-gold hover:text-v-gold-dim underline underline-offset-2">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="/privacy" target="_blank" rel="noreferrer" className="text-v-gold hover:text-v-gold-dim underline underline-offset-2">
-                Privacy Policy
-              </a>
-            </span>
-          </label>
+          {!termsAlreadyCurrent && (
+            <label className="flex items-start gap-3 text-sm text-v-text-secondary mb-6 cursor-pointer text-left">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-v-gold"
+              />
+              <span>
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noreferrer" className="text-v-gold hover:text-v-gold-dim underline underline-offset-2">
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="/privacy" target="_blank" rel="noreferrer" className="text-v-gold hover:text-v-gold-dim underline underline-offset-2">
+                  Privacy Policy
+                </a>
+              </span>
+            </label>
+          )}
 
           <button
             onClick={goNext}
