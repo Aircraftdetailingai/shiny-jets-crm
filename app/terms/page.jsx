@@ -60,7 +60,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">4. Subscription Plans and Billing</h2>
             <p className="mb-2">
-              Shiny Jets CRM offers multiple subscription tiers (Free, Pro, Business, and Enterprise)
+              Shiny Jets CRM offers multiple subscription tiers (Free, Starter, Pro, Business, and Enterprise)
               with both monthly and annual billing options. By selecting a paid plan, you agree to
               the following:
             </p>
@@ -191,14 +191,27 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">11. Intellectual Property</h2>
-            <p>
-              All content, features, and functionality of the Platform&mdash;including but not
-              limited to software, text, graphics, logos, and design&mdash;are the exclusive
-              property of Vector Aviation Artificial Intelligence and are protected by copyright, trademark,
-              and other intellectual property laws. You are granted a limited, non-exclusive,
-              non-transferable license to use the Platform for its intended purpose during
-              your active subscription.
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">11. Intellectual Property, License Restrictions, and Feedback</h2>
+            <p className="mb-3">
+              All content, features, and functionality of Shiny Jets CRM&mdash;including but not limited to software, text, graphics, logos, and design, and all courses, curricula, training materials, standard operating procedures (SOPs), checklists, templates, documentation, and videos made available through or in connection with the Platform (collectively, the &ldquo;Materials&rdquo;)&mdash;are the exclusive property of Vector Aviation Artificial Intelligence LLC, the operator of Shiny Jets CRM, and are protected by copyright, trademark, and other intellectual property laws.
+            </p>
+            <p className="mb-3">
+              You are granted a limited, non-exclusive, non-transferable, revocable license to use the Platform and Materials solely for your own internal business purposes during your period of active access. This license applies identically across all subscription plans and tiers (Free, Starter, Pro, Business, and Enterprise) and regardless of how access was obtained&mdash;whether purchased directly, purchased through our online store, or provided on a complimentary basis, including Shiny Jets CRM access included with course enrollment. Complimentary access is a license, not a transfer of ownership, and may be revoked for breach of these Terms.
+            </p>
+            <p className="mb-3">You may not, and may not permit or assist any third party to:</p>
+            <ul className="list-disc ml-6 space-y-1">
+              <li>Copy, reproduce, distribute, sell, resell, sublicense, or publicly display the Platform or Materials</li>
+              <li>Share, transfer, or resell account access or login credentials</li>
+              <li>Scrape, harvest, or bulk-export Platform content or Materials, including by automated means, bots, or AI tools</li>
+              <li>Use the Platform or Materials to create, develop, or train a competing product, service, course, or training program</li>
+              <li>Create derivative works from the Materials</li>
+              <li>Remove or alter any proprietary notices</li>
+            </ul>
+            <p className="mb-3">
+              Feedback and Suggestions. If you submit ideas, suggestions, feature requests, or other feedback about the Platform (&ldquo;Feedback&rdquo;), you agree it is voluntary and non-confidential, and that we may use, implement, modify, and commercialize it without restriction, attribution, or compensation. You hereby assign to Vector Aviation Artificial Intelligence LLC all right, title, and interest in and to Feedback and any features, improvements, or developments resulting from it. This applies to all plans, including Enterprise. Nothing in this paragraph transfers ownership of your business data, which remains governed by Section 12.
+            </p>
+            <p className="mb-3">
+              These restrictions survive termination of your account. Violation constitutes a material breach of these Terms and infringement of our intellectual property rights, and we reserve all remedies at law and in equity, including immediate termination of access.
             </p>
           </section>
 
