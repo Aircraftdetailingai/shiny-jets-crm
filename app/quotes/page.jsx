@@ -41,6 +41,10 @@ export default function QuotesPage() {
   });
   const [serviceHours, setServiceHours] = useState([]);
   const [inventoryProducts, setInventoryProducts] = useState([]);
+  // Service→product links (which products are attached to which services) so the
+  // completion "Products used" picker only offers products relevant to the
+  // services on THIS quote, not the detailer's whole inventory.
+  const [serviceProductLinks, setServiceProductLinks] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [completing, setCompleting] = useState(false);
   const [changeOrderModal, setChangeOrderModal] = useState(null);
@@ -341,9 +345,15 @@ export default function QuotesPage() {
     setSelectedProducts([]);
     const token = localStorage.getItem('vector_token');
     if (token) {
-      fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } })
+      const auth = { headers: { Authorization: `Bearer ${token}` } };
+      fetch('/api/products', auth)
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.products) setInventoryProducts(data.products); })
+        .catch(() => {});
+      // Service→product links, used to narrow the picker to this quote's services.
+      fetch('/api/services/products', auth)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.links) setServiceProductLinks(data.links); })
         .catch(() => {});
     }
   };
@@ -595,6 +605,20 @@ export default function QuotesPage() {
   };
 
   if (loading) return <LoadingSpinner message="Loading..." />;
+
+  // Products offered in the completion "Products used" picker: only those
+  // attached to a service on the quote being completed. Falls back to the full
+  // inventory when the quote's services have no linked products, so the picker
+  // is never empty for detailers who haven't set up service→product links yet.
+  const completeServiceIds = new Set(
+    (completeModal?.line_items || []).map(li => li.service_id).filter(Boolean)
+  );
+  const completeLinkedProductIds = new Set(
+    serviceProductLinks.filter(l => completeServiceIds.has(l.service_id)).map(l => l.product_id)
+  );
+  const availableCompletionProducts = completeLinkedProductIds.size > 0
+    ? inventoryProducts.filter(p => completeLinkedProductIds.has(p.id))
+    : inventoryProducts;
 
   return (
     <AppShell title="Quotes">
@@ -851,13 +875,13 @@ export default function QuotesPage() {
                 )}
                 <div>
                   <label className="block text-sm font-medium mb-1 text-white">Products Used</label>
-                  {inventoryProducts.length > 0 ? (
+                  {availableCompletionProducts.length > 0 ? (
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                       {selectedProducts.map((sp, idx) => (
                         <div key={idx} className="flex items-center gap-2 p-2 bg-[#0F1117] border border-[#1A2236]">
                           <select value={sp.product_id} onChange={(e) => { const updated = [...selectedProducts]; updated[idx] = { ...updated[idx], product_id: e.target.value }; setSelectedProducts(updated); }} className="flex-1 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm">
                             <option value="">Select product...</option>
-                            {inventoryProducts.map(p => (<option key={p.id} value={p.id}>{p.name} ({p.current_quantity} {p.unit})</option>))}
+                            {availableCompletionProducts.map(p => (<option key={p.id} value={p.id}>{p.name} ({p.current_quantity} {p.unit})</option>))}
                           </select>
                           <input type="number" step="1" min="0" value={sp.amount} onChange={(e) => { const updated = [...selectedProducts]; updated[idx] = { ...updated[idx], amount: e.target.value }; setSelectedProducts(updated); let totalCost = 0; updated.forEach(s => { const prod = inventoryProducts.find(p => p.id === s.product_id); if (prod) totalCost += (parseInt(s.amount, 10) || 0) * (prod.cost_per_unit || 0); }); setCompletionData(prev => ({ ...prev, product_cost: totalCost.toFixed(2) })); }} placeholder="Qty" className="w-20 bg-v-charcoal border border-v-border text-white px-2 py-1.5 text-sm text-right" />
                           <button type="button" onClick={() => setSelectedProducts(selectedProducts.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-300 text-lg">&times;</button>
