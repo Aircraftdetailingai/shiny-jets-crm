@@ -166,12 +166,15 @@ export async function POST(request) {
       return fakeSuccess();
     }
 
-    // Layer 2: gibberish in name or company. Random-string bot signups
-    // ("ZwbyFoODResvKuXRkff" / "vwhcxAanqtIzOhxOZnVk") fail both vowel-
-    // ratio and consecutive-consonant heuristics.
+    // Layer 2: gibberish name/company is LOGGED FOR SIGNAL ONLY — it never
+    // blocks. Character-shape heuristics on names produce false positives that
+    // silently kill real signups (real people really are named Zhao, Schmidt,
+    // Krzysztof, Ng, Wright...), which is the opposite of what a signup flow
+    // should do. Successful signup flows stop bots with the honeypot above, the
+    // per-IP rate limit below, and email verification — not by guessing whether
+    // a name "looks fake." Keep the log line so we retain the signal.
     if (isLikelyGibberish(name) || isLikelyGibberish(company)) {
-      console.warn('[signup-bot] gibberish detected:', { ip, name, company });
-      return fakeSuccess();
+      console.warn('[signup-bot] gibberish name/company (allowed, not blocked):', { ip, name, company });
     }
 
     // Layer 3: per-IP rate limit. > 3 signup attempts in the last hour from
