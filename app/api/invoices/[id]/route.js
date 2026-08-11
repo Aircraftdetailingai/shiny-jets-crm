@@ -197,3 +197,76 @@ export async function PATCH(request, { params }) {
     return Response.json({ error: 'Failed to update invoice' }, { status: 500 });
   }
 }
+
+// PUT - Mark an invoice paid (records payment method + note). Kept separate
+// from PATCH: PATCH is the general editor and deliberately reverts a viewed
+// invoice back to 'sent', which would silently undo a payment. The invoices
+// page's "Mark as Paid" modal calls this.
+export async function PUT(request, { params }) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = getSupabase();
+    if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
+
+    const { id } = await params;
+    const detailerId = user.detailer_id || user.id;
+    const body = await request.json();
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('invoices')
+      .select('id, total')
+      .eq('id', id)
+      .eq('detailer_id', detailerId)
+      .single();
+    if (fetchError || !existing) {
+      return Response.json({ error: 'Invoice not found' }, { status: 404 });
+    }
+
+    const status = body.status || 'paid';
+    const updates = { status };
+    if (status === 'paid') {
+      const total = parseFloat(existing.total) || 0;
+      updates.amount_paid = total;
+      updates.balance_due = 0;
+      updates.paid_at = new Date().toISOString();
+    }
+    if (body.payment_method !== undefined) updates.payment_method = body.payment_method || null;
+    if (body.manual_payment_note !== undefined) updates.manual_payment_note = body.manual_payment_note || null;
+
+    // Self-healing update: strip any column the schema doesn't have and retry,
+    // so a payment still records even if (e.g.) manual_payment_note is absent.
+    let updateData = { ...updates };
+    let data, error;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const result = await supabase
+        .from('invoices')
+        .update(updateData)
+        .eq('id', id)
+        .eq('detailer_id', detailerId)
+        .select()
+        .single();
+      data = result.data;
+      error = result.error;
+      if (!error) break;
+      const colMatch = error.message?.match(/column "([^"]+)" of relation "invoices" does not exist/)
+        || error.message?.match(/Could not find the '([^']+)' column of 'invoices'/);
+      if (colMatch && colMatch[1] in updateData && colMatch[1] !== 'status') {
+        delete updateData[colMatch[1]];
+        continue;
+      }
+      break;
+    }
+
+    if (error) {
+      console.error('Invoice mark-paid error:', JSON.stringify(error));
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+
+    return Response.json({ invoice: data });
+  } catch (err) {
+    console.error('Invoice PUT (mark-paid) error:', err);
+    return Response.json({ error: 'Failed to mark invoice paid' }, { status: 500 });
+  }
+}
