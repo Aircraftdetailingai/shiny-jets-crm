@@ -2,11 +2,21 @@
 import { useState } from 'react';
 import { TERMS_VERSION, TERMS_UPDATE_SUMMARY } from '@/lib/terms';
 
-export default function TermsConsentModal({ isOpen, onAccept }) {
+export default function TermsConsentModal({ isOpen, onAccept, onDismiss }) {
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
+
+  // "Maybe later" — close the update notice without accepting yet. Suppresses
+  // it for the rest of this session so it can't trap the user mid-task on every
+  // page load. It re-surfaces on the next sign-in until they accept, and the
+  // full accept still persists to the server. Only rendered when a parent
+  // supplies onDismiss.
+  const handleDismiss = () => {
+    try { localStorage.setItem('terms_accepted_session', TERMS_VERSION); } catch {}
+    onDismiss?.();
+  };
 
   const handleAccept = async () => {
     setSaving(true);
@@ -103,6 +113,16 @@ export default function TermsConsentModal({ isOpen, onAccept }) {
         >
           {saving ? 'Saving...' : 'I Accept the Updated Terms'}
         </button>
+
+        {onDismiss && (
+          <button
+            onClick={handleDismiss}
+            disabled={saving}
+            className="w-full mt-2 py-2 text-sm text-v-text-secondary hover:text-v-text-primary transition-colors disabled:opacity-50"
+          >
+            Maybe later
+          </button>
+        )}
       </div>
     </div>
   );
