@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -18,6 +18,12 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [barcodeLookup, setBarcodeLookup] = useState(false);
+  // 'lookup' = top-level scan (match this detailer's inventory, then add).
+  // 'enrich' = scan from inside the Add Product form (fill fields from lookup).
+  const [scanMode, setScanMode] = useState('lookup');
+  const nameInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
@@ -34,6 +40,8 @@ export default function ProductsPage() {
     notes: '',
     productUrl: '',
     imageUrl: '',
+    barcode: '',
+    barcodeType: '',
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -160,7 +168,7 @@ export default function ProductsPage() {
     }
   };
 
-  const handleOpenModal = (product = null) => {
+  const handleOpenModal = (product = null, prefill = null) => {
     setPasteUrl('');
     setScrapeError('');
     setSaveError('');
@@ -179,6 +187,8 @@ export default function ProductsPage() {
         notes: product.notes || '',
         productUrl: product.product_url || '',
         imageUrl: product.image_url || '',
+        barcode: product.barcode || '',
+        barcodeType: product.barcode_type || '',
       });
     } else {
       setEditingProduct(null);
@@ -195,6 +205,8 @@ export default function ProductsPage() {
         notes: '',
         productUrl: '',
         imageUrl: '',
+        barcode: prefill?.barcode || '',
+        barcodeType: prefill?.barcodeType || '',
       });
     }
     setShowModal(true);
@@ -252,6 +264,119 @@ export default function ProductsPage() {
     setEditingProduct(null);
   };
 
+  // Take a photo (mobile camera) or pick an image file, upload it, and use it
+  // as the product image.
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setUploadingPhoto(true);
+    setSaveError('');
+    try {
+      const token = localStorage.getItem('vector_token');
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/products/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setSaveError(data.error || 'Photo upload failed');
+        return;
+      }
+      setFormData(prev => ({ ...prev, imageUrl: data.url }));
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      setSaveError('Photo upload failed — please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Optional external enrichment (UPC → name/brand/image). Kept best-effort:
+  // a miss never blocks adding the product manually.
+  const enrichFromBarcode = async (code) => {
+    setBarcodeLookup(true);
+    const safetyTimer = setTimeout(() => setBarcodeLookup(false), 10000);
+    try {
+      const tk = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/products/barcode?upc=${encodeURIComponent(code)}`, {
+        headers: { Authorization: `Bearer ${tk}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.found && d.product) {
+          setFormData(prev => ({
+            ...prev,
+            name: prev.name || d.product.name || '',
+            brand: prev.brand || d.product.brand || '',
+            size: prev.size || (d.product.size != null ? `${d.product.size}${d.product.unit ? ' ' + d.product.unit : ''}` : ''),
+            category: d.product.category || prev.category,
+            imageUrl: prev.imageUrl || d.product.image_url || '',
+          }));
+        }
+      }
+    } catch {
+      // Lookup failed — user can type manually.
+    } finally {
+      clearTimeout(safetyTimer);
+      setBarcodeLookup(false);
+    }
+  };
+
+  // Fired when the scanner (or manual entry) yields a code. Behavior depends
+  // on where the scan was started from (scanMode).
+  const handleScanDetected = async (code, format) => {
+    setShowScanner(false);
+    const barcode = String(code || '').trim();
+    if (!barcode) return;
+    const barcodeType = format || '';
+
+    // Scan started from inside the Add Product form → just stamp the barcode
+    // onto the form and try to enrich the other fields.
+    if (scanMode === 'enrich') {
+      setFormData(prev => ({ ...prev, barcode, barcodeType }));
+      enrichFromBarcode(barcode);
+      return;
+    }
+
+    // Top-level scan → match against this detailer's existing inventory first.
+    setBarcodeLookup(true);
+    try {
+      const tk = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/products?barcode=${encodeURIComponent(barcode)}`, {
+        headers: { Authorization: `Bearer ${tk}` },
+      });
+      const existing = res.ok ? ((await res.json()).products || [])[0] : null;
+      if (existing) {
+        if (confirm(`"${existing.name}" already in inventory — increment quantity by 1?`)) {
+          await fetch('/api/products', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+            body: JSON.stringify({ id: existing.id, adjustment: 1 }),
+          });
+          setSuccessMsg(`+1 ${existing.name}`);
+          setTimeout(() => setSuccessMsg(''), 3000);
+          fetchProducts();
+        } else {
+          handleOpenModal(existing);
+        }
+        return;
+      }
+      // No match → open Add Product prefilled with the scanned code.
+      handleOpenModal(null, { barcode, barcodeType });
+      setTimeout(() => nameInputRef.current?.focus(), 150);
+    } catch (e) {
+      handleOpenModal(null, { barcode, barcodeType });
+      setTimeout(() => nameInputRef.current?.focus(), 150);
+    } finally {
+      setBarcodeLookup(false);
+    }
+  };
+
   // Escape key closes modals
   useEffect(() => {
     const handleEsc = (e) => { if (e.key === 'Escape') handleCloseModal(); };
@@ -278,6 +403,8 @@ export default function ProductsPage() {
       notes: formData.notes,
       productUrl: formData.productUrl,
       imageUrl: formData.imageUrl,
+      barcode: formData.barcode,
+      barcodeType: formData.barcodeType,
     };
 
     try {
@@ -478,12 +605,24 @@ export default function ProductsPage() {
               </select>
             )}
           </div>
-          <button
-            onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-sm"
-          >
-            {'+ Add Product'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setScanMode('lookup'); setShowScanner(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500/15 border border-blue-500/30 text-blue-400 font-medium rounded-sm hover:bg-blue-500/25"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+              </svg>
+              {barcodeLookup ? 'Looking up...' : 'Scan Barcode'}
+            </button>
+            <button
+              onClick={() => handleOpenModal()}
+              className="px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-sm"
+            >
+              {'+ Add Product'}
+            </button>
+          </div>
         </div>
 
         {/* Products List */}
@@ -698,7 +837,7 @@ export default function ProductsPage() {
               {!editingProduct && (
                 <button
                   type="button"
-                  onClick={() => setShowScanner(true)}
+                  onClick={() => { setScanMode('enrich'); setShowScanner(true); }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500/15 border border-blue-500/30 text-blue-400 text-sm font-semibold rounded-sm hover:bg-blue-500/25 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -744,18 +883,40 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              {/* Image preview */}
-              {formData.imageUrl && (
-                <div className="flex items-center gap-3">
+              {/* Product photo — take a picture or upload from library */}
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <div className="flex items-center gap-3">
+                {formData.imageUrl ? (
                   <img src={formData.imageUrl} alt="" className="w-16 h-16 rounded-sm object-cover bg-v-charcoal border border-v-border" onError={(e) => { e.target.style.display = 'none'; }} />
-                  <button type="button" onClick={() => setFormData({ ...formData, imageUrl: '' })} className="text-xs text-v-text-secondary hover:text-red-500">{'Remove image'}</button>
+                ) : (
+                  <div className="w-16 h-16 rounded-sm bg-v-charcoal border border-v-border flex items-center justify-center text-v-text-secondary text-xl">&#128247;</div>
+                )}
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-500/15 border border-blue-500/30 text-blue-400 rounded-sm hover:bg-blue-500/25 disabled:opacity-50"
+                  >
+                    {uploadingPhoto ? 'Uploading…' : formData.imageUrl ? 'Replace Photo' : 'Take / Upload Photo'}
+                  </button>
+                  {formData.imageUrl && (
+                    <button type="button" onClick={() => setFormData({ ...formData, imageUrl: '' })} className="text-[11px] text-v-text-secondary hover:text-red-500 text-left">{'Remove image'}</button>
+                  )}
                 </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Product Name'} *</label>
                   <input
+                    ref={nameInputRef}
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -867,6 +1028,29 @@ export default function ProductsPage() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Barcode / QR'}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    placeholder={'Scan or enter UPC/EAN/QR'}
+                    className="flex-1 bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setScanMode('enrich'); setShowScanner(true); }}
+                    className="px-3 py-2 bg-blue-500/15 border border-blue-500/30 text-blue-400 text-sm rounded-sm hover:bg-blue-500/25 whitespace-nowrap"
+                  >
+                    {'Scan'}
+                  </button>
+                </div>
+                {formData.barcodeType && (
+                  <p className="text-[10px] text-v-text-secondary/70 mt-1">Type: {formData.barcodeType}</p>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Notes'}</label>
                 <textarea
                   value={formData.notes}
@@ -906,42 +1090,7 @@ export default function ProductsPage() {
       <BarcodeScanner
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
-        onDetected={async (upc) => {
-          setShowScanner(false);
-          setBarcodeLookup(true);
-          // Safety net: auto-cancel after 10 seconds
-          const safetyTimer = setTimeout(() => setBarcodeLookup(false), 10000);
-          try {
-            const tk = localStorage.getItem('vector_token');
-            const res = await fetch(`/api/products/barcode?upc=${encodeURIComponent(upc)}`, {
-              headers: { Authorization: `Bearer ${tk}` },
-              signal: AbortSignal.timeout(8000),
-            });
-            if (res.ok) {
-              const d = await res.json();
-              if (d.found && d.product) {
-                setFormData(prev => ({
-                  ...prev,
-                  name: d.product.name || prev.name,
-                  brand: d.product.brand || prev.brand,
-                  size: d.product.size != null ? `${d.product.size}${d.product.unit ? ' ' + d.product.unit : ''}` : prev.size,
-                  category: d.product.category || prev.category,
-                  imageUrl: d.product.image_url || prev.imageUrl,
-                }));
-              } else {
-                // Not found — silently let user type manually
-              }
-            } else {
-              const e = await res.json().catch(() => ({}));
-              // Lookup failed — silently let user type manually
-            }
-          } catch (e) {
-            // Lookup exception — silently let user type manually
-          } finally {
-            clearTimeout(safetyTimer);
-            setBarcodeLookup(false);
-          }
-        }}
+        onDetected={handleScanDetected}
       />
 
       {/* Adjust Quantity Modal */}

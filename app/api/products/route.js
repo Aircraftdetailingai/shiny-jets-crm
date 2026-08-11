@@ -49,6 +49,7 @@ export async function GET(request) {
 
   const url = new URL(request.url);
   const locationFilter = url.searchParams.get('location_id');
+  const barcodeFilter = (url.searchParams.get('barcode') || '').trim();
 
   let query = supabase
     .from('products')
@@ -56,6 +57,12 @@ export async function GET(request) {
     .eq('detailer_id', user.detailer_id || user.id)
     .order('category', { ascending: true })
     .order('name', { ascending: true });
+
+  // Barcode lookup — used by the scanner to find an existing product in this
+  // detailer's inventory before deciding to increment vs. add new.
+  if (barcodeFilter) {
+    query = query.eq('barcode', barcodeFilter);
+  }
 
   if (locationFilter && locationFilter !== 'all') {
     if (locationFilter === 'unassigned') {
@@ -120,6 +127,8 @@ export async function POST(request) {
     productUrl,
     imageUrl,
     locationId,
+    barcode,
+    barcodeType,
   } = body;
 
   if (!name) {
@@ -141,6 +150,9 @@ export async function POST(request) {
     product_url: productUrl || '',
     image_url: imageUrl || '',
   };
+
+  if (barcode) row.barcode = String(barcode).trim();
+  if (barcodeType) row.barcode_type = String(barcodeType).trim();
 
   if (locationId) row.location_id = locationId;
 
@@ -215,6 +227,8 @@ export async function PUT(request) {
   if (notes !== undefined) updates.notes = notes;
   if (productUrl !== undefined) updates.product_url = productUrl;
   if (imageUrl !== undefined) updates.image_url = imageUrl;
+  if (body.barcode !== undefined) updates.barcode = body.barcode ? String(body.barcode).trim() : null;
+  if (body.barcodeType !== undefined) updates.barcode_type = body.barcodeType ? String(body.barcodeType).trim() : null;
   if (body.locationId !== undefined) updates.location_id = body.locationId || null;
 
   // Column-stripping retry for graceful handling of missing columns
