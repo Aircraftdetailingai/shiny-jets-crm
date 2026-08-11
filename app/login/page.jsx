@@ -220,10 +220,6 @@ function LoginContent() {
           setShowTermsModal(false);
           if (pendingRedirect) router.push(pendingRedirect);
         }}
-        onDismiss={() => {
-          setShowTermsModal(false);
-          if (pendingRedirect) router.push(pendingRedirect);
-        }}
       />
     </div>
   );

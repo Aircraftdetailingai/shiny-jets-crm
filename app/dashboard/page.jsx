@@ -822,7 +822,6 @@ function DashboardContent() {
             setShowTermsModal(false);
             setUser(prev => ({ ...prev, terms_accepted_version: TERMS_VERSION }));
           }}
-          onDismiss={() => setShowTermsModal(false)}
         />
 
         {/* ━━━ 8. TEAM ACTIVITY ━━━ */}
