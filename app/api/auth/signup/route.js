@@ -45,14 +45,21 @@ function isLikelyGibberish(rawStr) {
     if (vowelCount / alpha.length < 0.20) return true;
   }
 
-  // Rule 2: 4+ consecutive consonants. English clusters cap at 3 ("strength"
-  // is the famous exception but its alpha-only check stays well under our
-  // length threshold elsewhere). y treated as a vowel here so real names
-  // like "Snyder" don't trigger.
-  let run = 0;
-  for (const ch of alpha) {
-    if (VOWELS.has(ch) || ch === 'y') run = 0;
-    else { run++; if (run >= 4) return true; }
+  // Rule 2: 5+ consecutive consonants within a SINGLE word. Must scan each
+  // word separately — running it on the whitespace-stripped alphaOnly string
+  // merged names across the word boundary and invented phantom runs (e.g.
+  // "Richard Zhao" -> "richardzhao" -> "rdzh", flagging a real user). Split on
+  // non-letters and evaluate per word so cross-word joins can't trigger. y
+  // counts as a vowel so names like "Snyder" don't trip; threshold is 5 (not
+  // 4) so real surnames like "Schmidt"/"Schwartz" pass while random consonant
+  // salads still fail.
+  const words = raw.split(/[^A-Za-z]+/).filter(Boolean);
+  for (const word of words) {
+    let run = 0;
+    for (const ch of word.toLowerCase()) {
+      if (VOWELS.has(ch) || ch === 'y') run = 0;
+      else { run++; if (run >= 5) return true; }
+    }
   }
 
   // Rule 3: length >= 8 AND case-transition ratio > 0.40 over alphabetic
