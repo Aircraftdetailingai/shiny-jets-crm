@@ -37,9 +37,21 @@ function isLikelyGibberish(rawStr) {
   const alpha = alphaOnly(raw);
   if (alpha.length < 4) return false;
 
-  // Rule 1: length >= 8 AND vowel ratio < 0.20.
-  // Real English-derived names average ~38-40% vowels; bot-random hits 15-25%.
-  if (alpha.length >= 8) {
+  // Split the raw input into alphabetic words once; Rules 1 and 2 both need
+  // to reason per word rather than over the whitespace-stripped concatenation.
+  const words = raw.split(/[^A-Za-z]+/).filter(Boolean);
+
+  // Rule 1: length >= 8 AND vowel ratio < 0.20 — applied only to single-token
+  // inputs. Real English-derived names average ~38-40% vowels; bot-random hits
+  // 15-25%. But concatenating multiple words across the space merged short
+  // first names with legitimately consonant-heavy surnames and dragged the
+  // combined ratio under threshold ("John Schmidt" -> "johnschmidt" = 0.18),
+  // silently blocking real users. Evaluating per word instead would over-block
+  // real single surnames ("Schwartz" = 0.13, "Krzysztof" = 0.11), so we simply
+  // exempt multi-word names here — a low-vowel bot token is still caught when
+  // submitted as one word, and multi-word gibberish is still caught by the
+  // per-word consonant scan (Rule 2) and the case-transition check (Rule 3).
+  if (words.length <= 1 && alpha.length >= 8) {
     let vowelCount = 0;
     for (const ch of alpha) if (VOWELS.has(ch)) vowelCount++;
     if (vowelCount / alpha.length < 0.20) return true;
@@ -53,7 +65,6 @@ function isLikelyGibberish(rawStr) {
   // counts as a vowel so names like "Snyder" don't trip; threshold is 5 (not
   // 4) so real surnames like "Schmidt"/"Schwartz" pass while random consonant
   // salads still fail.
-  const words = raw.split(/[^A-Za-z]+/).filter(Boolean);
   for (const word of words) {
     let run = 0;
     for (const ch of word.toLowerCase()) {
