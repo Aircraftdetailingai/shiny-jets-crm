@@ -8,6 +8,39 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
 
+// Update a connection row, dropping columns the current schema doesn't have
+// (matches the codebase's column-strip pattern) so a not-yet-applied
+// needs_reconnect/last_sync_error migration never breaks the sync.
+async function updateConnection(supabase, detailerId, fields) {
+  let row = { ...fields };
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { error } = await supabase
+      .from('google_calendar_connections')
+      .update(row)
+      .eq('detailer_id', detailerId);
+    if (!error) return;
+    const colMatch = error.message?.match(/column "([^"]+)" of relation "google_calendar_connections" does not exist/)
+      || error.message?.match(/Could not find the '([^']+)' column/i);
+    const missing = colMatch?.[1];
+    if (missing && row[missing] !== undefined) {
+      delete row[missing];
+      if (Object.keys(row).length === 0) return;
+      continue;
+    }
+    console.error(`[gcal-sync] connection update failed for detailer=${detailerId}:`, error.message);
+    return;
+  }
+}
+
+// A revoked/expired Google auth surfaces either as a null token from
+// getValidAccessToken (refresh threw invalid_grant) or a 401 from the
+// Calendar API. Detect the auth-failure shape so we only prompt reconnect
+// for genuine auth problems, not transient network/5xx errors.
+function isAuthError(err) {
+  const msg = (err?.message || String(err || '')).toLowerCase();
+  return msg.includes('401') || msg.includes('invalid_grant') || msg.includes('unauthorized') || msg.includes('invalid credentials');
+}
+
 export async function GET(request) {
   // Verify cron secret (Vercel sends this header)
   const authHeader = request.headers.get('authorization');
@@ -43,9 +76,13 @@ export async function GET(request) {
         // Get valid access token (refreshes if expired)
         const tokenData = await getValidAccessToken(conn.detailer_id);
         if (!tokenData) {
-          console.warn(`[gcal-sync] Skipping ${conn.detailer_id}: token expired or missing refresh_token — user must reconnect`);
+          console.warn(`[gcal-sync] Skipping ${conn.detailer_id}: token expired/revoked or missing refresh_token — user must reconnect`);
           results.skipped++;
-          results.errors.push(`${conn.detailer_id}: skipped — expired token, no refresh_token`);
+          results.errors.push(`${conn.detailer_id}: skipped — token refresh failed, reconnect required`);
+          await updateConnection(supabase, conn.detailer_id, {
+            needs_reconnect: true,
+            last_sync_error: 'Token refresh failed — reconnect Google Calendar',
+          });
           continue;
         }
 
@@ -79,15 +116,26 @@ export async function GET(request) {
         const tokenUpdate = nextSyncToken
           ? { sync_token: nextSyncToken, last_sync_at: now.toISOString() }
           : { last_sync_at: now.toISOString() };
-        await supabase.from('google_calendar_connections')
-          .update(tokenUpdate)
-          .eq('detailer_id', conn.detailer_id);
+        // Successful sync clears any stale reconnect flag.
+        await updateConnection(supabase, conn.detailer_id, {
+          ...tokenUpdate,
+          needs_reconnect: false,
+          last_sync_error: null,
+        });
 
         results.synced++;
       } catch (err) {
         console.error(`[gcal-sync] detailer=${conn.detailer_id} error:`, err?.message || err);
         results.failed++;
         results.errors.push(`${conn.detailer_id}: ${err.message}`);
+        // Only prompt reconnect for genuine auth failures (401/invalid_grant),
+        // not transient network/5xx errors that will recover on their own.
+        if (isAuthError(err)) {
+          await updateConnection(supabase, conn.detailer_id, {
+            needs_reconnect: true,
+            last_sync_error: `Calendar sync failed: ${err.message}`.slice(0, 300),
+          });
+        }
       }
     }
 

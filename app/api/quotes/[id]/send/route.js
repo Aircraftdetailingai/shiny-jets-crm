@@ -191,7 +191,8 @@ export async function POST(request, { params }) {
     client_name: clientName,
     client_phone: clientPhone || null,
     client_email: clientEmail,
-    customer_id: resolvedCustomerId,
+    // NOTE: quotes has no customer_id column — the customer link lives on the
+    // customers side. Including it here only triggered the column-strip retry.
     airport: airport || null,
     status: 'sent',
     sent_at: now,
