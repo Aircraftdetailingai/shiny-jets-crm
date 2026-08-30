@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import PhoneInput from '@/components/PhoneInput';
 import SendQuoteModal from '../../../components/SendQuoteModal.jsx';
 import CustomerAutocomplete from '../../../components/CustomerAutocomplete.jsx';
 import { computeCalibratedHours, applyMinimumPrice } from '../../../lib/calibrate-hours.js';
@@ -1608,10 +1609,9 @@ function NewQuoteContent() {
                     placeholder="Email *"
                     className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-sm"
                   />
-                  <input
-                    type="tel"
+                  <PhoneInput
                     value={newCustomer.phone}
-                    onChange={e => setNewCustomer(p => ({ ...p, phone: e.target.value }))}
+                    onChange={val => setNewCustomer(p => ({ ...p, phone: val }))}
                     placeholder="Phone (optional)"
                     className="bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary focus:outline-none focus:ring-2 focus:ring-v-gold text-sm"
                   />

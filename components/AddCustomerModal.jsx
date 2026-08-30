@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import PhoneInput from '@/components/PhoneInput';
+import EmailInput from '@/components/EmailInput';
 
 export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = [] }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', company_name: '', airport: '', notes: '', contactPref: 'email', tags: [] });
@@ -89,10 +90,9 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess, tags = []
           </div>
           <div>
             <label className="block text-sm font-medium text-v-text-secondary mb-1">Email <span className="text-red-500">*</span></label>
-            <input
-              type="email"
+            <EmailInput
               value={form.email}
-              onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
+              onChange={(val) => setForm(p => ({ ...p, email: val }))}
               placeholder="customer@email.com"
               className="w-full bg-v-surface-light border border-v-border rounded px-3 py-2 text-sm text-v-text-primary placeholder-v-text-secondary/50 outline-none focus:border-v-gold/50"
             />

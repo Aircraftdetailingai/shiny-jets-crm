@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import PhoneInput from '@/components/PhoneInput';
 
 const ROLES = [
   { value: 'aircraft_owner', icon: '\u2708\uFE0F', label: 'Aircraft Owner', desc: 'I own the aircraft' },
@@ -159,7 +160,7 @@ export default function PortalOnboarding() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">Phone</label>
-                  <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" type="tel"
+                  <PhoneInput value={phone} onChange={setPhone} placeholder="+1 (555) 000-0000"
                     className="w-full px-3 py-2.5 border border-[#ddd] rounded-lg text-sm outline-none focus:border-[#007CB1]" />
                 </div>
                 <div>

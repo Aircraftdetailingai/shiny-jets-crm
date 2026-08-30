@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import PhoneInput from '@/components/PhoneInput';
 import { useToast } from '@/components/Toast';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
@@ -786,7 +787,7 @@ export default function JobDetailPage() {
               </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Customer Phone</label>
-                <input value={editForm.customer_phone || ''} onChange={e => setEditForm(p => ({ ...p, customer_phone: e.target.value }))} type="tel" className={ecls} />
+                <PhoneInput value={editForm.customer_phone || ''} onChange={val => setEditForm(p => ({ ...p, customer_phone: val }))} className={ecls} />
               </div>
 
               {/* Aircraft */}
