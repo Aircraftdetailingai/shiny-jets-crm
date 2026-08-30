@@ -316,18 +316,26 @@ export default function JobDetailPage() {
     }
   };
 
-  const handleDispatch = async () => {
+  // mode 'undispatched' → only crew not yet notified; 'all' → re-dispatch everyone.
+  const handleDispatch = async (mode = 'undispatched') => {
     setDispatching(true);
     try {
       const token = localStorage.getItem('vector_token');
-      const pendingIds = assignments.filter(a => a.status === 'pending').map(a => a.team_member_id);
-      if (pendingIds.length === 0) { setDispatching(false); return; }
+      const targetIds = (mode === 'all'
+        ? assignments
+        : assignments.filter(a => !a.notified_at)
+      ).filter(a => a.status !== 'superseded').map(a => a.team_member_id);
+      if (targetIds.length === 0) { setDispatching(false); return; }
       const res = await fetch('/api/dispatch/assign', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId, team_member_ids: pendingIds }),
+        body: JSON.stringify({ job_id: jobId, team_member_ids: targetIds }),
       });
       if (res.ok) {
+        // Optimistically flip dispatched state from the request we just made,
+        // so the button reflects reality before the refetch lands.
+        const nowIso = new Date().toISOString();
+        setAssignments(prev => prev.map(a => targetIds.includes(a.team_member_id) ? { ...a, notified_at: a.notified_at || nowIso } : a));
         setDispatchedToast(true);
         setTimeout(() => setDispatchedToast(false), 2500);
         await fetchAssignments(token);
@@ -687,15 +695,40 @@ export default function JobDetailPage() {
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[job.status] || 'bg-gray-500/20 text-gray-400'}`}>
             {(job.status || '').replace('_', ' ')}
           </span>
-          {assignments.some(a => a.status === 'pending') && (
-            <button
-              onClick={handleDispatch}
-              disabled={dispatching}
-              className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50"
-            >
-              {dispatching ? 'Sending...' : dispatchedToast ? 'Dispatched ✓' : 'Dispatch'}
-            </button>
-          )}
+          {(() => {
+            const active = assignments.filter(a => a.status !== 'superseded');
+            if (active.length === 0) return null;
+            const notified = active.filter(a => a.notified_at);
+            const allNotified = notified.length === active.length;
+            const someNotified = notified.length > 0 && !allNotified;
+            const lastAt = notified.reduce((m, a) => (!m || a.notified_at > m ? a.notified_at : m), null);
+            const timeLabel = lastAt ? new Date(lastAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+            if (allNotified) {
+              return (
+                <span className="inline-flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/15 text-green-400 border border-green-500/30">Dispatched ✓{timeLabel ? ` ${timeLabel}` : ''}</span>
+                  <button onClick={() => handleDispatch('all')} disabled={dispatching} className="px-3 py-1 text-xs text-v-text-secondary border border-v-border rounded-full hover:bg-white/5 transition-colors disabled:opacity-50">
+                    {dispatching ? 'Sending...' : 'Re-dispatch'}
+                  </button>
+                </span>
+              );
+            }
+            if (someNotified) {
+              return (
+                <span className="inline-flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">Dispatched to {notified.length} of {active.length}</span>
+                  <button onClick={() => handleDispatch('undispatched')} disabled={dispatching} className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50">
+                    {dispatching ? 'Sending...' : 'Dispatch rest'}
+                  </button>
+                </span>
+              );
+            }
+            return (
+              <button onClick={() => handleDispatch('undispatched')} disabled={dispatching} className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50">
+                {dispatching ? 'Sending...' : 'Dispatch'}
+              </button>
+            );
+          })()}
           <button onClick={openEditModal} className="px-3 py-1 text-xs text-v-gold border border-v-gold/30 rounded-full hover:bg-v-gold/10 transition-colors">
             Edit
           </button>
