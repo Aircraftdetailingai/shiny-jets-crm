@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import PhoneInput from '@/components/PhoneInput';
 import { useToast } from '@/components/Toast';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
@@ -32,7 +33,7 @@ export default function JobDetailPage() {
   const [productUsage, setProductUsage] = useState([]);
   const [briefingSending, setBriefingSending] = useState(false);
   const [briefingResult, setBriefingResult] = useState(null);
-  const [deliveryPref, setDeliveryPref] = useState('day_before');
+  const [briefingSend, setBriefingSend] = useState('day_before');
   const [progress, setProgress] = useState(0);
   const [savedProgress, setSavedProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
@@ -316,18 +317,26 @@ export default function JobDetailPage() {
     }
   };
 
-  const handleDispatch = async () => {
+  // mode 'undispatched' → only crew not yet notified; 'all' → re-dispatch everyone.
+  const handleDispatch = async (mode = 'undispatched') => {
     setDispatching(true);
     try {
       const token = localStorage.getItem('vector_token');
-      const pendingIds = assignments.filter(a => a.status === 'pending').map(a => a.team_member_id);
-      if (pendingIds.length === 0) { setDispatching(false); return; }
+      const targetIds = (mode === 'all'
+        ? assignments
+        : assignments.filter(a => !a.notified_at)
+      ).filter(a => a.status !== 'superseded').map(a => a.team_member_id);
+      if (targetIds.length === 0) { setDispatching(false); return; }
       const res = await fetch('/api/dispatch/assign', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId, team_member_ids: pendingIds }),
+        body: JSON.stringify({ job_id: jobId, team_member_ids: targetIds }),
       });
       if (res.ok) {
+        // Optimistically flip dispatched state from the request we just made,
+        // so the button reflects reality before the refetch lands.
+        const nowIso = new Date().toISOString();
+        setAssignments(prev => prev.map(a => targetIds.includes(a.team_member_id) ? { ...a, notified_at: a.notified_at || nowIso } : a));
         setDispatchedToast(true);
         setTimeout(() => setDispatchedToast(false), 2500);
         await fetchAssignments(token);
@@ -377,7 +386,7 @@ export default function JobDetailPage() {
       // Fetch aircraft standing notes + crew notes
       if (data) {
         setCrewNotes(data.crew_notes || '');
-        setDeliveryPref(data.delivery_preference || 'day_before');
+        setBriefingSend(data.crew_briefing_send || 'day_before');
         setPreJobNotes(data.pre_job_notes || '');
         setPostJobNotes(data.post_job_notes || '');
         setPreChecklist(data.pre_job_checklist || {});
@@ -687,15 +696,40 @@ export default function JobDetailPage() {
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[job.status] || 'bg-gray-500/20 text-gray-400'}`}>
             {(job.status || '').replace('_', ' ')}
           </span>
-          {assignments.some(a => a.status === 'pending') && (
-            <button
-              onClick={handleDispatch}
-              disabled={dispatching}
-              className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50"
-            >
-              {dispatching ? 'Sending...' : dispatchedToast ? 'Dispatched ✓' : 'Dispatch'}
-            </button>
-          )}
+          {(() => {
+            const active = assignments.filter(a => a.status !== 'superseded');
+            if (active.length === 0) return null;
+            const notified = active.filter(a => a.notified_at);
+            const allNotified = notified.length === active.length;
+            const someNotified = notified.length > 0 && !allNotified;
+            const lastAt = notified.reduce((m, a) => (!m || a.notified_at > m ? a.notified_at : m), null);
+            const timeLabel = lastAt ? new Date(lastAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+            if (allNotified) {
+              return (
+                <span className="inline-flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/15 text-green-400 border border-green-500/30">Dispatched ✓{timeLabel ? ` ${timeLabel}` : ''}</span>
+                  <button onClick={() => handleDispatch('all')} disabled={dispatching} className="px-3 py-1 text-xs text-v-text-secondary border border-v-border rounded-full hover:bg-white/5 transition-colors disabled:opacity-50">
+                    {dispatching ? 'Sending...' : 'Re-dispatch'}
+                  </button>
+                </span>
+              );
+            }
+            if (someNotified) {
+              return (
+                <span className="inline-flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">Dispatched to {notified.length} of {active.length}</span>
+                  <button onClick={() => handleDispatch('undispatched')} disabled={dispatching} className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50">
+                    {dispatching ? 'Sending...' : 'Dispatch rest'}
+                  </button>
+                </span>
+              );
+            }
+            return (
+              <button onClick={() => handleDispatch('undispatched')} disabled={dispatching} className="px-3 py-1 text-xs text-blue-400 border border-blue-400/30 rounded-full hover:bg-blue-400/10 transition-colors disabled:opacity-50">
+                {dispatching ? 'Sending...' : 'Dispatch'}
+              </button>
+            );
+          })()}
           <button onClick={openEditModal} className="px-3 py-1 text-xs text-v-gold border border-v-gold/30 rounded-full hover:bg-v-gold/10 transition-colors">
             Edit
           </button>
@@ -753,7 +787,7 @@ export default function JobDetailPage() {
               </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Customer Phone</label>
-                <input value={editForm.customer_phone || ''} onChange={e => setEditForm(p => ({ ...p, customer_phone: e.target.value }))} type="tel" className={ecls} />
+                <PhoneInput value={editForm.customer_phone || ''} onChange={val => setEditForm(p => ({ ...p, customer_phone: val }))} className={ecls} />
               </div>
 
               {/* Aircraft */}
@@ -1854,15 +1888,19 @@ export default function JobDetailPage() {
           <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider mb-3">Crew Briefing</h3>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
             <label className="text-sm text-v-text-secondary shrink-0">Auto-send:</label>
-            <select value={deliveryPref} onChange={async (e) => {
+            <select value={briefingSend} onChange={async (e) => {
               const val = e.target.value;
-              setDeliveryPref(val);
+              const prev = briefingSend;
+              setBriefingSend(val);
               const token = localStorage.getItem('vector_token');
-              await fetch(`/api/jobs/${jobId}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ delivery_preference: val }) }).catch(() => {});
+              try {
+                const r = await fetch(`/api/jobs/${jobId}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ crew_briefing_send: val }) });
+                if (!r.ok) setBriefingSend(prev);
+              } catch { setBriefingSend(prev); }
             }} className="bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50">
               <option value="day_before">Day before job</option>
               <option value="morning_of">Morning of job</option>
-              <option value="manual">Manual only</option>
+              <option value="off">Off (manual only)</option>
             </select>
           </div>
           <div className="flex items-center gap-3">
@@ -1894,8 +1932,8 @@ export default function JobDetailPage() {
                 {briefingResult.success ? `Briefing sent to ${briefingResult.count} crew member${briefingResult.count !== 1 ? 's' : ''}` : briefingResult.message}
               </span>
             )}
-            {job?.reminder_sent_at && !briefingResult && (
-              <span className="text-xs text-v-text-secondary/50">Last sent {new Date(job.reminder_sent_at).toLocaleDateString()}</span>
+            {(job?.crew_briefing_sent_at || job?.reminder_sent_at) && !briefingResult && (
+              <span className="text-xs text-v-text-secondary/50">Last sent {new Date(job.crew_briefing_sent_at || job.reminder_sent_at).toLocaleDateString()}</span>
             )}
           </div>
         </div>

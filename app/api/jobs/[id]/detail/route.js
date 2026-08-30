@@ -92,11 +92,14 @@ export async function GET(request, { params }) {
   // Get crew assignments
   let crew = [];
   try {
-    const { data: assignments } = await supabase.from('job_assignments').select('team_member_id').eq('job_id', id);
+    const { data: assignments } = await supabase.from('job_assignments').select('team_member_id, status, notified_at').eq('job_id', id);
     if (assignments?.length) {
       const ids = assignments.map(a => a.team_member_id);
       const { data: members } = await supabase.from('team_members').select('id, name, role, title').in('id', ids);
-      crew = members || [];
+      const byId = Object.fromEntries((members || []).map(m => [m.id, m]));
+      // Merge assignment dispatch state (notified_at/status) onto each crew member
+      // so the dispatch button can render "Dispatched ✓" without a second fetch.
+      crew = assignments.map(a => ({ ...(byId[a.team_member_id] || { id: a.team_member_id }), status: a.status, notified_at: a.notified_at }));
     }
   } catch {}
 

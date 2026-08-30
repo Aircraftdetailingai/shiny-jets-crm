@@ -32,6 +32,7 @@ const ALLOWED_FIELDS = [
   'status',
   'crew_notes',
   'delivery_preference',
+  'crew_briefing_send',
   'pre_job_notes',
   'post_job_notes',
   'pre_job_checklist',

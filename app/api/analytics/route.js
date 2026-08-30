@@ -282,13 +282,13 @@ export async function GET(request) {
     .slice(0, 20);
 
   // --- Staffing alerts (unresolved) ---
-  const { data: staffingAlerts } = await supabase
+  const { data: staffingAlerts, error: staffingAlertsErr } = await supabase
     .from('staffing_alerts')
     .select('id, quote_id, scheduled_date, alert_type, created_at, quotes(client_name, aircraft_model, aircraft_type, total_price, assigned_team_member_ids)')
     .eq('detailer_id', detailerId)
     .eq('resolved', false)
-    .order('scheduled_date', { ascending: true })
-    .catch(() => ({ data: [] }));
+    .order('scheduled_date', { ascending: true });
+  if (staffingAlertsErr) console.error('[analytics] staffing_alerts query failed:', staffingAlertsErr.message);
 
   return Response.json({
     funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted, totalRevenue },

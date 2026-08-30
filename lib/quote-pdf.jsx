@@ -94,7 +94,11 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
   const isPaid = ['paid', 'approved', 'completed'].includes(quote.status);
   const isExpired = !isPaid && quote.valid_until && new Date() > new Date(quote.valid_until);
 
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  // Return null (not '') for missing dates: these values are used as JSX
+  // guards like {paidDate && <Text/>}, and an empty string would leak a bare
+  // '' child into a <View>, which react-pdf rejects ("Invalid '' string child
+  // outside <Text>"). null renders as nothing.
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const createdDate = fmtDate(quote.created_at);
   const validDate = fmtDate(quote.valid_until);
   const paidDate = fmtDate(quote.paid_at);
@@ -146,7 +150,7 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
   // Terms snippet
   const termsSnippet = detailer?.terms_text
     ? (detailer.terms_text.length > 200 ? detailer.terms_text.slice(0, 200) + '...' : detailer.terms_text)
-    : '';
+    : null;
 
   // Status
   let statusLabel = 'QUOTE';
@@ -165,8 +169,8 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
               <Text style={s.logoText}>Shiny Jets</Text>
               <Text style={s.logoSub}>AIRCRAFT DETAILING</Text>
               <Text style={s.companyName}>{companyName}</Text>
-              {detailer?.email && <Text style={s.companyDetail}>{detailer.email}</Text>}
-              {detailer?.phone && <Text style={s.companyDetail}>{detailer.phone}</Text>}
+              {detailer?.email ? <Text style={s.companyDetail}>{detailer.email}</Text> : null}
+              {detailer?.phone ? <Text style={s.companyDetail}>{detailer.phone}</Text> : null}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <View style={[s.statusBadge, { backgroundColor: statusBg }]}>
@@ -190,8 +194,8 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
           <View style={[s.infoCol, { alignItems: 'flex-end' }]}>
             <Text style={s.infoLabel}>Aircraft</Text>
             <Text style={s.infoValue}>{aircraftDisplay}</Text>
-            {quote.tail_number && <Text style={s.infoSub}>Tail: {quote.tail_number}</Text>}
-            {quote.airport && <Text style={s.infoSub}>Location: {quote.airport}</Text>}
+            {quote.tail_number ? <Text style={s.infoSub}>Tail: {quote.tail_number}</Text> : null}
+            {quote.airport ? <Text style={s.infoSub}>Location: {quote.airport}</Text> : null}
           </View>
         </View>
 

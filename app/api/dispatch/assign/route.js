@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
+import { sendCrewBriefing } from '@/lib/send-crew-briefing';
 
 export const dynamic = 'force-dynamic';
 
@@ -186,7 +187,39 @@ export async function POST(request) {
     }
   }
 
-  return Response.json({ success: true, assigned_count: assignedCount });
+  // On-dispatch catch-up: if crew-briefing auto-send is on and the briefing
+  // window has already been reached (a job/assignment created after its
+  // scheduled send moment), send the briefing now so it still goes out without
+  // a manual tap. Idempotency (crew_briefing_sent_at) keeps this from
+  // double-sending with the cron.
+  let briefingChannels = null;
+  if (
+    assignedCount > 0 &&
+    !job.crew_briefing_sent_at &&
+    job.crew_briefing_send &&
+    job.crew_briefing_send !== 'off' &&
+    job.scheduled_date
+  ) {
+    const todayDate = new Date().toISOString().split('T')[0];
+    // Send window = the intended day: day-before opens the day before the job;
+    // morning-of opens on the job day itself.
+    let windowDate = job.scheduled_date;
+    if (job.crew_briefing_send === 'day_before') {
+      const d = new Date(job.scheduled_date + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() - 1);
+      windowDate = d.toISOString().split('T')[0];
+    }
+    if (todayDate >= windowDate) {
+      try {
+        const r = await sendCrewBriefing(supabase, { detailerId: user.detailer_id || user.id, jobId: job_id });
+        if (r.ok && !r.already_sent) briefingChannels = r.channels;
+      } catch (e) {
+        console.error('[dispatch/assign] catch-up briefing failed:', e?.message || e);
+      }
+    }
+  }
+
+  return Response.json({ success: true, assigned_count: assignedCount, briefing_sent: briefingChannels });
 }
 
 // DELETE — unassign a crew member from a job

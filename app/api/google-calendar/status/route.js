@@ -26,7 +26,7 @@ export async function GET(request) {
   let oauthConnected = false;
   let oauthData = null;
   let needsReconnect = false;
-  let cols = ['connected_at', 'last_sync_at', 'sync_enabled', 'push_enabled', 'calendar_id', 'google_email', 'calendars', 'refresh_token', 'token_expires_at'];
+  let cols = ['connected_at', 'last_sync_at', 'sync_enabled', 'push_enabled', 'calendar_id', 'google_email', 'calendars', 'refresh_token', 'token_expires_at', 'needs_reconnect', 'last_sync_error'];
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: conn, error } = await supabase
       .from('google_calendar_connections')
@@ -38,8 +38,10 @@ export async function GET(request) {
         oauthConnected = true;
         oauthData = conn;
         const hasRefreshToken = !!conn.refresh_token;
-        const tokenExpired = conn.token_expires_at ? new Date(conn.token_expires_at) < new Date() : true;
-        needsReconnect = !hasRefreshToken || (tokenExpired && !hasRefreshToken);
+        // conn.needs_reconnect is set by the sync cron when Google actually
+        // rejects the token (revoked refresh_token / 401) — a case a mere
+        // refresh_token presence check can't detect.
+        needsReconnect = !!conn.needs_reconnect || !hasRefreshToken;
       }
       break;
     }

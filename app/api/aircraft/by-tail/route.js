@@ -23,7 +23,7 @@ export async function GET(request) {
   // Get all jobs for this tail number
   const { data: jobs, error } = await supabase
     .from('quotes')
-    .select('id, client_name, customer_company, aircraft_model, tail_number, total_price, status, scheduled_date, completed_at, created_at, services:quote_services(service_name, price)')
+    .select('id, client_name, customer_company, aircraft_model, tail_number, total_price, status, scheduled_date, completed_at, created_at')
     .eq('detailer_id', user.detailer_id || user.id)
     .eq('tail_number', tail)
     .order('created_at', { ascending: false });

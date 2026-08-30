@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PhoneInput from '@/components/PhoneInput';
+import EmailInput from '@/components/EmailInput';
 
 export default function AddTeamMemberPage() {
   const router = useRouter();
@@ -125,11 +126,9 @@ export default function AddTeamMemberPage() {
 
           <div>
             <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Email'}</label>
-            <input
-              type="email"
-              name="email"
+            <EmailInput
               value={form.email}
-              onChange={handleChange}
+              onChange={(val) => setForm({ ...form, email: val })}
               className="w-full px-3 py-2 bg-v-surface-light text-v-text-primary border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold focus:border-v-gold outline-none placeholder:text-v-text-secondary/50"
               placeholder="email@example.com"
             />

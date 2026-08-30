@@ -175,7 +175,8 @@ export async function POST(request) {
       totalSent += sentCount;
       totalJobs++;
       const table = job._source === 'jobs' ? 'jobs' : 'quotes';
-      await supabase.from(table).update({ reminder_sent_at: new Date().toISOString() }).eq('id', job.id).catch(() => {});
+      const { error: stampErr } = await supabase.from(table).update({ reminder_sent_at: new Date().toISOString() }).eq('id', job.id);
+      if (stampErr) console.error('[cron/job-reminders] reminder_sent_at stamp failed:', stampErr.message);
     }
   }
 
