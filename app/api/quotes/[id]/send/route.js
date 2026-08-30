@@ -399,21 +399,20 @@ export async function POST(request, { params }) {
       description: config.description,
       metadata: { quote_id: id },
     });
-    await supabase.rpc('increment_points', { uid: user.id, pts: finalPoints }).catch(() => {
-      // Fallback if RPC doesn't exist
-      supabase.from('detailers')
+    const { error: incErr } = await supabase.rpc('increment_points', { uid: user.id, pts: finalPoints });
+    if (incErr) {
+      // Fallback if RPC doesn't exist — read-modify-write the balance directly.
+      const { data: d } = await supabase.from('detailers')
         .select('points_balance, points_lifetime')
         .eq('id', user.id)
-        .single()
-        .then(({ data: d }) => {
-          if (d) {
-            supabase.from('detailers').update({
-              points_balance: (d.points_balance || 0) + finalPoints,
-              points_lifetime: (d.points_lifetime || 0) + finalPoints,
-            }).eq('id', user.id);
-          }
-        });
-    });
+        .single();
+      if (d) {
+        await supabase.from('detailers').update({
+          points_balance: (d.points_balance || 0) + finalPoints,
+          points_lifetime: (d.points_lifetime || 0) + finalPoints,
+        }).eq('id', user.id);
+      }
+    }
   } catch (e) {
     console.log('Points award skipped:', e.message);
   }

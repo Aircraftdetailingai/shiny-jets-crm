@@ -52,7 +52,7 @@ export async function GET(request) {
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   // Also get aggregate stats
-  const { data: stats } = await supabase.rpc('get_prospect_stats').catch(() => ({ data: null }));
+  const { data: stats } = await supabase.rpc('get_prospect_stats');
 
   // If RPC doesn't exist, compute manually
   let statsObj = stats;
