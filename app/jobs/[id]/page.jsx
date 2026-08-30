@@ -32,7 +32,7 @@ export default function JobDetailPage() {
   const [productUsage, setProductUsage] = useState([]);
   const [briefingSending, setBriefingSending] = useState(false);
   const [briefingResult, setBriefingResult] = useState(null);
-  const [deliveryPref, setDeliveryPref] = useState('day_before');
+  const [briefingSend, setBriefingSend] = useState('day_before');
   const [progress, setProgress] = useState(0);
   const [savedProgress, setSavedProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
@@ -377,7 +377,7 @@ export default function JobDetailPage() {
       // Fetch aircraft standing notes + crew notes
       if (data) {
         setCrewNotes(data.crew_notes || '');
-        setDeliveryPref(data.delivery_preference || 'day_before');
+        setBriefingSend(data.crew_briefing_send || 'day_before');
         setPreJobNotes(data.pre_job_notes || '');
         setPostJobNotes(data.post_job_notes || '');
         setPreChecklist(data.pre_job_checklist || {});
@@ -1854,15 +1854,19 @@ export default function JobDetailPage() {
           <h3 className="text-sm font-medium text-v-text-secondary uppercase tracking-wider mb-3">Crew Briefing</h3>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
             <label className="text-sm text-v-text-secondary shrink-0">Auto-send:</label>
-            <select value={deliveryPref} onChange={async (e) => {
+            <select value={briefingSend} onChange={async (e) => {
               const val = e.target.value;
-              setDeliveryPref(val);
+              const prev = briefingSend;
+              setBriefingSend(val);
               const token = localStorage.getItem('vector_token');
-              await fetch(`/api/jobs/${jobId}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ delivery_preference: val }) }).catch(() => {});
+              try {
+                const r = await fetch(`/api/jobs/${jobId}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ crew_briefing_send: val }) });
+                if (!r.ok) setBriefingSend(prev);
+              } catch { setBriefingSend(prev); }
             }} className="bg-v-charcoal border border-v-border text-white rounded px-3 py-2 text-sm outline-none focus:border-v-gold/50">
               <option value="day_before">Day before job</option>
               <option value="morning_of">Morning of job</option>
-              <option value="manual">Manual only</option>
+              <option value="off">Off (manual only)</option>
             </select>
           </div>
           <div className="flex items-center gap-3">
@@ -1894,8 +1898,8 @@ export default function JobDetailPage() {
                 {briefingResult.success ? `Briefing sent to ${briefingResult.count} crew member${briefingResult.count !== 1 ? 's' : ''}` : briefingResult.message}
               </span>
             )}
-            {job?.reminder_sent_at && !briefingResult && (
-              <span className="text-xs text-v-text-secondary/50">Last sent {new Date(job.reminder_sent_at).toLocaleDateString()}</span>
+            {(job?.crew_briefing_sent_at || job?.reminder_sent_at) && !briefingResult && (
+              <span className="text-xs text-v-text-secondary/50">Last sent {new Date(job.crew_briefing_sent_at || job.reminder_sent_at).toLocaleDateString()}</span>
             )}
           </div>
         </div>
