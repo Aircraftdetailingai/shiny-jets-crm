@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/env';
 import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
 }
 
 export async function POST(request) {

@@ -25,12 +25,15 @@ function redirectToConnections(origin, params) {
 async function resolveState(state, authUser) {
   if (!state) return { ok: false, message: 'Missing state parameter' };
 
-  // Try signed state first
+  // Try signed state first. Signed state is authoritative: it was minted
+  // after Bearer auth on Connect. A stale auth_token cookie from another
+  // CRM account on the same browser (demo / prior login) must NOT reject
+  // the upsert — that was silently keeping Shiny Jets "Not Connected"
+  // while Google Allow succeeded and tokens landed on the wrong detailer.
   const verified = await verifyToken(state);
   if (verified?.purpose === 'gcal_oauth' && verified.did) {
     const detailerId = verified.did;
     const userId = verified.uid || verified.did;
-    // If a session cookie is present, it must match (defense in depth)
     if (authUser?.id) {
       const authDetailer = authUser.detailer_id || authUser.id;
       const matches =
@@ -38,12 +41,11 @@ async function resolveState(state, authUser) {
         authDetailer === detailerId ||
         authUser.id === detailerId;
       if (!matches) {
-        console.warn('[gcal-callback] signed state mismatch vs cookie', {
+        console.warn('[gcal-callback] cookie mismatch ignored; trusting signed state', {
           stateDid: detailerId,
           authId: authUser.id,
           authDetailer,
         });
-        return { ok: false, message: 'Invalid state parameter' };
       }
     }
     return { ok: true, detailerId, userId, stateKind: 'signed' };
@@ -100,8 +102,10 @@ export async function GET(request) {
   const { detailerId, stateKind } = resolved;
 
   try {
-    const appUrl = env.NEXT_PUBLIC_APP_URL || origin;
-    const redirectUri = env.GOOGLE_CALENDAR_REDIRECT_URI || `${appUrl}/api/google-calendar/callback`;
+    // Must match the redirect_uri used in /auth (Google requires exact match).
+    const redirectUri =
+      env.GOOGLE_CALENDAR_REDIRECT_URI ||
+      `${(env.NEXT_PUBLIC_APP_URL || origin).replace(/\/$/, '')}/api/google-calendar/callback`;
 
     console.log('[gcal-callback] exchanging code', {
       detailerId,
