@@ -73,9 +73,11 @@ export async function POST(request) {
       detailer_id: member.detailer_id,
       name: member.name,
       role: 'crew',
+      type: member.type || 'employee',
       is_lead_tech: member.is_lead_tech || false,
       can_see_inventory: member.can_see_inventory || false,
       can_see_equipment: member.can_see_equipment || false,
+      can_see_other_jobs: member.can_see_other_jobs || false,
     });
 
     return Response.json({

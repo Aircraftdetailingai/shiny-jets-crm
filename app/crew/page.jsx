@@ -2357,7 +2357,7 @@ export default function CrewDashboard() {
                   {scheduleJobs.length === 0 && (
                     <div className="text-white/50 text-center py-8">
                       <p className="text-2xl mb-2">📅</p>
-                      <p className="text-sm">No jobs scheduled in your visibility window ({scheduleVisibility} days)</p>
+                      <p className="text-sm">No jobs scheduled in your visibility window ({scheduleVisibility < 0 ? 'unlimited' : `${scheduleVisibility} days`})</p>
                     </div>
                   )}
                 </>
