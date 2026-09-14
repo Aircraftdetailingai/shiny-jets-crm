@@ -418,6 +418,12 @@ function NewQuoteContent() {
             localStorage.setItem('_pending_services', JSON.stringify(prefill.selected_services));
           }
 
+          // Per-service hour suggestions (Detailing AI / lead tooling). Applied
+          // after service IDs are restored so keys resolve against catalog uuids.
+          if (prefill.custom_hours && typeof prefill.custom_hours === 'object') {
+            localStorage.setItem('_pending_custom_hours', JSON.stringify(prefill.custom_hours));
+          }
+
           // Restore services chosen on the intake/lead. Leads only carry the
           // names ("Quick Turn") rather than the detailer's service uuids,
           // so we have to fuzzy-match against availableServices once it
@@ -536,6 +542,27 @@ function NewQuoteContent() {
       if (Object.keys(newSelected).length > 0) {
         setSelectedServices(newSelected);
         console.log('[prefill] restored', Object.keys(newSelected).length, 'services');
+      }
+
+      // Apply suggested hour overrides after services are selected.
+      const pendingHours = localStorage.getItem('_pending_custom_hours');
+      if (pendingHours) {
+        try {
+          const hoursMap = JSON.parse(pendingHours);
+          if (hoursMap && typeof hoursMap === 'object') {
+            const next = {};
+            for (const [id, hrs] of Object.entries(hoursMap)) {
+              if (availableServices.some(s => s.id === id) && hrs != null && !Number.isNaN(Number(hrs))) {
+                next[id] = Number(hrs);
+              }
+            }
+            if (Object.keys(next).length > 0) {
+              setCustomHours(prev => ({ ...prev, ...next }));
+              console.log('[prefill] restored custom hours for', Object.keys(next).length, 'services');
+            }
+          }
+        } catch {}
+        localStorage.removeItem('_pending_custom_hours');
       }
     } catch {}
   }, [availableServices]);
