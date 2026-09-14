@@ -1,9 +1,33 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  shapePortalServices,
+  publicServices,
+  fetchPortalPhotos,
+  computePortalStats,
+} from '@/lib/portal-aircraft-data';
 
 export const dynamic = 'force-dynamic';
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
+}
+
+async function selectWithStrip(supabase, table, select, applyFilters) {
+  let cols = select;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    let q = supabase.from(table).select(cols);
+    q = applyFilters(q);
+    const { data, error } = await q;
+    if (!error) return data || [];
+    const colMatch = error.message?.match(/column "([^"]+)".*does not exist/) || error.message?.match(/Could not find the '([^']+)' column/);
+    if (colMatch) {
+      cols = cols.split(',').map(c => c.trim()).filter(c => c !== colMatch[1]).join(', ');
+      continue;
+    }
+    console.error(`[portal/share/view] ${table} error:`, error.message);
+    return [];
+  }
+  return [];
 }
 
 export async function GET(request, { params }) {
@@ -27,40 +51,32 @@ export async function GET(request, { params }) {
 
   const account = aircraft.customer_accounts;
   const ownerName = [account?.first_name, account?.last_name].filter(Boolean).join(' ') || account?.name || 'Aircraft Owner';
+  const email = account?.email || '';
 
-  // Get services
-  const { data: quotes } = await supabase.from('quotes')
-    .select('id, aircraft_model, aircraft_type, tail_number, status, total_price, scheduled_date, completed_at, created_at, airport')
-    .ilike('customer_email', account?.email || '').ilike('tail_number', tailNumber).order('created_at', { ascending: false });
+  const quotes = await selectWithStrip(
+    supabase,
+    'quotes',
+    'id, aircraft_model, aircraft_type, tail_number, status, total_price, scheduled_date, completed_at, created_at, airport, line_items, progress_percentage, share_progress_with_customer, detailer_id',
+    (q) => q.ilike('customer_email', email).ilike('tail_number', tailNumber).order('created_at', { ascending: false }),
+  );
 
-  const { data: jobs } = await supabase.from('jobs')
-    .select('id, aircraft_make, aircraft_model, tail_number, status, total_price, scheduled_date, completed_at, created_at, airport')
-    .ilike('customer_email', account?.email || '').ilike('tail_number', tailNumber).order('created_at', { ascending: false });
+  const jobs = await selectWithStrip(
+    supabase,
+    'jobs',
+    'id, aircraft_make, aircraft_model, tail_number, status, total_price, scheduled_date, completed_at, created_at, airport, progress_percentage, share_progress_with_customer, detailer_id',
+    (q) => q.ilike('customer_email', email).ilike('tail_number', tailNumber).order('created_at', { ascending: false }),
+  );
 
-  const allServices = [
-    ...(quotes || []).map(q => ({ ...q, aircraft: q.aircraft_model || q.aircraft_type })),
-    ...(jobs || []).map(j => ({ ...j, aircraft: [j.aircraft_make, j.aircraft_model].filter(Boolean).join(' ') })),
-  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  // Photos
-  const completedIds = allServices.filter(s => s.status === 'completed').map(s => s.id);
-  let photos = [];
-  if (completedIds.length > 0) {
-    const { data: media } = await supabase.from('job_media')
-      .select('id, quote_id, media_type, url, created_at')
-      .in('quote_id', completedIds).limit(50);
-    photos = media || [];
-  }
-
-  const totalSpent = allServices.filter(s => ['completed', 'paid'].includes(s.status)).reduce((sum, s) => sum + parseFloat(s.total_price || 0), 0);
-  const lastService = allServices.find(s => s.status === 'completed');
-  const daysSince = lastService?.completed_at ? Math.floor((Date.now() - new Date(lastService.completed_at).getTime()) / 86400000) : null;
+  const shaped = shapePortalServices(quotes, jobs);
+  const photos = await fetchPortalPhotos(supabase, shaped);
+  const services = publicServices(shaped);
+  const stats = computePortalStats(services, photos);
 
   return Response.json({
     aircraft: { ...aircraft, customer_accounts: undefined },
-    services: allServices,
+    services,
     photos,
     owner_name: ownerName,
-    stats: { total_services: allServices.length, total_spent: totalSpent, days_since_last_service: daysSince },
+    stats,
   });
 }

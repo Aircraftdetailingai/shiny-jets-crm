@@ -37,6 +37,8 @@ const ALLOWED_FIELDS = [
   'post_job_notes',
   'pre_job_checklist',
   'completed_at',
+  'share_progress_with_customer',
+  'progress_percentage',
 ];
 
 // PATCH — update an existing job

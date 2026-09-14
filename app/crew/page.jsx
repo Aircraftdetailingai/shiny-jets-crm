@@ -541,7 +541,7 @@ export default function CrewDashboard() {
   };
 
   // Photo upload with progressive compression and proper error handling
-  const handlePhotoUpload = async (e, mediaType) => {
+  const handlePhotoUpload = async (e, mediaType, photoTypeHint = null) => {
     const file = e.target.files?.[0];
     if (!file || !selectedJob) return;
     setPhotoUploading(true);
@@ -597,7 +597,7 @@ export default function CrewDashboard() {
             body: JSON.stringify({
               job_id: selectedJob.id,
               media_type: mediaType,
-              photo_type: mediaType.startsWith('before') ? 'pre_job' : mediaType.startsWith('after') ? 'post_job' : 'in_progress',
+              photo_type: photoTypeHint || (mediaType.startsWith('before') ? 'pre_job' : mediaType.startsWith('after') ? 'post_job' : 'in_progress'),
               url: reader.result,
               captured_at: new Date().toISOString(),
               latitude: geo?.latitude || null,
@@ -1307,12 +1307,12 @@ export default function CrewDashboard() {
               <h3 className="text-white font-semibold mb-3">Photos</h3>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {[
-                  { type: 'before_photo', label: 'Before', mediaType: 'before_photo' },
-                  { type: 'in_progress', label: 'In Progress', mediaType: 'before_photo' },
-                  { type: 'after_photo', label: 'After', mediaType: 'after_photo' },
-                ].map(({ type, label, mediaType }) => {
-                  const matchPhoto = photos.find(p => p.photo_type === (type === 'before_photo' ? 'pre_job' : type === 'after_photo' ? 'post_job' : 'in_progress'))
-                    || (type === 'before_photo' && photos.find(p => p.media_type === 'before_photo'))
+                  { type: 'before_photo', label: 'Before', mediaType: 'before_photo', photoType: 'pre_job' },
+                  { type: 'in_progress', label: 'In Progress', mediaType: 'before_photo', photoType: 'in_progress' },
+                  { type: 'after_photo', label: 'After', mediaType: 'after_photo', photoType: 'post_job' },
+                ].map(({ type, label, mediaType, photoType }) => {
+                  const matchPhoto = photos.find(p => p.photo_type === photoType)
+                    || (type === 'before_photo' && photos.find(p => p.media_type === 'before_photo' && p.photo_type !== 'in_progress'))
                     || (type === 'after_photo' && photos.find(p => p.media_type === 'after_photo'));
                   return (
                     <label key={type} className="cursor-pointer bg-white/10 hover:bg-white/20 rounded-lg overflow-hidden transition-colors aspect-square flex flex-col items-center justify-center relative">
@@ -1321,7 +1321,7 @@ export default function CrewDashboard() {
                         accept="image/*"
                         capture="environment"
                         className="hidden"
-                        onChange={(e) => handlePhotoUpload(e, mediaType)}
+                        onChange={(e) => handlePhotoUpload(e, mediaType, photoType)}
                         disabled={photoUploading}
                       />
                       {matchPhoto ? (

@@ -10,9 +10,40 @@ const STATUS_COLORS = {
   accepted: 'bg-green-50 text-green-600',
   paid: 'bg-green-50 text-green-700',
   scheduled: 'bg-purple-50 text-purple-600',
-  in_progress: 'bg-amber-50 text-amber-600',
+  in_progress: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-green-700',
 };
+
+function statusLabel(status) {
+  if (!status) return 'Unknown';
+  return String(status).replace(/_/g, ' ');
+}
+
+function ProgressBar({ value }) {
+  const pct = Math.min(100, Math.max(0, Number(value) || 0));
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] font-medium text-[#007CB1]">Progress</span>
+        <span className="text-[11px] font-semibold text-[#0D1B2A]">{pct}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-[#eef2f5] overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#007CB1] transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatusChip({ status }) {
+  return (
+    <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${STATUS_COLORS[status] || 'bg-gray-100 text-gray-600'}`}>
+      {statusLabel(status)}
+    </span>
+  );
+}
 
 export default function AircraftDetailPage() {
   const router = useRouter();
@@ -45,9 +76,18 @@ export default function AircraftDetailPage() {
   }
 
   const { aircraft, services, photos, standing_notes, stats } = data;
-  const beforePhotos = photos.filter(p => p.media_type?.startsWith('before'));
-  const afterPhotos = photos.filter(p => p.media_type?.startsWith('after'));
-  const filteredPhotos = photoTab === 'before' ? beforePhotos : photoTab === 'after' ? afterPhotos : photos;
+  const beforePhotos = photos.filter(p => p.category === 'before' || (!p.category && p.media_type?.startsWith('before')));
+  const afterPhotos = photos.filter(p => p.category === 'after' || (!p.category && p.media_type?.startsWith('after')));
+  const inProgressPhotos = photos.filter(p => p.category === 'in_progress' || p.live);
+  const filteredPhotos =
+    photoTab === 'before' ? beforePhotos
+      : photoTab === 'after' ? afterPhotos
+        : photoTab === 'in_progress' ? inProgressPhotos
+          : photos;
+
+  const liveJobs = services.filter(
+    s => s.progress_percentage !== null && s.progress_percentage !== undefined && ['in_progress', 'scheduled', 'accepted'].includes(s.status),
+  );
 
   return (
     <div className="min-h-screen bg-[#f8f9fa]">
@@ -126,6 +166,32 @@ export default function AircraftDetailPage() {
           </div>
         </div>
 
+        {/* Live job progress */}
+        {liveJobs.length > 0 && (
+          <section>
+            <h2 className="text-lg font-bold text-[#0D1B2A] mb-3">Live Job Progress</h2>
+            <div className="space-y-3">
+              {liveJobs.map((s) => (
+                <div key={s.id} className="bg-white rounded-xl border border-amber-200 p-4">
+                  <div className="flex items-start justify-between gap-3 mb-1">
+                    <div>
+                      <p className="font-medium text-[#0D1B2A] text-sm">{s.title || s.aircraft || 'Service'}</p>
+                      <p className="text-xs text-[#999]">
+                        {s.scheduled_date
+                          ? new Date(s.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                          : 'In progress'}
+                        {s.airport ? ` · ${s.airport}` : ''}
+                      </p>
+                    </div>
+                    <StatusChip status={s.status} />
+                  </div>
+                  <ProgressBar value={s.progress_percentage} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Service Interval Alert */}
         {stats.days_since_last_service !== null && stats.days_since_last_service > 45 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
@@ -155,19 +221,24 @@ export default function AircraftDetailPage() {
         {/* Photos */}
         {photos.length > 0 && (
           <section>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="text-lg font-bold text-[#0D1B2A]">Service Photos</h2>
-              <div className="flex gap-1">
-                {['all', 'before', 'after'].map(tab => (
-                  <button key={tab} onClick={() => setPhotoTab(tab)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${photoTab === tab ? 'bg-[#007CB1] text-white' : 'bg-[#f5f5f5] text-[#666] hover:bg-[#eee]'}`}>
-                    {tab === 'all' ? `All (${photos.length})` : tab === 'before' ? `Before (${beforePhotos.length})` : `After (${afterPhotos.length})`}
+              <div className="flex gap-1 flex-wrap">
+                {[
+                  { id: 'all', label: `All (${photos.length})` },
+                  { id: 'before', label: `Before (${beforePhotos.length})` },
+                  { id: 'in_progress', label: `In Progress (${inProgressPhotos.length})` },
+                  { id: 'after', label: `After (${afterPhotos.length})` },
+                ].filter(tab => tab.id === 'all' || (tab.id === 'before' && beforePhotos.length) || (tab.id === 'after' && afterPhotos.length) || (tab.id === 'in_progress' && inProgressPhotos.length)).map(tab => (
+                  <button key={tab.id} onClick={() => { setPhotoTab(tab.id); setLightboxIndex(null); }}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${photoTab === tab.id ? 'bg-[#007CB1] text-white' : 'bg-[#f5f5f5] text-[#666] hover:bg-[#eee]'}`}>
+                    {tab.label}
                   </button>
                 ))}
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {filteredPhotos.slice(0, 20).map((p, i) => {
+              {filteredPhotos.slice(0, 24).map((p, i) => {
                 const isVideo = p.media_type?.includes('video');
                 return (
                   <button key={p.id} onClick={() => setLightboxIndex(i)} className="aspect-square rounded-lg overflow-hidden bg-[#eee] relative group cursor-pointer">
@@ -182,6 +253,9 @@ export default function AircraftDetailPage() {
                       </>
                     ) : (
                       <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    )}
+                    {(p.category === 'in_progress' || p.live) && (
+                      <span className="absolute bottom-1 left-1 text-[9px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded">Live</span>
                     )}
                   </button>
                 );
@@ -201,25 +275,26 @@ export default function AircraftDetailPage() {
             <div className="relative">
               <div className="absolute left-4 top-0 bottom-0 w-px bg-[#e5e7eb]" />
               <div className="space-y-4">
-                {services.map((s, i) => (
+                {services.map((s) => (
                   <div key={s.id} className="relative pl-10">
                     <div className={`absolute left-2.5 top-4 w-3 h-3 rounded-full border-2 border-white ${s.status === 'completed' ? 'bg-green-500' : s.status === 'in_progress' ? 'bg-amber-500' : 'bg-[#007CB1]'}`} />
                     <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
                       <div className="flex items-start justify-between mb-1">
                         <div>
-                          <p className="font-medium text-[#0D1B2A] text-sm">{s.aircraft || 'Service'}</p>
+                          <p className="font-medium text-[#0D1B2A] text-sm">{s.title || s.aircraft || 'Service'}</p>
                           <p className="text-xs text-[#999]">
                             {s.scheduled_date ? new Date(s.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : new Date(s.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                             {s.airport ? ` \u00B7 ${s.airport}` : ''}
                           </p>
                         </div>
                         <div className="text-right">
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100 text-gray-600'}`}>
-                            {s.status?.replace('_', ' ')}
-                          </span>
+                          <StatusChip status={s.status} />
                           {s.total_price > 0 && <p className="text-sm font-medium text-[#0D1B2A] mt-1">${parseFloat(s.total_price).toLocaleString()}</p>}
                         </div>
                       </div>
+                      {s.progress_percentage !== null && s.progress_percentage !== undefined && (
+                        <ProgressBar value={s.progress_percentage} />
+                      )}
                       {s.line_items && Array.isArray(s.line_items) && s.line_items.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-[#f0f0f0]">
                           {s.line_items.slice(0, 3).map((li, j) => (
@@ -243,7 +318,7 @@ export default function AircraftDetailPage() {
 
       {/* Media Lightbox */}
       <MediaLightbox
-        items={filteredPhotos.slice(0, 20)}
+        items={filteredPhotos.slice(0, 24)}
         index={lightboxIndex}
         onClose={() => setLightboxIndex(null)}
         onNav={setLightboxIndex}

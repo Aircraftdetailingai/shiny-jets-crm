@@ -1091,13 +1091,19 @@ export default function JobDetailPage() {
           <div onClick={async (e) => {
             e.preventDefault();
             const newVal = !job.share_progress_with_customer;
+            const prevVal = !!job.share_progress_with_customer;
             setJob(prev => ({ ...prev, share_progress_with_customer: newVal }));
             const token = localStorage.getItem('vector_token');
-            await fetch(`/api/jobs/${jobId}/progress`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ share_progress_with_customer: newVal }),
-            }).catch(() => {});
+            try {
+              const res = await fetch(`/api/jobs/${jobId}/progress`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ share_progress_with_customer: newVal }),
+              });
+              if (!res.ok) setJob(prev => ({ ...prev, share_progress_with_customer: prevVal }));
+            } catch {
+              setJob(prev => ({ ...prev, share_progress_with_customer: prevVal }));
+            }
           }}
             className={`relative w-9 h-5 rounded-full transition-colors ${job.share_progress_with_customer ? 'bg-[#0081b8]' : 'bg-gray-600'}`}>
             <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${job.share_progress_with_customer ? 'translate-x-4' : ''}`} />
