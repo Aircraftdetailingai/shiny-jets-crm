@@ -21,6 +21,7 @@ const NAV_GROUPS = [
       { href: '/customers', label: 'Customers', icon: CustomersIcon },
       { href: '/aircraft', label: 'Aircraft', icon: AircraftIcon },
       { href: '/jobs', label: 'Jobs', icon: JobsIcon },
+      { href: '/change-orders', label: 'Change Orders', icon: ChangeOrdersIcon },
       { href: '/dispatch', label: 'Dispatch', icon: DispatchIcon },
       { href: '/calendar', label: 'Schedule', icon: CalendarIcon },
       { href: '/invoices', label: 'Invoices', icon: InvoicesIcon },
@@ -73,6 +74,9 @@ function InvoicesIcon() {
 }
 function JobsIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0h2a2 2 0 012 2v6M8 6H6a2 2 0 00-2 2v6" /></svg>;
+}
+function ChangeOrdersIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /><path d="M12 8v4m0 0v4m0-4h4m-4 0H8" /></svg>;
 }
 function DispatchIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>;

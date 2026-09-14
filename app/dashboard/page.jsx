@@ -587,14 +587,19 @@ function DashboardContent() {
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   <p className="text-v-text-secondary text-xs">{changeOrderRequests.length} change order request{changeOrderRequests.length !== 1 ? 's' : ''}</p>
                 </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span />
+                  <a href="/change-orders" className="text-[10px] text-v-gold hover:text-v-gold-dim uppercase tracking-wider">View All</a>
+                </div>
                 {changeOrderRequests.slice(0, 3).map(cor => (
-                  <div key={cor.id} className="flex items-center justify-between py-2.5 border-b border-v-border-subtle/50 hover:bg-white/[0.02] transition-colors">
+                  <a key={cor.id} href={`/change-orders/${cor.id}`}
+                    className="flex items-center justify-between py-2.5 border-b border-v-border-subtle/50 hover:bg-white/[0.02] transition-colors">
                     <div className="min-w-0">
                       <p className="text-white text-sm truncate">{cor.team_member_name || 'Crew'} found an issue</p>
                       <p className="text-v-text-secondary text-xs truncate">{cor.description?.slice(0, 60)}</p>
                     </div>
                     <span className="text-amber-400 text-[10px] uppercase tracking-wider ml-3 shrink-0">Review</span>
-                  </div>
+                  </a>
                 ))}
               </div>
             )}
