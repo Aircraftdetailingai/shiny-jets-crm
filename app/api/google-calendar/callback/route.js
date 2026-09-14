@@ -1,13 +1,71 @@
 import { createClient } from '@supabase/supabase-js';
-import { getAuthUser } from '@/lib/auth';
+import { getAuthUser, verifyToken } from '@/lib/auth';
 import { env } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const SETTINGS_URL = '/settings/connections';
 
 function getSupabase() {
   return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+}
+
+function redirectToConnections(origin, params) {
+  const q = new URLSearchParams(params);
+  return Response.redirect(new URL(`${SETTINGS_URL}?${q.toString()}`, origin));
+}
+
+/**
+ * Resolve detailer identity from OAuth state.
+ * Supports:
+ *  - signed JWT { purpose:'gcal_oauth', uid, did } (current)
+ *  - legacy plain user.id / detailer_id string
+ */
+async function resolveState(state, authUser) {
+  if (!state) return { ok: false, message: 'Missing state parameter' };
+
+  // Try signed state first
+  const verified = await verifyToken(state);
+  if (verified?.purpose === 'gcal_oauth' && verified.did) {
+    const detailerId = verified.did;
+    const userId = verified.uid || verified.did;
+    // If a session cookie is present, it must match (defense in depth)
+    if (authUser?.id) {
+      const authDetailer = authUser.detailer_id || authUser.id;
+      const matches =
+        authUser.id === userId ||
+        authDetailer === detailerId ||
+        authUser.id === detailerId;
+      if (!matches) {
+        console.warn('[gcal-callback] signed state mismatch vs cookie', {
+          stateDid: detailerId,
+          authId: authUser.id,
+          authDetailer,
+        });
+        return { ok: false, message: 'Invalid state parameter' };
+      }
+    }
+    return { ok: true, detailerId, userId, stateKind: 'signed' };
+  }
+
+  // Legacy: state was raw user.id. Require cookie and match.
+  if (!authUser?.id) {
+    return { ok: false, message: 'Authentication required' };
+  }
+  if (state !== authUser.id && state !== (authUser.detailer_id || authUser.id)) {
+    console.warn('[gcal-callback] legacy state mismatch', {
+      statePrefix: String(state).slice(0, 8),
+      authIdPrefix: String(authUser.id).slice(0, 8),
+    });
+    return { ok: false, message: 'Invalid state parameter' };
+  }
+  return {
+    ok: true,
+    detailerId: authUser.detailer_id || authUser.id,
+    userId: authUser.id,
+    stateKind: 'legacy',
+  };
 }
 
 export async function GET(request) {
@@ -15,39 +73,43 @@ export async function GET(request) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const error = url.searchParams.get('error');
-  const settingsUrl = '/settings/integrations';
+  const origin = url.origin;
 
   if (error) {
-    return Response.redirect(new URL(`${settingsUrl}?gcal=error&message=${encodeURIComponent(error)}`, url.origin));
+    console.warn('[gcal-callback] Google returned error:', error);
+    return redirectToConnections(origin, { gcal: 'error', message: error });
   }
 
   if (!code) {
-    return Response.redirect(new URL(`${settingsUrl}?gcal=error&message=${encodeURIComponent('No authorization code received')}`, url.origin));
+    return redirectToConnections(origin, {
+      gcal: 'error',
+      message: 'No authorization code received',
+    });
   }
 
-  // Verify user authentication
   const authUser = await getAuthUser(request);
-  if (!authUser?.id) {
-    return Response.redirect(new URL(`${settingsUrl}?gcal=error&message=${encodeURIComponent('Authentication required')}`, url.origin));
+  const resolved = await resolveState(state, authUser);
+  if (!resolved.ok) {
+    console.warn('[gcal-callback] state/auth failed:', resolved.message, {
+      hasCookie: !!authUser?.id,
+      stateLen: state?.length || 0,
+    });
+    return redirectToConnections(origin, { gcal: 'error', message: resolved.message });
   }
-  // The OAuth `auth` route signs state with user.id (whatever shape the JWT
-  // carried). Match against the same value here. For owner JWTs user.id IS
-  // the detailer id, but the connection row keys on detailer_id, so resolve
-  // separately for the upsert.
-  const userId = authUser.id;
-  const detailerId = authUser.detailer_id || authUser.id;
 
-  // Verify state matches user ID (CSRF protection)
-  if (state !== userId) {
-    return Response.redirect(new URL(`${settingsUrl}?gcal=error&message=${encodeURIComponent('Invalid state parameter')}`, url.origin));
-  }
+  const { detailerId, stateKind } = resolved;
 
   try {
-    const appUrl = env.NEXT_PUBLIC_APP_URL || url.origin;
+    const appUrl = env.NEXT_PUBLIC_APP_URL || origin;
     const redirectUri = env.GOOGLE_CALENDAR_REDIRECT_URI || `${appUrl}/api/google-calendar/callback`;
 
-    console.log('[gcal-callback] redirect_uri:', JSON.stringify(redirectUri));
-    console.log('[gcal-callback] client_id:', JSON.stringify(env.GOOGLE_CLIENT_ID));
+    console.log('[gcal-callback] exchanging code', {
+      detailerId,
+      stateKind,
+      redirect_uri: redirectUri,
+      hasCookie: !!authUser?.id,
+      client_id_prefix: env.GOOGLE_CLIENT_ID ? `${env.GOOGLE_CLIENT_ID.slice(0, 12)}…` : null,
+    });
 
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
       method: 'POST',
@@ -63,12 +125,25 @@ export async function GET(request) {
 
     if (!tokenRes.ok) {
       const err = await tokenRes.json().catch(() => ({}));
-      console.error('[gcal-callback] Token exchange failed:', JSON.stringify(err));
+      console.error('[gcal-callback] Token exchange failed:', {
+        status: tokenRes.status,
+        error: err.error || null,
+        error_description: err.error_description || null,
+      });
       throw new Error(err.error_description || err.error || 'Token exchange failed');
     }
 
     const tokens = await tokenRes.json();
-    console.log('[gcal-callback] Token exchange success, has refresh_token:', !!tokens.refresh_token);
+    console.log('[gcal-callback] Token exchange success', {
+      has_access_token: !!tokens.access_token,
+      has_refresh_token: !!tokens.refresh_token,
+      expires_in: tokens.expires_in || null,
+      scope: tokens.scope || null,
+    });
+
+    if (!tokens.access_token) {
+      throw new Error('Google did not return an access token');
+    }
 
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + (tokens.expires_in || 3600));
@@ -86,10 +161,28 @@ export async function GET(request) {
         .maybeSingle();
       refreshToken = existing?.refresh_token || null;
       if (!refreshToken) {
-        console.warn('[gcal-callback] No refresh_token from Google and none stored — reconnect will fail after access token expires');
-      } else {
-        console.log('[gcal-callback] Preserved existing refresh_token (Google omitted a new one)');
+        console.warn('[gcal-callback] No refresh_token from Google and none stored');
+        return redirectToConnections(origin, {
+          gcal: 'error',
+          message:
+            'Google did not return a refresh token. Disconnect any prior access in your Google Account permissions, then try Connect again.',
+        });
       }
+      console.log('[gcal-callback] Preserved existing refresh_token (Google omitted a new one)');
+    }
+
+    // Best-effort: capture Google account email for the Connections UI
+    let googleEmail = null;
+    try {
+      const infoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      if (infoRes.ok) {
+        const info = await infoRes.json();
+        googleEmail = info.email || null;
+      }
+    } catch {
+      // non-fatal
     }
 
     let upsertRow = {
@@ -100,7 +193,9 @@ export async function GET(request) {
       connected_at: new Date().toISOString(),
       needs_reconnect: false,
       last_sync_error: null,
+      ...(googleEmail ? { google_email: googleEmail } : {}),
     };
+
     let dbError = null;
     for (let attempt = 0; attempt < 5; attempt++) {
       const res = await supabase
@@ -108,10 +203,12 @@ export async function GET(request) {
         .upsert(upsertRow, { onConflict: 'detailer_id' });
       dbError = res.error;
       if (!dbError) break;
-      const colMatch = dbError.message?.match(/column "([^"]+)" of relation "google_calendar_connections" does not exist/)
-        || dbError.message?.match(/Could not find the '([^']+)' column/i);
+      const colMatch =
+        dbError.message?.match(/column "([^"]+)" of relation "google_calendar_connections" does not exist/) ||
+        dbError.message?.match(/Could not find the '([^']+)' column/i);
       const missing = colMatch?.[1];
       if (missing && upsertRow[missing] !== undefined) {
+        console.warn('[gcal-callback] dropping missing column and retrying:', missing);
         delete upsertRow[missing];
         continue;
       }
@@ -119,14 +216,29 @@ export async function GET(request) {
     }
 
     if (dbError) {
-      console.error('Failed to store Google Calendar connection:', dbError);
-      return Response.redirect(new URL(`${settingsUrl}?gcal=error&message=${encodeURIComponent('Failed to save connection: ' + dbError.message)}`, url.origin));
+      console.error('[gcal-callback] Failed to store connection:', {
+        message: dbError.message,
+        code: dbError.code || null,
+        detailerId,
+      });
+      return redirectToConnections(origin, {
+        gcal: 'error',
+        message: 'Failed to save connection: ' + dbError.message,
+      });
     }
-    console.log('[gcal-callback] connection persisted for detailer:', detailerId);
 
-    return Response.redirect(new URL(`${settingsUrl}?gcal=success`, url.origin));
+    console.log('[gcal-callback] connection persisted', {
+      detailerId,
+      googleEmail: googleEmail || null,
+      needs_reconnect: false,
+    });
+
+    return redirectToConnections(origin, { gcal: 'success' });
   } catch (err) {
-    console.error('Google Calendar callback error:', err);
-    return Response.redirect(new URL(`${settingsUrl}?gcal=error&message=${encodeURIComponent(err.message)}`, url.origin));
+    console.error('[gcal-callback] error:', err?.message || err);
+    return redirectToConnections(origin, {
+      gcal: 'error',
+      message: err.message || 'Google Calendar connection failed',
+    });
   }
 }

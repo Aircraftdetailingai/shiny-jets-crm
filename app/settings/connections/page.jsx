@@ -51,12 +51,20 @@ function IntegrationsContent() {
       toastSuccess('Google Calendar connected successfully');
       // Small delay to ensure DB write from OAuth callback has settled
       setTimeout(() => checkGCalStatus(), 500);
-      // Clean URL without reload
+      // Clean URL without reload (drop gcal + message)
       const url = new URL(window.location);
       url.searchParams.delete('gcal');
+      url.searchParams.delete('message');
       window.history.replaceState({}, '', url.pathname + (url.search || ''));
     } else if (gcalParam === 'error') {
-      setGcalError(params.get('message') || 'Failed to connect Google Calendar');
+      const msg = params.get('message') || 'Failed to connect Google Calendar';
+      setGcalError(msg);
+      toastError(msg);
+      // Keep banner visible; strip query so refresh does not re-toast
+      const url = new URL(window.location);
+      url.searchParams.delete('gcal');
+      url.searchParams.delete('message');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
     }
     const qbParam = params.get('quickbooks');
     if (qbParam === 'success') { toastSuccess('QuickBooks connected!'); checkQBStatus(); }
@@ -130,6 +138,7 @@ function IntegrationsContent() {
       const token = localStorage.getItem('vector_token');
       const res = await fetch('/api/google-calendar/auth', {
         method: 'POST',
+        credentials: 'include',
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
