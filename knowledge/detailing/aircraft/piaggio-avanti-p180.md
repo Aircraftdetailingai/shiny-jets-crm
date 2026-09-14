@@ -6,7 +6,7 @@
 | Model | P180 |
 | Catalog seats (CRM) | 7 |
 | CRM maint. wash hours (ref) | 6.67 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-family** |
 | Type-class fallback | `type-class/sep-painted-aluminum.md` |
 
 ## Identity for Detailing AI
@@ -18,6 +18,18 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 See type-class `sep-painted-aluminum`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
 ## Detailing-relevant guidance
+
+## Model-family extract — Piaggio P.180 AMM 12-24-02 exterior cleaning note
+
+**Source:** `manuals/piaggio-p180-amm-12-24-02-exterior-cleaning-note.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Mild soap + water; no harsh/alkaline detergents; soft cloth/chamois; heavier wax on LE.
+- Windows: straight wipe; no gasoline/benzene/acetone/thinner/glass sprays; no plastic cleaner on heated glass windshields.
+- No high-pressure water on bearings/electrical.
+
+### U-turn
+Mild soap path OK. HP on electronics/bearings + listed solvents = forbid.
 
 ## Transparent plastics — FAA AC 43.13-1B
 
@@ -39,3 +51,7 @@ Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM appr
 ## Missing POH/AMM upload
 
 If you have this model’s POH/PIM/AMM cleaning chapter (shop-owned or public/free), add extracts under `manuals/` and upgrade this profile from `type-class-fallback` to model-specific.
+
+## Sources wanted (paywalled / not freely posted)
+
+Official Piaggio AMM 12-24-02 current pages + SB-80-0220 package — OEM portal.

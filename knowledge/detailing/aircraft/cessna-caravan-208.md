@@ -6,7 +6,7 @@
 | Model | Caravan 208 |
 | Catalog seats (CRM) | 9 |
 | CRM maint. wash hours (ref) | 5.00 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-specific** |
 | Type-class fallback | `type-class/turboprop.md` |
 
 ## Identity for Detailing AI
@@ -18,6 +18,20 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 See type-class `turboprop`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
 ## Detailing-relevant guidance
+
+## Model-specific extract — Cessna 208B POH Sec 8 Cleaning and Care
+
+**Source:** `manuals/cessna-208-poh-section8-cleaning-care.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Cast acrylic windows: cool in shade; flood water; bare hands (no jewelry); mild soap; listed bans include methanol, IPA/denatured alcohol, gasoline, benzene, MEK, acetone, household glass sprays.
+- Painted: mild soap wash; Stoddard for grease; regular wax (more in salt ops); heavier wax on LE/cowl/spinner.
+- Abrasion boots: mild soap; no scrub; naphtha/Form Tech for grease.
+- IPA ice removal OK on paint only — keep off windows.
+- No canvas windshield cover except freezing rain/sleet.
+
+### U-turn
+Mild soap path OK. Household glass cleaner / IPA on acrylic / harsh detergents = forbid.
 
 ## Transparent plastics — FAA AC 43.13-1B
 
@@ -42,7 +56,8 @@ If you have this model’s POH/PIM/AMM cleaning chapter (shop-owned or public/fr
 
 ## Sources wanted (paywalled / not freely posted)
 
-Textron Aviation paid pubs for 208/208B POH Sec 8 Cleaning and Care — official portal only (do not pirate). Public FMS supplements rarely include full cleaning text.
+Textron current paid pubs for latest 208B EX / G1000 revisions — verify serial.
+
 
 Also apply fleet-wide FAA guidance in `manuals/faa-ac-43-4b-cleaning-washing.md` and `manuals/faa-info16005-automotive-detailers.md` (fetched 2026-09-14).
 

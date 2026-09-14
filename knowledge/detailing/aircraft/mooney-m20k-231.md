@@ -6,7 +6,7 @@
 | Model | M20K/231 |
 | Catalog seats (CRM) | 4 |
 | CRM maint. wash hours (ref) | 2.50 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-family** |
 | Type-class fallback | `type-class/sep-painted-aluminum.md` |
 
 ## Identity for Detailing AI
@@ -18,6 +18,20 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 See type-class `sep-painted-aluminum`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
 ## Detailing-relevant guidance
+
+## Model-family extract — Mooney M20J POH Sec VIII (family pattern)
+
+**Source:** `manuals/mooney-m20j-poh-section8-exterior-care.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Mild liquid detergents only; soft cloth/chamois; no abrasives in compounds/cloths.
+- Mask static buttons; pitot cover; cover brake discs before wash.
+- No household window cleaners on Plexiglas; flush before wipe; anti-static Plexiglas cleaner OK.
+- No wax for 2–3 months on new paint; no alkaline cleaner on prop blades; no furniture polish interior.
+- Kerosene for exterior grease; baking soda after battery acid spill.
+
+### U-turn
+Mild detergent/chamois → aviation wash soap + microfiber OK if not banned. Household glass cleaner / alkaline prop cleaner / early wax on uncured paint = forbid.
 
 ## Transparent plastics — FAA AC 43.13-1B
 
@@ -35,6 +49,12 @@ Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow
 ## Hold harmless
 
 Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM approved data or A&P/IA judgment.
+
+## Sources wanted (paywalled / not freely posted)
+
+M20K serial-specific POH Sec VIII — confirm; M20J public POH used as family pattern.
+
+Also apply fleet-wide FAA guidance in `manuals/faa-ac-43-4b-cleaning-washing.md` and `manuals/faa-info16005-automotive-detailers.md` (fetched 2026-09-14).
 
 ## Missing POH/AMM upload
 
