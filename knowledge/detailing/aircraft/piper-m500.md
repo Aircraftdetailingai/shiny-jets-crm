@@ -6,7 +6,7 @@
 | Model | M500 |
 | Catalog seats (CRM) | 6 |
 | CRM maint. wash hours (ref) | 1.67 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-family** |
 | Type-class fallback | `type-class/turboprop.md` |
 
 ## Identity for Detailing AI
@@ -19,23 +19,30 @@ See type-class `turboprop`. Verify acrylic vs glass windshield in the POH/AMM fo
 
 ## Detailing-relevant guidance
 
+## Family extract — Piper piston Section 8 cleaning pattern (PA-28)
+
+**Source:** `manuals/piper-pa28-afm-section8-cleaning.md` (fetched 2026-09-14). Confirm serial-specific POH.
+
+Same mild-soap exterior, plastic-window solvent bans, and wax guidance typical of Piper PA-28 AFMs. Re-lube gear after solvent cleaning per Lubrication Chart.
+
+
 ## Transparent plastics — FAA AC 43.13-1B
 
 See `manuals/faa-ac-43-13-1b-transparent-plastics-cleaning-part1.md`. Mild soap + water; no glass cleaner/acetone/alcohol/fuel on acrylic; no dry wiping; thin wax after clean.
 
-
 ### Type-class summary
 
-Follow `type-class/turboprop.md` for baseline wash/polish/boot/antenna discipline when model-specific POH cleaning text is not loaded.
+Follow `type-class/sep-painted-aluminum.md` for baseline wash/polish/boot/antenna discipline when model-specific POH cleaning text is not loaded.
 
 ## Prohibitions vs recommendations
 
-Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow better modern soft cloths/soaps when not forbidden.
+Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow better modern soft cloths/soaps when not prohibited.
 
 ## Hold harmless
 
 Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM approved data or A&P/IA judgment.
 
-## Missing POH/AMM upload
 
-If you have this model’s POH/PIM/AMM cleaning chapter (shop-owned or public/free), add extracts under `manuals/` and upgrade this profile from `type-class-fallback` to model-specific.
+## Sources / next upgrades
+
+Prefer serial POH §8 when uploaded. Cub/fabric types excluded from this family.
