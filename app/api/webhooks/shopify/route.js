@@ -101,6 +101,8 @@ async function sendEmail(to, subject, html, options = {}) {
       subject,
       html: html || undefined,
       text: options.text,
+      from: options.from,
+      replyTo: options.replyTo,
     });
     if (!result?.success) {
       console.error(`[shopify-webhook] Resend rejected email to ${to}:`, result?.error);
@@ -232,31 +234,165 @@ async function updatePlan(supabase, detailer, newPlan, extra = {}) {
 }
 
 // ─── Course / training product detection ───
+// Brett rule: ANY course/training purchase → CRM Enterprise free for 1 year.
+// Preferred match: Shopify product tags "course" or "training" (Admin API).
+// Fallback: title/SKU keywords + known handles (line_items lack tags).
 const COURSE_KEYWORDS = ['course', 'masterclass', 'certification', 'training', '5 day', '5-day', 'dominate', 'immersive'];
 const COURSE_HANDLES = ['aircraft-detailing-masterclass', 'online-aircraft-detailing-course'];
+const COURSE_TAGS = new Set(['course', 'training', 'masterclass', 'certification', 'crm-enterprise-bundle']);
+const COURSE_FROM = process.env.COURSE_PROVISION_FROM || 'Shiny Jets <sales@shinyjets.com>';
+const COURSE_REPLY_TO = process.env.COURSE_PROVISION_REPLY_TO || 'sales@shinyjets.com';
 
-// Courses that grant free Pro access (5-day immersive / Dominate tier)
-const PRO_GRANT_KEYWORDS = ['5 day', '5-day', 'masterclass', 'dominate', 'immersive', 'certification'];
-const PRO_GRANT_HANDLES = ['aircraft-detailing-masterclass'];
-const PRO_GRANT_PRODUCT_IDS = [8102938312889]; // 5 Day Aircraft Detailing Certification
-
-function isProGrantCourse(item) {
+function isCourseProductByText(item) {
   const sku = (item.sku || '').toLowerCase();
   const title = (item.title || '').toLowerCase();
-  const productId = item.product_id;
-  if (PRO_GRANT_PRODUCT_IDS.includes(productId)) return true;
-  if (PRO_GRANT_HANDLES.some(h => sku.includes(h) || title.includes(h))) return true;
-  if (PRO_GRANT_KEYWORDS.some(k => title.includes(k))) return true;
-  return false;
-}
-
-function isCourseProduct(item) {
-  const sku = (item.sku || '').toLowerCase();
-  const title = (item.title || '').toLowerCase();
-  const handle = (item.product_id ? '' : '').toLowerCase(); // handle not in line_item
   if (COURSE_HANDLES.some(h => sku.includes(h) || title.includes(h))) return true;
   if (COURSE_KEYWORDS.some(k => sku.includes(k) || title.includes(k))) return true;
   return false;
+}
+
+function parseShopifyTags(tagsField) {
+  if (!tagsField) return [];
+  if (Array.isArray(tagsField)) return tagsField.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+  return String(tagsField).split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+}
+
+async function fetchProductTags(productId) {
+  if (!productId) return [];
+  const store = (process.env.SHOPIFY_STORE_URL || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const token = process.env.SHOPIFY_ACCESS_TOKEN;
+  if (!store || !token) return [];
+  try {
+    const url = `https://${store}/admin/api/2024-01/products/${productId}.json?fields=id,tags`;
+    const res = await fetch(url, {
+      headers: {
+        'X-Shopify-Access-Token': token,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      console.warn(`[shopify-webhook] product tags fetch ${productId} status=${res.status}`);
+      return [];
+    }
+    const json = await res.json();
+    return parseShopifyTags(json?.product?.tags);
+  } catch (e) {
+    console.warn('[shopify-webhook] product tags fetch error:', e?.message || e);
+    return [];
+  }
+}
+
+async function isCourseProduct(item) {
+  if (isCourseProductByText(item)) return true;
+  const tags = await fetchProductTags(item.product_id);
+  return tags.some((t) => COURSE_TAGS.has(t));
+}
+
+async function findCourseLineItem(items) {
+  for (const item of items || []) {
+    if (await isCourseProduct(item)) return item;
+  }
+  return null;
+}
+
+function plusOneYearISO(from = new Date()) {
+  const d = new Date(from);
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString();
+}
+
+function laterISO(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+}
+
+async function alreadyGrantedCourseEnterprise(supabase, orderId) {
+  if (!orderId) return false;
+  // Prefer JSON path filter; fall back to recent scan if the operator is unavailable.
+  const { data, error } = await supabase
+    .from('webhook_logs')
+    .select('id, payload')
+    .eq('source', 'shopify')
+    .eq('topic', 'course_enterprise_granted')
+    .filter('payload->>order_id', 'eq', String(orderId))
+    .limit(1);
+  if (!error) return !!(data && data.length);
+  const { data: recent } = await supabase
+    .from('webhook_logs')
+    .select('id, payload')
+    .eq('source', 'shopify')
+    .eq('topic', 'course_enterprise_granted')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  return (recent || []).some((row) => String(row?.payload?.order_id || '') === String(orderId));
+}
+
+function courseEnterpriseCredentialsEmail({ email, firstName, tempPassword, trialEndsAt }) {
+  const endStr = new Date(trialEndsAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
+      <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your Enterprise login is inside — 1 year included with your course.</span>
+      <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
+        <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Welcome aboard, ${firstName}!</h1>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">Your course purchase includes <strong>Shiny Jets CRM Enterprise for 12 months</strong> — including <strong>Detailing AI</strong> (Insights → Detailing AI). Here are your login details:</p>
+        <div style="background:#f0f7fb;border:1px solid #cfe4f0;border-radius:8px;padding:18px 20px;margin:20px 0;">
+          <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Login URL</p>
+          <p style="margin:0 0 16px;"><a href="https://crm.shinyjets.com/login" style="color:#007CB1;font-weight:600;text-decoration:none;">crm.shinyjets.com/login</a></p>
+          <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Username</p>
+          <p style="margin:0 0 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:#1a1a1a;">${email}</p>
+          <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Temporary Password</p>
+          <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:600;color:#007CB1;letter-spacing:0.05em;">${tempPassword}</p>
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="https://crm.shinyjets.com/login" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Log In Now</a>
+        </div>
+        <p style="font-size:14px;line-height:1.6;margin:0 0 12px;color:#555;">Access is good through <strong>${endStr}</strong>. You'll be prompted to change your password after first login.</p>
+        <p style="font-size:13px;line-height:1.6;margin:0 0 12px;color:#555;">Earn points in CRM → redeem on <strong>Rewards</strong> for free product packs, a free CRM month, and Fly Shiny gear (<a href="https://flyshiny.com" style="color:#007CB1;">flyshiny.com</a>).</p>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0;">
+        <p style="font-size:11px;color:#999;margin:0;text-align:center;">Shiny Jets · sales@shinyjets.com · <a href="https://crm.shinyjets.com" style="color:#999;">crm.shinyjets.com</a></p>
+      </div>
+    </body></html>`;
+  const text = `Hi ${firstName},
+
+Your course purchase includes Shiny Jets CRM Enterprise for 12 months (Detailing AI included).
+
+Login: https://crm.shinyjets.com/login
+Username: ${email}
+Temporary password: ${tempPassword}
+
+Good through ${endStr}. Change your password on first login.
+
+Earn points in CRM → redeem on Rewards for free products, a free CRM month, and Fly Shiny gear at https://flyshiny.com
+
+— Shiny Jets
+sales@shinyjets.com`;
+  return { html, text };
+}
+
+function courseEnterpriseUpgradeEmail({ email, firstName, trialEndsAt }) {
+  const endStr = new Date(trialEndsAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
+      <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
+        <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Enterprise unlocked, ${firstName}</h1>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 16px;color:#555;">Thanks for taking the course — your Shiny Jets CRM account is on <strong>Enterprise</strong> through <strong>${endStr}</strong>, including <strong>Detailing AI</strong>.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="https://crm.shinyjets.com/login" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Open CRM</a>
+        </div>
+        <p style="font-size:13px;line-height:1.6;margin:0;color:#555;">Earn points → redeem on Rewards for free products, a free CRM month, and Fly Shiny gear at <a href="https://flyshiny.com" style="color:#007CB1;">flyshiny.com</a>.</p>
+        <p style="font-size:11px;color:#999;margin:24px 0 0;text-align:center;">Shiny Jets · sales@shinyjets.com</p>
+      </div>
+    </body></html>`;
+  const text = `Hi ${firstName},
+
+Your course purchase unlocked Shiny Jets CRM Enterprise through ${endStr} (Detailing AI included).
+
+Login: https://crm.shinyjets.com/login
+
+Earn points → redeem on Rewards for free products, a free CRM month, and Fly Shiny gear at https://flyshiny.com
+
+— Shiny Jets
+sales@shinyjets.com`;
+  return { html, text, email };
 }
 
 function resolveCourseProductType(item) {
@@ -276,7 +412,7 @@ function resolveCourseProductType(item) {
 
 async function handleCoursePricingAccess(supabase, payload) {
   const items = payload?.line_items || [];
-  const courseItem = items.find(isCourseProduct);
+  const courseItem = await findCourseLineItem(items);
   if (!courseItem) return;
 
   const email = extractEmail(payload);
@@ -339,14 +475,214 @@ async function handleCoursePricingAccess(supabase, payload) {
   });
 }
 
+// ─── Course → Enterprise 1-year (Victor-style fields) ───
+async function grantCourseEnterprise(supabase, payload, courseItem) {
+  const orderId = String(payload?.id || '');
+  const email = extractEmail(payload);
+  if (!email) {
+    console.error('[shopify-webhook] course enterprise: no email on order', orderId);
+    return;
+  }
+
+  if (await alreadyGrantedCourseEnterprise(supabase, orderId)) {
+    console.log(`[shopify-webhook] course enterprise: idempotent skip order ${orderId}`);
+    return;
+  }
+
+  const trialEndsAt = plusOneYearISO();
+  const shopifyCustomerId = String(payload?.customer?.id || '');
+  const firstName = payload?.customer?.first_name || 'there';
+  const name = payload?.customer?.first_name
+    ? `${payload.customer.first_name} ${payload.customer.last_name || ''}`.trim()
+    : 'Customer';
+
+  const { defaultFeePercentForPlan } = await import('@/lib/branding');
+  let detailer = await findDetailer(supabase, payload);
+
+  if (detailer) {
+    // Never reset passwords. Never shorten existing ends. Never break Victor /
+    // admin comp_invite previews (extend only). Never flip paid shopify
+    // enterprise → comped.
+    const isAdminComp = detailer.subscription_source === 'comp_invite';
+    const isPaidShopify = detailer.subscription_source === 'shopify' &&
+      detailer.subscription_status === 'active' &&
+      ['business', 'enterprise'].includes(detailer.plan);
+
+    const nextTrial = laterISO(detailer.trial_ends_at, trialEndsAt);
+    const nextExpiry = laterISO(detailer.plan_expires_at, trialEndsAt);
+
+    const update = {
+      shopify_customer_id: shopifyCustomerId || detailer.shopify_customer_id,
+      plan_updated_at: new Date().toISOString(),
+    };
+    if (detailer.status === 'suspended') update.status = 'active';
+
+    if (isPaidShopify && detailer.plan === 'enterprise') {
+      // Keep paid enterprise; only stamp expiry if missing
+      if (!detailer.plan_expires_at) update.plan_expires_at = trialEndsAt;
+      if (!detailer.trial_ends_at) update.trial_ends_at = trialEndsAt;
+      console.log(`[shopify-webhook] course purchase by paid enterprise ${email}, preserving paid status`);
+    } else if (isAdminComp && detailer.plan === 'enterprise') {
+      update.trial_ends_at = nextTrial;
+      update.plan_expires_at = nextExpiry;
+      console.log(`[shopify-webhook] course purchase by admin-comp enterprise ${email}, extending dates only`);
+    } else {
+      // free / pro / business (or non-enterprise) → Enterprise comp year
+      update.plan = 'enterprise';
+      update.subscription_status = 'comped';
+      update.subscription_source = 'course_bundle';
+      update.trial_ends_at = nextTrial;
+      update.plan_expires_at = nextExpiry;
+      update.platform_fee_percent = defaultFeePercentForPlan('enterprise');
+    }
+
+    await supabase.from('detailers').update(update).eq('id', detailer.id);
+
+    const mail = courseEnterpriseUpgradeEmail({
+      email,
+      firstName,
+      trialEndsAt: update.trial_ends_at || detailer.trial_ends_at || trialEndsAt,
+    });
+    await sendEmail(email, 'Your course includes Shiny Jets CRM Enterprise for 1 year', mail.html, {
+      text: mail.text,
+      from: COURSE_FROM,
+      replyTo: COURSE_REPLY_TO,
+    });
+
+    console.log('[shopify-webhook] course-enterprise', JSON.stringify({
+      detailer_id: detailer.id,
+      email,
+      order_id: orderId,
+      path: 'upgrade',
+      course_title: courseItem?.title || null,
+    }));
+  } else {
+    const tempPassword = generateTempPassword();
+    const bcrypt = (await import('bcryptjs')).default;
+    const hashed = bcrypt.hashSync(tempPassword, 10);
+
+    const { data: inserted, error: insErr } = await supabase
+      .from('detailers')
+      .insert({
+        email,
+        name,
+        phone: payload?.customer?.phone || null,
+        password_hash: hashed,
+        must_change_password: true,
+        status: 'active',
+        plan: 'enterprise',
+        subscription_status: 'comped',
+        subscription_source: 'course_bundle',
+        trial_ends_at: trialEndsAt,
+        plan_expires_at: trialEndsAt,
+        platform_fee_percent: defaultFeePercentForPlan('enterprise'),
+        shopify_customer_id: shopifyCustomerId,
+        plan_updated_at: new Date().toISOString(),
+      })
+      .select()
+      .maybeSingle();
+
+    if (insErr) {
+      console.error('[shopify-webhook] course enterprise insert failed:', insErr.message);
+      // Race: detailer created between find and insert — upgrade in place (no recurse)
+      detailer = await findDetailer(supabase, payload);
+      if (!detailer) return;
+      const nextTrial = laterISO(detailer.trial_ends_at, trialEndsAt);
+      const nextExpiry = laterISO(detailer.plan_expires_at, trialEndsAt);
+      await supabase.from('detailers').update({
+        plan: detailer.plan === 'enterprise' && detailer.subscription_source === 'shopify'
+          ? detailer.plan
+          : 'enterprise',
+        subscription_status: detailer.subscription_source === 'shopify' && detailer.plan === 'enterprise'
+          ? detailer.subscription_status
+          : 'comped',
+        subscription_source: detailer.subscription_source === 'shopify' && detailer.plan === 'enterprise'
+          ? detailer.subscription_source
+          : (detailer.subscription_source === 'comp_invite' ? 'comp_invite' : 'course_bundle'),
+        trial_ends_at: nextTrial,
+        plan_expires_at: nextExpiry,
+        shopify_customer_id: shopifyCustomerId || detailer.shopify_customer_id,
+        plan_updated_at: new Date().toISOString(),
+        ...(detailer.status === 'suspended' ? { status: 'active' } : {}),
+      }).eq('id', detailer.id);
+      const mail = courseEnterpriseUpgradeEmail({ email, firstName, trialEndsAt: nextTrial });
+      await sendEmail(email, 'Your course includes Shiny Jets CRM Enterprise for 1 year', mail.html, {
+        text: mail.text, from: COURSE_FROM, replyTo: COURSE_REPLY_TO,
+      });
+      await supabase.from('webhook_logs').insert({
+        source: 'shopify',
+        topic: 'course_enterprise_granted',
+        payload: { order_id: orderId, email, product_title: courseItem?.title || null, product_id: courseItem?.product_id || null, trial_ends_at: nextTrial, path: 'race_upgrade' },
+        processed: true,
+      });
+      return;
+    }
+
+    if (inserted) {
+      // Admin-staged comp invite still wins if present (may extend / override)
+      const compResult = await redeemCompInviteIfAny(supabase, inserted.id, email);
+      if (compResult.applied) {
+        console.log(`[shopify-webhook] course create also redeemed comp invite for ${email}`);
+      }
+
+      const mail = courseEnterpriseCredentialsEmail({
+        email,
+        firstName: (name || '').split(' ')[0] || 'there',
+        tempPassword,
+        trialEndsAt,
+      });
+      await sendEmail(
+        email,
+        'Your Shiny Jets CRM Enterprise login (1 year included with your course)',
+        mail.html,
+        { text: mail.text, from: COURSE_FROM, replyTo: COURSE_REPLY_TO },
+      );
+
+      const now = new Date();
+      const dripRows = [0, 1, 3, 5, 7].map((offset) => ({
+        detailer_id: inserted.id,
+        message_id: `drip-day-${offset}`,
+        scheduled_for: new Date(now.getTime() + offset * 86400000).toISOString(),
+      }));
+      await supabase.from('drip_messages').insert(dripRows);
+
+      const adminPhone = process.env.ADMIN_PHONE;
+      if (adminPhone) {
+        await sendSMS(adminPhone, `Course→Enterprise: ${email} (new)`);
+      }
+
+      console.log('[shopify-webhook] course-enterprise', JSON.stringify({
+        detailer_id: inserted.id,
+        email,
+        order_id: orderId,
+        path: 'create',
+        course_title: courseItem?.title || null,
+      }));
+    }
+  }
+
+  await supabase.from('webhook_logs').insert({
+    source: 'shopify',
+    topic: 'course_enterprise_granted',
+    payload: {
+      order_id: orderId,
+      email,
+      product_title: courseItem?.title || null,
+      product_id: courseItem?.product_id || null,
+      trial_ends_at: trialEndsAt,
+    },
+    processed: true,
+  });
+}
+
 // ─── Handle: orders/paid ───
 async function handleOrderPaid(supabase, payload) {
   // Check for course products → grant pricing app access
   await handleCoursePricingAccess(supabase, payload);
 
-  // Check if this order includes a Pro-granting course (5-day immersive)
   const items = payload?.line_items || [];
-  const hasCourseProGrant = items.some(isProGrantCourse);
+  const courseItem = await findCourseLineItem(items);
+  const hasCourseGrant = !!courseItem;
 
   let plan = null;
   for (const item of items) {
@@ -354,10 +690,11 @@ async function handleOrderPaid(supabase, payload) {
     if (plan) break;
   }
 
-  // Course purchase = free Pro access even if no CRM subscription SKU
-  if (!plan && hasCourseProGrant) {
-    plan = 'pro';
-    console.log('[shopify-webhook] orders/paid: 5-day course detected, granting Pro access');
+  // Course alone (no CRM SKU) → Enterprise provisioning path
+  if (!plan && hasCourseGrant) {
+    console.log('[shopify-webhook] orders/paid: course detected, granting Enterprise (1 year)');
+    await grantCourseEnterprise(supabase, payload, courseItem);
+    return;
   }
 
   if (!plan) {
@@ -375,28 +712,21 @@ async function handleOrderPaid(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   const shopifyCustomerId = String(payload?.customer?.id || '');
 
-  const subscriptionSource = hasCourseProGrant ? 'course_bundle' : 'shopify';
-  // Course-bundle grants include one year of Pro; stamp plan_expires_at so the
-  // plan-expirations cron auto-downgrades them when the year lapses. Recurring
-  // Shopify subscriptions stay null (never auto-expired).
-  let courseExpiryISO = null;
-  if (hasCourseProGrant) {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() + 1);
-    courseExpiryISO = d.toISOString();
-  }
-
+  // Paid CRM SKU path — subscription_source=shopify. If the cart also has a
+  // course, still run Enterprise grant AFTER paid sync so free/pro carts get
+  // the course year, while paid enterprise is preserved inside the grant helper.
   if (detailer) {
-    // Reactivate if suspended
     const extra = {
       shopify_customer_id: shopifyCustomerId,
-      subscription_source: subscriptionSource,
-      ...(courseExpiryISO ? { plan_expires_at: courseExpiryISO } : {}),
+      subscription_source: 'shopify',
     };
     if (detailer.status === 'suspended') extra.status = 'active';
-    // Don't downgrade a paid subscription user if they also buy a course
-    if (hasCourseProGrant && ['pro', 'business', 'enterprise'].includes(detailer.plan)) {
-      console.log(`[shopify-webhook] course purchase by existing ${detailer.plan} user ${email}, keeping current plan`);
+    // Protect admin comps / course comps from being overwritten by a free SKU
+    const isCompedAccount = detailer.subscription_source === 'comp_invite' ||
+      detailer.subscription_source === 'course_bundle' ||
+      detailer.subscription_status === 'comped';
+    if (isCompedAccount && plan === 'free') {
+      console.log(`[shopify-webhook] skipping free SKU overwrite of comped account ${email}`);
     } else {
       const result = await updatePlan(supabase, detailer, plan, extra);
       console.log('[shopify-webhook] plan-change', JSON.stringify({
@@ -405,14 +735,14 @@ async function handleOrderPaid(supabase, payload) {
         old_plan: result.oldPlan,
         new_plan: result.newPlan,
         subscription_status: 'active',
-        subscription_source: subscriptionSource,
+        subscription_source: 'shopify',
         shopify_order_id: String(payload?.id || ''),
         topic: 'orders/paid',
         changed: result.changed,
       }));
     }
   } else {
-    // New customer — create account with temp password
+    // New customer — create account with temp password (paid CRM SKU)
     const tempPassword = generateTempPassword();
     const bcrypt = (await import('bcryptjs')).default;
     const hashed = bcrypt.hashSync(tempPassword, 10);
@@ -420,32 +750,41 @@ async function handleOrderPaid(supabase, payload) {
       ? `${payload.customer.first_name} ${payload.customer.last_name || ''}`.trim()
       : 'Customer';
 
+    // If cart also includes a course, create directly as Enterprise course_bundle
+    // so grantCourseEnterprise later is idempotent and we don't double-email.
+    const courseExpiryISO = hasCourseGrant ? plusOneYearISO() : null;
+    const insertRow = {
+      email,
+      name,
+      phone: payload?.customer?.phone || null,
+      password_hash: hashed,
+      must_change_password: true,
+      status: 'active',
+      plan: hasCourseGrant ? 'enterprise' : plan,
+      subscription_status: hasCourseGrant ? 'comped' : 'active',
+      subscription_source: hasCourseGrant ? 'course_bundle' : 'shopify',
+      shopify_customer_id: shopifyCustomerId,
+      ...(courseExpiryISO ? {
+        trial_ends_at: courseExpiryISO,
+        plan_expires_at: courseExpiryISO,
+      } : {}),
+    };
+    if (hasCourseGrant) {
+      const { defaultFeePercentForPlan } = await import('@/lib/branding');
+      insertRow.platform_fee_percent = defaultFeePercentForPlan('enterprise');
+      insertRow.plan_updated_at = new Date().toISOString();
+      plan = 'enterprise';
+    }
+
     const { data: inserted } = await supabase
       .from('detailers')
-      .insert({
-        email,
-        name,
-        phone: payload?.customer?.phone || null,
-        password_hash: hashed,
-        must_change_password: true,
-        status: 'active',
-        plan,
-        subscription_status: 'active',
-        subscription_source: subscriptionSource,
-        shopify_customer_id: shopifyCustomerId,
-        ...(courseExpiryISO ? { plan_expires_at: courseExpiryISO } : {}),
-      })
+      .insert(insertRow)
       .select()
       .maybeSingle();
 
     if (inserted) {
       console.log(`[shopify-webhook] Created detailer ${inserted.id} for ${email}`);
 
-      // Redeem any pending comp invite for this email. A Shopify-created
-      // account is the very first signup, so the invite (if any) lands
-      // immediately. Stays non-blocking — webhook still 200s on failure.
-      // Mutating local `plan` so the welcome email below reflects the
-      // upgraded tier label.
       const compResult = await redeemCompInviteIfAny(supabase, inserted.id, email);
       if (compResult.applied) {
         inserted.plan = compResult.plan;
@@ -456,14 +795,20 @@ async function handleOrderPaid(supabase, payload) {
 
       const labels = { free: 'Free', pro: 'Pro', business: 'Business', enterprise: 'Enterprise' };
       const firstName = (name || '').split(' ')[0] || 'there';
+      const displayPlan = hasCourseGrant ? 'enterprise' : plan;
+      const mailOpts = hasCourseGrant
+        ? { from: COURSE_FROM, replyTo: COURSE_REPLY_TO }
+        : {};
       await sendEmail(
         email,
-        'Your Shiny Jets CRM login details',
+        hasCourseGrant
+          ? 'Your Shiny Jets CRM Enterprise login (1 year included with your course)'
+          : 'Your Shiny Jets CRM login details',
         `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
           <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your login details are inside — username, temporary password, and login link.</span>
           <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
             <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Welcome aboard, ${firstName}!</h1>
-            <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">Your Shiny Jets CRM <strong>${labels[plan]}</strong> account is ready. Here are your login details:</p>
+            <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">Your Shiny Jets CRM <strong>${labels[displayPlan] || displayPlan}</strong> account is ready. Here are your login details:</p>
 
             <div style="background:#f0f7fb;border:1px solid #cfe4f0;border-radius:8px;padding:18px 20px;margin:20px 0;">
               <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Login URL</p>
@@ -480,6 +825,8 @@ async function handleOrderPaid(supabase, payload) {
               <a href="https://crm.shinyjets.com/login" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Log In Now</a>
             </div>
 
+            ${hasCourseGrant ? `<p style="font-size:13px;line-height:1.6;margin:0 0 12px;color:#555;">Course bonus: Enterprise includes <strong>Detailing AI</strong>. Earn points → redeem on Rewards for free products, a free CRM month, and Fly Shiny gear at <a href="https://flyshiny.com" style="color:#007CB1;">flyshiny.com</a>.</p>` : ''}
+
             <h3 style="font-size:15px;color:#1a1a1a;margin:32px 0 12px;">Get Started in 3 Steps</h3>
             <ol style="margin:0;padding-left:20px;line-height:1.8;font-size:14px;color:#555;">
               <li><strong>Set up your services</strong> — Add your service menu and hourly rate in Settings</li>
@@ -493,9 +840,9 @@ async function handleOrderPaid(supabase, payload) {
             <p style="font-size:11px;color:#999;margin:0;text-align:center;">Shiny Jets CRM &middot; <a href="https://crm.shinyjets.com" style="color:#999;">crm.shinyjets.com</a></p>
           </div>
         </body></html>`,
+        mailOpts,
       );
 
-      // Plain-text follow-up — higher chance of inbox delivery if HTML lands in spam
       await sendEmail(
         email,
         'Action required: Check your inbox for CRM access',
@@ -503,7 +850,7 @@ async function handleOrderPaid(supabase, payload) {
         {
           text: `Hi ${firstName},
 
-Thanks for signing up for Shiny Jets CRM. We just sent you an email with your login details — please check your inbox (and spam folder) for a message titled "Your Shiny Jets CRM login details".
+Thanks for signing up for Shiny Jets CRM. We just sent you an email with your login details — please check your inbox (and spam folder).
 
 Quick reference:
 - Login URL: https://crm.shinyjets.com/login
@@ -516,10 +863,10 @@ If you have any trouble, just reply to this email.
 
 — Brett
 Shiny Jets`,
+          ...(hasCourseGrant ? { from: COURSE_FROM, replyTo: COURSE_REPLY_TO } : {}),
         }
       );
 
-      // Drip schedule
       const now = new Date();
       const dripRows = [0, 1, 3, 5, 7].map(offset => ({
         detailer_id: inserted.id,
@@ -532,7 +879,28 @@ Shiny Jets`,
       if (adminPhone) {
         await sendSMS(adminPhone, `New Shopify signup: ${email} (${plan})`);
       }
+
+      if (hasCourseGrant) {
+        await supabase.from('webhook_logs').insert({
+          source: 'shopify',
+          topic: 'course_enterprise_granted',
+          payload: {
+            order_id: String(payload?.id || ''),
+            email,
+            product_title: courseItem?.title || null,
+            product_id: courseItem?.product_id || null,
+            trial_ends_at: courseExpiryISO,
+            path: 'create_with_crm_sku',
+          },
+          processed: true,
+        });
+      }
     }
+  }
+
+  // Cart also has a course → apply Enterprise year (idempotent; preserves paid enterprise)
+  if (hasCourseGrant) {
+    await grantCourseEnterprise(supabase, payload, courseItem);
   }
 }
 
@@ -569,6 +937,18 @@ async function handleSubscriptionUpdate(supabase, payload) {
 async function handleSubscriptionCancel(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   if (!detailer) return;
+
+  // Do not wipe course-bundle or admin comp Enterprise — plan-expirations cron
+  // handles dated entitlements. Protects Victor-style comps.
+  if (
+    detailer.subscription_source === 'course_bundle' ||
+    detailer.subscription_source === 'comp_invite' ||
+    detailer.subscription_status === 'comped' ||
+    detailer.subscription_status === 'complimentary'
+  ) {
+    console.log(`[shopify-webhook] cancel ignored for comped/course account ${detailer.email}`);
+    return;
+  }
 
   const oldPlan = detailer.plan || 'free';
   await supabase.from('detailers').update({

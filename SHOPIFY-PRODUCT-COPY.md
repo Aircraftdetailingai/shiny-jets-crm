@@ -365,6 +365,22 @@ White-label aircraft detailing platform with AI sales assistant, API access, 0% 
 
 ---
 
+# COURSE / TRAINING TAGS (CRM Enterprise auto-provision)
+
+Brett rule: any product tagged **`course`** or **`training`** triggers CRM **Enterprise free for 1 year** on `orders/paid` (see `specs/course-enterprise-auto-provision.md`).
+
+| Tag | Effect |
+|-----|--------|
+| `course` | Triggers Enterprise 1y + login email from sales@ |
+| `training` | Same |
+| `masterclass` / `certification` / `crm-enterprise-bundle` | Also accepted |
+
+**Do not** put these tags on CRM subscription SKUs (`SJ-CRM-*`) or merch.
+
+Keyword fallback still matches titles containing course / masterclass / certification / training / 5-day / dominate / immersive.
+
+---
+
 # SHOPIFY TAGS (All Products)
 
 ```
