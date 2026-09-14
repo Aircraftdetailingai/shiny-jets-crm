@@ -904,10 +904,15 @@ function NewQuoteContent() {
   const minimumFeeApplies = () => {
     if (minimumFee <= 0) return false;
     if (calculatedPrice >= minimumFee) return false;
-    if (minimumFeeLocations.length > 0 && airport) {
+    // Location-restricted minimum: only apply once airport is known AND matches.
+    // Applying before airport is entered inflated the sticky total (e.g. $600
+    // callout shown while the selected services still totaled ~$103).
+    if (minimumFeeLocations.length > 0) {
+      if (!airport || airport.trim().length < 3) return false;
       const normalizedJob = airport.toUpperCase().trim();
       return minimumFeeLocations.some(loc => normalizedJob.includes(loc.toUpperCase().trim()));
     }
+    // Global minimum (no location list) applies whenever under the floor.
     return true;
   };
 

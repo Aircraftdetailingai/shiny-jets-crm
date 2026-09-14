@@ -427,3 +427,93 @@ iframe[src*="vercel"] {
 .react-grid-item > .react-resizable-handle::after {
   border-color: rgba(0, 124, 177, 0.4) !important;
 }
+
+
+/* ========== LIGHT MODE CONTRAST HARDENING (P0-8) ========== */
+/* Many screens still hard-code text-white / white/opacity utilities that
+   vanish on light surfaces. Remap them when .theme-light is active, while
+   keeping white text on solid brand/accent buttons. */
+.theme-light {
+  color-scheme: light;
+}
+
+.theme-light body {
+  color: var(--v-text-primary);
+  background-color: var(--v-charcoal);
+}
+
+/* Remap common dark-theme hardcodes */
+.theme-light .text-white {
+  color: var(--v-text-primary) !important;
+}
+.theme-light .text-white\/70,
+.theme-light .text-white\/60,
+.theme-light .text-white\/50,
+.theme-light .text-white\/40,
+.theme-light .text-white\/30 {
+  color: var(--v-text-secondary) !important;
+}
+
+.theme-light .bg-white\/5,
+.theme-light .bg-white\/10,
+.theme-light .hover\:bg-white\/5:hover,
+.theme-light .hover\:bg-white\/10:hover,
+.theme-light .hover\:bg-white\/\[0\.02\]:hover,
+.theme-light .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: rgba(15, 17, 23, 0.04) !important;
+}
+
+.theme-light .border-white\/10,
+.theme-light .border-white\/20 {
+  border-color: var(--v-border) !important;
+}
+
+.theme-light .placeholder-white\/40::placeholder,
+.theme-light .placeholder-gray-500::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* Keep readable white text on solid brand / danger buttons */
+.theme-light .bg-v-gold,
+.theme-light .bg-v-gold *,
+.theme-light a.bg-v-gold,
+.theme-light button.bg-v-gold,
+.theme-light .bg-green-500,
+.theme-light .bg-green-600,
+.theme-light .bg-red-500,
+.theme-light .bg-red-600,
+.theme-light .bg-blue-500,
+.theme-light .bg-blue-600,
+.theme-light [class*="bg-v-gold"].text-white,
+.theme-light .bg-v-gold .text-white {
+  color: #FFFFFF !important;
+}
+
+/* Sidebar / tables / empty states */
+.theme-light .sidebar-nav-item {
+  color: var(--v-text-secondary);
+}
+.theme-light .sidebar-nav-item:hover {
+  color: var(--v-text-primary);
+  background-color: rgba(15, 17, 23, 0.04);
+}
+.theme-light table,
+.theme-light th,
+.theme-light td {
+  color: var(--v-text-primary);
+}
+.theme-light .text-gray-300,
+.theme-light .text-gray-400 {
+  color: var(--v-text-secondary) !important;
+}
+.theme-light .bg-black\/70,
+.theme-light .bg-black\/50 {
+  background-color: rgba(15, 17, 23, 0.45) !important;
+}
+
+/* Icons that used currentColor inherit the remapped text color */
+.theme-light svg.text-white,
+.theme-light .text-white svg {
+  color: var(--v-text-primary) !important;
+  stroke: currentColor;
+}

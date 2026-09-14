@@ -30,19 +30,35 @@ export async function GET(request) {
   const days = parseInt(searchParams.get('days')) || 7;
 
   const supabase = getSupabase();
-  const isLead = user.is_lead_tech;
-  const contactCols = isLead ? ', client_name, client_phone, client_email' : '';
 
-  // Step 1: Get job_assignments for this crew member (pending or accepted) or all for lead tech
+  // Resolve team role flags so Owner/Manager (and can_see_other_jobs) see the
+  // same work surface as lead tech — not only rows they are personally assigned to.
+  const { data: memberRow } = await supabase
+    .from('team_members')
+    .select('type, can_see_other_jobs, is_lead_tech')
+    .eq('id', user.id)
+    .maybeSingle();
+  const teamRole = memberRow?.type || 'employee';
+  const isLead = !!(user.is_lead_tech || memberRow?.is_lead_tech);
+  const seeAllJobs =
+    isLead ||
+    memberRow?.can_see_other_jobs === true ||
+    teamRole === 'owner' ||
+    teamRole === 'manager';
+  const contactCols = (isLead || teamRole === 'owner' || teamRole === 'manager')
+    ? ', client_name, client_phone, client_email'
+    : '';
+
+  // Step 1: Get job_assignments for this crew member (pending or accepted) or all for broad roles
   let assignmentQuery = supabase.from('job_assignments').select('job_id, status');
-  if (isLead) {
+  if (seeAllJobs) {
     assignmentQuery = assignmentQuery.eq('detailer_id', user.detailer_id);
   } else {
     assignmentQuery = assignmentQuery.eq('team_member_id', user.id).in('status', ['pending', 'accepted']);
   }
   const { data: assignments } = await assignmentQuery;
   const assignedJobIds = new Set((assignments || []).map(a => a.job_id).filter(Boolean));
-  console.log(`[crew/jobs] member=${user.id} is_lead=${isLead} assignments=${assignedJobIds.size}`);
+  console.log(`[crew/jobs] member=${user.id} role=${teamRole} seeAll=${seeAllJobs} is_lead=${isLead} assignments=${assignedJobIds.size}`);
 
   const jobs = [];
   const seenIds = new Set();
@@ -65,7 +81,7 @@ export async function GET(request) {
     } else {
       for (const q of quotesJobs || []) {
         // Regular crew: only show if assigned to this quote (or if no assignments exist for any job — backward compat)
-        if (!isLead && assignedJobIds.size > 0 && !assignedJobIds.has(q.id)) continue;
+        if (!seeAllJobs && assignedJobIds.size > 0 && !assignedJobIds.has(q.id)) continue;
         if (seenIds.has(q.id)) continue;
         seenIds.add(q.id);
         jobs.push(q);
@@ -83,7 +99,7 @@ export async function GET(request) {
         .select('id, customer_name, customer_email, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, schedule_override, created_at, completion_notes, progress_percentage')
         .in('status', ['scheduled', 'in_progress']);
 
-      if (assignedJobIds.size > 0 && !isLead) {
+      if (assignedJobIds.size > 0 && !seeAllJobs) {
         jobQuery = jobQuery.in('id', [...assignedJobIds]);
       } else {
         jobQuery = jobQuery.eq('detailer_id', user.detailer_id);
@@ -162,7 +178,7 @@ export async function GET(request) {
     };
 
     // Only include contact info for lead techs
-    if (user.is_lead_tech) {
+    if (isLead || teamRole === 'owner' || teamRole === 'manager') {
       result.client_name = job.client_name;
       result.client_phone = job.client_phone;
       result.client_email = job.client_email;

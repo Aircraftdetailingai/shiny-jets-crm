@@ -15,13 +15,17 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status') || 'pending_review';
 
-  const { data, error } = await supabase.from('change_order_requests')
+  let query = supabase.from('change_order_requests')
     .select('*')
     .eq('detailer_id', user.detailer_id || user.id)
-    .eq('status', status)
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(50);
 
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
+  }
+
+  const { data, error } = await query;
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ requests: data || [] });
 }

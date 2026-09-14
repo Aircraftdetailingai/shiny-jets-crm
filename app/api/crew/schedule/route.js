@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { getPermissionsForRole } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,10 @@ async function getCrewUser(request) {
   return payload;
 }
 
+function ymd(d) {
+  return d.toISOString().split('T')[0];
+}
+
 export async function GET(request) {
   const user = await getCrewUser(request);
   if (!user) {
@@ -21,62 +26,94 @@ export async function GET(request) {
 
   const supabase = getSupabase();
 
-  // Get detailer's visibility window
-  const { data: detailer } = await supabase
-    .from('detailers')
-    .select('crew_schedule_visibility_days')
-    .eq('id', user.detailer_id)
-    .single();
+  // Resolve team role + custom permission overrides (not the legacy
+  // detailers.crew_schedule_visibility_days which ignored Owner=unlimited).
+  const { data: member } = await supabase
+    .from('team_members')
+    .select('type, can_see_other_jobs, is_lead_tech')
+    .eq('id', user.id)
+    .maybeSingle();
 
-  const visibilityDays = detailer?.crew_schedule_visibility_days || 7;
+  const teamRole = member?.type || 'employee';
+  const { data: permsRow } = await supabase
+    .from('team_permissions')
+    .select('permissions')
+    .eq('detailer_id', user.detailer_id)
+    .maybeSingle();
+
+  const perms = getPermissionsForRole(teamRole, permsRow?.permissions || {});
+  let visibilityDays = perms.schedule_visibility_days;
+  if (visibilityDays === undefined || visibilityDays === null) visibilityDays = 7;
+
+  const seeAllJobs =
+    perms.can_view_team_schedule === true ||
+    member?.can_see_other_jobs === true ||
+    member?.is_lead_tech === true ||
+    user.is_lead_tech === true ||
+    teamRole === 'owner' ||
+    teamRole === 'manager';
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + visibilityDays);
+  const startStr = ymd(today);
 
-  // Get job assignments for this crew member
-  const { data: assignments, error: assignErr } = await supabase
-    .from('job_assignments')
-    .select('job_id')
-    .eq('team_member_id', user.id);
-
-  if (assignErr) {
-    console.error('[crew/schedule] Assignment query error:', assignErr);
-    return Response.json({ error: 'Failed to fetch schedule' }, { status: 500 });
+  // -1 = unlimited (no upper bound). 0 = today only.
+  let endStr = null;
+  if (visibilityDays >= 0) {
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + visibilityDays);
+    endStr = ymd(endDate);
   }
 
-  const jobIds = (assignments || []).map(a => a.job_id).filter(Boolean);
+  let jobIds = null;
+  if (!seeAllJobs) {
+    const { data: assignments, error: assignErr } = await supabase
+      .from('job_assignments')
+      .select('job_id')
+      .eq('team_member_id', user.id);
 
-  if (jobIds.length === 0) {
-    return Response.json({ jobs: [], visibility_days: visibilityDays });
+    if (assignErr) {
+      console.error('[crew/schedule] Assignment query error:', assignErr);
+      return Response.json({ error: 'Failed to fetch schedule' }, { status: 500 });
+    }
+
+    jobIds = (assignments || []).map(a => a.job_id).filter(Boolean);
+    if (jobIds.length === 0) {
+      return Response.json({ jobs: [], visibility_days: visibilityDays });
+    }
   }
 
-  // Fetch jobs from quotes table within date range
-  const { data: quoteJobs, error: quoteErr } = await supabase
+  // Quotes in visibility window
+  let quoteQuery = supabase
     .from('quotes')
     .select('id, aircraft_model, aircraft_type, airport, scheduled_date, status, notes, tail_number')
     .eq('detailer_id', user.detailer_id)
-    .in('id', jobIds)
-    .gte('scheduled_date', today.toISOString().split('T')[0])
-    .lte('scheduled_date', endDate.toISOString().split('T')[0])
+    .gte('scheduled_date', startStr)
     .in('status', ['accepted', 'paid', 'scheduled', 'in_progress'])
     .order('scheduled_date', { ascending: true });
 
+  if (endStr) quoteQuery = quoteQuery.lte('scheduled_date', endStr);
+  if (jobIds) quoteQuery = quoteQuery.in('id', jobIds);
+
+  const { data: quoteJobs, error: quoteErr } = await quoteQuery;
   if (quoteErr) {
     console.error('[crew/schedule] Quote query error:', quoteErr);
   }
 
-  // Also check jobs table
-  const { data: directJobs, error: jobErr } = await supabase
+  // Jobs table — no `title` / `aircraft_type` columns (those caused 42703 and
+  // emptied the schedule). Use aircraft_make + aircraft_model instead.
+  let jobQuery = supabase
     .from('jobs')
-    .select('id, title, aircraft_model, aircraft_type, airport, scheduled_date, status, notes, tail_number, scheduled_time')
+    .select('id, aircraft_make, aircraft_model, airport, scheduled_date, status, notes, tail_number, scheduled_time')
     .eq('detailer_id', user.detailer_id)
-    .in('id', jobIds)
-    .gte('scheduled_date', today.toISOString().split('T')[0])
-    .lte('scheduled_date', endDate.toISOString().split('T')[0])
+    .gte('scheduled_date', startStr)
+    .in('status', ['scheduled', 'in_progress', 'accepted', 'paid'])
     .order('scheduled_date', { ascending: true });
 
+  if (endStr) jobQuery = jobQuery.lte('scheduled_date', endStr);
+  if (jobIds) jobQuery = jobQuery.in('id', jobIds);
+
+  const { data: directJobs, error: jobErr } = await jobQuery;
   if (jobErr) {
     console.error('[crew/schedule] Jobs table query error:', jobErr);
   }
@@ -95,7 +132,7 @@ export async function GET(request) {
     })),
     ...(directJobs || []).map(j => ({
       id: j.id,
-      title: j.title || j.aircraft_model || j.aircraft_type || 'Job',
+      title: [j.aircraft_make, j.aircraft_model].filter(Boolean).join(' ') || j.aircraft_model || 'Job',
       aircraft_model: j.aircraft_model,
       tail_number: j.tail_number,
       airport: j.airport,

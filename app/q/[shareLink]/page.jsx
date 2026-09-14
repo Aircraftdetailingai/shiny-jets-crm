@@ -722,7 +722,7 @@ export default function QuoteViewPage() {
           {/* Services */}
           <div className="mb-8">
             <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
-            {(detailer?.quote_display_mode === 'package') ? (
+            {(detailer?.quote_display_mode === 'package' && !!(quote.selected_package_name || quote.selected_package_id)) ? (
               <div className="text-center py-4">
                 <p className="text-[var(--brand-text,#F5F5F5)] text-lg font-semibold">{detailer.quote_package_name || 'Aircraft Detail Package'}</p>
                 <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-bold mt-2">{sym}{formatPrice(quote.total_price)}</p>
@@ -979,7 +979,7 @@ export default function QuoteViewPage() {
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Services</p>
 
           {/* Display mode: package */}
-          {detailer?.quote_display_mode === 'package' && (
+          {detailer?.quote_display_mode === 'package' && !!(quote.selected_package_name || quote.selected_package_id) && (
             <div className="text-center py-4">
               <p className="text-[var(--brand-text,#F5F5F5)] text-lg font-semibold">{detailer.quote_package_name || 'Aircraft Detail Package'}</p>
               <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-bold mt-2">{sym}{formatPrice(servicesSubtotal)}</p>
@@ -1015,7 +1015,7 @@ export default function QuoteViewPage() {
           )}
 
           {/* Display mode: itemized (default) — preserves existing quote_display_preference logic */}
-          {(!detailer?.quote_display_mode || detailer?.quote_display_mode === 'itemized') && (
+          {((!detailer?.quote_display_mode || detailer?.quote_display_mode === 'itemized') || (detailer?.quote_display_mode === 'package' && !(quote.selected_package_name || quote.selected_package_id))) && (
             <>
               {/* Full breakdown */}
               {!quote.minimum_fee_applied && detailer?.quote_display_preference === 'full_breakdown' && services.length > 0 && (
@@ -1089,6 +1089,13 @@ export default function QuoteViewPage() {
                 <span className="text-[var(--brand-text-secondary,#8A9BB0)]">+{sym}{formatPrice(fee.calculated || fee.amount)}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {serviceFee > 0 && (
+          <div className="flex justify-between py-2 text-sm">
+            <span className="text-[var(--brand-text-secondary,#8A9BB0)]">Service fee</span>
+            <span className="text-[var(--brand-text-secondary,#8A9BB0)]">+{sym}{formatPrice(serviceFee)}</span>
           </div>
         )}
 

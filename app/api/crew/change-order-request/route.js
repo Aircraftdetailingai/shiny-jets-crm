@@ -45,7 +45,7 @@ export async function POST(request) {
       type: 'change_order_request',
       title: 'Change Order Request',
       message: `${user.name} reported an issue: ${description.slice(0, 100)}`,
-      link: '/dashboard',
+      link: '/change-orders',
       metadata: { change_order_request_id: data.id, job_id },
     });
   } catch {}
@@ -69,7 +69,7 @@ export async function POST(request) {
             <div style="background:#f5f5f5;padding:12px;border-radius:8px;margin:12px 0;">
               <p style="margin:0;">${description}</p>
             </div>
-            <a href="https://crm.shinyjets.com/dashboard" style="display:inline-block;background:#007CB1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">Review in Dashboard</a>
+            <a href="https://crm.shinyjets.com/change-orders" style="display:inline-block;background:#007CB1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">Review Change Order</a>
           </div>`,
         }),
       });

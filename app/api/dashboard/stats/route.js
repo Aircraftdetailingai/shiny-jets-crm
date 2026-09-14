@@ -66,7 +66,7 @@ export async function GET(request) {
       // All time stats
       supabase
         .from('quotes')
-        .select('id, total_price, status')
+        .select('id, total_price, status, created_at, paid_at, accepted_at, completed_at')
         .eq('detailer_id', user.detailer_id || user.id),
 
       // Pending quotes (sent but not accepted/paid)
@@ -143,11 +143,23 @@ export async function GET(request) {
     }
 
     // Calculate stats — include all revenue-generating statuses
-    const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
-    const weekPaidQuotes = weekQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
-    const monthPaidQuotes = monthQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
-    const monthCompletedQuotes = monthQuotes.filter(q => q.status === 'completed');
-    const allPaidQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
+    const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed', 'deposit_paid'];
+    const isRevenue = (q) => REVENUE_STATUSES.includes(q.status);
+    const weekPaidQuotes = weekQuotes.filter(isRevenue);
+    // Month revenue: prefer conversion timestamp (paid/accepted/completed) falling
+    // in this calendar month — not merely quotes *created* this month (which left
+    // live businesses at $0 when older quotes converted later).
+    const monthPaidQuotes = allQuotes.filter(q => {
+      if (!isRevenue(q)) return false;
+      const ts = q.paid_at || q.completed_at || q.accepted_at || q.created_at;
+      return ts && ts >= startOfMonth;
+    });
+    const monthCompletedQuotes = allQuotes.filter(q => {
+      if (q.status !== 'completed') return false;
+      const ts = q.completed_at || q.paid_at || q.created_at;
+      return ts && ts >= startOfMonth;
+    });
+    const allPaidQuotes = allQuotes.filter(isRevenue);
 
     const weekBooked = weekPaidQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
     const monthBooked = monthPaidQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
@@ -160,8 +172,32 @@ export async function GET(request) {
       ? allTimeBooked / allPaidQuotes.length
       : 0;
 
-    // Outstanding invoices (sent/viewed but unpaid)
-    const outstandingTotal = pendingQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
+    // Outstanding: prefer real invoices (sent/viewed/overdue), fall back to unpaid quotes
+    let outstandingInvoicesCount = pendingQuotes.length;
+    let outstandingTotal = pendingQuotes.reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
+    try {
+      const { data: invRows } = await supabase
+        .from('invoices')
+        .select('id, status, total, balance_due, job_id, quote_id')
+        .eq('detailer_id', user.detailer_id || user.id)
+        .not('status', 'eq', 'draft')
+        .not('status', 'eq', 'paid');
+      if (invRows && invRows.length > 0) {
+        // Deduplicate by job/quote like /api/invoices
+        const best = {};
+        const noJob = [];
+        for (const inv of invRows) {
+          const key = inv.job_id || inv.quote_id;
+          if (!key) { noJob.push(inv); continue; }
+          if (!best[key]) best[key] = inv;
+        }
+        const deduped = [...Object.values(best), ...noJob];
+        outstandingInvoicesCount = deduped.length;
+        outstandingTotal = deduped.reduce((sum, i) => sum + parseFloat(i.balance_due || i.total || 0), 0);
+      }
+    } catch (e) {
+      console.log('[dashboard] invoices outstanding fallback:', e?.message || e);
+    }
 
     // Average feedback rating
     const avgRating = feedbackData.length > 0
@@ -213,7 +249,7 @@ export async function GET(request) {
       pendingQuotes: pendingQuotes.length,
       avgJobValue: avgJobValue,
       todayScheduledJobs: todayJobs.length,
-      outstandingInvoices: pendingQuotes.length,
+      outstandingInvoices: outstandingInvoicesCount,
       outstandingTotal: outstandingTotal,
       avgRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
       totalReviews: totalReviews,
@@ -239,6 +275,7 @@ export async function GET(request) {
       allTime: {
         jobs: allPaidQuotes.length,
         booked: allTimeBooked,
+        bookedCount: allPaidQuotes.length,
         quotes: allQuotes.length,
       },
       tipsEnabled: detailer?.tips_enabled,

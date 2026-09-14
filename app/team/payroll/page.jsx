@@ -7,7 +7,8 @@ import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 function defaultDates() {
   const today = new Date();
   const end = today.toISOString().slice(0, 10);
-  const startD = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
+  // Default to ~90 days so seasonal / sparse crews are not greeted with $0.
+  const startD = new Date(today.getTime() - 89 * 24 * 60 * 60 * 1000);
   const start = startD.toISOString().slice(0, 10);
   return { start, end };
 }
@@ -33,6 +34,7 @@ export default function PayrollPage() {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed to load payroll');
       setData(d);
+      // keep suggested_range from API if present
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,7 +45,7 @@ export default function PayrollPage() {
   useEffect(() => {
     fetchPayroll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [startDate, endDate]);
 
   const handleApply = (e) => {
     e.preventDefault();
@@ -147,6 +149,35 @@ export default function PayrollPage() {
               <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">Crew Members</p>
               <p className="text-v-text-primary text-2xl font-bold mt-1">{data.members.length}</p>
             </div>
+          </div>
+        )}
+
+        
+        {!loading && data && (data.members || []).length === 0 && (
+          <div className="mb-6 border border-amber-500/30 bg-amber-500/5 rounded-xl p-4 text-sm">
+            <p className="text-amber-300 font-medium mb-1">No time entries in this range</p>
+            {data.suggested_range ? (
+              <>
+                <p className="text-v-text-secondary text-xs mb-3">
+                  Labor exists from {data.suggested_range.start_date} to {data.suggested_range.end_date}
+                  ({data.suggested_range.entry_count} entries
+                  {data.suggested_range.open_entries ? `, ${data.suggested_range.open_entries} still open` : ''}).
+                  Contractors at $0/hr are included when they have hours.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate(data.suggested_range.start_date);
+                    setEndDate(data.suggested_range.end_date);
+                  }}
+                  className="px-3 py-1.5 text-xs uppercase tracking-wider text-v-gold border border-v-gold/40 rounded hover:bg-v-gold/10"
+                >
+                  Expand to labor window
+                </button>
+              </>
+            ) : (
+              <p className="text-v-text-secondary text-xs">No closed time entries found for this team yet.</p>
+            )}
           </div>
         )}
 

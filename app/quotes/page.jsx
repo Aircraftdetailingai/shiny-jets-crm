@@ -1,4 +1,5 @@
 "use client";
+import { aircraftDisplayName, humanizeAircraftCategory } from '@/lib/aircraft-labels';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -422,7 +423,7 @@ export default function QuotesPage() {
       const res = await fetch('/api/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       if (!res.ok) { const data = await res.json(); alert(data.error || data.message || 'Failed to duplicate quote'); return; }
       const newQuote = await res.json();
-      setQuotes(prev => [{ ...newQuote, aircraft_name: newQuote.aircraft_model ? `${newQuote.aircraft_type || ''} ${newQuote.aircraft_model}`.trim() : newQuote.aircraft_type || 'Unknown Aircraft' }, ...prev]);
+      setQuotes(prev => [{ ...newQuote, aircraft_name: newQuote.aircraft_model ? `${humanizeAircraftCategory(newQuote.aircraft_type) || ''} ${newQuote.aircraft_model}`.trim() : (humanizeAircraftCategory(newQuote.aircraft_type) || 'Unknown Aircraft') }, ...prev]);
       setDuplicateModal(null);
       flashSaved('Duplicated');
     } catch (err) { alert('Failed to duplicate quote'); }
@@ -554,7 +555,7 @@ export default function QuotesPage() {
 
   // Helpers
   const getDisplayName = (q) => q.customer_company || q.client_name || 'No name';
-  const getAircraftLabel = (q) => q.aircraft_model || q.aircraft_type || '-';
+  const getAircraftLabel = (q) => aircraftDisplayName(q) || '-';
   const getServicesLabel = (q) => {
     const items = q.line_items || [];
     if (!items.length) return '-';

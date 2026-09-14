@@ -16,7 +16,7 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const today = new Date().toISOString().split('T')[0];
-  const defaultStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const defaultStart = new Date(Date.now() - 89 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const startDate = searchParams.get('start_date') || defaultStart;
   const endDate = searchParams.get('end_date') || today;
 
@@ -127,6 +127,27 @@ export async function GET(request) {
   const totalHours = payrollMembers.reduce((sum, m) => sum + m.total_hours, 0);
   const totalPay = payrollMembers.reduce((sum, m) => sum + m.total_pay, 0);
 
+
+  // If this window is empty, surface the nearest labor window so the UI can warn
+  // instead of looking like nobody worked.
+  let suggested_range = null;
+  if (entries.length === 0) {
+    const { data: anyEntries } = await supabase
+      .from('time_entries')
+      .select('date, hours_worked, clock_out')
+      .eq('detailer_id', detailerId)
+      .order('date', { ascending: true });
+    const dated = (anyEntries || []).filter(e => e.date);
+    if (dated.length) {
+      suggested_range = {
+        start_date: dated[0].date,
+        end_date: dated[dated.length - 1].date,
+        entry_count: dated.length,
+        open_entries: dated.filter(e => !e.clock_out).length,
+      };
+    }
+  }
+
   return Response.json({
     start_date: startDate,
     end_date: endDate,
@@ -134,5 +155,6 @@ export async function GET(request) {
     total_pay: Math.round(totalPay * 100) / 100,
     members: payrollMembers,
     entry_count: entries.length,
+    suggested_range,
   });
 }
