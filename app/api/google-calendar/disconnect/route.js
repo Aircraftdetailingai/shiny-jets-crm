@@ -1,11 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { env } from '@/lib/env';
 import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 function getSupabase() {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+  return createAdminClient();
 }
 
 export async function POST(request) {

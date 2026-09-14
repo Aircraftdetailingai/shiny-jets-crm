@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { getAuthUser, verifyToken } from '@/lib/auth';
 import { env } from '@/lib/env';
 
@@ -8,7 +8,7 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SETTINGS_URL = '/settings/connections';
 
 function getSupabase() {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+  return createAdminClient();
 }
 
 function redirectToConnections(origin, params) {

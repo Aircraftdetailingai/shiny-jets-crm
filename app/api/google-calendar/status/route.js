@@ -1,20 +1,22 @@
-import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { getAuthUser } from '@/lib/auth';
+import { createAdminClient } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
-
-function getSupabase() {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
-}
+export const revalidate = 0;
 
 export async function GET(request) {
   const user = await getAuthUser(request);
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) {
+    return Response.json({ error: 'Unauthorized' }, {
+      status: 401,
+      headers: { 'Cache-Control': 'private, no-store' },
+    });
+  }
 
   const configured = !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CALENDAR_REDIRECT_URI);
 
-  const supabase = getSupabase();
+  const supabase = createAdminClient();
 
   // Check OAuth connection.
   // The migration in 20260318_scheduling_integration.sql doesn't include
@@ -27,7 +29,8 @@ export async function GET(request) {
   let oauthConnected = false;
   let oauthData = null;
   let needsReconnect = false;
-  let cols = ['connected_at', 'last_sync_at', 'sync_enabled', 'push_enabled', 'calendar_id', 'google_email', 'calendars', 'refresh_token', 'token_expires_at', 'needs_reconnect', 'last_sync_error'];
+  let hasRefreshToken = false;
+  let cols = ['id', 'connected_at', 'last_sync_at', 'sync_enabled', 'push_enabled', 'calendar_id', 'google_email', 'calendars', 'refresh_token', 'token_expires_at', 'needs_reconnect', 'last_sync_error'];
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: conn, error } = await supabase
       .from('google_calendar_connections')
@@ -38,11 +41,11 @@ export async function GET(request) {
       if (conn) {
         oauthConnected = true;
         oauthData = conn;
-        const hasRefreshToken = !!conn.refresh_token;
-        // conn.needs_reconnect is set by the sync cron when Google actually
-        // rejects the token (revoked refresh_token / 401) — a case a mere
-        // refresh_token presence check can't detect.
-        needsReconnect = !!conn.needs_reconnect || !hasRefreshToken;
+        hasRefreshToken = !!conn.refresh_token;
+        // Prefer the explicit flag when present. Only infer reconnect from a
+        // missing refresh_token when that column was actually selected.
+        const selectedRefresh = cols.includes('refresh_token');
+        needsReconnect = !!conn.needs_reconnect || (selectedRefresh && !hasRefreshToken);
       }
       break;
     }
@@ -75,15 +78,23 @@ export async function GET(request) {
 
   console.log('[gcal-status]', {
     detailerId,
+    connectionId: oauthData?.id || null,
     oauthConnected,
     needsReconnect,
+    hasRefreshToken,
+    needs_reconnect_raw: oauthData?.needs_reconnect ?? null,
+    google_email: oauthData?.google_email || null,
+    connected_at: oauthData?.connected_at || null,
     method: oauthConnected ? 'oauth' : (icsUrl ? 'ics' : null),
   });
+
+  const headers = { 'Cache-Control': 'private, no-store' };
 
   if (oauthConnected) {
     return Response.json({
       connected: true,
       needsReconnect,
+      hasRefreshToken,
       method: 'oauth',
       configured,
       connected_at: oauthData.connected_at,
@@ -93,9 +104,10 @@ export async function GET(request) {
       calendar_id: oauthData.calendar_id,
       google_email: oauthData.google_email,
       calendars: oauthData.calendars,
+      last_sync_error: oauthData.last_sync_error || null,
       icsUrl,
       icsLastSync,
-    });
+    }, { headers });
   }
 
   return Response.json({
@@ -104,5 +116,5 @@ export async function GET(request) {
     configured,
     icsUrl,
     icsLastSync,
-  });
+  }, { headers });
 }
