@@ -28,12 +28,12 @@ export default function DeveloperPage() {
     }
   }, []);
 
-  if (allowed === null) return <div className="p-4 text-v-text-secondary text-sm">Loading…</div>;
-  if (!allowed) {
+  if (allowed === false) {
     if (typeof window !== 'undefined') router.replace('/login');
     return null;
   }
 
+  // Auth still resolving, or me fetch in flight — keep QR/embed sections visible with placeholders
   const appUrl = (typeof window !== 'undefined' ? window.location.origin : 'https://crm.shinyjets.com');
   const slug = me?.slug || slugify(me?.company) || me?.id || 'YOUR_SLUG';
   const plan = (me?.plan || 'free').toLowerCase();
@@ -41,7 +41,7 @@ export default function DeveloperPage() {
   const embedCode = `<iframe src="${appUrl}/request/${slug}?embed=1" width="100%" height="800" style="border:none;"></iframe>`;
   const qrPngUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(publicUrl)}`;
   const qrSvgUrl = `https://api.qrserver.com/v1/create-qr-code/?format=svg&size=400x400&data=${encodeURIComponent(publicUrl)}`;
-  const isBusiness = plan === 'business';
+  const hasApiAccess = plan === 'business' || plan === 'enterprise';
 
   const copy = async (text, k) => {
     try {
@@ -72,8 +72,11 @@ export default function DeveloperPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xs font-medium uppercase tracking-widest text-v-gold pb-2 border-b border-v-gold/20">Developer</h2>
+        <h2 className="text-xs font-medium uppercase tracking-widest text-v-gold pb-2 border-b border-v-gold/20">Developer · QR & Embed</h2>
         <p className="text-xs text-v-text-secondary mt-2">Public link, QR, embed, and API access for your account.</p>
+        {(allowed === null || !me) && (
+          <p className="text-[11px] text-v-text-secondary/70 mt-1">Loading account details…</p>
+        )}
       </div>
 
       {/* Section 1 — Public quote-request link */}
@@ -139,14 +142,14 @@ export default function DeveloperPage() {
       {/* Section 5 — API access (plan-gated) */}
       <section className="border border-v-border p-5 bg-v-surface">
         <h3 className="text-sm font-semibold text-v-text-primary mb-1">API access</h3>
-        {isBusiness ? (
+        {hasApiAccess ? (
           <>
             <p className="text-xs text-v-text-secondary mb-3">Issue an API key for programmatic access to your CRM data.</p>
             <p className="text-xs text-v-text-secondary/70">Key issuance ships in a follow-up — contact brett@shinyjets.com to request one now.</p>
           </>
         ) : (
           <>
-            <p className="text-xs text-v-text-secondary mb-3">API access is available on the Business plan.</p>
+            <p className="text-xs text-v-text-secondary mb-3">API access is available on the Business and Enterprise plans.</p>
             <a href="/settings/payments"
               className="inline-block px-4 py-2 bg-v-gold text-white text-xs uppercase tracking-wider hover:bg-v-gold-dim transition-colors">
               Upgrade to Business
