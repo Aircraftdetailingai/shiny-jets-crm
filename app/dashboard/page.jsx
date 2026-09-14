@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 import { useRouter } from 'next/navigation';
 import AppShell from '../../components/AppShell.jsx';
 import LoadingSpinner from '../../components/LoadingSpinner.jsx';
@@ -312,8 +313,11 @@ function DashboardContent() {
     return Date.now() - new Date(sentAt).getTime() > 24 * 60 * 60 * 1000;
   });
 
-  const conversionRate = quickStats?.allTime && (quickStats.allTime.quotes || 0) > 0
-    ? `${Math.round(((quickStats.allTime.booked || 0) / quickStats.allTime.quotes) * 100)}%`
+  // Conversion = booked jobs / all quotes (count), NOT dollar volume / quotes.
+  const bookedCount = quickStats?.allTime?.bookedCount ?? quickStats?.allTime?.jobs ?? 0;
+  const quoteCount = quickStats?.allTime?.quotes || 0;
+  const conversionRate = quoteCount > 0
+    ? `${Math.round((bookedCount / quoteCount) * 100)}%`
     : '--';
 
   return (
@@ -410,9 +414,9 @@ function DashboardContent() {
         <div className="mt-10">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-10 gap-y-8">
             {[
-              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthRevenue || 0).toLocaleString()}`, sub: 'This Month' },
-              { label: 'Conversion', value: conversionRate, sub: quickStats?.allTime ? `${quickStats.allTime.booked || 0} of ${quickStats.allTime.quotes || 0}` : '' },
-              { label: 'Outstanding', value: `${quickStats?.outstandingInvoices || 0}`, sub: `${currencySymbol()}${(quickStats?.outstandingTotal || 0).toLocaleString()}`, danger: true },
+              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'This Month' },
+              { label: 'Conversion', value: conversionRate, sub: quoteCount ? `${bookedCount} of ${quoteCount}` : '' },
+              { label: 'Outstanding', value: `${quickStats?.outstandingInvoices || 0}`, sub: `${currencySymbol()}${(quickStats?.outstandingTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, danger: true },
               { label: 'Avg Job', value: `${currencySymbol()}${formatPriceWhole(quickStats?.avgJobValue)}` },
               { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This Month' },
             ].map((kpi) => (
@@ -726,7 +730,7 @@ function DashboardContent() {
                 <a key={q.id} href={q.share_link ? `/q/${q.share_link}` : '/quotes'}
                   className="flex items-center justify-between h-14 border-b border-v-border-subtle hover:bg-white/[0.02] transition-colors -mx-2 px-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-v-text-primary truncate">{q.aircraft_name || q.aircraft_model || 'Aircraft'}</p>
+                    <p className="text-sm text-v-text-primary truncate">{aircraftDisplayName(q)}</p>
                     <p className="text-xs text-v-text-secondary/60 truncate">{q.customer_name || q.customer_email || ''}</p>
                   </div>
                   <div className="flex items-center gap-4 ml-3 flex-shrink-0">

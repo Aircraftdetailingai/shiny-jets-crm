@@ -14,6 +14,8 @@ export default function TeamMemberPage() {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [showPin, setShowPin] = useState(false);
+  const [pinRevealedAt, setPinRevealedAt] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [entryForm, setEntryForm] = useState({
@@ -373,13 +375,21 @@ export default function TeamMemberPage() {
             </div>
             <div>
               <label className="block text-sm text-v-text-secondary mb-1">PIN Code</label>
-              <input
-                type="text"
-                maxLength={6}
-                value={editForm.pin_code || ''}
-                onChange={e => setEditForm({ ...editForm, pin_code: e.target.value })}
-                className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
-              />
+              <div className="flex gap-2">
+                <input
+                  type={showPin ? 'text' : 'password'}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={6}
+                  value={editForm.pin_code || ''}
+                  onChange={e => setEditForm({ ...editForm, pin_code: e.target.value })}
+                  className="w-full px-3 py-2 border border-v-border rounded-lg focus:ring-2 focus:ring-v-gold outline-none"
+                />
+                <button type="button" onClick={() => setShowPin(v => !v)}
+                  className="px-3 text-[10px] uppercase tracking-wider text-v-gold border border-v-border rounded-lg whitespace-nowrap">
+                  {showPin ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm text-v-text-secondary mb-1">{'Status'}</label>
@@ -486,7 +496,36 @@ export default function TeamMemberPage() {
             </div>
             <div>
               <p className="text-sm text-v-text-secondary">PIN Code</p>
-              <p className="text-v-text-primary">{member.pin_code || 'Not set'}</p>
+              <div className="flex items-center gap-3">
+                <p className="text-v-text-primary font-mono tracking-widest">
+                  {member.pin_code
+                    ? (showPin ? member.pin_code : '•'.repeat(Math.max(4, String(member.pin_code).length)))
+                    : 'Not set'}
+                </p>
+                {member.pin_code && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !showPin;
+                      setShowPin(next);
+                      if (next) {
+                        setPinRevealedAt(new Date().toISOString());
+                        // Soft audit trail — never log the PIN itself
+                        console.info('[security] crew PIN revealed on team profile', {
+                          team_member_id: member.id,
+                          at: new Date().toISOString(),
+                        });
+                      }
+                    }}
+                    className="text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim"
+                  >
+                    {showPin ? 'Hide' : 'Reveal'}
+                  </button>
+                )}
+              </div>
+              {showPin && pinRevealedAt && (
+                <p className="text-[10px] text-v-text-secondary/60 mt-1">Visible — hide when done. Rotate if this PIN was exposed.</p>
+              )}
             </div>
             <div>
               <p className="text-sm text-v-text-secondary">{'Status'}</p>
