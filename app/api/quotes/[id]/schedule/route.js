@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
     // Fetch quote with share_link verification
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
-      .select('id, detailer_id, total_price, aircraft_model, aircraft_type, status, client_name, client_email, client_phone, share_link, airport, scheduled_date')
+      .select('id, detailer_id, total_price, aircraft_model, aircraft_type, status, client_name, client_email, client_phone, share_link, airport, scheduled_date, available_dates, metadata, customer_selected_date')
       .eq('id', id)
       .eq('share_link', shareLink)
       .single();
@@ -36,42 +36,58 @@ export async function POST(request, { params }) {
       return Response.json({ error: 'This quote is already scheduled' }, { status: 400 });
     }
 
-    const schedulableStatuses = ['paid', 'approved', 'accepted'];
+    const schedulableStatuses = ['paid', 'approved', 'accepted', 'deposit_paid'];
     if (!schedulableStatuses.includes(quote.status)) {
       return Response.json({ error: 'Quote must be paid or accepted before scheduling' }, { status: 400 });
     }
 
-    // Validate date is available
     const { data: detailer } = await supabase
       .from('detailers')
       .select('id, name, email, phone, company, availability, fcm_token, preferred_currency, logo_url, font_heading, font_body, font_embed_url')
       .eq('id', quote.detailer_id)
       .single();
 
+    const fromCol = Array.isArray(quote.available_dates) ? quote.available_dates : [];
+    const fromMeta = Array.isArray(quote.metadata?.available_dates) ? quote.metadata.available_dates : [];
+    const offered = (fromCol.length ? fromCol : fromMeta)
+      .map(d => (typeof d === 'string' ? d : d?.date))
+      .filter(Boolean);
+
     const availability = detailer?.availability;
-    if (!availability || !availability.weeklySchedule) {
-      return Response.json({ error: 'Scheduling is not available' }, { status: 400 });
+    let scheduledDateTime;
+
+    if (offered.length > 0) {
+      // Quote-attached offered dates take precedence — do not invent beyond them
+      if (!offered.includes(scheduledDate)) {
+        return Response.json({ error: 'Selected date is not one of the offered options' }, { status: 400 });
+      }
+      const startTime = availability?.weeklySchedule?.[String(new Date(scheduledDate + 'T12:00:00').getDay())]?.start || '08:00';
+      scheduledDateTime = new Date(`${scheduledDate}T${startTime}:00`).toISOString();
+    } else {
+      if (!availability || !availability.weeklySchedule) {
+        return Response.json({ error: 'Scheduling is not available' }, { status: 400 });
+      }
+
+      const selectedDate = new Date(scheduledDate + 'T12:00:00');
+      const dow = selectedDate.getDay();
+      const daySchedule = availability.weeklySchedule[String(dow)];
+
+      if (!daySchedule) {
+        return Response.json({ error: 'Selected day is not a working day' }, { status: 400 });
+      }
+
+      const blockedSet = new Set(availability.blockedDates || []);
+      if (blockedSet.has(scheduledDate)) {
+        return Response.json({ error: 'Selected date is blocked' }, { status: 400 });
+      }
+
+      scheduledDateTime = new Date(`${scheduledDate}T${daySchedule.start}:00`).toISOString();
     }
-
-    const selectedDate = new Date(scheduledDate + 'T12:00:00');
-    const dow = selectedDate.getDay();
-    const daySchedule = availability.weeklySchedule[String(dow)];
-
-    if (!daySchedule) {
-      return Response.json({ error: 'Selected day is not a working day' }, { status: 400 });
-    }
-
-    const blockedSet = new Set(availability.blockedDates || []);
-    if (blockedSet.has(scheduledDate)) {
-      return Response.json({ error: 'Selected date is blocked' }, { status: 400 });
-    }
-
-    // Build scheduled_date timestamp using the day's start time
-    const scheduledDateTime = new Date(`${scheduledDate}T${daySchedule.start}:00`).toISOString();
 
     // Update quote with scheduling info (column-stripping retry)
     let updateFields = {
       scheduled_date: scheduledDateTime,
+      customer_selected_date: scheduledDate,
       time_preference: timePreference || null,
       scheduling_notes: schedulingNotes || null,
       status: 'scheduled',

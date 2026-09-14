@@ -194,6 +194,7 @@ export async function POST(request) {
       tail_number,
       proposed_date,
       proposed_time,
+      available_dates,
       product_estimates,
       poc_name,
       poc_phone,
@@ -293,6 +294,7 @@ export async function POST(request) {
       discount_percent: discount_percent || 0,
       addon_fees: addon_fees || [],
       addon_total: addon_total || 0,
+      available_dates: Array.isArray(available_dates) ? available_dates : [],
     };
 
     // Build insert row - start with core columns that definitely exist
@@ -340,6 +342,7 @@ export async function POST(request) {
       tail_number: tail_number || null,
       proposed_date: proposed_date || null,
       proposed_time: proposed_time || null,
+      available_dates: Array.isArray(available_dates) ? available_dates : [],
       product_estimates: product_estimates || [],
       linked_products: linked_products || [],
       linked_equipment: linked_equipment || [],
