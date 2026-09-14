@@ -21,6 +21,16 @@ Hard rules:
 - No customer-facing SMS, Podium, or portal talk — this assistant is for CRM staff only.
 - Never auto-send quotes. You only suggest draft line items for the owner to review in the quote wizard.
 
+Manual interpretation (U-turn rule):
+- If the manual says you cannot do it, do not do it. If it does NOT say you cannot, you can.
+- OEM manuals recommend materials/procedures; they often do not forbid better modern alternatives (e.g. terry towel recommended → clean microfiber allowed unless prohibited).
+- Still obey every explicit prohibition. Still stop for structural/certified repair beyond detailing.
+
+Aircraft manuals:
+- When the user names an aircraft make/model, prefer knowledge excerpts from aircraft/<slug>.md and matching manuals/ extracts for that type before generic tips.
+- Separate "OEM recommends X" from "OEM forbids Y" in your answer.
+- Reminder: Detailing AI guidance is advisory only — not a substitute for OEM AMM/PIM/POH or A&P/IA judgment; user assumes risk (see policy/terms-hold-harmless).
+
 Response style:
 - Short paragraphs or tight bullets.
 - Lead with the likely diagnosis, then clarifying questions, then recommended service path.
@@ -75,6 +85,39 @@ const KNOWLEDGE_NEEDLES = [
   'clearcoat',
   'pitot',
   'sop',
+  'manual',
+  'poh',
+  'pim',
+  'amm',
+  'microfiber',
+  'terry',
+  'solvent',
+  'soap',
+  'corrosion',
+  'plexiglass',
+  'plexiglas',
+  'aluminum',
+  'exterior',
+  'cloth',
+  'chamois',
+  'prohibited',
+  'beechcraft',
+  'baron',
+  'bonanza',
+  'cessna',
+  'skyhawk',
+  'citation',
+  'hawker',
+  'king air',
+  'gulfstream',
+  'embraer',
+  'phenom',
+  'pilatus',
+  'piper',
+  'bell',
+  'helicopter',
+  'hold-harmless',
+  'policy',
 ];
 
 async function collectMarkdownFiles(dir, relative = '') {
@@ -112,6 +155,22 @@ async function loadKnowledgeStub(userMessage) {
       if (rel.includes('sops') && (lower.includes('sop') || lower.includes('procedure'))) {
         score += 3;
       }
+      if (rel.includes('manuals/') || rel.includes('policy/')) {
+        score += 2;
+      }
+      if (rel.includes('aircraft/') || rel.includes('type-class/')) {
+        score += 2;
+      }
+      // Boost exact aircraft profile when make/model tokens appear in the user message
+      if (rel.startsWith('aircraft/')) {
+        const tokens = rel.replace(/^aircraft\//, '').replace(/\.md$/, '').split('-').filter((t) => t.length > 2);
+        let hits = 0;
+        for (const t of tokens) {
+          if (lower.includes(t)) hits += 1;
+        }
+        if (hits >= 2) score += 8;
+        else if (hits === 1) score += 3;
+      }
       const hay = text.toLowerCase();
       for (const n of KNOWLEDGE_NEEDLES) {
         if (lower.includes(n) && hay.includes(n)) score += 1;
@@ -120,12 +179,15 @@ async function loadKnowledgeStub(userMessage) {
     }
 
     scored.sort((a, b) => b.score - a.score);
-    const top = scored.filter((s) => s.score > 0).slice(0, 4);
+    const top = scored.filter((s) => s.score > 0).slice(0, 6);
     const chosen = top.length > 0 ? top : scored.slice(0, 2);
 
     const excerpts = chosen
       .map((c) => {
-        const cap = c.file.includes('sops/') ? 5500 : 3500;
+        let cap = 3500;
+        if (c.file.includes('sops/') || c.file.includes('aircraft/') || c.file.includes('manuals/') || c.file.includes('policy/')) {
+          cap = 5500;
+        }
         return `### ${c.file}\n${c.text.slice(0, cap)}`;
       })
       .join('\n\n');
