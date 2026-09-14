@@ -12,9 +12,10 @@ export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const tokenData = await getValidAccessToken(user.id);
+  const detailerId = user.detailer_id || user.id;
+  const tokenData = await getValidAccessToken(detailerId);
   if (!tokenData) {
-    return Response.json({ error: 'Google Calendar not connected' }, { status: 400 });
+    return Response.json({ error: 'Google Calendar not connected — reconnect required', reconnect: true }, { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -23,7 +24,7 @@ export async function POST(request) {
   const { data: conn } = await supabase
     .from('google_calendar_connections')
     .select('sync_token')
-    .eq('detailer_id', user.detailer_id || user.id)
+    .eq('detailer_id', detailerId)
     .single();
 
   // Sync window: 30 days back, 90 days forward
@@ -51,7 +52,7 @@ export async function POST(request) {
       await supabase
         .from('google_calendar_events')
         .delete()
-        .eq('detailer_id', user.detailer_id || user.id);
+        .eq('detailer_id', detailerId);
     }
 
     const events = result.items || [];
@@ -64,7 +65,7 @@ export async function POST(request) {
         await supabase
           .from('google_calendar_events')
           .delete()
-          .eq('detailer_id', user.detailer_id || user.id)
+          .eq('detailer_id', detailerId)
           .eq('google_event_id', event.id);
         deleted++;
         continue;
@@ -80,7 +81,7 @@ export async function POST(request) {
       await supabase
         .from('google_calendar_events')
         .upsert({
-          detailer_id: user.detailer_id || user.id,
+          detailer_id: detailerId,
           google_event_id: event.id,
           summary: event.summary || '(No title)',
           description: event.description || null,
@@ -100,10 +101,12 @@ export async function POST(request) {
       updates.sync_token = result.nextSyncToken;
     }
 
+    updates.needs_reconnect = false;
+    updates.last_sync_error = null;
     await supabase
       .from('google_calendar_connections')
       .update(updates)
-      .eq('detailer_id', user.detailer_id || user.id);
+      .eq('detailer_id', detailerId);
 
     return Response.json({ success: true, synced, deleted });
   } catch (err) {
