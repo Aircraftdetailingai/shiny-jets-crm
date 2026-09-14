@@ -72,6 +72,13 @@ export async function GET(request) {
     }
   } catch {}
 
+  console.log('[gcal-status]', {
+    detailerId,
+    oauthConnected,
+    needsReconnect,
+    method: oauthConnected ? 'oauth' : (icsUrl ? 'ics' : null),
+  });
+
   if (oauthConnected) {
     return Response.json({
       connected: true,

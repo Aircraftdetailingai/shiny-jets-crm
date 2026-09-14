@@ -34,6 +34,12 @@ export async function POST(request) {
       .maybeSingle();
     refreshToken = existing?.refresh_token || null;
   }
+  if (!refreshToken) {
+    console.warn('[gcal-save-oauth] missing refresh_token', { detailerId });
+    return Response.json({
+      error: 'No refresh token available. Re-authorize Google Calendar with offline access (prompt=consent).',
+    }, { status: 400 });
+  }
 
   // Upsert connection — clear reconnect flag so UI stops prompting immediately
   const { error: dbError } = await supabase
@@ -51,7 +57,7 @@ export async function POST(request) {
     }, { onConflict: 'detailer_id' });
 
   if (dbError) {
-    console.error('Failed to save Google Calendar connection:', dbError);
+    console.error('[gcal-save-oauth] upsert failed:', { message: dbError.message, code: dbError.code || null, detailerId });
     // Try without optional columns
     const { error: retryError } = await supabase
       .from('google_calendar_connections')
@@ -66,9 +72,11 @@ export async function POST(request) {
       }, { onConflict: 'detailer_id' });
 
     if (retryError) {
+      console.error('[gcal-save-oauth] retry upsert failed:', { message: retryError.message, code: retryError.code || null, detailerId });
       return Response.json({ error: 'Failed to save: ' + retryError.message }, { status: 500 });
     }
   }
 
+  console.log('[gcal-save-oauth] connection saved', { detailerId, calendars: calendars?.length || 0, has_refresh: !!refreshToken, email: email || null });
   return Response.json({ success: true, calendars: calendars?.length || 0 });
 }

@@ -85,7 +85,7 @@ export default function GoogleCalendarCallbackPage() {
       }
 
       // Success — redirect to integrations
-      window.location.href = '/settings/integrations?gcal=success';
+      window.location.href = '/settings/connections?gcal=success';
     } catch (err) {
       fail(err.message);
     }
@@ -94,7 +94,7 @@ export default function GoogleCalendarCallbackPage() {
   function fail(msg) {
     setError(msg);
     setTimeout(() => {
-      window.location.href = '/settings/integrations?gcal=error&message=' + encodeURIComponent(msg);
+      window.location.href = '/settings/connections?gcal=error&message=' + encodeURIComponent(msg);
     }, 2000);
   }
 
