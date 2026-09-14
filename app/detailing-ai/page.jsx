@@ -11,6 +11,41 @@ const STARTERS = [
   'Ceramic from another shop stopped beading after 6 months. Next steps?',
 ];
 
+function buildPrefillFromSuggestions(suggestions, diagnosisText) {
+  const services = Array.isArray(suggestions?.services) ? suggestions.services : [];
+  const matchedIds = services.map((s) => s.service_id).filter(Boolean);
+  const names = services.map((s) => s.name).filter(Boolean);
+  const customHours = {};
+  for (const s of services) {
+    if (s.service_id && s.hours != null && !Number.isNaN(Number(s.hours))) {
+      customHours[s.service_id] = Number(s.hours);
+    }
+  }
+
+  const lineNotes = services
+    .filter((s) => s.notes)
+    .map((s) => `${s.name}: ${s.notes}`)
+    .join('\n');
+
+  const notesParts = [];
+  if (suggestions?.notes) notesParts.push(suggestions.notes);
+  if (lineNotes) notesParts.push(lineNotes);
+  if (diagnosisText) {
+    const clipped = diagnosisText.length > 1200 ? `${diagnosisText.slice(0, 1200)}…` : diagnosisText;
+    notesParts.push(`— Detailing AI diagnosis —\n${clipped}`);
+  }
+
+  return {
+    source: 'detailing-ai',
+    aircraft: suggestions?.aircraft || '',
+    service: names.join(', '),
+    selected_services: matchedIds,
+    custom_hours: Object.keys(customHours).length ? customHours : undefined,
+    notes: notesParts.filter(Boolean).join('\n\n'),
+    timestamp: Date.now(),
+  };
+}
+
 export default function DetailingAiPage() {
   const router = useRouter();
   const [messages, setMessages] = useState([
@@ -23,6 +58,7 @@ export default function DetailingAiPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [creatingDraft, setCreatingDraft] = useState(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -70,7 +106,11 @@ export default function DetailingAiPage() {
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: data.reply || 'No response from Detailing AI.' },
+          {
+            role: 'assistant',
+            content: data.reply || 'No response from Detailing AI.',
+            suggestions: data.suggestions || null,
+          },
         ]);
       }
     } catch (err) {
@@ -82,6 +122,20 @@ export default function DetailingAiPage() {
     } finally {
       setLoading(false);
       inputRef.current?.focus();
+    }
+  };
+
+  const createQuoteDraft = (messageIndex) => {
+    const msg = messages[messageIndex];
+    if (!msg?.suggestions?.services?.length) return;
+    setCreatingDraft(messageIndex);
+    try {
+      const prefill = buildPrefillFromSuggestions(msg.suggestions, msg.content);
+      localStorage.setItem('quote_prefill', JSON.stringify(prefill));
+      router.push('/quotes/new');
+    } catch (err) {
+      setError(err.message || 'Could not open quote draft');
+      setCreatingDraft(null);
     }
   };
 
@@ -99,6 +153,7 @@ export default function DetailingAiPage() {
           </h2>
           <p className="text-sm text-v-text-secondary mt-1">
             Aircraft detailing diagnosis for your shop — exterior, interior, brightwork, ceramic.
+            Suggested services can open a draft quote (never auto-sent).
           </p>
         </div>
 
@@ -119,6 +174,49 @@ export default function DetailingAiPage() {
                   <p className="text-[10px] uppercase tracking-widest text-v-gold mb-1.5">Detailing AI</p>
                 )}
                 {m.content}
+
+                {m.role === 'assistant' && m.suggestions?.services?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-v-border-subtle space-y-2 whitespace-normal">
+                    <p className="text-[10px] uppercase tracking-widest text-v-text-secondary">
+                      Suggested quote lines
+                    </p>
+                    <ul className="space-y-1.5">
+                      {m.suggestions.services.map((s, si) => (
+                        <li
+                          key={`${s.name}-${si}`}
+                          className="flex items-start justify-between gap-3 text-xs text-v-text-primary"
+                        >
+                          <span>
+                            <span className="font-medium">{s.name}</span>
+                            {!s.matched && (
+                              <span className="ml-1.5 text-v-text-secondary">(name match in wizard)</span>
+                            )}
+                            {s.notes ? (
+                              <span className="block text-v-text-secondary mt-0.5">{s.notes}</span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0 text-v-gold tabular-nums">
+                            {s.hours != null ? `${Number(s.hours).toFixed(1)}h` : '—'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {m.suggestions.notes && (
+                      <p className="text-xs text-v-text-secondary">{m.suggestions.notes}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => createQuoteDraft(i)}
+                      disabled={creatingDraft === i}
+                      className="mt-1 inline-flex items-center px-3 py-2 rounded-lg bg-v-gold text-v-charcoal text-[11px] font-semibold uppercase tracking-wider hover:brightness-110 disabled:opacity-50 transition"
+                    >
+                      {creatingDraft === i ? 'Opening…' : 'Create quote draft'}
+                    </button>
+                    <p className="text-[10px] text-v-text-secondary">
+                      Opens /quotes/new prefilled — draft only, nothing is sent.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
