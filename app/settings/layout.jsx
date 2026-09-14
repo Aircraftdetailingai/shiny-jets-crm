@@ -31,14 +31,22 @@ function TerminalIcon() {
 
 const BUCKETS = [
   { href: '/settings/business', label: 'Business Info', Icon: BuildingIcon },
+  // Near top so QR/embed is never clipped below the fold on short viewports
+  { href: '/settings/developer', label: 'Developer · QR & Embed', Icon: TerminalIcon },
   { href: '/settings/payments', label: 'Payments & Billing', Icon: CreditCardIcon },
   { href: '/settings/services', label: 'Services & Pricing', Icon: WrenchIcon },
   { href: '/settings/intake-flow', label: 'Intake Flow', Icon: GitBranchIcon },
   { href: '/settings/automations', label: 'Automations', Icon: ZapIcon },
   { href: '/settings/connections', label: 'Connections', Icon: PlugIcon },
   { href: '/settings/team-access', label: 'Team & Access', Icon: UsersIcon },
-  { href: '/settings/developer', label: 'Developer', Icon: TerminalIcon },
 ];
+
+function isBucketActive(pathname, bucket) {
+  if (pathname === bucket.href || pathname.startsWith(bucket.href + '/')) return true;
+  // Old /settings/embed bookmarks map to Developer
+  if (bucket.href === '/settings/developer' && pathname.startsWith('/settings/embed')) return true;
+  return false;
+}
 
 export default function SettingsLayout({ children }) {
   const pathname = usePathname();
@@ -54,14 +62,14 @@ export default function SettingsLayout({ children }) {
 
   const visibleBuckets = BUCKETS.filter(b => !b.adminOnly || isAdmin);
   const activeBucket =
-    visibleBuckets.find(b => pathname === b.href || pathname.startsWith(b.href + '/'))
+    visibleBuckets.find(b => isBucketActive(pathname, b))
       ?? visibleBuckets[0];
 
   return (
     <div className="min-h-screen bg-v-charcoal">
       <PlanSyncMount />
       {/* Header */}
-      <header className="text-white flex items-center p-4 space-x-2">
+      <header className="text-v-text-primary flex items-center p-4 space-x-2">
         <a href="/dashboard" className="text-2xl">&#8592;</a>
         <h1 className="text-2xl font-bold">Settings</h1>
       </header>
@@ -80,9 +88,9 @@ export default function SettingsLayout({ children }) {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 px-4 pb-4">
-        {/* Sticky sub-nav (md+) */}
+        {/* Sticky sub-nav (md+) — scrollable so last items are never clipped */}
         <nav className="hidden md:block w-56 flex-shrink-0">
-          <div className="sticky top-4 bg-white/10 rounded-lg p-2 space-y-1">
+          <div className="sticky top-4 max-h-[calc(100vh-5rem)] overflow-y-auto bg-white/10 rounded-lg p-2 space-y-1">
             {visibleBuckets.map((bucket) => {
               const isActive = bucket === activeBucket;
               const Icon = bucket.Icon;
@@ -93,7 +101,7 @@ export default function SettingsLayout({ children }) {
                   className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-v-gold text-white'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      : 'text-v-text-primary/70 hover:bg-white/10 hover:text-v-text-primary'
                   }`}
                 >
                   <Icon />
