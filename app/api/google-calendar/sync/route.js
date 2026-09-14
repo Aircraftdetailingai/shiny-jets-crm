@@ -1,12 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
-import { env } from '@/lib/env';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { getAuthUser } from '@/lib/auth';
 import { getValidAccessToken, fetchCalendarEvents } from '@/lib/google-calendar';
 
 export const dynamic = 'force-dynamic';
 
 function getSupabase() {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+  return createAdminClient();
 }
 
 export async function POST(request) {
@@ -15,8 +14,9 @@ export async function POST(request) {
 
   const detailerId = user.detailer_id || user.id;
   const tokenData = await getValidAccessToken(detailerId);
-  if (!tokenData) {
-    return Response.json({ error: 'Google Calendar not connected — reconnect required', reconnect: true }, { status: 400 });
+  if (!tokenData?.accessToken) {
+    const authFail = !tokenData || tokenData.refreshError === 'missing_refresh_token' || /invalid_grant|401|unauthorized/i.test(tokenData.refreshError || '');
+    return Response.json({ error: 'Google Calendar not connected — reconnect required', reconnect: !!authFail, refreshError: tokenData?.refreshError || null }, { status: 400 });
   }
 
   const supabase = getSupabase();

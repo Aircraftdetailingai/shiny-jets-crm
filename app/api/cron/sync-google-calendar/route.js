@@ -1,11 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
 import { getValidAccessToken, fetchCalendarEvents } from '@/lib/google-calendar';
+import { createAdminClient } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
+  // Use trimmed env + cache:'no-store' — raw process.env.SUPABASE_URL on
+  // Vercel currently has a trailing newline, and uncached reads prevent
+  // stale needs_reconnect decisions.
+  return createAdminClient();
 }
 
 // Update a connection row, dropping columns the current schema doesn't have
@@ -75,14 +78,25 @@ export async function GET(request) {
       try {
         // Get valid access token (refreshes if expired)
         const tokenData = await getValidAccessToken(conn.detailer_id);
-        if (!tokenData) {
-          console.warn(`[gcal-sync] Skipping ${conn.detailer_id}: token expired/revoked or missing refresh_token — user must reconnect`);
+        if (!tokenData?.accessToken) {
+          const refreshErr = tokenData?.refreshError || 'token_refresh_failed';
+          console.warn(`[gcal-sync] Skipping ${conn.detailer_id}: ${refreshErr}`);
           results.skipped++;
-          results.errors.push(`${conn.detailer_id}: skipped — token refresh failed, reconnect required`);
-          await updateConnection(supabase, conn.detailer_id, {
-            needs_reconnect: true,
-            last_sync_error: 'Token refresh failed — reconnect Google Calendar',
-          });
+          results.errors.push(`${conn.detailer_id}: skipped — ${refreshErr}`);
+          // Only prompt reconnect for missing refresh_token or Google auth
+          // rejection (invalid_grant / 401). Transient network errors leave
+          // needs_reconnect untouched so a repaired connection is not flipped
+          // back to RECONNECT REQUIRED by one bad cron tick.
+          if (refreshErr === 'missing_refresh_token' || isAuthError(refreshErr)) {
+            await updateConnection(supabase, conn.detailer_id, {
+              needs_reconnect: true,
+              last_sync_error: String(refreshErr).slice(0, 300),
+            });
+          } else {
+            await updateConnection(supabase, conn.detailer_id, {
+              last_sync_error: `Token refresh failed (will retry): ${String(refreshErr).slice(0, 200)}`,
+            });
+          }
           continue;
         }
 
