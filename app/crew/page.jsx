@@ -347,6 +347,24 @@ export default function CrewDashboard() {
     return () => clearInterval(interval);
   }, [clockStatus]);
 
+
+  // Service lines from /api/crew/jobs are objects {description, hours, ...}.
+  // Never render the raw object (React #31). Always coerce to a display string.
+  const serviceLabel = (svc) => {
+    if (svc == null) return '';
+    if (typeof svc === 'string' || typeof svc === 'number') return String(svc);
+    if (typeof svc === 'object') {
+      const raw = svc.description ?? svc.name ?? svc.service_name ?? svc.service_type ?? svc.label;
+      if (raw != null && typeof raw !== 'object') return String(raw);
+      if (raw != null && typeof raw === 'object') {
+        const nested = raw.description ?? raw.name ?? raw.label;
+        if (nested != null && typeof nested !== 'object') return String(nested);
+      }
+      return 'Service';
+    }
+    return String(svc);
+  };
+
   // Clock in/out/switch — action takes optional job object
   const handleClock = async (action, job = null, serviceType = null, opts = {}) => {
     setClockLoading(true);
@@ -358,7 +376,11 @@ export default function CrewDashboard() {
       if (job._source === 'jobs_table') body.job_id = job.id;
       else body.quote_id = job.id;
     }
-    if (serviceType) body.service_type = serviceType;
+    if (serviceType) {
+      body.service_type = typeof serviceType === 'string'
+        ? serviceType
+        : (serviceLabel(serviceType) || null);
+    }
     if (opts.override) body.override = true;
     const data = await API('/api/crew/clock', token, {
       method: 'POST',
@@ -950,7 +972,7 @@ export default function CrewDashboard() {
                   <div className="mt-2 flex flex-wrap gap-1">
                     {job.services.map((s, i) => (
                       <span key={i} className="bg-white/10 text-white/70 text-xs px-2 py-0.5 rounded">
-                        {s.description}
+                        {serviceLabel(s)}
                       </span>
                     ))}
                   </div>
@@ -1045,7 +1067,7 @@ export default function CrewDashboard() {
                       return (
                         <div key={i} className="text-white text-sm">
                           <div className="flex justify-between gap-2">
-                            <span className="min-w-0">{s.description || s.name || s}</span>
+                            <span className="min-w-0">{serviceLabel(s)}</span>
                             <div className="flex items-center gap-2 shrink-0">
                               {def && (
                                 <a href={def.url} target="_blank" rel="noreferrer"
@@ -1660,7 +1682,7 @@ export default function CrewDashboard() {
                           {j.airport && <p className="text-white/50 text-xs mt-0.5">{j.airport}</p>}
                           {j.scheduled_date && (
                             <p className="text-white/40 text-[10px] mt-1">
-                              {new Date(j.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {new Date(j.scheduled_date.includes('T') ? j.scheduled_date : j.scheduled_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </p>
                           )}
                         </button>
@@ -1671,16 +1693,19 @@ export default function CrewDashboard() {
                     <p className="text-white/60 text-xs mb-1">
                       Service type for <span className="text-white">{pickerJob.aircraft || 'this job'}</span>
                     </p>
-                    {[...(Array.isArray(pickerJob.services) ? pickerJob.services : []), 'Other'].map((svc, i) => (
+                    {[...(Array.isArray(pickerJob.services) ? pickerJob.services : []), 'Other'].map((svc, i) => {
+                      const label = serviceLabel(svc) || (svc === 'Other' ? 'Other' : 'Service');
+                      return (
                       <button
-                        key={`${svc}-${i}`}
-                        onClick={() => handleClock(pickerMode === 'switch' ? 'switch' : 'clock_in', pickerJob, svc)}
+                        key={`${label}-${i}`}
+                        onClick={() => handleClock(pickerMode === 'switch' ? 'switch' : 'clock_in', pickerJob, label)}
                         disabled={clockLoading}
                         className="w-full text-left p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors disabled:opacity-50"
                       >
-                        <p className="text-white font-medium text-sm">{svc}</p>
+                        <p className="text-white font-medium text-sm">{label}</p>
                       </button>
-                    ))}
+                      );
+                    })}
                     <button onClick={() => setPickerJob(null)} disabled={clockLoading}
                       className="text-white/40 hover:text-white/70 text-xs mt-2 disabled:opacity-50">&larr; Back to jobs</button>
                   </>
