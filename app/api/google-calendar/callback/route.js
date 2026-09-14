@@ -74,15 +74,49 @@ export async function GET(request) {
     expiresAt.setSeconds(expiresAt.getSeconds() + (tokens.expires_in || 3600));
 
     const supabase = getSupabase();
-    const { error: dbError } = await supabase
-      .from('google_calendar_connections')
-      .upsert({
-        detailer_id: detailerId,
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        token_expires_at: expiresAt.toISOString(),
-        connected_at: new Date().toISOString(),
-      }, { onConflict: 'detailer_id' });
+
+    // Google often omits refresh_token on re-consent even with prompt=consent.
+    // Never overwrite a stored refresh_token with null/undefined.
+    let refreshToken = tokens.refresh_token || null;
+    if (!refreshToken) {
+      const { data: existing } = await supabase
+        .from('google_calendar_connections')
+        .select('refresh_token')
+        .eq('detailer_id', detailerId)
+        .maybeSingle();
+      refreshToken = existing?.refresh_token || null;
+      if (!refreshToken) {
+        console.warn('[gcal-callback] No refresh_token from Google and none stored — reconnect will fail after access token expires');
+      } else {
+        console.log('[gcal-callback] Preserved existing refresh_token (Google omitted a new one)');
+      }
+    }
+
+    let upsertRow = {
+      detailer_id: detailerId,
+      access_token: tokens.access_token,
+      refresh_token: refreshToken,
+      token_expires_at: expiresAt.toISOString(),
+      connected_at: new Date().toISOString(),
+      needs_reconnect: false,
+      last_sync_error: null,
+    };
+    let dbError = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await supabase
+        .from('google_calendar_connections')
+        .upsert(upsertRow, { onConflict: 'detailer_id' });
+      dbError = res.error;
+      if (!dbError) break;
+      const colMatch = dbError.message?.match(/column "([^"]+)" of relation "google_calendar_connections" does not exist/)
+        || dbError.message?.match(/Could not find the '([^']+)' column/i);
+      const missing = colMatch?.[1];
+      if (missing && upsertRow[missing] !== undefined) {
+        delete upsertRow[missing];
+        continue;
+      }
+      break;
+    }
 
     if (dbError) {
       console.error('Failed to store Google Calendar connection:', dbError);
