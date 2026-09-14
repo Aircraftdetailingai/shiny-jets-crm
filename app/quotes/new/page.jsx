@@ -135,6 +135,11 @@ function NewQuoteContent() {
   const [excludeWeekends, setExcludeWeekends] = useState(true);
   const [calendarSuggestion, setCalendarSuggestion] = useState(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarOpenDays, setCalendarOpenDays] = useState([]); // from free-busy
+  const [calendarConnected, setCalendarConnected] = useState(null); // null|true|false
+  const [calendarEmptyMessage, setCalendarEmptyMessage] = useState('');
+  const [offeredDates, setOfferedDates] = useState([]); // YYYY-MM-DD chips attached to quote
+  const [manualDateInput, setManualDateInput] = useState('');
   const [leadContext, setLeadContext] = useState(null); // { service, notes, photos, aircraft, tail, airport }
   const [pendingAircraftMatch, setPendingAircraftMatch] = useState(null); // { manufacturer, model, id }
   const [customProductRatios, setCustomProductRatios] = useState(null);
@@ -567,15 +572,14 @@ function NewQuoteContent() {
     } catch {}
   }, [availableServices]);
 
-  // Auto-suggest date from Google Calendar when services change
+  // Load open days from Google Calendar when services change.
+  // Do NOT invent dates when calendar is empty/disconnected — show empty state + manual chips.
   useEffect(() => {
     if (!selectedAircraft || Object.keys(selectedServices).length === 0) return;
-    if (proposedDate) return; // don't override manual selection
 
     const token = localStorage.getItem('vector_token');
     if (!token) return;
 
-    // Calculate total hours from selected services
     const svcList = availableServices.filter(s => selectedServices[s.id]);
     if (svcList.length === 0) return;
 
@@ -587,20 +591,50 @@ function NewQuoteContent() {
     if (hours <= 0) hours = 4;
 
     setCalendarLoading(true);
-    fetch(`/api/google-calendar/free-busy?duration=${hours}&excludeWeekends=${excludeWeekends}`, {
+    setCalendarEmptyMessage('');
+    fetch(`/api/google-calendar/free-busy?duration=${hours}&excludeWeekends=${excludeWeekends}&limit=8&days=21`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.suggested) {
-          setCalendarSuggestion(data.suggested);
-          setProposedDate(data.suggested.date);
-          setProposedTime(data.suggested.time);
+        if (!data) {
+          setCalendarConnected(false);
+          setCalendarOpenDays([]);
+          setCalendarSuggestion(null);
+          setCalendarEmptyMessage('Could not check calendar availability.');
+          return;
+        }
+        setCalendarConnected(data.connected !== false && !data.reconnect);
+        const days = Array.isArray(data.openDays) ? data.openDays : [];
+        setCalendarOpenDays(days);
+        setCalendarSuggestion(data.suggested || null);
+        if (days.length === 0) {
+          setCalendarEmptyMessage(
+            data.reconnect || data.connected === false
+              ? 'Google Calendar is not connected. Add date options manually below, or connect Calendar in Settings → Connections.'
+              : (data.message || 'No open days found on your calendar. Add date options manually below.')
+          );
+        } else {
+          setCalendarEmptyMessage('');
+          // Seed offered dates once from calendar if owner hasn't chosen any yet
+          setOfferedDates(prev => {
+            if (prev.length > 0) return prev;
+            return days.slice(0, 5).map(d => d.date);
+          });
+          // Keep proposedDate in sync with first offered / suggested for schedule summary
+          setProposedDate(prev => prev || data.suggested?.date || days[0]?.date || '');
+          if (data.suggested?.time) {
+            setProposedTime(prev => prev || data.suggested.time);
+          }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setCalendarConnected(false);
+        setCalendarOpenDays([]);
+        setCalendarEmptyMessage('Could not check calendar availability.');
+      })
       .finally(() => setCalendarLoading(false));
-  }, [selectedAircraft?.id, Object.keys(selectedServices).length]);
+  }, [selectedAircraft?.id, Object.keys(selectedServices).length, excludeWeekends]);
 
   const handleSelectAircraft = async (aircraft) => {
     try {
@@ -1100,8 +1134,9 @@ function NewQuoteContent() {
         addonsTotal,
         airport,
         tailNumber,
-        proposedDate: proposedDate || null,
+        proposedDate: (offeredDates[0] || proposedDate) || null,
         proposedTime: proposedTime || null,
+        availableDates: offeredDates,
         bufferMinutes,
         linkedProducts,
         linkedEquipment: (() => {
@@ -1147,8 +1182,9 @@ function NewQuoteContent() {
       job_days: effJobDays,
       airport: airport || null,
       tail_number: tailNumber || null,
-      proposed_date: proposedDate || null,
+      proposed_date: (offeredDates[0] || proposedDate) || null,
       proposed_time: proposedTime || null,
+      available_dates: offeredDates,
       quote_validity_days: quoteValidityDays != null && quoteValidityDays !== '' ? parseInt(quoteValidityDays, 10) : null,
       product_estimates: quoteData.productEstimates || [],
       linked_products: quoteData.linkedProducts || [],
@@ -1335,6 +1371,14 @@ function NewQuoteContent() {
         if (q.notes) setQuoteNotes(q.notes);
         if (q.tail_number) setTailNumber(q.tail_number);
         if (q.proposed_date) setProposedDate(q.proposed_date);
+        {
+          const fromCol = Array.isArray(q.available_dates) ? q.available_dates : [];
+          const fromMeta = Array.isArray(q.metadata?.available_dates) ? q.metadata.available_dates : [];
+          const raw = fromCol.length ? fromCol : fromMeta;
+          const dates = raw.map(d => (typeof d === 'string' ? d : d?.date)).filter(Boolean);
+          if (dates.length) setOfferedDates(dates);
+          else if (q.proposed_date) setOfferedDates([q.proposed_date]);
+        }
         if (q.share_link) { draftShareLinkRef.current = q.share_link; setDraftShareLink(q.share_link); }
 
         // Customer: prefer the linked account; fall back to the quote's
@@ -2252,18 +2296,16 @@ function NewQuoteContent() {
             );
           })()}
 
-          {/* 7. Scheduling */}
+          {/* 7. Scheduling — offered date options for the customer */}
           {selectedAircraft && selectedServicesList.length > 0 && (() => {
-            // Business-day schedule calculation. businessDays is computed above
-            // from crew size (effStaff) and total hours.
-
-            // Resolve start date
-            const startRaw = proposedDate ? new Date(proposedDate + 'T12:00') : new Date();
+            // Business-day schedule calculation from first offered / proposed date
+            const startRaw = (offeredDates[0] || proposedDate)
+              ? new Date((offeredDates[0] || proposedDate) + 'T12:00')
+              : new Date();
             const start = new Date(startRaw);
             if (start.getDay() === 0) start.setDate(start.getDate() + 1);
             if (start.getDay() === 6) start.setDate(start.getDate() + 2);
 
-            // Count forward N business days for finish
             const finish = new Date(start);
             let remaining = businessDays - 1;
             while (remaining > 0) {
@@ -2272,23 +2314,117 @@ function NewQuoteContent() {
             }
 
             const fmtD = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const fmtChip = (dateStr) => new Date(dateStr + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            const toggleOffered = (dateStr) => {
+              setOfferedDates(prev => {
+                if (prev.includes(dateStr)) {
+                  const next = prev.filter(d => d !== dateStr);
+                  setProposedDate(next[0] || '');
+                  return next;
+                }
+                const next = [...prev, dateStr].sort();
+                setProposedDate(next[0] || dateStr);
+                return next;
+              });
+            };
+
+            const addManualDate = () => {
+              if (!manualDateInput) return;
+              const d = manualDateInput;
+              setOfferedDates(prev => prev.includes(d) ? prev : [...prev, d].sort());
+              setProposedDate(prev => prev || d);
+              setManualDateInput('');
+            };
 
             return (
               <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-light tracking-wider uppercase text-gray-400">Proposed Schedule</h3>
+                  <h3 className="text-sm font-light tracking-wider uppercase text-gray-400">Available Dates for Customer</h3>
                   {calendarLoading && <span className="text-[10px] text-v-gold animate-pulse">Checking calendar...</span>}
-                  {calendarSuggestion && !calendarLoading && (
-                    <span className="text-[10px] text-green-400">Auto-suggested from calendar</span>
+                  {!calendarLoading && calendarConnected && calendarOpenDays.length > 0 && (
+                    <span className="text-[10px] text-green-400">From Google Calendar free/busy</span>
                   )}
                 </div>
 
+                <p className="text-xs text-v-text-secondary mb-3">
+                  Attach date options the customer can choose on the quote portal. They can also request an alternate.
+                </p>
+
+                {/* Calendar open-day chips */}
+                {calendarOpenDays.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">Open days from calendar</label>
+                    <div className="flex flex-wrap gap-2">
+                      {calendarOpenDays.map(slot => {
+                        const selected = offeredDates.includes(slot.date);
+                        return (
+                          <button
+                            key={slot.date}
+                            type="button"
+                            onClick={() => toggleOffered(slot.date)}
+                            className={`px-3 py-1.5 text-xs rounded-sm border transition-colors ${
+                              selected
+                                ? 'bg-v-gold/20 border-v-gold text-v-gold'
+                                : 'bg-white/5 border-v-border text-v-text-secondary hover:border-v-gold/50'
+                            }`}
+                          >
+                            {fmtChip(slot.date)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty state — do not invent availability */}
+                {!calendarLoading && calendarOpenDays.length === 0 && (
+                  <div className="mb-4 rounded-sm border border-dashed border-v-border/60 bg-white/[0.03] p-4">
+                    <p className="text-sm text-v-text-primary mb-1">No calendar availability found</p>
+                    <p className="text-xs text-v-text-secondary">
+                      {calendarEmptyMessage || 'Connect Google Calendar or add date options manually below.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Offered chips summary + remove */}
+                <div className="mb-4">
+                  <label className="block text-xs uppercase tracking-wider text-gray-400 mb-2">
+                    Offered on quote ({offeredDates.length})
+                  </label>
+                  {offeredDates.length === 0 ? (
+                    <p className="text-xs text-gray-500 italic">No dates attached yet — customer will not see date choices.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {offeredDates.map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => toggleOffered(d)}
+                          className="px-3 py-1.5 text-xs rounded-sm bg-v-gold/15 border border-v-gold text-v-gold hover:bg-red-500/20 hover:border-red-400 hover:text-red-300 transition-colors"
+                          title="Click to remove"
+                        >
+                          {fmtChip(d)} ×
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Manual date add */}
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Start Date</label>
-                    <input type="date" value={proposedDate}
-                      onChange={e => setProposedDate(e.target.value)}
-                      className="w-full bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
+                    <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Add date manually</label>
+                    <div className="flex gap-2">
+                      <input type="date" value={manualDateInput}
+                        onChange={e => setManualDateInput(e.target.value)}
+                        className="flex-1 bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary text-base focus:outline-none focus:ring-2 focus:ring-v-gold" />
+                      <button type="button" onClick={addManualDate}
+                        disabled={!manualDateInput}
+                        className="px-3 py-2 text-xs uppercase tracking-wider border border-v-border text-v-text-secondary hover:border-v-gold hover:text-v-gold disabled:opacity-40 rounded-sm">
+                        Add
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Start Time</label>
@@ -2319,23 +2455,25 @@ function NewQuoteContent() {
                   </div>
                 </div>
 
-                {/* Business-day schedule summary */}
-                <div className="bg-white/5 rounded p-3">
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Start Date</p>
-                      <p className="text-sm text-white font-medium">{fmtD(start)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Finish Date</p>
-                      <p className="text-sm text-white font-medium">{fmtD(finish)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Duration</p>
-                      <p className="text-sm text-white font-medium">{businessDays} Business Day{businessDays !== 1 ? 's' : ''}</p>
+                {/* Business-day schedule summary based on earliest offered date */}
+                {(offeredDates[0] || proposedDate) && (
+                  <div className="bg-white/5 rounded p-3">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Earliest Start</p>
+                        <p className="text-sm text-white font-medium">{fmtD(start)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Finish Date</p>
+                        <p className="text-sm text-white font-medium">{fmtD(finish)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Duration</p>
+                        <p className="text-sm text-white font-medium">{businessDays} Business Day{businessDays !== 1 ? 's' : ''}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })()}

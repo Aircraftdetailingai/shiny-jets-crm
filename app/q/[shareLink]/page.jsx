@@ -46,6 +46,13 @@ export default function QuoteViewPage() {
   const [schedulingError, setSchedulingError] = useState('');
   const [justScheduled, setJustScheduled] = useState(false);
   const [skipScheduling, setSkipScheduling] = useState(false);
+  const [offeredPick, setOfferedPick] = useState(null); // selected offered YYYY-MM-DD
+  const [showAlternate, setShowAlternate] = useState(false);
+  const [alternateDate, setAlternateDate] = useState('');
+  const [alternateNotes, setAlternateNotes] = useState('');
+  const [dateSelectLoading, setDateSelectLoading] = useState(false);
+  const [dateSelectError, setDateSelectError] = useState('');
+  const [dateSelectSaved, setDateSelectSaved] = useState(false);
   const [calendlyUrl, setCalendlyUrl] = useState(null);
   const [useCalendlyScheduling, setUseCalendlyScheduling] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -62,6 +69,15 @@ export default function QuoteViewPage() {
         setQuote(data.quote);
         setDetailer(data.detailer);
         setStripeConnected(data.stripe_connected !== false);
+        if (data.quote?.customer_selected_date) {
+          setOfferedPick(data.quote.customer_selected_date);
+          setDateSelectSaved(true);
+        } else if (data.quote?.alternate_date_requested) {
+          setAlternateDate(data.quote.alternate_date_requested);
+          setAlternateNotes(data.quote.alternate_date_notes || '');
+          setShowAlternate(true);
+          setDateSelectSaved(true);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -160,7 +176,12 @@ export default function QuoteViewPage() {
   const bookingMode = quote?.booking_mode ?? detailer?.booking_mode ?? 'pay_to_book';
   const depositPct = quote?.deposit_percentage ?? detailer?.deposit_percentage ?? 25;
   const isScheduled = quote && (quote.status === 'scheduled' || quote.scheduled_date);
-  const hasAvailability = detailer?.availability != null;
+  const offeredOnQuote = (() => {
+    const fromCol = Array.isArray(quote?.available_dates) ? quote.available_dates : [];
+    const fromMeta = Array.isArray(quote?.metadata?.available_dates) ? quote.metadata.available_dates : [];
+    return (fromCol.length ? fromCol : fromMeta).length > 0;
+  })();
+  const hasAvailability = detailer?.availability != null || offeredOnQuote;
   const hasCalendly = !!(detailer?.calendly_url && detailer?.use_calendly_scheduling);
   const needsScheduling = isPaid && !isScheduled && (hasAvailability || hasCalendly) && !skipScheduling;
 
@@ -185,6 +206,48 @@ export default function QuoteViewPage() {
       .catch(console.error)
       .finally(() => setAvailabilityLoading(false));
   }, [needsScheduling, quote?.id]);
+
+
+  const getOfferedDates = () => {
+    if (!quote) return [];
+    const fromCol = Array.isArray(quote.available_dates) ? quote.available_dates : [];
+    const fromMeta = Array.isArray(quote.metadata?.available_dates) ? quote.metadata.available_dates : [];
+    const raw = fromCol.length ? fromCol : fromMeta;
+    return raw.map(d => (typeof d === 'string' ? d : d?.date)).filter(Boolean);
+  };
+
+  const handleSelectOfferedDate = async () => {
+    if (!quote?.id || (!offeredPick && !(showAlternate && alternateDate))) return;
+    setDateSelectLoading(true);
+    setDateSelectError('');
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}/select-date`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          showAlternate
+            ? { shareLink: params.shareLink, alternateDate, alternateNotes }
+            : { shareLink: params.shareLink, selectedDate: offeredPick }
+        ),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDateSelectError(data.error || 'Failed to save date preference');
+        return;
+      }
+      setQuote(prev => ({
+        ...prev,
+        customer_selected_date: data.customer_selected_date,
+        alternate_date_requested: data.alternate_date_requested,
+        alternate_date_notes: data.alternate_date_notes,
+      }));
+      setDateSelectSaved(true);
+    } catch (e) {
+      setDateSelectError(e.message || 'Failed to save date preference');
+    } finally {
+      setDateSelectLoading(false);
+    }
+  };
 
   const handleSchedule = async () => {
     if (!selectedDate) return;
@@ -573,7 +636,10 @@ export default function QuoteViewPage() {
               </div>
 
               {availableDates.length === 0 && !availabilityLoading && (
-                <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm text-center mt-4">No available dates found. Please contact us directly.</p>
+                <div className="text-center mt-4 space-y-2">
+                  <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm">No available dates found.</p>
+                  <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs">Please contact {detailer?.company || 'us'} directly to schedule — we won&apos;t invent open days.</p>
+                </div>
               )}
             </div>
           )}
@@ -1185,6 +1251,123 @@ export default function QuoteViewPage() {
             )}
           </div>
         )}
+
+        {/* Offered date options — customer can choose or request alternate */}
+        {(() => {
+          const offered = getOfferedDates();
+          const canChoose = offered.length > 0
+            && !quote.scheduled_date
+            && !['scheduled', 'in_progress', 'completed', 'cancelled'].includes(quote.status);
+          if (!canChoose) return null;
+          const fmtChip = (dateStr) => new Date(dateStr + 'T12:00').toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+          });
+          return (
+            <div className="border border-[var(--brand-border-strong,#2A3A50)] p-5 mb-6">
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">Available Dates</p>
+              <h3 className="text-[var(--brand-text,#F5F5F5)] text-lg font-light mb-2" style={brandFontHeading ? { fontFamily: brandFontHeading } : undefined}>
+                Choose a date that works
+              </h3>
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm mb-4">
+                These are the dates {detailer?.company || 'your detailer'} can offer. Pick one, or request an alternate.
+              </p>
+
+              {!showAlternate && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {offered.map(d => {
+                    const selected = offeredPick === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        disabled={dateSelectSaved && quote.customer_selected_date === d}
+                        onClick={() => { setOfferedPick(d); setDateSelectSaved(false); }}
+                        className={`px-3 py-2 text-sm rounded-sm border transition-colors ${
+                          selected
+                            ? 'bg-[var(--brand-primary,#007CB1)]/20 border-[var(--brand-primary,#007CB1)] text-[var(--brand-primary,#007CB1)]'
+                            : 'border-[var(--brand-border-strong,#2A3A50)] text-[var(--brand-text,#F5F5F5)] hover:border-[var(--brand-primary,#007CB1)]'
+                        }`}
+                      >
+                        {fmtChip(d)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {showAlternate ? (
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <label className="block text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.2em] uppercase mb-1.5">Requested alternate date</label>
+                    <input
+                      type="date"
+                      value={alternateDate}
+                      onChange={e => { setAlternateDate(e.target.value); setDateSelectSaved(false); }}
+                      className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] rounded-sm px-3 py-2 text-[var(--brand-text,#F5F5F5)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.2em] uppercase mb-1.5">Notes (optional)</label>
+                    <textarea
+                      value={alternateNotes}
+                      onChange={e => setAlternateNotes(e.target.value)}
+                      rows={2}
+                      placeholder="Any timing constraints or preferences"
+                      className="w-full bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border-strong,#2A3A50)] rounded-sm px-3 py-2 text-[var(--brand-text,#F5F5F5)] text-sm"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAlternate(false); setAlternateDate(''); setAlternateNotes(''); }}
+                    className="text-xs text-[var(--brand-text-secondary,#8A9BB0)] underline"
+                  >
+                    Back to offered dates
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setShowAlternate(true); setOfferedPick(null); setDateSelectSaved(false); }}
+                  className="text-xs text-[var(--brand-text-secondary,#8A9BB0)] underline mb-4"
+                >
+                  None of these work — request an alternate
+                </button>
+              )}
+
+              {dateSelectError && (
+                <p className="text-red-400 text-sm mb-3">{dateSelectError}</p>
+              )}
+
+              {dateSelectSaved ? (
+                <div className="border border-[var(--brand-primary,#007CB1)]/30 bg-[var(--brand-primary,#007CB1)]/5 p-3 text-center rounded-sm">
+                  <p className="text-[var(--brand-primary,#007CB1)] text-sm">
+                    {quote.customer_selected_date
+                      ? `Preferred date saved: ${fmtChip(quote.customer_selected_date)}`
+                      : quote.alternate_date_requested
+                        ? `Alternate request saved: ${fmtChip(quote.alternate_date_requested)}`
+                        : 'Date preference saved'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDateSelectSaved(false)}
+                    className="text-[10px] text-[var(--brand-text-secondary,#8A9BB0)] underline mt-1"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSelectOfferedDate}
+                  disabled={dateSelectLoading || (showAlternate ? !alternateDate : !offeredPick)}
+                  className="w-full py-3 border border-[var(--brand-primary,#007CB1)] text-[var(--brand-primary,#007CB1)] text-sm tracking-[0.15em] uppercase hover:bg-[var(--brand-primary,#007CB1)]/10 disabled:opacity-40 transition-colors"
+                >
+                  {dateSelectLoading ? 'Saving...' : showAlternate ? 'Submit Alternate Request' : 'Save Preferred Date'}
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {/* CTA Buttons */}
         {paymentConfirming ? (

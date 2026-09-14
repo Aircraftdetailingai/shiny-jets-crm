@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
   // Fetch quote and verify share_link
   const { data: quote, error: quoteError } = await supabase
     .from('quotes')
-    .select('id, detailer_id, status, share_link, scheduled_date')
+    .select('id, detailer_id, status, share_link, scheduled_date, available_dates, metadata')
     .eq('id', id)
     .eq('share_link', shareLink)
     .single();
@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
   }
 
   // Only show scheduling for paid/accepted quotes that aren't already scheduled
-  const schedulableStatuses = ['paid', 'approved', 'accepted'];
+  const schedulableStatuses = ['paid', 'approved', 'accepted', 'deposit_paid'];
   if (!schedulableStatuses.includes(quote.status) || quote.scheduled_date) {
     return Response.json({ available: false, reason: 'not_schedulable' });
   }
@@ -40,6 +40,21 @@ export async function GET(request, { params }) {
     .select('availability, calendly_url, use_calendly_scheduling')
     .eq('id', quote.detailer_id)
     .single();
+
+  // Prefer owner-offered dates attached to the quote (never invent extras)
+  const fromCol = Array.isArray(quote.available_dates) ? quote.available_dates : [];
+  const fromMeta = Array.isArray(quote.metadata?.available_dates) ? quote.metadata.available_dates : [];
+  const offeredRaw = fromCol.length ? fromCol : fromMeta;
+  const offered = offeredRaw.map(d => (typeof d === 'string' ? d : d?.date)).filter(Boolean);
+  if (offered.length > 0) {
+    return Response.json({
+      available: true,
+      source: 'quote_offered',
+      dates: offered.map(date => ({ date, offered: true })),
+      calendly_url: detailer?.calendly_url || null,
+      use_calendly_scheduling: detailer?.use_calendly_scheduling || false,
+    });
+  }
 
   const availability = detailer?.availability;
   if (!availability || !availability.weeklySchedule) {

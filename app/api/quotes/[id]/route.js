@@ -23,7 +23,7 @@ const ALLOWED_FIELDS = [
   'emergency_contact_name', 'emergency_contact_phone', 'contact_notes',
   'customer_account_id',
   'tail_number', 'airport',
-  'scheduled_date', 'proposed_date', 'proposed_time', 'time_preference', 'scheduling_notes',
+  'scheduled_date', 'proposed_date', 'proposed_time', 'time_preference', 'scheduling_notes', 'available_dates', 'customer_selected_date', 'alternate_date_requested', 'alternate_date_notes',
   'valid_until', 'quote_validity_days',
   'sent_at', 'viewed_at', 'last_viewed_at', 'view_count', 'email_opened_at',
   'viewer_ip', 'viewer_device', 'customer_ip_address',
