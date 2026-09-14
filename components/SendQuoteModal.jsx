@@ -231,11 +231,22 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
       // Prepare email defaults
       const companyName = user?.company || 'Your Detailer';
-      const firstName = (effectiveName || '').split(' ')[0] || 'there';
+      const rawName = (effectiveName || '').trim();
+      const parts = rawName.split(/\s+/).filter(Boolean);
+      // Prefer first name from a multi-word name. Single-token ALL-CAPS / tiny
+      // placeholders (e.g. "TEST") become a neutral "there" instead of "Hi TEST".
+      let greetName = 'there';
+      if (parts.length >= 2) greetName = parts[0];
+      else if (parts.length === 1) {
+        const only = parts[0];
+        if (!(only.length <= 4 && only === only.toUpperCase() && /[A-Z]/.test(only))) {
+          greetName = only;
+        }
+      }
       const aircraft = aircraftName || 'your aircraft';
       setEmailSubject(`Your Quote from ${companyName} — ${aircraft}`);
       setEmailBody(
-`Hi ${firstName},
+`Hi ${greetName},
 
 Thank you for reaching out to ${companyName}! We've put together a detailed quote for your ${aircraft} and we're excited about the opportunity to take care of it.
 
