@@ -12,7 +12,7 @@ Your job:
 - Recommend services aligned with exterior / interior / brightwork / ceramic (and related correction or maintenance work).
 - Ask clarifying questions when the detailer has not given enough info (aircraft type, hangar vs ramp, last service, photos, timeline).
 - Speak like an experienced shop lead — practical, concise, no fluff.
-- When knowledge excerpts are provided below, prefer them for shop-standard guidance.
+- When knowledge excerpts are provided below, prefer them for shop-standard guidance. Shiny Jets SOP extracts are the procedure of record for wash, interior, leather, carpet, decon, paint correction, de-ice boots, protection/ceramic, veneer, windows, and brightwork.
 
 Hard rules:
 - Never claim to replace manufacturer specifications, OEM maintenance manuals, or certified repair procedures.
@@ -46,36 +46,88 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+const KNOWLEDGE_NEEDLES = [
+  'oxid',
+  'acrylic',
+  'haze',
+  'brightwork',
+  'ceramic',
+  'interior',
+  'odor',
+  'leather',
+  'polish',
+  'window',
+  'wash',
+  'carpet',
+  'decontaminat',
+  'de-ice',
+  'deice',
+  'boot',
+  'veneer',
+  'cabinetry',
+  'paint',
+  'soot',
+  'skydrol',
+  'alcantara',
+  'suede',
+  'wax',
+  'compound',
+  'clearcoat',
+  'pitot',
+  'sop',
+];
+
+async function collectMarkdownFiles(dir, relative = '') {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const out = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue;
+    const rel = relative ? `${relative}/${entry.name}` : entry.name;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...(await collectMarkdownFiles(full, rel)));
+    } else if (entry.name.endsWith('.md')) {
+      out.push({ rel, full });
+    }
+  }
+  return out;
+}
+
 async function loadKnowledgeStub(userMessage) {
-  const dir = path.join(process.cwd(), 'knowledge', 'detailing');
+  // Recurse knowledge/detailing/** so existing stubs and sops/ are both included.
+  const root = path.join(process.cwd(), 'knowledge', 'detailing');
   try {
-    const files = await readdir(dir);
-    const mdFiles = files.filter((f) => f.endsWith('.md')).sort();
-    if (mdFiles.length === 0) return '';
+    const files = await collectMarkdownFiles(root);
+    if (files.length === 0) return '';
 
     const lower = (userMessage || '').toLowerCase();
     const scored = [];
-    for (const file of mdFiles) {
-      const full = path.join(dir, file);
+    for (const { rel, full } of files) {
       const text = await readFile(full, 'utf8');
-      const keywords = file.replace(/\.md$/, '').split(/[-_]/);
+      const keywords = rel.replace(/\.md$/, '').split(/[-_./]/);
       let score = 0;
       for (const kw of keywords) {
         if (kw.length > 2 && lower.includes(kw)) score += 2;
       }
-      const needles = ['oxid', 'acrylic', 'haze', 'brightwork', 'ceramic', 'interior', 'odor', 'leather', 'polish', 'window'];
-      for (const n of needles) {
-        if (lower.includes(n) && text.toLowerCase().includes(n)) score += 1;
+      if (rel.includes('sops') && (lower.includes('sop') || lower.includes('procedure'))) {
+        score += 3;
       }
-      scored.push({ file, text, score });
+      const hay = text.toLowerCase();
+      for (const n of KNOWLEDGE_NEEDLES) {
+        if (lower.includes(n) && hay.includes(n)) score += 1;
+      }
+      scored.push({ file: rel, text, score });
     }
 
     scored.sort((a, b) => b.score - a.score);
-    const top = scored.filter((s) => s.score > 0).slice(0, 3);
+    const top = scored.filter((s) => s.score > 0).slice(0, 4);
     const chosen = top.length > 0 ? top : scored.slice(0, 2);
 
     const excerpts = chosen
-      .map((c) => `### ${c.file}\n${c.text.slice(0, 3500)}`)
+      .map((c) => {
+        const cap = c.file.includes('sops/') ? 5500 : 3500;
+        return `### ${c.file}\n${c.text.slice(0, cap)}`;
+      })
       .join('\n\n');
 
     return `\n\n---\nKnowledge base excerpts (RAG stub — prefer these when relevant):\n${excerpts}\n---`;
