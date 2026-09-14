@@ -6,7 +6,7 @@
 | Model | G650 |
 | Catalog seats (CRM) | 15 |
 | CRM maint. wash hours (ref) | 25.00 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-family** |
 | Type-class fallback | `type-class/large-cabin-jet.md` |
 
 ## Identity for Detailing AI
@@ -19,10 +19,25 @@ See type-class `large-cabin-jet`. Verify acrylic vs glass windshield in the POH/
 
 ## Detailing-relevant guidance
 
+## Family extract — Gulfstream MM 12-35-01 External Wash
+
+**Source:** `manuals/gulfstream-mm-12-35-01-external-wash.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Pressure washing **not recommended**.
+- Lube MLG/NLG **before and immediately after** wash.
+- No chlorides near engine/APU intakes; **Formula 409 not authorized**.
+- No brushes on cockpit/cabin windows — soft lint-free cloth only.
+- pH-neutral/slightly alkaline cleaner; minimize pressure; nozzle ≥3 ft / ≤45°.
+- Avoid bearings, bushings, electricals, openings; document; CIC as required.
+
+### U-turn
+Car-wash-type / lint-free cloth → aviation-safe soap + clean microfiber OK if not banned. Formula 409 / HP wash / window brushes = forbid.
+
+
 ## Transparent plastics — FAA AC 43.13-1B
 
 See `manuals/faa-ac-43-13-1b-transparent-plastics-cleaning-part1.md`. Mild soap + water; no glass cleaner/acetone/alcohol/fuel on acrylic; no dry wiping; thin wax after clean.
-
 
 ### Type-class summary
 
@@ -30,12 +45,13 @@ Follow `type-class/large-cabin-jet.md` for baseline wash/polish/boot/antenna dis
 
 ## Prohibitions vs recommendations
 
-Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow better modern soft cloths/soaps when not forbidden.
+Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow better modern soft cloths/soaps when not prohibited.
 
 ## Hold harmless
 
 Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM approved data or A&P/IA judgment.
 
-## Missing POH/AMM upload
 
-If you have this model’s POH/PIM/AMM cleaning chapter (shop-owned or public/free), add extracts under `manuals/` and upgrade this profile from `type-class-fallback` to model-specific.
+## Sources / next upgrades
+
+Confirm current Gulfstream AMM chapter for this exact model/serial.

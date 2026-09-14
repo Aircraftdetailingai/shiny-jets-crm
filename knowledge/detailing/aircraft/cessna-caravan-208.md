@@ -39,3 +39,10 @@ Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM appr
 ## Missing POH/AMM upload
 
 If you have this model’s POH/PIM/AMM cleaning chapter (shop-owned or public/free), add extracts under `manuals/` and upgrade this profile from `type-class-fallback` to model-specific.
+
+## Sources wanted (paywalled / not freely posted)
+
+Textron Aviation paid pubs for 208/208B POH Sec 8 Cleaning and Care — official portal only (do not pirate). Public FMS supplements rarely include full cleaning text.
+
+Also apply fleet-wide FAA guidance in `manuals/faa-ac-43-4b-cleaning-washing.md` and `manuals/faa-info16005-automotive-detailers.md` (fetched 2026-09-14).
+
