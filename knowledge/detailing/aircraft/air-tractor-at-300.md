@@ -6,7 +6,7 @@
 | Model | AT-300 |
 | Catalog seats (CRM) | 1 |
 | CRM maint. wash hours (ref) | 3.33 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-family** |
 | Type-class fallback | `type-class/agricultural.md` |
 
 ## Identity for Detailing AI
@@ -18,6 +18,18 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 See type-class `agricultural`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
 ## Detailing-relevant guidance
+
+## Model-family extract — Air Tractor wash/corrosion note
+
+**Source:** `manuals/air-tractor-wash-corrosion-note.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Clean airframe/engine far more often than annual (ag residue/corrosion).
+- Saltwater/Fire Boss ops: daily fresh-water rinse discipline when applicable.
+- Prefer agricultural type-class + AC 43-4B; full OEM wash chapter still sources-wanted.
+
+### U-turn
+Frequent fresh-water / mild wash OK. Do not invent AT solvent bans without Owner’s Manual.
 
 ## Transparent plastics — FAA AC 43.13-1B
 
@@ -39,3 +51,7 @@ Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM appr
 ## Missing POH/AMM upload
 
 If you have this model’s POH/PIM/AMM cleaning chapter (shop-owned or public/free), add extracts under `manuals/` and upgrade this profile from `type-class-fallback` to model-specific.
+
+## Sources wanted (paywalled / not freely posted)
+
+Air Tractor Owner’s Manual cleaning chapters — dealer/OEM.

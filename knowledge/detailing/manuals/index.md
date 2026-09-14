@@ -24,3 +24,17 @@
 | AC 43-205 | `faa-ac-43-205-cancelled-note` | Cancelled — do not use as current |
 
 See also `aircraft/<slug>.md` for per-model profiles and `type-class/` for generic fallbacks.
+
+| Mooney M20J/M20K | `mooney-m20j-poh-section8-exterior-care` | M20J POH Sec VIII (public) |
+| Cessna Caravan 208 | `cessna-208-poh-section8-cleaning-care` | 208B POH Sec 8 (aeroelectric) |
+| MD 500E family | `md500e-rfm-section7-cleaning` | CSP-E-1 Sec VII |
+| Enstrom F-28F family | `enstrom-f28f-mm-cleaning` | Official MM Rev 15 |
+| HondaJet HA-420 matte | `honda-ha420-sl-matte-flat-satin-care` | SL-420-12-005 |
+| Cirrus Vision SF50 | `cirrus-vision-sf50-cleaning-qrg` | Owners QRG + Sec 8 pointer |
+| Pilatus PC-24 | `pilatus-pc24-gsg-exterior-windows-clean` | Official GSG 02484 |
+| Daher Kodiak | `daher-kodiak-sn16-01-corrosion-wash` | SN16-01 |
+| AS350/H125 IBF | `as350-h125-ibf-aircraft-washing-note` | Donaldson ICA §7.7 |
+| Guimbal Cabri G2 | `guimbal-cabri-g2-rfm-handling-clean-note` | RFM Issue 05 |
+| Piaggio P.180 | `piaggio-p180-amm-12-24-02-exterior-cleaning-note` | AD + AMM 12-24-02 note |
+| Air Tractor family | `air-tractor-wash-corrosion-note` | AT training + NAAA bulletin |
+

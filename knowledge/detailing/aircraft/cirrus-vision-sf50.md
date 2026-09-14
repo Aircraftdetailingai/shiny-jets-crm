@@ -6,7 +6,7 @@
 | Model | Vision/SF50 |
 | Catalog seats (CRM) | 6 |
 | CRM maint. wash hours (ref) | 2.92 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-specific** |
 | Type-class fallback | `type-class/light-jet.md` |
 
 ## Identity for Detailing AI
@@ -18,6 +18,18 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 See type-class `light-jet`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
 ## Detailing-relevant guidance
+
+## Model-specific extract — Cirrus Vision SF50 cleaning (QRG + Sec 8 pattern)
+
+**Source:** `manuals/cirrus-vision-sf50-cleaning-qrg.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Never paper towels; never dry-clean windshield; Prist or POH-approved list; linear up/down wipe.
+- FIKI: **no wax on TKS titanium porous leading edges**.
+- Align with Cirrus Sec 8 acrylic bans (gasoline/alcohol/benzene/acetone/glass sprays).
+
+### U-turn
+Approved acrylic cleaner + microfiber OK. Paper towel / dry wipe / wax on TKS LE = forbid.
 
 ## Transparent plastics — FAA AC 43.13-1B
 
@@ -35,6 +47,12 @@ Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow
 ## Hold harmless
 
 Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM approved data or A&P/IA judgment.
+
+## Sources wanted (paywalled / not freely posted)
+
+Full Vision Jet POH Sec 8 product tables — Cirrus portal / shop-owned.
+
+Also apply fleet-wide FAA guidance in `manuals/faa-ac-43-4b-cleaning-washing.md` and `manuals/faa-info16005-automotive-detailers.md` (fetched 2026-09-14).
 
 ## Missing POH/AMM upload
 

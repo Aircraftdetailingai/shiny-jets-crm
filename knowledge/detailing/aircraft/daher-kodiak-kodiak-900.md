@@ -6,7 +6,7 @@
 | Model | Kodiak 900 |
 | Catalog seats (CRM) | 9 |
 | CRM maint. wash hours (ref) | 5.83 |
-| Knowledge specificity | **type-class-fallback** |
+| Knowledge specificity | **model-family** |
 | Type-class fallback | `type-class/turboprop.md` |
 
 ## Identity for Detailing AI
@@ -18,6 +18,18 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 See type-class `turboprop`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
 ## Detailing-relevant guidance
+
+## Model-family extract — Kodiak SN16-01 corrosion wash/wax
+
+**Source:** `manuals/daher-kodiak-sn16-01-corrosion-wash.md` (fetched 2026-09-14).
+
+### Explicit / strong guidance
+- Fresh-water wash after salt/severe ops; noncorrosive soap on props.
+- Protective wax per AFM Sec 8 + AMM ch.06; clean windows per AMM ch.06.
+- Exhaust deposit cleaning with polishing wax; keep drains open; CPC per notice (respect prohibited zones).
+
+### U-turn
+Fresh water + noncorrosive soap + AFM wax OK. Ignore CPC keep-out zones = forbid.
 
 ## Transparent plastics — FAA AC 43.13-1B
 
@@ -35,6 +47,12 @@ Apply `policy/manual-interpretation.md` (U-turn rule): obey explicit bans; allow
 ## Hold harmless
 
 Advisory only — `policy/terms-hold-harmless.md`. Not a substitute for OEM approved data or A&P/IA judgment.
+
+## Sources wanted (paywalled / not freely posted)
+
+Full AFM Sec 8 cleaning chapter + AMM ch.06 — Daher portal / shop-owned.
+
+Also apply fleet-wide FAA guidance in `manuals/faa-ac-43-4b-cleaning-washing.md` and `manuals/faa-info16005-automotive-detailers.md` (fetched 2026-09-14).
 
 ## Missing POH/AMM upload
 
