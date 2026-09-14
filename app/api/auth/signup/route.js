@@ -328,7 +328,8 @@ export async function POST(request) {
       await supabase.from('prospects').update({ status: 'signed_up' }).eq('email', normalizedEmail);
     } catch {}
 
-    // Check if this email has a 5-day course purchase → grant Pro access
+    // Course purchase (app_access) → Enterprise free 1 year (Brett rule).
+    // Aligns with Shopify webhook course_bundle grant. Comp invite redeem below still wins.
     if (detailer.plan === 'free') {
       try {
         const { data: courseAccess } = await supabase
@@ -336,23 +337,29 @@ export async function POST(request) {
           .select('product_type, status')
           .eq('email', normalizedEmail)
           .eq('status', 'active')
-          .in('product_type', ['masterclass_annual'])
+          .in('product_type', ['masterclass_annual', 'online_course_annual', 'airventure_annual', 'onsite_annual'])
+          .limit(1)
           .maybeSingle();
 
         if (courseAccess) {
-          // Course bundle includes one year of Pro; stamp the expiry so the
-          // plan-expirations cron downgrades them automatically when it lapses.
           const courseExpiry = new Date();
           courseExpiry.setFullYear(courseExpiry.getFullYear() + 1);
+          const expiryISO = courseExpiry.toISOString();
+          const { defaultFeePercentForPlan } = await import('@/lib/branding');
           await supabase.from('detailers').update({
-            plan: 'pro',
-            subscription_status: 'active',
+            plan: 'enterprise',
+            subscription_status: 'comped',
             subscription_source: 'course_bundle',
-            plan_expires_at: courseExpiry.toISOString(),
+            trial_ends_at: expiryISO,
+            plan_expires_at: expiryISO,
+            platform_fee_percent: defaultFeePercentForPlan('enterprise'),
+            plan_updated_at: new Date().toISOString(),
           }).eq('id', detailer.id);
-          detailer.plan = 'pro';
+          detailer.plan = 'enterprise';
+          detailer.subscription_status = 'comped';
           detailer.subscription_source = 'course_bundle';
-          console.log(`[signup] Course purchaser detected, upgraded to Pro: ${normalizedEmail}`);
+          detailer.trial_ends_at = expiryISO;
+          console.log(`[signup] Course purchaser detected, upgraded to Enterprise: ${normalizedEmail}`);
         }
       } catch (e) {
         console.log('[signup] Course check failed (non-critical):', e.message);

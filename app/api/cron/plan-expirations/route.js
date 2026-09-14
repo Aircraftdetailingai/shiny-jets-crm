@@ -4,10 +4,11 @@ import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression'
 
 export const dynamic = 'force-dynamic';
 
-// Course-bundle buyers get exactly one included year of Pro; the grant path
-// stamps plan_expires_at = now + 1yr. This daily cron downgrades those whose
-// year has elapsed and sends one courtesy email pointing at the Pro checkout.
-const PRO_CHECKOUT_URL = 'https://shinyjets.com/products/aircraft-detailing-crm-pro';
+// Course-bundle buyers get exactly one included year of Enterprise (legacy: Pro);
+// the grant path stamps plan_expires_at = now + 1yr. This daily cron downgrades
+// those whose year has elapsed and sends one courtesy email. Never touches
+// null plan_expires_at rows (paid + Victor-style comps without an expiry stamp).
+const PRO_CHECKOUT_URL = 'https://shinyjets.com/products/aircraft-detailing-crm-enterprise';
 
 function verifySecret(request) {
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization') || '';
@@ -79,19 +80,19 @@ export async function POST(request) {
 <html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
   <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
     <h2 style="color:#007CB1;margin:0 0 16px;font-size:22px;">Hi ${firstName},</h2>
-    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Your included year of Shiny Jets CRM Pro has ended, so your account has moved to the Free plan. Your data is safe and still here — you just won't have Pro features until you resubscribe.</p>
-    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">To keep sending professional quotes and invoices, take payments, and use everything Pro offers, you can continue for another year below.</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Your included year of Shiny Jets CRM (course Enterprise / Pro bundle) has ended, so your account has moved to the Free plan. Your data is safe and still here — upgrade anytime to keep Enterprise or Pro features.</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">To keep sending professional quotes and invoices, take payments, and use Detailing AI and everything Enterprise/Pro offers, continue below.</p>
     <div style="text-align:center;margin:28px 0;">
-      <a href="${PRO_CHECKOUT_URL}" style="display:inline-block;padding:14px 28px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Continue with Pro</a>
+      <a href="${PRO_CHECKOUT_URL}" style="display:inline-block;padding:14px 28px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">View CRM plans</a>
     </div>
     <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 0;">Questions? Just reply to this email and we'll help.</p>
   </div>
 </body></html>`;
     const text = `Hi ${firstName},
 
-Your included year of Shiny Jets CRM Pro has ended, so your account has moved to the Free plan. Your data is safe and still here.
+Your included year of Shiny Jets CRM (course Enterprise / Pro bundle) has ended, so your account has moved to the Free plan. Your data is safe and still here.
 
-To continue with Pro for another year: ${PRO_CHECKOUT_URL}
+View plans: ${PRO_CHECKOUT_URL}
 
 Questions? Just reply to this email and we'll help.`;
 
