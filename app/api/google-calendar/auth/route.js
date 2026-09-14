@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
+import { NextResponse } from 'next/server';
 import { getAuthUser, verifyToken } from '@/lib/auth';
 import { env } from '@/lib/env';
 
@@ -24,45 +24,51 @@ async function signGcalState({ userId, detailerId }) {
     .sign(JWT_SECRET);
 }
 
+function resolveRedirectUri(request) {
+  // Prefer explicit env; otherwise build from the browser Origin / Host so
+  // crm.shinyjets.com stays consistent even if NEXT_PUBLIC_APP_URL drifts.
+  if (env.GOOGLE_CALENDAR_REDIRECT_URI) return env.GOOGLE_CALENDAR_REDIRECT_URI;
+  const origin =
+    request.headers.get('origin') ||
+    (() => {
+      const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+      const proto = request.headers.get('x-forwarded-proto') || 'https';
+      return host ? `${proto}://${host}` : '';
+    })() ||
+    env.NEXT_PUBLIC_APP_URL ||
+    '';
+  return origin ? `${origin.replace(/\/$/, '')}/api/google-calendar/callback` : '';
+}
+
 export async function POST(request) {
   const user = await getAuthUser(request);
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    return Response.json({ configured: false, error: 'Google Calendar OAuth is not configured yet' });
+    return NextResponse.json({ configured: false, error: 'Google Calendar OAuth is not configured yet' });
   }
 
   const userId = user.id;
   const detailerId = user.detailer_id || user.id;
 
-  // Re-assert the httpOnly session cookie from the Bearer token the Connect
-  // button just sent. Google's redirect is a top-level GET with no Authorization
-  // header — without this cookie the callback used to fail with
-  // "Authentication required" and then redirect to /settings/integrations,
-  // which stripped the error query params so Connections stayed "Not Connected".
+  // Build JSON response first so we can attach Set-Cookie on the SAME
+  // NextResponse. cookies().set() + bare Response.json() often drops the
+  // cookie in App Router — leaving a stale auth_token from another CRM
+  // account (e.g. demo) that then fails signed-state mismatch checks.
+  let bearer = null;
   try {
     const authHeader = request.headers.get('authorization');
-    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (bearer && (await verifyToken(bearer))) {
-      const cookieStore = await cookies();
-      cookieStore.set('auth_token', bearer, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-      console.log('[gcal-auth] refreshed auth_token cookie for callback');
-    }
-  } catch (err) {
-    console.warn('[gcal-auth] could not refresh auth cookie:', err?.message || err);
+    bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (bearer && !(await verifyToken(bearer))) bearer = null;
+  } catch {
+    bearer = null;
   }
 
-  const appUrl = env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || '';
-  const redirectUri = env.GOOGLE_CALENDAR_REDIRECT_URI || `${appUrl}/api/google-calendar/callback`;
+  const redirectUri = resolveRedirectUri(request);
+  if (!redirectUri) {
+    return NextResponse.json({ configured: false, error: 'Google Calendar redirect URI is not configured' });
+  }
 
-  // Prefer signed state (detailer_id + user id). Callback still accepts legacy
-  // plain user.id for any in-flight redirects.
   let state;
   try {
     state = await signGcalState({ userId, detailerId });
@@ -88,9 +94,20 @@ export async function POST(request) {
     detailerId,
     userId,
     redirect_uri: redirectUri,
-    app_url: appUrl || null,
+    app_url: env.NEXT_PUBLIC_APP_URL || null,
     state_kind: state === String(userId) ? 'plain' : 'signed',
+    will_set_cookie: !!bearer,
   });
 
-  return Response.json({ configured: true, url });
+  const res = NextResponse.json({ configured: true, url });
+  if (bearer) {
+    res.cookies.set('auth_token', bearer, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    });
+  }
+  return res;
 }
