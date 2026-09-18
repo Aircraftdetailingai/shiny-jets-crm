@@ -72,6 +72,12 @@ export default function QuotesPage() {
   const [markPaidModal, setMarkPaidModal] = useState(null);
   const [markPaidData, setMarkPaidData] = useState({ payment_method: 'cash', amount: '', note: '' });
   const [markingPaid, setMarkingPaid] = useState(false);
+  // Staff preview for sent quotes — stay in CRM with a clear Close (X),
+  // instead of dumping onto the public /q/ page with no exit.
+  const [previewQuote, setPreviewQuote] = useState(null);
+  const [previewTab, setPreviewTab] = useState('client'); // 'client' | 'pdf'
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // quote object
+  const [deletingQuote, setDeletingQuote] = useState(false);
 
   // Per-quote add-on fee editor
   const [feesModal, setFeesModal] = useState(null);
@@ -592,7 +598,53 @@ export default function QuotesPage() {
   // customer accept/pay page for their own un-sent draft.
   const openQuote = (q) => {
     if (!q.sent_at) { openInBuilder(q); return; }
-    if (q.share_link) window.open(`/q/${q.share_link}`, '_blank');
+    if (q.share_link) {
+      setPreviewTab('client');
+      setPreviewQuote(q);
+      return;
+    }
+  };
+
+  const closePreviewQuote = () => setPreviewQuote(null);
+
+  useEffect(() => {
+    if (!previewQuote) return;
+    const onKey = (e) => { if (e.key === 'Escape') closePreviewQuote(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewQuote]);
+
+  const askDeleteQuote = (q) => setDeleteConfirm(q);
+
+  const confirmDeleteQuote = async () => {
+    if (!deleteConfirm?.id) return;
+    setDeletingQuote(true);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch(`/api/quotes/${deleteConfirm.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Failed to delete quote');
+        return;
+      }
+      setQuotes((prev) => prev.filter((q) => q.id !== deleteConfirm.id));
+      if (previewQuote?.id === deleteConfirm.id) closePreviewQuote();
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteConfirm.id);
+        return next;
+      });
+      setDeleteConfirm(null);
+      flashSaved('Quote deleted');
+    } catch (err) {
+      console.error('Delete quote error:', err);
+      alert('Failed to delete quote');
+    } finally {
+      setDeletingQuote(false);
+    }
   };
 
   const stats = {
@@ -761,7 +813,7 @@ export default function QuotesPage() {
                   className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_180px] min-w-[980px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
                   style={{ height: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                    <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer opacity-100"  />
                   </div>
                   <div className="truncate pr-4">
                     <span className="text-white text-sm">{getDisplayName(q)}</span>
@@ -809,6 +861,14 @@ export default function QuotesPage() {
                         Mark Paid
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => askDeleteQuote(q)}
+                      className="px-2 py-1 text-[10px] uppercase tracking-wider text-red-400 border border-red-400/40 rounded hover:bg-red-400/10"
+                      title="Delete quote"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               );
@@ -817,6 +877,117 @@ export default function QuotesPage() {
         </div>
 
         <div className="px-6 py-3 border-t border-[#1A2236] text-v-text-secondary text-xs">{filteredQuotes.length} of {quotes.length} quotes{search && ' (filtered)'}</div>
+
+        {/* Sent quote / PDF preview — always has Close (X) */}
+        {previewQuote && previewQuote.share_link && (
+          <div
+            className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={closePreviewQuote}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Quote preview"
+          >
+            <div
+              className="bg-v-surface border border-v-border rounded-t-2xl sm:rounded-lg w-full sm:max-w-3xl max-h-[95vh] flex flex-col shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-v-border shrink-0">
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-medium truncate">
+                    {previewQuote.customer_company || previewQuote.client_name || 'Quote'}
+                  </p>
+                  <p className="text-v-text-secondary text-xs truncate">
+                    {(previewQuote.aircraft_model || previewQuote.aircraft_type || 'Aircraft')}
+                    {previewQuote.tail_number ? ` · ${previewQuote.tail_number}` : ''}
+                    {previewQuote.total_price != null ? ` · ${currencySymbol()}${formatPrice(previewQuote.total_price)}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePreviewQuote}
+                  className="shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl leading-none text-v-text-secondary hover:text-white border border-v-border rounded-lg hover:bg-white/5"
+                  aria-label="Close quote preview"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 px-4 sm:px-5 py-2 border-b border-v-border shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('client')}
+                  className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded ${previewTab === 'client' ? 'bg-v-gold/20 text-v-gold border border-v-gold/40' : 'text-v-text-secondary border border-transparent hover:text-white'}`}
+                >
+                  Client view
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('pdf')}
+                  className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded ${previewTab === 'pdf' ? 'bg-v-gold/20 text-v-gold border border-v-gold/40' : 'text-v-text-secondary border border-transparent hover:text-white'}`}
+                >
+                  PDF
+                </button>
+                <a
+                  href={`/q/${previewQuote.share_link}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-auto text-xs text-v-text-secondary hover:text-v-gold"
+                >
+                  Open in new tab
+                </a>
+              </div>
+
+              <div className="flex-1 min-h-0 bg-[#0F1117] relative" style={{ height: '70vh' }}>
+                {previewTab === 'client' ? (
+                  <iframe
+                    key={`client-${previewQuote.id}`}
+                    src={`/q/${previewQuote.share_link}`}
+                    title="Client quote view"
+                    className="absolute inset-0 w-full h-full border-0 bg-white"
+                  />
+                ) : (
+                  <iframe
+                    key={`pdf-${previewQuote.id}`}
+                    src={`/api/quotes/${previewQuote.id}/pdf?shareToken=${encodeURIComponent(previewQuote.share_link)}&t=${encodeURIComponent(previewQuote.updated_at || Date.now())}`}
+                    title="Quote PDF"
+                    className="absolute inset-0 w-full h-full border-0 bg-white"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-v-border shrink-0 bg-v-charcoal/80">
+                {previewTab === 'pdf' ? (
+                  <a
+                    href={`/api/quotes/${previewQuote.id}/pdf?shareToken=${encodeURIComponent(previewQuote.share_link)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-v-text-secondary hover:text-v-gold"
+                  >
+                    Download / open PDF
+                  </a>
+                ) : (
+                  <span className="text-xs text-v-text-secondary">This is how the client sees the quote</span>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => askDeleteQuote(previewQuote)}
+                    className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-red-400 border border-red-400/40 rounded hover:bg-red-400/10"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePreviewQuote}
+                    className="px-5 py-2.5 min-h-[44px] text-sm font-medium bg-v-gold text-white rounded hover:bg-v-gold-dim"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Complete Job Modal */}
         {completeModal && (
@@ -1007,6 +1178,26 @@ export default function QuotesPage() {
               <div className="flex justify-end space-x-3 mt-5">
                 <button onClick={() => { setScheduleModal(null); setScheduleDate(''); }} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white hover:border-white/20 transition-colors">Cancel</button>
                 <button onClick={submitSchedule} disabled={!scheduleDate || scheduling} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">{scheduling ? 'Scheduling...' : 'Schedule & Notify'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Single quote delete confirm */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4" onClick={() => !deletingQuote && setDeleteConfirm(null)}>
+            <div className="bg-v-surface border border-v-border rounded-lg p-5 sm:p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-white mb-2">Delete this quote?</h3>
+              <p className="text-sm text-v-text-secondary mb-2">
+                {(deleteConfirm.customer_company || deleteConfirm.client_name || 'Untitled')}
+                {(deleteConfirm.aircraft_model || deleteConfirm.aircraft_type) ? ` — ${deleteConfirm.aircraft_model || deleteConfirm.aircraft_type}` : ''}
+              </p>
+              <p className="text-sm text-v-text-secondary mb-6">This cannot be undone.</p>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setDeleteConfirm(null)} disabled={deletingQuote} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white disabled:opacity-50">Cancel</button>
+                <button type="button" onClick={confirmDeleteQuote} disabled={deletingQuote} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50">
+                  {deletingQuote ? 'Deleting...' : 'Delete'}
+                </button>
               </div>
             </div>
           </div>
