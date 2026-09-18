@@ -387,8 +387,8 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
   // ─── STEP 2: Email Compose + Quote Preview ───
   if (step === 2 && createdQuote) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-[#0f1623] border border-white/[0.08] rounded-xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl">
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-[#0f1623] border border-white/[0.08] rounded-xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
             <div className="flex items-center gap-3">
@@ -402,7 +402,12 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
                 </p>
               </div>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-lg px-2">&times;</button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl leading-none text-gray-400 hover:text-white border border-white/[0.08] rounded-lg hover:bg-white/5 transition-colors"
+              aria-label="Close"
+            >&times;</button>
           </div>
 
           {/* Scrollable body */}
@@ -560,17 +565,27 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
                     onLoad={() => setPreviewIframeStatus('ready')}
                     onError={() => setPreviewIframeStatus('error')}
                   />
-                  <div className="px-6 py-2 flex items-center justify-between border-t border-white/[0.06]">
-                    <a href={pdfUrl} download={`quote-${createdQuote.id.slice(0, 8)}.pdf`}
-                      className="text-xs text-gray-500 hover:text-v-gold transition-colors">
-                      Download PDF
-                    </a>
-                    {shareUrl && (
-                      <a href={shareUrl} target="_blank" rel="noreferrer"
+                  <div className="px-6 py-2 flex items-center justify-between gap-3 border-t border-white/[0.06]">
+                    <div className="flex items-center gap-4">
+                      <a href={pdfUrl} target="_blank" rel="noreferrer"
+                        download={`quote-${createdQuote.id.slice(0, 8)}.pdf`}
                         className="text-xs text-gray-500 hover:text-v-gold transition-colors">
-                        Open in new tab
+                        Download PDF
                       </a>
-                    )}
+                      {shareUrl && (
+                        <a href={shareUrl} target="_blank" rel="noreferrer"
+                          className="text-xs text-gray-500 hover:text-v-gold transition-colors">
+                          Open client page
+                        </a>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(false)}
+                      className="text-xs font-medium text-gray-300 hover:text-white min-h-[36px] px-3 rounded border border-white/[0.08]"
+                    >
+                      Hide preview
+                    </button>
                   </div>
                 </div>
               );
