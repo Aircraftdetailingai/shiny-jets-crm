@@ -11,7 +11,7 @@ import path from 'path';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(here, '..', 'lib', 'pricing-tool-access.js'), 'utf8');
 const lib = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
-const { isPricingSku, pricingPurchaseFromLineItems, computePricingGrant } = lib;
+const { isPricingSku, pricingPurchaseFromLineItems, computePricingGrant, orderAlreadyApplied } = lib;
 
 const NOW = new Date('2026-09-27T17:00:00Z');
 const DAY = 86400000;
@@ -67,6 +67,15 @@ check('lapsed crm_pro row is taken over as quarterly', g.mode === 'reactivate' &
 const expiredStatusFutureEnd = { product_type: 'monthly', status: 'expired', access_start: '2026-09-01T00:00:00Z', access_end: '2026-10-01T00:00:00Z' };
 g = computePricingGrant({ existing: expiredStatusFutureEnd, email: 'a@x.com', orderId: 7, productType: 'monthly', days: 30, now: NOW });
 check('never shortens: stacks on future end even if status expired', g.row.access_end === iso(Date.parse('2026-10-01T00:00:00Z') + 30 * DAY) && g.row.status === 'active');
+
+console.log('Retry guard');
+check('pricing row stamped with same order → already applied', orderAlreadyApplied({ product_type: 'monthly', shopify_order_id: '123' }, 123));
+check('pricing row with different order → not applied', !orderAlreadyApplied({ product_type: 'monthly', shopify_order_id: '122' }, '123'));
+check('course row stamped with same order (mixed cart) → not applied', !orderAlreadyApplied({ product_type: 'masterclass_annual', shopify_order_id: '123' }, '123'));
+check('no existing row → not applied', !orderAlreadyApplied(null, '123'));
+// Simulated retry: apply once, then the retry sees the row it wrote.
+g = computePricingGrant({ existing: null, email: 'a@x.com', orderId: 555, productType: 'monthly', days: 30, now: NOW });
+check('retry after create is caught by row guard', orderAlreadyApplied(g.row, '555'));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

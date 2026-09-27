@@ -6,6 +6,7 @@ import {
   isPricingSku,
   pricingPurchaseFromLineItems,
   computePricingGrant,
+  orderAlreadyApplied,
   pricingToolAccessEmail,
 } from '@/lib/pricing-tool-access';
 
@@ -534,6 +535,11 @@ async function handlePricingToolAccess(supabase, payload) {
     return;
   }
 
+  if (orderAlreadyApplied(existing, orderId)) {
+    console.log(`[shopify-webhook] pricing tool: order ${orderId} already on app_access row, skipping`);
+    return;
+  }
+
   const { mode, row } = computePricingGrant({
     existing,
     email,
@@ -551,8 +557,10 @@ async function handlePricingToolAccess(supabase, payload) {
   }
 
   // Record the grant immediately (before email) so a Shopify retry of the same
-  // order can never extend access twice.
-  await supabase.from('webhook_logs').insert({
+  // order can never extend access twice. supabase-js returns errors rather
+  // than throwing, so check it: a silent failure here would let a retry
+  // extend again (orderAlreadyApplied above is the backstop for that).
+  const { error: logErr } = await supabase.from('webhook_logs').insert({
     source: 'shopify',
     topic: 'pricing_tool_access_granted',
     payload: {
@@ -569,6 +577,9 @@ async function handlePricingToolAccess(supabase, payload) {
     },
     processed: true,
   });
+  if (logErr) {
+    console.error(`[shopify-webhook] pricing tool: grant log insert FAILED for order ${orderId} (retry guard degraded):`, logErr);
+  }
 
   console.log(`[shopify-webhook] pricing tool access ${mode}: ${email} order=${orderId} type=${row.product_type} +${purchase.days}d until ${row.access_end}`);
 
