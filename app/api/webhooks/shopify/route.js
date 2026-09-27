@@ -2,6 +2,13 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail as sendLibEmail } from '@/lib/email';
 import { redeemCompInviteIfAny } from '@/lib/comp-invites';
+import {
+  isPricingSku,
+  pricingPurchaseFromLineItems,
+  computePricingGrant,
+  orderAlreadyApplied,
+  pricingToolAccessEmail,
+} from '@/lib/pricing-tool-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +32,11 @@ function planFromPrice(price) {
 
 // Resolve plan from a Shopify line item
 function resolvePlan(item) {
+  // 0. Pricing Tool SKUs (PRICING-MONTHLY / PRICING-QUARTERLY) are not CRM
+  //    plans. Without this, the $79.95 quarterly variant fell through to the
+  //    price fallback (70–90 → 'pro') and provisioned a CRM Pro account.
+  if (isPricingSku(item.sku)) return null;
+
   // 1. Exact SKU match
   const sku = (item.sku || '').toUpperCase().trim();
   if (SKU_PLAN_MAP[sku]) return SKU_PLAN_MAP[sku];
@@ -475,6 +487,112 @@ async function handleCoursePricingAccess(supabase, payload) {
   });
 }
 
+// ─── Pricing Tool (PRICING-MONTHLY / PRICING-QUARTERLY) → app_access ───
+async function alreadyGrantedPricingTool(supabase, orderId) {
+  if (!orderId) return false;
+  const { data, error } = await supabase
+    .from('webhook_logs')
+    .select('id')
+    .eq('source', 'shopify')
+    .eq('topic', 'pricing_tool_access_granted')
+    .filter('payload->>order_id', 'eq', String(orderId))
+    .limit(1);
+  if (!error) return !!(data && data.length);
+  const { data: recent } = await supabase
+    .from('webhook_logs')
+    .select('id, payload')
+    .eq('source', 'shopify')
+    .eq('topic', 'pricing_tool_access_granted')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return (recent || []).some((row) => String(row?.payload?.order_id || '') === String(orderId));
+}
+
+async function handlePricingToolAccess(supabase, payload) {
+  const purchase = pricingPurchaseFromLineItems(payload?.line_items);
+  if (!purchase) return;
+
+  const orderId = String(payload?.id || '');
+  const email = extractEmail(payload);
+  if (!orderId || !email) {
+    console.error(`[shopify-webhook] pricing tool: missing order id or email (order=${orderId})`);
+    return;
+  }
+
+  // Idempotency: one grant per Shopify order id.
+  if (await alreadyGrantedPricingTool(supabase, orderId)) {
+    console.log(`[shopify-webhook] pricing tool: idempotent skip order ${orderId}`);
+    return;
+  }
+
+  const { data: existing, error: readErr } = await supabase
+    .from('app_access')
+    .select('email, product_type, status, access_start, access_end, shopify_order_id')
+    .eq('email', email)
+    .maybeSingle();
+  if (readErr) {
+    console.error('[shopify-webhook] pricing tool: app_access read error:', readErr);
+    return;
+  }
+
+  if (orderAlreadyApplied(existing, orderId)) {
+    console.log(`[shopify-webhook] pricing tool: order ${orderId} already on app_access row, skipping`);
+    return;
+  }
+
+  const { mode, row } = computePricingGrant({
+    existing,
+    email,
+    orderId,
+    productType: purchase.productType,
+    days: purchase.days,
+  });
+
+  const { error: upsertErr } = await supabase
+    .from('app_access')
+    .upsert(row, { onConflict: 'email' });
+  if (upsertErr) {
+    console.error('[shopify-webhook] pricing tool: app_access upsert error:', upsertErr);
+    return;
+  }
+
+  // Record the grant immediately (before email) so a Shopify retry of the same
+  // order can never extend access twice. supabase-js returns errors rather
+  // than throwing, so check it: a silent failure here would let a retry
+  // extend again (orderAlreadyApplied above is the backstop for that).
+  const { error: logErr } = await supabase.from('webhook_logs').insert({
+    source: 'shopify',
+    topic: 'pricing_tool_access_granted',
+    payload: {
+      order_id: orderId,
+      order_name: payload?.name || null,
+      email,
+      skus: purchase.skus,
+      days: purchase.days,
+      mode,
+      previous_product_type: existing?.product_type || null,
+      previous_access_end: existing?.access_end || null,
+      product_type: row.product_type,
+      access_end: row.access_end,
+    },
+    processed: true,
+  });
+  if (logErr) {
+    console.error(`[shopify-webhook] pricing tool: grant log insert FAILED for order ${orderId} (retry guard degraded):`, logErr);
+  }
+
+  console.log(`[shopify-webhook] pricing tool access ${mode}: ${email} order=${orderId} type=${row.product_type} +${purchase.days}d until ${row.access_end}`);
+
+  const firstName = payload?.customer?.first_name || payload?.billing_address?.first_name || 'there';
+  const mail = pricingToolAccessEmail({
+    email,
+    firstName,
+    accessEnd: row.access_end,
+    productType: purchase.productType,
+  });
+  await sendEmail(email, 'Your Shiny Jets Pricing App Access', mail.html, { text: mail.text });
+}
+
 // ─── Course → Enterprise 1-year (Victor-style fields) ───
 async function grantCourseEnterprise(supabase, payload, courseItem) {
   const orderId = String(payload?.id || '');
@@ -679,6 +797,14 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
 async function handleOrderPaid(supabase, payload) {
   // Check for course products → grant pricing app access
   await handleCoursePricingAccess(supabase, payload);
+
+  // Pricing Tool subscriptions (PRICING-MONTHLY / PRICING-QUARTERLY) → app_access.
+  // Isolated so a failure here never blocks CRM / course provisioning below.
+  try {
+    await handlePricingToolAccess(supabase, payload);
+  } catch (e) {
+    console.error('[shopify-webhook] pricing tool access error:', e?.message || e);
+  }
 
   const items = payload?.line_items || [];
   const courseItem = await findCourseLineItem(items);
