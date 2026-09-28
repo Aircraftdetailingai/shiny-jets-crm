@@ -1,30 +1,78 @@
 /**
- * Sanity check: run the real Detailing AI knowledge stub loader against sample queries.
- * Usage: node scripts/test-detailing-ai-knowledge.mjs
- * Exit 0 if shop recipes + Beyond Shiny safety both surface for the required queries.
+ * Detailing AI knowledge selection tests — runs the real loader
+ * (lib/detailing-ai-knowledge.js) against sample questions.
+ *
+ * Usage: node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-knowledge.mjs
+ *
+ * Private rows (shop recipes + Beyond Shiny full text) come from, in order:
+ *   1. the live `private_knowledge` table, when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set
+ *      in the environment and the table answers ("db" mode);
+ *   2. the private source folder outside the repo (PRIVATE_KNOWLEDGE_DIR, default
+ *      /home/box/private-knowledge), built with the same code as the upsert script ("local" mode);
+ *   3. a synthetic fixture with no proprietary text ("mock" mode — used in CI).
+ * Exit 0 only if every check passes.
  */
-import { readdir, readFile } from 'fs/promises';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  loadKnowledgeStub,
+  getPrivateKnowledgeRows,
+  resetPrivateKnowledgeCache,
+  MAX_BOOK_CHUNKS,
+  MAX_EXCERPTS,
+} from '../lib/detailing-ai-knowledge.js';
+import { buildAllRows, DEFAULT_PRIVATE_DIR } from './lib/private-knowledge-build.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(root);
 
-const src = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
-const start = src.indexOf('const KNOWLEDGE_NEEDLES');
-const end = src.indexOf('async function loadServicesCatalog');
-if (start < 0 || end < 0) {
-  console.error('Could not locate knowledge loader in route.js');
-  process.exit(2);
-}
-const code = src.slice(start, end);
-const load = new Function(
-  'readdir', 'readFile', 'path', 'console',
-  `${code}\nreturn loadKnowledgeStub;`
-)(readdir, readFile, path, console);
+// ---------------------------------------------------------------------------
+// Private rows source
+// ---------------------------------------------------------------------------
+const MOCK_ROWS = [
+  {
+    slug: 'shop-recipes-mock-paint-brightwork-carpet',
+    source: 'recipes',
+    title: 'Mock shop recipes (test fixture — not real content)',
+    section: 'paint, brightwork, carpet',
+    keywords: ['mockpad', 'mockpolish'],
+    content: '# Mock shop recipes\nAsk single-stage or clearcoat first.\n## Single-stage oxidation\nPLACEHOLDER pad + PLACEHOLDER polish on a DA.\n'
+      + '## Clearcoat (e.g., Cirrus)\nPLACEHOLDER polish on foam.\n## Brightwork one-step\nPLACEHOLDER; no holograms.\n'
+      + '## Carpet grease, ink, or Sharpie\nPLACEHOLDER spray, terry towel press method.',
+  },
+  ...['wash', 'carpet', 'paint', 'brightwork'].flatMap((t) => [1, 2, 3].map((n) => ({
+    slug: `beyond-shiny-mock-${t}-${n}`,
+    source: 'beyond-shiny',
+    title: `Beyond Shiny — mock ${t}`,
+    section: `${t} section ${n}`,
+    keywords: t === 'wash' ? ['foam cannon', 'pressure washer'] : [`mock ${t}`],
+    content: `Mock book chunk about ${t}: carpet paint polish oxidation wash brightwork pitot sharpie foam cannon pressure washer. (fixture ${n})`,
+  }))),
+];
 
-// Helicopter profile slugs, from the type-class column of aircraft/index.md.
+async function pickRows() {
+  if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)) {
+    resetPrivateKnowledgeCache();
+    const rows = await getPrivateKnowledgeRows();
+    if (rows.length > 0) return { mode: 'db', rows };
+    console.log('(private_knowledge not reachable or empty — falling back)');
+  }
+  if (fs.existsSync(DEFAULT_PRIVATE_DIR)) {
+    const rows = buildAllRows(DEFAULT_PRIVATE_DIR);
+    if (rows.length > 0) return { mode: 'local', rows };
+  }
+  return { mode: 'mock', rows: MOCK_ROWS };
+}
+
+const { mode, rows: PRIVATE_ROWS } = await pickRows();
+const recipeRows = PRIVATE_ROWS.filter((r) => r.source === 'recipes');
+const bookRows = PRIVATE_ROWS.filter((r) => r.source === 'beyond-shiny');
+console.log(`private rows: ${mode} mode — ${recipeRows.length} recipe, ${bookRows.length} book`);
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 const HELICOPTER_FILES = fs
   .readFileSync('knowledge/detailing/aircraft/index.md', 'utf8')
   .split('\n')
@@ -35,20 +83,21 @@ const HELICOPTER_FILES = fs
 
 const NON_CONTENT = /(^|\/)(readme|index)\.md$|progress[^/]*\.md$/i;
 
+// Loader headers: "### <path>" (public files) or "### shop-recipes/<slug> (…)" / "### beyond-shiny-book/<slug> (…)".
 function chosenFiles(out) {
-  // Only the loader's file headers: "### <path>" at start of a knowledge block line.
-  // Paths always contain a slash or end with .md and have no spaces for our files.
-  return [...out.matchAll(/^### (\S+\.md)$/gm)]
-    .map((m) => m[1])
-    .filter((f) => f.includes('.md') || f.includes('/'));
+  return [...out.matchAll(/^### ((?:shop-recipes|beyond-shiny-book)\/\S+|\S+\.md)(?: \(.*\))?$/gm)].map((m) => m[1]);
 }
+
+const RECIPE = 'shop-recipes/';
+const BOOK_FULL = 'beyond-shiny-book/';
 
 const checks = [
   {
     q: 'medium oxidation single stage',
-    mustIncludeAny: ['shop-recipes'],
+    mustIncludeAny: [RECIPE],
     mustIncludeAny2: ['beyond-shiny/paint-single-stage', 'beyond-shiny/recipe-quick-list', 'beyond-shiny/paint-compound'],
-    note: 'shop recipe + book paint topic',
+    recipeBeforeBook: true,
+    note: 'shop recipe row + book paint topic; recipe outranks book',
   },
   {
     q: 'pitot cover wash',
@@ -57,13 +106,14 @@ const checks = [
   },
   {
     q: 'how do I get sharpie out of carpet',
-    mustIncludeAny: ['shop-recipes'],
-    note: 'shop Oil Delete recipe',
+    mustIncludeAny: [RECIPE],
+    recipeBeforeBook: true,
+    note: 'shop carpet stain recipe row',
   },
   {
     q: 'clearcoat cirrus polish',
-    mustIncludeAny: ['shop-recipes'],
-    note: 'shop clearcoat recipe',
+    mustIncludeAny: [RECIPE],
+    note: 'shop clearcoat recipe row',
   },
   {
     q: 'brightwork overheating 150F',
@@ -88,7 +138,7 @@ const checks = [
   {
     q: 'can I fog the cabin for disinfection',
     mustExclude: ['beyond-shiny/acrylic', 'beyond-shiny/brightwork'],
-    note: 'no unrelated book files for fogging',
+    note: 'no unrelated book digest files for fogging',
   },
   {
     q: 'can I fog the cabin for disinfection',
@@ -103,33 +153,115 @@ const checks = [
   {
     q: 'Citation CJ3 leather seats',
     mustIncludeAll: ['aircraft/cessna-citation-cj3.md'],
-    note: 'specific aircraft profile still selected',
+    mustExclude: [RECIPE],
+    note: 'specific aircraft profile still selected; no recipe filler',
+  },
+  {
+    q: 'what does beyond shiny say about using a foam cannon and pressure washer',
+    mustIncludeAny: [BOOK_FULL],
+    note: 'Beyond Shiny full text surfaces for book questions',
+  },
+  {
+    q: 'single stage paint oxidation polish compound carpet wash brightwork',
+    maxBookChunks: MAX_BOOK_CHUNKS,
+    note: `at most ${MAX_BOOK_CHUNKS} full-text book chunks per answer`,
   },
 ];
 
 let failed = 0;
-for (const c of checks) {
-  const out = await load(c.q);
-  const files = chosenFiles(out);
-  const ok1 = !c.mustIncludeAny || c.mustIncludeAny.some((p) => files.some((f) => f.includes(p)));
-  const ok2 = !c.mustIncludeAny2 || c.mustIncludeAny2.some((p) => files.some((f) => f.includes(p)));
-  const ok3 = !c.mustIncludeAll || c.mustIncludeAll.every((p) => files.some((f) => f.includes(p)));
-  const bad = (c.mustExclude || []).filter((p) => files.some((f) => f.includes(p)));
-  const meta = files.filter((f) => NON_CONTENT.test(f));
-  const ok = ok1 && ok2 && ok3 && bad.length === 0 && meta.length === 0;
+function report(ok, title, files, problems = []) {
   if (!ok) failed += 1;
-  console.log(`\n${ok ? 'PASS' : 'FAIL'}  "${c.q}"  (${c.note})`);
+  console.log(`\n${ok ? 'PASS' : 'FAIL'}  ${title}`);
   files.forEach((f, i) => console.log(`  ${i + 1}. ${f}`));
-  if (!ok1) console.log(`  missing any of: ${c.mustIncludeAny}`);
-  if (!ok2) console.log(`  missing any of: ${c.mustIncludeAny2}`);
-  if (!ok3) console.log(`  missing all of: ${c.mustIncludeAll}`);
-  if (bad.length) console.log(`  must not include: ${bad}`);
-  if (meta.length) console.log(`  non-content files selected: ${meta}`);
-  // Presence of safety language for pitot query
-  if (c.q.includes('pitot') && !/pitot/i.test(out)) {
-    console.log('  WARN: injected text has no "pitot"');
-  }
+  problems.forEach((p) => console.log(`  ${p}`));
 }
 
-console.log(`\n${checks.length - failed}/${checks.length} passed`);
+for (const c of checks) {
+  const out = await loadKnowledgeStub(c.q, { privateRows: PRIVATE_ROWS });
+  const files = chosenFiles(out);
+  const problems = [];
+  if (c.mustIncludeAny && !c.mustIncludeAny.some((p) => files.some((f) => f.includes(p)))) problems.push(`missing any of: ${c.mustIncludeAny}`);
+  if (c.mustIncludeAny2 && !c.mustIncludeAny2.some((p) => files.some((f) => f.includes(p)))) problems.push(`missing any of: ${c.mustIncludeAny2}`);
+  if (c.mustIncludeAll && !c.mustIncludeAll.every((p) => files.some((f) => f.includes(p)))) problems.push(`missing all of: ${c.mustIncludeAll}`);
+  const bad = (c.mustExclude || []).filter((p) => files.some((f) => f.includes(p)));
+  if (bad.length) problems.push(`must not include: ${bad}`);
+  const meta = files.filter((f) => NON_CONTENT.test(f));
+  if (meta.length) problems.push(`non-content files selected: ${meta}`);
+  if (files.length > MAX_EXCERPTS) problems.push(`more than ${MAX_EXCERPTS} excerpts`);
+  const bookCount = files.filter((f) => f.startsWith(BOOK_FULL)).length;
+  if (bookCount > MAX_BOOK_CHUNKS) problems.push(`${bookCount} full-text book chunks (max ${MAX_BOOK_CHUNKS})`);
+  if (c.recipeBeforeBook) {
+    const ri = files.findIndex((f) => f.startsWith(RECIPE));
+    const bi = files.findIndex((f) => f.startsWith('beyond-shiny'));
+    if (ri < 0 || (bi >= 0 && bi < ri)) problems.push('shop recipe must rank above Beyond Shiny (digest and full text)');
+  }
+  if (c.q.includes('pitot') && !/pitot/i.test(out)) problems.push('injected text has no "pitot"');
+  report(problems.length === 0, `"${c.q}"  (${c.note})`, files, problems);
+}
+
+// ---------------------------------------------------------------------------
+// Fallback: Supabase unreachable → public files only, no crash.
+// ---------------------------------------------------------------------------
+{
+  const out = await loadKnowledgeStub('how do I get sharpie out of carpet', { privateRows: [] });
+  const files = chosenFiles(out);
+  const problems = [];
+  if (!files.includes('sops/sop-04-carpet-cleaning.md')) problems.push('carpet SOP missing in fallback');
+  if (files.some((f) => f.startsWith(RECIPE) || f.startsWith(BOOK_FULL))) problems.push('private rows present with none loaded');
+  report(problems.length === 0, 'fallback (no private rows): public SOP still selected', files, problems);
+}
+{
+  const saved = { url: process.env.SUPABASE_URL, k1: process.env.SUPABASE_SERVICE_ROLE_KEY, k2: process.env.SUPABASE_SERVICE_KEY };
+  process.env.SUPABASE_URL = 'http://127.0.0.1:9';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-not-a-key';
+  resetPrivateKnowledgeCache();
+  const origError = console.error;
+  console.error = () => {};
+  const t0 = Date.now();
+  const out = await loadKnowledgeStub('medium oxidation single stage');
+  const ms = Date.now() - t0;
+  console.error = origError;
+  const files = chosenFiles(out);
+  const problems = [];
+  if (!files.length) problems.push('no knowledge returned');
+  if (files.some((f) => f.startsWith(RECIPE) || f.startsWith(BOOK_FULL))) problems.push('private rows present while DB unreachable');
+  if (ms > 5000) problems.push(`took ${ms}ms (timeout too long)`);
+  report(problems.length === 0, `fallback (DB unreachable): public files in ${ms}ms`, files, problems);
+  process.env.SUPABASE_URL = saved.url ?? '';
+  if (saved.k1 === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = saved.k1;
+  if (saved.k2 === undefined) delete process.env.SUPABASE_SERVICE_KEY; else process.env.SUPABASE_SERVICE_KEY = saved.k2;
+  if (saved.url === undefined) delete process.env.SUPABASE_URL;
+  resetPrivateKnowledgeCache();
+}
+
+// ---------------------------------------------------------------------------
+// Repo hygiene: no recipe file, no private text in public files, no knowledge in API responses.
+// ---------------------------------------------------------------------------
+{
+  const problems = [];
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (
+    e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const publicFiles = walk('knowledge/detailing').filter((f) => f.endsWith('.md'));
+  const recipeFiles = publicFiles.filter((f) => /shop-recipes-/.test(path.basename(f)));
+  if (recipeFiles.length) problems.push(`recipe files in public repo: ${recipeFiles}`);
+  if (mode !== 'mock') {
+    const publicText = [...publicFiles, 'app/api/detailing-ai/chat/route.js', 'lib/detailing-ai-knowledge.js']
+      .map((f) => fs.readFileSync(f, 'utf8').toLowerCase().replace(/\s+/g, ' '))
+      .join('\n');
+    for (const r of recipeRows) {
+      const lines = r.content.split('\n').map((l) => l.replace(/[*#>`_-]/g, '').trim().toLowerCase().replace(/\s+/g, ' '))
+        .filter((l) => l.length >= 30 && !/^(source|related|keywords):/.test(l));
+      const leaked = lines.filter((l) => publicText.includes(l));
+      if (leaked.length) problems.push(`recipe "${r.slug}" text found in public files: ${leaked.slice(0, 3).join(' | ')}`);
+    }
+  }
+  const route = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
+  const jsonCalls = [...route.matchAll(/Response\.json\(\{([\s\S]*?)\}\s*(?:,|\))/g)].map((m) => m[1]);
+  if (jsonCalls.some((b) => /\b(system|knowledge|excerpts)\b/.test(b))) problems.push('route returns system/knowledge to the client');
+  if (/knowledge\/detailing\/shop-recipes-/i.test(route)) problems.push('system prompt still points at a public recipe file');
+  report(problems.length === 0, 'repo hygiene: no public recipe content; API never returns knowledge', [], problems);
+}
+
+const total = checks.length + 3;
+console.log(`\n${total - failed}/${total} passed (${mode} mode)`);
 process.exit(failed ? 1 : 0);

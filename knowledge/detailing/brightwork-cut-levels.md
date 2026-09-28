@@ -22,7 +22,7 @@ Brightwork (polished aluminum / stainless leading edges, spinners, exhaust, some
 Pair brightwork with exterior wash/detail so runoff and polish residue are managed cleanly. Ceramic or metal sealant after polish extends the look between visits.
 
 ## Brett shop recipe
-For the shop-standard brightwork one-step (Grant's microfiber pad + Fly Shiny Striker + Fly Shiny Maverick, no holograms), see [shop-recipes-paint-brightwork-carpet.md](shop-recipes-paint-brightwork-carpet.md). When it conflicts with the generic guidance above on products/pads, the shop recipe wins.
+The shop-standard brightwork one-step comes from Brett's shop recipe (stored privately; injected by Detailing AI when relevant). When it conflicts with the generic guidance above on products/pads, the shop recipe wins.
 
 ## Brett's notes
 Under-quoting brightwork is the #1 way to lose money on a "simple" exterior. Measure linear feet / surfaces, not vibes. Ask for photos of leading edges and engine inlets before locking the number.
