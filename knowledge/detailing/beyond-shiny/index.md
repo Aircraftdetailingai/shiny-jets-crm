@@ -17,7 +17,7 @@ Headings in the docx were plain text (no Word heading styles); sections were det
  | 467-634 | Exterior Services – research, walkaround, FAA corrosion map, maintenance wash, DRY WASH |
  | 635-785 | Wet Washing (pressure washer, foam cannon, spot-free water, paint/brightwork/de-ice boot wash) |
  | 786-869 | Interior Maintenance Cleaning (vacuum, towels, disinfectant, Phase 1 / Phase 2) |
- | 870-993 | Exterior Restoration – Paint Restoration (tools, Fly Shiny Pro Cut/Polish, clay, oxidation levels) |
+ | 870-993 | Exterior Restoration – Paint Restoration (tools, Fly Shiny Pro Cut (not yet released — do not recommend)/Polish, clay, oxidation levels) |
  | 994-1152 | Paint Protection – wax, sealant, spray sealant, spray ceramic, ceramic, polymer; RejeX waxing; Air Guard |
  | 1153-1297 | Fly Shiny Pro ceramic coating program (DA + interface pad + applicator sheet, prep, layers, topper) |
  | 1298-1425 | Brightwork Polishing & Protection (rotary/RO, Top Cut, Revitalizer, Reflection, Granitize X20-18) |
@@ -198,14 +198,14 @@ Headings in the docx were plain text (no Word heading styles); sections were det
 - L860-865: Phase 2 Interior Maintenance Cleaning
 - L866-869: Interior Maintenance Cleaning Re-Cap
 
-### Exterior Restoration – Paint Restoration (tools, Fly Shiny Pro Cut/Polish, clay, oxidation levels)  (starts L870)
+### Exterior Restoration – Paint Restoration (tools, Fly Shiny Pro Cut (not yet released — do not recommend)/Polish, clay, oxidation levels)  (starts L870)
 - L870-876: Exterior Restoration/Protection Services Introduction
 - L877-883: Paint Restoration Services Introduction
 - L884-890: Rotary Buffer
 - L891-898: Random Dual Action Polisher
 - L899-902: Tornador
 - L903-906: Pad Rake
-- L907-910: Fly Shiny Pro Cut
+- L907-910: Fly Shiny Pro Cut (not yet released — do not recommend)
 - L911-915: Fly Shiny Pro Polish
 - L916-921: Clay Bar Pad
 - L922-924: Red Clay - Overspray Removal

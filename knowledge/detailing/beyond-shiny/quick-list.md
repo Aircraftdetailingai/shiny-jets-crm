@@ -2,16 +2,17 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation method (Rupes blue wool + Fly Shiny Pro Cut) is **superseded** for current single-stage work — use the shop-method excerpt when Detailing AI provides it. The book does **not** cover clearcoat — use the Shiny Jets method for clearcoat. Always ask single-stage vs clearcoat first. For brightwork and carpet grease/ink, the Shiny Jets methods also apply.
+**Precedence:** Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation method (Rupes blue wool + Fly Shiny Pro Cut) is an **older (superseded) method** for current single-stage work — lead with the latest Shiny Jets method excerpt; the book method is kept only as a labeled older alternative. It depends on Fly Shiny Pro Cut, which is **not yet released — do not recommend**, so it can't be offered as an alternative. Never pair Fly Shiny Pro Polish with a Rupes blue wool pad. The book does **not** cover clearcoat — use the Shiny Jets method for clearcoat. Always ask single-stage vs clearcoat first. For brightwork and carpet grease/ink, the Shiny Jets methods also apply.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---
 
 ## 13. Top method / procedure quick list (pad + product + tool)
-1. Medium oxidation, single-stage paint: **DA + Rupes blue wool pad + Fly Shiny Pro Cut**, one step. [L944]
-  - ⚠ **Superseded for current shop work** → Brett's single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps).
-2. Heavy oxidation: **DA + Rupes blue wool + Fly Shiny Pro Cut** in small sections, **or rotary + wool pad + compound** (e.g. **Fly Shiny Pro Polish**, long working time) at ~1,200 RPM, light pressure, 1"/sec, crosshatch. [L948, L912, L962]
-  - ⚠ **Superseded for current shop work** → Brett's single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps).
+1. Medium oxidation, single-stage paint: **DA + Rupes blue wool pad + Fly Shiny Pro Cut** (not yet released — do not recommend), one step. [L944]
+  - ⚠ **Older book method — superseded for current shop work** → lead with Brett's latest single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps). Older alternative only; it uses Fly Shiny Pro Cut (not yet released — do not recommend).
+2. Heavy oxidation: **DA + Rupes blue wool + Fly Shiny Pro Cut** (not yet released — do not recommend) in small sections, **or rotary + wool pad + compound** (e.g. **Fly Shiny Pro Polish**, long working time) at ~1,200 RPM, light pressure, 1"/sec, crosshatch. [L948, L912, L962]
+  - ⚠ **Older book method — superseded for current shop work** → lead with Brett's latest single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps). Older alternative only; it uses Fly Shiny Pro Cut (not yet released — do not recommend).
+  - ⛔ Never pair Fly Shiny Pro Polish with a Rupes blue wool pad (Brett, Sep 28 2026) — not even as an older alternative.
 3. Light oxidation: **DA + foam pad + Fly Shiny Pro Polish** (or a light polish or polishing wax). [L940-941, L988]
   - ⚠ Current light-to-moderate single-stage work and all clearcoat work → Brett's Shiny Jets method (private).
 4. Oxidation check: **50/50 IPA/water** wipe (rotary); IPA wipe between test patches. [L965, L935]
