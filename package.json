@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "knowledge:upsert": "node scripts/upsert-private-knowledge.mjs",
-    "test": "node scripts/test-pricing-tool-access.mjs && node --import ./scripts/test-support/register.mjs scripts/test-plans.mjs && node --import ./scripts/test-support/register.mjs scripts/test-crm-plan-grants.mjs && node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-knowledge.mjs"
+    "test": "node scripts/test-pricing-tool-access.mjs && node --import ./scripts/test-support/register.mjs scripts/test-plans.mjs && node --import ./scripts/test-support/register.mjs scripts/test-crm-plan-grants.mjs && node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-knowledge.mjs && node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-messages.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
