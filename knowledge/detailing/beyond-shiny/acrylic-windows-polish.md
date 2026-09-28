@@ -10,7 +10,7 @@ Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach t
 ## 10. Acrylic (unpressurized) windows
 - Tools: inspection lights ("Scangrip"), 3" RO for edges, 5"/6" for field areas (spreads heat; **too much heat causes crazing**). [L1623-1629]
 - **Method sequence** [L1663-1667]:
-  1. Heavy-cut compound + **Rupes blue wool pad**: 3" polisher on the edges (~3 passes), then 5-6" on 16"x16" sections, 1 pass plus 2 more. **DA at speed 4.5.**
+  1. Heavy-cut compound + **wool cutting pad**: 3" polisher on the edges (~3 passes), then 5-6" on 16"x16" sections, 1 pass plus 2 more. **DA at speed 4.5.**
   2. Firm open-cell **foam cutting pad**: 3 passes per section (removes the wool's micro-scratches).
   3. Polish + **yellow closed-cell foam polishing pad**: 3 passes, low speed, brisk arm tempo.
   4. Fine polish + white/black **finishing pad**: 3 passes, slower speed, high arm tempo.

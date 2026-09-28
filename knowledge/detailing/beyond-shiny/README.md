@@ -4,7 +4,7 @@ Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detaili
 
 ## Precedence rule (also in the Detailing AI SYSTEM_PROMPT)
 1. **Brett's Shiny Jets methods win.** The Shiny Jets methods (Sep 28, 2026) are stored privately in Supabase (`private_knowledge`, server-only) and override this book where they conflict on products, pads, or steps.
-   - Example: the book's medium-oxidation method (DA + Rupes blue wool pad + Fly Shiny Pro Cut) is an older (superseded) method for current single-stage work: the latest Shiny Jets method comes first, and the book method is kept only as a labeled older alternative. Fly Shiny Pro Cut is not yet released — do not recommend it. Never pair Fly Shiny Pro Polish with a Rupes blue wool pad.
+   - Example: the book's medium-oxidation method (DA + wool cutting pad + Fly Shiny Pro Cut) is an older (superseded) method for current single-stage work: the latest Shiny Jets method comes first, and the book method is kept only as a labeled older alternative. Fly Shiny Pro Cut is not yet released — do not recommend it.
    - The book does **not** cover clearcoat. For clearcoat, use the Shiny Jets method.
    - The full book text is also stored privately in `private_knowledge` (source `beyond-shiny`); this folder is only the public digest.
 2. **The book's safety and FAA cautions ALWAYS apply**, even when a Shiny Jets method overrides the book's products. See `safety-cautions.md`. Examples: pitot tube and static port covers; no interior fogging; brightwork kept under 150°F; MEK only as a coin-sized last resort with gloves and a respirator; Agemaster never on silver boots; landing gear strut and seal cautions; ceramic coating needs OEM approval.
