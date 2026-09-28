@@ -396,11 +396,11 @@ export default function DispatchPage() {
       <AppShell title="Dispatch">
         <div className="max-w-md mx-auto mt-20 text-center p-8 border border-v-border bg-v-surface rounded">
           <h2 className="text-xl text-v-text-primary mb-2">Dispatch Module</h2>
-          <p className="text-v-text-secondary text-sm mb-4">Available on Business and Enterprise plans</p>
+          <p className="text-v-text-secondary text-sm mb-4">Included with Business ($89.95/mo or $899/yr)</p>
           <p className="text-xs text-v-text-secondary mb-6">Assign jobs to crew, schedule by date, get smart suggestions, and notify your team automatically.</p>
           <a
-            href="https://shinyjets.com/products/aircraft-detailing-crm-business"
-            className="inline-block px-6 py-3 bg-v-gold text-v-charcoal font-semibold uppercase tracking-wider text-xs"
+            href="/upgrade?plan=business"
+            className="inline-flex items-center min-h-[44px] px-6 py-3 bg-v-gold text-v-charcoal font-semibold uppercase tracking-wider text-xs"
           >
             Upgrade to Business
           </a>

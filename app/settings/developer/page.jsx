@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { normalizePlan } from '@/lib/plans';
 
 function slugify(s) {
   return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -36,12 +37,11 @@ export default function DeveloperPage() {
   // Auth still resolving, or me fetch in flight — keep QR/embed sections visible with placeholders
   const appUrl = (typeof window !== 'undefined' ? window.location.origin : 'https://crm.shinyjets.com');
   const slug = me?.slug || slugify(me?.company) || me?.id || 'YOUR_SLUG';
-  const plan = (me?.plan || 'free').toLowerCase();
+  const plan = me?.is_admin ? 'business' : normalizePlan(me?.plan);
   const publicUrl = `${appUrl}/request/${slug}`;
   const embedCode = `<iframe src="${appUrl}/request/${slug}?embed=1" width="100%" height="800" style="border:none;"></iframe>`;
   const qrPngUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(publicUrl)}`;
   const qrSvgUrl = `https://api.qrserver.com/v1/create-qr-code/?format=svg&size=400x400&data=${encodeURIComponent(publicUrl)}`;
-  const hasApiAccess = plan === 'business' || plan === 'enterprise';
 
   const copy = async (text, k) => {
     try {
@@ -73,7 +73,7 @@ export default function DeveloperPage() {
     <div className="space-y-8">
       <div>
         <h2 className="text-xs font-medium uppercase tracking-widest text-v-gold pb-2 border-b border-v-gold/20">Developer · QR & Embed</h2>
-        <p className="text-xs text-v-text-secondary mt-2">Public link, QR, embed, and API access for your account.</p>
+        <p className="text-xs text-v-text-secondary mt-2">Public link, QR code, embed code and custom sending domain for your account.</p>
         {(allowed === null || !me) && (
           <p className="text-[11px] text-v-text-secondary/70 mt-1">Loading account details…</p>
         )}
@@ -136,33 +136,15 @@ export default function DeveloperPage() {
         </div>
       </section>
 
-      {/* Section 4 — Custom email sending domain (enterprise-only) */}
+      {/* Section 4 — Custom email sending domain (Business) */}
       <CustomEmailDomainSection plan={plan} />
 
-      {/* Section 5 — API access (plan-gated) */}
-      <section className="border border-v-border p-5 bg-v-surface">
-        <h3 className="text-sm font-semibold text-v-text-primary mb-1">API access</h3>
-        {hasApiAccess ? (
-          <>
-            <p className="text-xs text-v-text-secondary mb-3">Issue an API key for programmatic access to your CRM data.</p>
-            <p className="text-xs text-v-text-secondary/70">Key issuance ships in a follow-up — contact brett@shinyjets.com to request one now.</p>
-          </>
-        ) : (
-          <>
-            <p className="text-xs text-v-text-secondary mb-3">API access is available on the Business and Enterprise plans.</p>
-            <a href="/settings/payments"
-              className="inline-block px-4 py-2 bg-v-gold text-white text-xs uppercase tracking-wider hover:bg-v-gold-dim transition-colors">
-              Upgrade to Business
-            </a>
-          </>
-        )}
-      </section>
     </div>
   );
 }
 
 function CustomEmailDomainSection({ plan }) {
-  const isEligible = plan === 'business' || plan === 'enterprise';
+  const isEligible = plan === 'business';
   const [state, setState] = useStateOrLoad(isEligible);
   const [domain, setDomain] = useState('');
   const [busy, setBusy] = useState(false);
@@ -238,10 +220,10 @@ function CustomEmailDomainSection({ plan }) {
       <section className="border border-v-border p-5 bg-v-surface">
         <h3 className="text-sm font-semibold text-v-text-primary mb-1">Custom sending domain</h3>
         <p className="text-xs text-v-text-secondary mb-3">Send customer emails from <span className="font-mono">noreply@yourcompany.com</span> instead of the platform domain.</p>
-        <p className="text-xs text-v-text-secondary mb-3">Available on the Business and Enterprise plans.</p>
-        <a href="mailto:brett@shinyjets.com?subject=Business%20plan%20-%20custom%20email%20domain"
-          className="inline-block px-4 py-2 border border-v-border text-v-text-primary text-xs uppercase tracking-wider hover:bg-white/5 transition-colors">
-          Contact about upgrading
+        <p className="text-xs text-v-text-secondary mb-3">Included with Business ($89.95/mo or $899/yr).</p>
+        <a href="/upgrade?plan=business"
+          className="inline-flex items-center min-h-[44px] px-4 py-2 border border-v-border text-v-text-primary text-xs uppercase tracking-wider hover:bg-white/5 transition-colors">
+          Upgrade to Business
         </a>
       </section>
     );

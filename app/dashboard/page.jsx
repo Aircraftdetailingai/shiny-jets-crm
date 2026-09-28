@@ -11,6 +11,7 @@ import TermsConsentModal from '../../components/TermsConsentModal.jsx';
 import OnboardingChecklist from '../../components/OnboardingChecklist.jsx';
 import BiometricPrompt from '../../components/BiometricPrompt.jsx';
 import { TERMS_VERSION } from '../../lib/terms';
+import { normalizePlan, planName } from '@/lib/plans';
 
 
 
@@ -335,7 +336,7 @@ function DashboardContent() {
           // even if the user dismissed the prior warning state.
           const dismissKey = `airport_banner_dismissed_${enforced ? airportWarning.enforced_at : airportWarning.deadline_at}`;
           if (typeof window !== 'undefined' && localStorage.getItem(dismissKey)) return null;
-          const plan = airportWarning.plan_at_warning || user?.plan || 'current';
+          const plan = airportWarning.plan_at_warning ? planName(airportWarning.plan_at_warning) : (user?.plan ? planName(user.plan) : 'current');
           const limit = airportWarning.airport_limit_at_warning;
           const count = airportWarning.airport_count_at_warning;
           const over = Math.max(0, count - limit);
@@ -356,12 +357,12 @@ function DashboardContent() {
                 <a href="/settings/locations" className="px-4 py-2 bg-v-charcoal/60 hover:bg-v-charcoal text-white text-xs font-semibold rounded-lg transition-colors">
                   Manage airports
                 </a>
-                <a href="https://pricing.shinyjets.com" target="_blank" rel="noreferrer" className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                <a href="/upgrade" className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold rounded-lg transition-colors">
                   Upgrade plan
                 </a>
                 <button
                   onClick={() => { localStorage.setItem(dismissKey, String(Date.now())); setAirportBannerDismissedKey(dismissKey); }}
-                  className="text-white/30 hover:text-white/60 text-lg leading-none"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white/30 hover:text-white/60 text-lg leading-none"
                   aria-label="Dismiss"
                 >
                   &times;
@@ -372,23 +373,23 @@ function DashboardContent() {
         })()}
 
         {/* Free Plan Upgrade Banner */}
-        {user && (!user.plan || user.plan === 'free') && (() => {
+        {user && !user.is_admin && normalizePlan(user.plan) === 'free' && (() => {
           const dismissed = typeof window !== 'undefined' && localStorage.getItem('upgrade_banner_dismissed');
           const dismissedAt = dismissed ? parseInt(dismissed) : 0;
           const sevenDays = 7 * 24 * 60 * 60 * 1000;
           if (Date.now() - dismissedAt < sevenDays) return null;
           return (
-            <div className="mb-6 bg-gradient-to-r from-cyan-900/20 to-cyan-800/10 border border-cyan-700/30 rounded-lg p-4 flex items-center justify-between gap-4">
+            <div className="mb-6 bg-gradient-to-r from-cyan-900/20 to-cyan-800/10 border border-cyan-700/30 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-v-text-primary">
-                  {"You're on the Free plan"} &middot; Upgrade to Pro for unlimited quotes, crew management, and more
+                  {"You're on the Free plan"} &middot; Upgrade to Lite ($39.95/mo) for unlimited quotes, invoices, jobs and follow-ups
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <a href="/settings" className="px-4 py-2 bg-cyan-600 text-white text-xs font-semibold rounded-lg hover:bg-cyan-700 transition-colors">
-                  Upgrade Now
+                <a href="/upgrade?plan=lite" className="inline-flex items-center min-h-[44px] px-4 py-2 bg-cyan-600 text-white text-xs font-semibold rounded-lg hover:bg-cyan-700 transition-colors">
+                  See plans
                 </a>
-                <button onClick={() => { localStorage.setItem('upgrade_banner_dismissed', String(Date.now())); window.location.reload(); }} className="text-white/30 hover:text-white/60 text-lg leading-none">&times;</button>
+                <button aria-label="Dismiss" onClick={() => { localStorage.setItem('upgrade_banner_dismissed', String(Date.now())); window.location.reload(); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white/30 hover:text-white/60 text-lg leading-none">&times;</button>
               </div>
             </div>
           );
@@ -448,9 +449,9 @@ function DashboardContent() {
                 {quota.used}/{quota.limit} quotes used this month
               </span>
               {quota.used >= quota.limit ? (
-                <a href="https://shinyjets.com/products/aircraft-detailing-crm-pro" target="_blank" rel="noreferrer"
-                  className="text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim">
-                  Upgrade to Pro
+                <a href="/upgrade?plan=lite"
+                  className="inline-flex items-center min-h-[40px] text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim">
+                  Upgrade to Lite
                 </a>
               ) : (
                 <span className="text-[10px] text-v-text-secondary/60">Resets on the 1st</span>
@@ -468,7 +469,7 @@ function DashboardContent() {
             </div>
             {quota.used >= quota.limit && (
               <p className="text-red-400/80 text-xs mt-2">
-                You&apos;ve used {quota.used}/{quota.limit} free quotes this month. Upgrade to Pro for unlimited quotes.
+                You&apos;ve used {quota.used}/{quota.limit} free quotes this month. Upgrade to Lite ($39.95/mo) for unlimited quotes.
               </p>
             )}
           </div>

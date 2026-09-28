@@ -185,7 +185,7 @@ function SignupForm() {
                     : invite.duration_days >= 90
                     ? '3 months'
                     : `${invite.duration_days} days`}{' '}
-                  of {invite.plan === 'business' ? 'Business' : 'Pro'} — completely free
+                  of {invite.plan === 'business' || invite.plan === 'enterprise' ? 'Business' : 'Lite'} — completely free
                 </p>
               </div>
             </div>

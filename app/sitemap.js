@@ -42,7 +42,7 @@ export default async function sitemap() {
         .select('id')
         .eq('listed_in_directory', true)
         .eq('status', 'active')
-        .in('plan', ['pro', 'business', 'enterprise']);
+        .in('plan', ['lite', 'pro', 'business', 'enterprise']);
 
       if (data) {
         detailerPages = data.map(d => ({

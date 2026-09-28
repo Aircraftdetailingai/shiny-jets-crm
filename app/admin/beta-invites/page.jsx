@@ -36,7 +36,7 @@ export default function BetaInvitesPage() {
       {/* Nav */}
       <nav className="bg-v-surface border-b border-v-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-14">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 min-w-0 flex-1 overflow-x-auto whitespace-nowrap -mx-1 px-1">
             <a href="/dashboard" className="text-v-text-secondary hover:text-v-text-primary text-sm">&larr; App</a>
             <span className="font-heading text-v-text-primary">Admin</span>
             {ADMIN_NAV.map(nav => (
@@ -212,7 +212,7 @@ function InvitesTab() {
               onChange={(e) => setForm(f => ({ ...f, plan: e.target.value }))}
               className="w-full bg-v-surface-light border border-v-border rounded-sm px-3 py-2.5 text-sm text-v-text-primary outline-none focus:border-v-gold/50"
             >
-              <option value="pro">Pro</option>
+              <option value="pro">Lite</option>
               <option value="business">Business</option>
             </select>
           </div>
@@ -256,7 +256,7 @@ function InvitesTab() {
       </form>
 
       {/* Invites Table */}
-      <div className="bg-v-surface rounded-sm overflow-hidden">
+      <div className="bg-v-surface rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-v-border/30">
@@ -523,7 +523,7 @@ function ProspectsTab() {
             onChange={(e) => setBulkPlan(e.target.value)}
             className="bg-v-surface-light border border-v-border rounded-sm px-3 py-2 text-sm text-v-text-primary outline-none"
           >
-            <option value="pro">Pro</option>
+            <option value="pro">Lite</option>
             <option value="business">Business</option>
           </select>
 

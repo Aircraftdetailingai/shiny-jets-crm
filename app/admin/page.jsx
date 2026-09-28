@@ -93,7 +93,7 @@ export default function AdminDashboard() {
       {/* Admin Nav */}
       <nav className="bg-v-surface border-b border-v-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 min-w-0 flex-1 overflow-x-auto whitespace-nowrap -mx-1 px-1">
             <a href="/dashboard" className="text-v-text-secondary hover:text-v-text-primary text-sm">&larr; App</a>
             <span className="text-v-text-primary font-bold">Admin</span>
             {ADMIN_NAV.map(nav => (

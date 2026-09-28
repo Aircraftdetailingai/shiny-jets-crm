@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { US_AIRPORTS, AIRPORT_MAP } from '@/lib/airports';
 import Link from 'next/link';
+import { normalizePlan, planName } from '@/lib/plans';
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -52,7 +53,7 @@ async function getDetailersAtAirport(icao) {
     .select('id, name, company, country, home_airport, airports_served, preferred_currency, plan, theme_logo_url')
     .eq('listed_in_directory', true)
     .eq('status', 'active')
-    .in('plan', ['pro', 'business', 'enterprise']);
+    .in('plan', ['lite', 'pro', 'business', 'enterprise']);
 
   if (error || !data) return [];
 
@@ -260,11 +261,11 @@ export default async function AirportPage({ params }) {
                         {d.company || d.name}
                       </Link>
                       <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        d.plan === 'enterprise' ? 'bg-v-gold/20 text-v-gold' :
-                        d.plan === 'business' ? 'bg-blue-500/20 text-blue-400' :
+                        normalizePlan(d.plan) === 'business' ? 'bg-v-gold/20 text-v-gold' :
+                        normalizePlan(d.plan) === 'lite' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-white/10 text-gray-400'
                       }`}>
-                        {d.plan}
+                        {planName(d.plan)}
                       </span>
                     </div>
                   </div>

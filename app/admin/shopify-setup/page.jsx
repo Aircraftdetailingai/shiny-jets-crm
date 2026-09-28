@@ -7,7 +7,7 @@ export default function ShopifySetupPage() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [testEmail, setTestEmail] = useState('');
-  const [testPlan, setTestPlan] = useState('pro');
+  const [testPlan, setTestPlan] = useState('lite');
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
 
@@ -138,14 +138,15 @@ export default function ShopifySetupPage() {
       <div className="bg-v-surface border border-v-border rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold text-v-text-primary mb-4">Shopify Products to Create</h2>
         <p className="text-sm text-v-text-secondary mb-4">
-          Create these 3 subscription products in Shopify. Use Seal Subscriptions to enable recurring billing.
+          Create/update these CRM subscription products in Shopify (see SHOPIFY-PRODUCT-COPY.md). Use Seal Subscriptions to enable recurring billing.
         </p>
 
         <div className="space-y-4">
           {[
-            { name: 'Shiny Jets CRM Pro', price: '$79/mo', sku: 'SJ-CRM-PRO', features: 'Unlimited quotes, custom services, email notifications, 2% platform fee' },
-            { name: 'Shiny Jets CRM Business', price: '$149/mo', sku: 'SJ-CRM-BUSINESS', features: 'Everything in Pro + team management, 1% platform fee' },
-            { name: 'Shiny Jets CRM Enterprise', price: '$299/mo', sku: 'SJ-CRM-ENTERPRISE', features: 'Everything in Business + AI assistant, API access, 0% platform fee' },
+            { name: 'Shiny Jets CRM Free', price: '$0', sku: 'SJ-CRM-FREE', features: '5 sent quotes/month, customers + aircraft history, quote PDF + share link, request link, 1 user, 5% platform fee' },
+            { name: 'Shiny Jets CRM Lite', price: '$39.95/mo', sku: 'SJ-CRM-LITE', features: 'Unlimited quotes, follow-ups, Google Calendar, invoices + deposits, jobs + photos, customer portal, Detailing AI, your logo, 2% platform fee (30 days per unit)' },
+            { name: 'Shiny Jets CRM Business', price: '$89.95/mo', sku: 'SJ-CRM-BUSINESS', features: 'Everything in Lite + Pricing Tool, up to 3 users, crew app, dispatch, reports, white-label, 0% platform fee (30 days per unit)' },
+            { name: 'Shiny Jets CRM Business (Annual)', price: '$899/yr', sku: 'SJ-CRM-BUSINESS-YEARLY', features: 'Business billed yearly (365 days per unit)' },
           ].map((product) => (
             <div key={product.sku} className="bg-v-charcoal p-4 rounded border border-v-border">
               <div className="flex items-center justify-between mb-2">
@@ -163,8 +164,10 @@ export default function ShopifySetupPage() {
 
         <div className="mt-4 p-3 bg-v-gold/10 border border-v-gold/30 rounded">
           <p className="text-sm text-v-text-primary">
-            <span className="font-semibold">Plan matching:</span> The webhook matches orders by product title (must contain &quot;shiny jets crm pro/business/enterprise&quot;),
-            SKU prefix (<code>SJ-CRM-</code> or <code>VECTOR-</code>), or price ($79/$149/$299).
+            <span className="font-semibold">Plan matching:</span> The webhook matches CRM orders by exact SKU first
+            (<code>SJ-CRM-FREE</code>, <code>SJ-CRM-LITE</code>, <code>SJ-CRM-BUSINESS</code>, <code>SJ-CRM-BUSINESS-YEARLY</code>; legacy <code>SJ-CRM-PRO</code> → Lite and <code>SJ-CRM-ENTERPRISE</code> → Business),
+            then by CRM product title, then by exact price ($39.95 / $89.95 / $899) only when the line item has no SKU.
+            Quarterly Pricing Tool orders (<code>PRICING-QUARTERLY</code>) also grant Lite for 90 days per unit.
           </p>
         </div>
       </div>
@@ -174,7 +177,7 @@ export default function ShopifySetupPage() {
         <h2 className="text-lg font-semibold text-v-text-primary mb-4">Seal Subscriptions Configuration</h2>
         <ol className="text-sm text-v-text-secondary space-y-3 ml-4 list-decimal">
           <li>Install <strong className="text-v-text-primary">Seal Subscriptions</strong> from the Shopify App Store</li>
-          <li>Create a subscription rule for each product with <strong className="text-v-text-primary">monthly</strong> billing frequency</li>
+          <li>Create a subscription rule for each product with <strong className="text-v-text-primary">monthly</strong> billing frequency (yearly for SJ-CRM-BUSINESS-YEARLY)</li>
           <li>Set delivery policy to <strong className="text-v-text-primary">Digital / No shipping</strong></li>
           <li>Enable <strong className="text-v-text-primary">auto-charge</strong> for recurring payments</li>
           <li>Go to Shopify Admin → Settings → Notifications → Webhooks</li>
@@ -204,9 +207,8 @@ export default function ShopifySetupPage() {
             onChange={(e) => setTestPlan(e.target.value)}
             className="px-3 py-2 bg-v-charcoal border border-v-border rounded text-v-text-primary text-sm"
           >
-            <option value="pro">Pro ($79)</option>
-            <option value="business">Business ($149)</option>
-            <option value="enterprise">Enterprise ($299)</option>
+            <option value="lite">Lite ($39.95)</option>
+            <option value="business">Business ($89.95)</option>
           </select>
           <button
             onClick={runTest}

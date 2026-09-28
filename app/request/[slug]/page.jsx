@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { normalizePlan } from '@/lib/plans';
 
 export default function FlowRequestPage() {
   const { slug } = useParams();
@@ -300,7 +301,7 @@ export default function FlowRequestPage() {
   };
 
   // ─── UI helpers ───
-  const isEnterprise = detailer?.plan === 'enterprise';
+  const isEnterprise = normalizePlan(detailer?.plan) === 'business'; // white-label
   const currentNode = flowNodes.find(n => n.id === currentNodeId);
 
   // ?embed=1 strips the page chrome (logo, "Powered by" footer) so the

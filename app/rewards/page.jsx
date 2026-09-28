@@ -139,8 +139,8 @@ export default function RewardsPage() {
           </div>
           {!userCanRedeem && (
             <div className="mt-3 border-t border-v-gold/20 pt-3 text-sm text-v-text-secondary">
-              Upgrade to Pro or higher to redeem rewards.{' '}
-              <a href="/settings" className="text-v-gold hover:text-v-gold-dim transition-colors">Upgrade now</a>
+              Reward redemption is included with Lite ($39.95/mo) and Business.{' '}
+              <a href="/upgrade?plan=lite" className="text-v-gold hover:text-v-gold-dim transition-colors">See plans</a>
             </div>
           )}
         </div>
@@ -276,7 +276,7 @@ export default function RewardsPage() {
       {/* Confirmation Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-v-surface border border-v-border p-6 w-full max-w-md">
+          <div className="bg-v-surface border border-v-border p-6 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Confirm Redemption</h3>
             <p className="text-v-text-secondary mb-4">
               Redeem {showConfirm.points_cost.toLocaleString()} points for:

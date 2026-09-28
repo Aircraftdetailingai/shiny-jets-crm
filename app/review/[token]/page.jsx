@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { normalizePlan } from '@/lib/plans';
 
 export default function ReviewPage() {
   const params = useParams();
@@ -272,7 +273,7 @@ export default function ReviewPage() {
         </div>
 
         {/* Footer */}
-        {detailer?.plan !== 'enterprise' && (
+        {normalizePlan(detailer?.plan) !== 'business' && (
           <div className="text-center pb-4">
             <p className="text-xs text-white/20">
               Powered by <span className="font-medium">Shiny Jets</span>

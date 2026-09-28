@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { STRIPE_COUNTRIES, CURRENCY_MAP } from '@/lib/currency';
+import { normalizePlan, planName } from '@/lib/plans';
 
 // Ranking tie-break chain when filtered by airport. Lower is better. Nulls
 // go last on every signal so a detailer who hasn't filled in the optional
@@ -222,11 +223,11 @@ export default function FindADetailerPage() {
                   <div key={d.id} className="p-6 rounded-xl bg-white/[0.03] border border-white/5 hover:border-v-gold/30 transition-colors">
                     <div className="flex items-center justify-between mb-3">
                       <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        d.plan === 'enterprise' ? 'bg-v-gold/20 text-v-gold' :
-                        d.plan === 'business' ? 'bg-blue-500/20 text-blue-400' :
+                        normalizePlan(d.plan) === 'business' ? 'bg-v-gold/20 text-v-gold' :
+                        normalizePlan(d.plan) === 'lite' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-white/10 text-gray-400'
                       }`}>
-                        {d.plan}
+                        {planName(d.plan)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mb-1">

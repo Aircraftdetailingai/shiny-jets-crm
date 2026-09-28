@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import { normalizePlan } from '@/lib/plans';
 
 // Rewrites the <link rel="manifest"> and <link rel="apple-touch-icon"> hrefs
 // on mount so enterprise-tier detailers get their own logo when they "Add
@@ -14,7 +15,7 @@ export default function BrandedHomescreen() {
     try {
       const stored = localStorage.getItem('vector_user');
       const user = stored ? JSON.parse(stored) : null;
-      if (!user?.id || (user.plan !== 'business' && user.plan !== 'enterprise')) return;
+      if (!user?.id || normalizePlan(user.plan) !== 'business') return;
 
       const manifestLink = document.querySelector('link[rel="manifest"]');
       if (manifestLink) {
@@ -29,7 +30,7 @@ export default function BrandedHomescreen() {
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           const detailer = data?.detailer || data;
-          if (!detailer || (detailer.plan !== 'business' && detailer.plan !== 'enterprise')) return;
+          if (!detailer || normalizePlan(detailer.plan) !== 'business') return;
           const logo = detailer.logo_url || detailer.logo_dark_url || detailer.logo_light_url;
           if (!logo) return;
           document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(el => { el.href = logo; });

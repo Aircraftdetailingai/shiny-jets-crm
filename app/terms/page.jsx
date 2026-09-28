@@ -60,8 +60,8 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">4. Subscription Plans and Billing</h2>
             <p className="mb-2">
-              Shiny Jets CRM offers multiple subscription tiers (Free, Starter, Pro, Business, and Enterprise)
-              with both monthly and annual billing options. By selecting a paid plan, you agree to
+              Shiny Jets CRM offers multiple subscription tiers (Free, Lite, and Business)
+              with monthly billing and, where offered, annual billing options. By selecting a paid plan, you agree to
               the following:
             </p>
             <ul className="list-disc ml-6 space-y-1">
@@ -80,8 +80,8 @@ export default function TermsPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">5. Platform Fees</h2>
             <p className="mb-3">
               Shiny Jets CRM charges a platform fee on transactions processed through the Platform.
-              The fee rate depends on your subscription tier (5% for Free, 2% for Pro, 1% for
-              Business, and 0% for Enterprise). Platform fees are automatically deducted from
+              The fee rate depends on your subscription tier (5% for Free, 2% for Lite, and 0% for
+              Business). Platform fees are automatically deducted from
               payments processed through our integrated payment system.
             </p>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -412,8 +412,8 @@ export default function TermsPage() {
               <li>Points are earned through eligible platform activities at a rate of 200 points per $1.00 USD in booked services, plus bonus points for qualifying actions.</li>
               <li>Points have no cash value and cannot be exchanged for currency, transferred to other users, or sold.</li>
               <li>200 points equals $1.00 in redemption credit, redeemable exclusively toward items in the Shiny Jets CRM reward catalog.</li>
-              <li>Redemption is available to users on Pro, Business, or Enterprise subscription tiers. Free-tier users accumulate points but cannot redeem until upgrading.</li>
-              <li>Points multipliers are applied based on your subscription tier (Pro 1.5x, Business 2.0x, Enterprise 3.0x).</li>
+              <li>Redemption is available to users on the Lite or Business subscription tiers. Free-tier users accumulate points but cannot redeem until upgrading.</li>
+              <li>Points multipliers are applied based on your subscription tier (Lite 1.5x, Business 2.0x).</li>
               <li>Shiny Jets CRM reserves the right to modify the points conversion rate, reward catalog, or program terms at any time with 30 days&apos; notice.</li>
               <li>Points balances may be forfeited if an account is terminated for violation of these Terms of Service.</li>
               <li>All redemptions are final. Redeemed rewards are subject to availability and fulfillment timelines.</li>

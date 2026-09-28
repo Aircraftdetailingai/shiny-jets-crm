@@ -8,6 +8,7 @@ import { calculateCcFee } from '@/lib/cc-fee';
 import { t, detectBrowserLanguage, SUPPORTED_LANGUAGES } from '@/lib/translations';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { normalizePlan } from '@/lib/plans';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -877,7 +878,7 @@ export default function PortalPage() {
             {/* Fleet Add/Edit Modal */}
             {fleetModal && (
               <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setFleetModal(null)}>
-                <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border-strong,#2A3A50)] w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+                <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border-strong,#2A3A50)] w-full max-w-md p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-6">
                     {fleetModal.mode === 'edit' ? 'Edit Aircraft' : 'Add Aircraft'}
                   </p>
@@ -955,7 +956,7 @@ export default function PortalPage() {
             {/* Request Service Modal */}
             {requestModal && (
               <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setRequestModal(null)}>
-                <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border-strong,#2A3A50)] w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+                <div className="bg-[var(--brand-surface,#111827)] border border-[var(--brand-border-strong,#2A3A50)] w-full max-w-md p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                   <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Request Service</p>
                   <p className="text-[var(--brand-text,#F5F5F5)] text-sm mb-6">
                     {requestModal.make} {requestModal.model} — <span className="font-mono">{requestModal.tail_number}</span>
@@ -1271,7 +1272,7 @@ export default function PortalPage() {
 
         {/* Footer — only render if we have a detailer company to attribute to */}
         <div className="text-center mt-10 pb-8">
-          {detailer?.plan !== 'enterprise' && detailer?.company && (
+          {normalizePlan(detailer?.plan) !== 'business' && detailer?.company && (
             <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase">Powered by {detailer.company}</p>
           )}
         </div>

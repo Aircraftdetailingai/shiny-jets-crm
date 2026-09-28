@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { normalizePlan } from '@/lib/plans';
 
 // Default question IDs already handled by hardcoded steps
 const DEFAULT_Q_IDS = ['q_tail', 'q_services', 'q_paint_goal', 'q_notes', 'q_photos'];
@@ -193,7 +194,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
     </div>
   );
 
-  const isEnterprise = detailerPlan === 'enterprise';
+  const isEnterprise = normalizePlan(detailerPlan) === 'business'; // white-label
 
   const Header = () => (
     <div className="px-4 pt-4">

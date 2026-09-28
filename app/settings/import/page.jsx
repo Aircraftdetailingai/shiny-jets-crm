@@ -225,7 +225,7 @@ export default function ImportExportPage() {
       const data = await res.json();
       if (!res.ok) {
         if (data.upgrade) {
-          setError('Export requires a Pro plan or higher. Upgrade in Settings.');
+          setError('Data export is included with Lite ($39.95/mo) and Business. Upgrade at /upgrade.');
           return;
         }
         throw new Error(data.error);

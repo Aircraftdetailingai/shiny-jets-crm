@@ -12,6 +12,8 @@ import { computeLinkedProductQuantity } from '../../../lib/product-quantity';
 import { calculateCcFee } from '../../../lib/cc-fee';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee, describeFee } from '../../../lib/addon-fees';
 import { resolveValidityDays } from '../../../lib/quote-validity';
+import { resolveFeeRate } from '@/lib/pricing-tiers';
+import { normalizePlan } from '@/lib/plans';
 
 const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super_midsize_jet', 'large_jet', 'helicopter'];
 
@@ -684,10 +686,10 @@ function NewQuoteContent() {
             .then(d => { if (d?.hours) setAircraftHoursRef(d.hours); })
             .catch(() => {});
 
-          // Fetch community hours data (Enterprise tier only)
+          // Fetch community hours data (Business plan; legacy enterprise aliases to business)
           const storedUser = localStorage.getItem('vector_user');
           const userPlan = storedUser ? (JSON.parse(storedUser).plan || 'free') : 'free';
-          if (userPlan === 'enterprise' || JSON.parse(storedUser || '{}').is_admin) {
+          if (normalizePlan(userPlan) === 'business' || JSON.parse(storedUser || '{}').is_admin) {
             const token = localStorage.getItem('vector_token');
             fetch(`/api/community-hours?make=${encodedMake}&model=${encodedModel}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -989,8 +991,7 @@ function NewQuoteContent() {
   const grandTotal = totalPrice + ccFeeAmount;
 
   // Platform fee based on detailer's plan
-  const PLATFORM_FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
-  const platformFeeRate = PLATFORM_FEES[user?.plan || 'free'] || 0;
+  const platformFeeRate = resolveFeeRate(user || { plan: 'free' });
   const platformFeeAmount = Math.round(totalPrice * platformFeeRate * 100) / 100;
   const netToDetailer = totalPrice - platformFeeAmount;
 
@@ -1440,7 +1441,7 @@ function NewQuoteContent() {
       {/* Header */}
       <header className="sticky top-0 z-40 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-6 bg-gradient-to-b from-v-charcoal via-v-charcoal to-transparent flex justify-between items-center text-white">
         <div className="flex items-center gap-4">
-          <a href={leadContext?.leadId ? `/requests/${leadContext.leadId}` : '/quotes'} className="text-lg text-gray-400 hover:text-v-gold transition-colors">&#8592;</a>
+          <a href={leadContext?.leadId ? `/requests/${leadContext.leadId}` : '/quotes'} aria-label="Back" className="w-10 h-10 -ml-2 flex items-center justify-center text-lg text-gray-400 hover:text-v-gold transition-colors">&#8592;</a>
           <div>
             <h1 className="text-2xl font-normal tracking-[0.2em] uppercase" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>
               {leadContext?.customerName ? `Quote for ${leadContext.customerName.split(' ')[0]}` : 'New Quote'}
@@ -1483,15 +1484,15 @@ function NewQuoteContent() {
               </div>
             </div>
             {quota.used >= quota.limit && (
-              <a href="https://shinyjets.com/products/aircraft-detailing-crm-pro" target="_blank" rel="noreferrer"
-                className="text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim ml-3 shrink-0">
-                Upgrade to Pro
+              <a href="/upgrade?plan=lite"
+                className="inline-flex items-center min-h-[40px] text-[10px] uppercase tracking-wider text-v-gold hover:text-v-gold-dim ml-3 shrink-0">
+                Upgrade to Lite
               </a>
             )}
           </div>
           {quota.used >= quota.limit && (
             <p className="text-red-400/80 text-xs mt-2">
-              You&apos;ve used {quota.used}/{quota.limit} free quotes this month. Upgrade to Pro for unlimited quotes.
+              You&apos;ve used {quota.used}/{quota.limit} free quotes this month. Upgrade to Lite ($39.95/mo) for unlimited quotes.
             </p>
           )}
         </div>
@@ -2732,7 +2733,7 @@ function NewQuoteContent() {
 
       {/* Sticky footer bar */}
       {(selectedAircraft || preselectedCustomer || Object.keys(selectedServices).some(k => selectedServices[k])) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-v-charcoal/95 backdrop-blur-sm border-t border-v-gold/20 px-4 py-3 z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-v-charcoal/95 backdrop-blur-sm border-t border-v-gold/20 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-50">
           <div className="max-w-3xl mx-auto">
             {selectedAircraft && selectedServicesList.length > 0 && (
               <div className="flex items-center justify-between gap-3 mb-2">

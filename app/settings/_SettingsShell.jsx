@@ -15,6 +15,8 @@ import { useTranslation, LANGUAGES } from '@/lib/i18n';
 import { generateThemeFromPrimary, applyFullTheme } from '@/lib/theme';
 import { paletteToTheme, checkContrast, suggestAccessibleColor, generatePalettes } from '@/lib/color-utils';
 import PhoneInput from '@/components/PhoneInput';
+import { UpgradePrompt } from '@/components/PlanGate';
+import { normalizePlan, hasFeature, platformFeeForPlan, PLAN_MARKETING, PLAN_NAMES } from '@/lib/plans';
 
 const DEFAULT_ADDON_FEES = [
   { name: 'Hazmat Fee', description: 'Hazardous material handling surcharge', fee_type: 'flat', amount: 250 },
@@ -369,8 +371,8 @@ function SettingsShell({ bucket: activeBucket = null }) {
     };
     window.addEventListener('vector-user-updated', onUserUpdated);
     // Return cleanup from the outer useEffect body.
-      // Fetch SMS settings for business/enterprise/admin users
-      if (u.plan === 'business' || u.plan === 'enterprise' || u.is_admin) {
+      // Fetch SMS settings for business (incl. legacy enterprise)/admin users
+      if (normalizePlan(u.plan) === 'business' || u.is_admin) {
         fetch('/api/sms/settings', {
           headers: { Authorization: `Bearer ${token}` },
         }).then(r => r.json()).then(data => {
@@ -1463,14 +1465,12 @@ function SettingsShell({ bucket: activeBucket = null }) {
     }
   };
 
-  const hasAllFeatures = user?.is_admin || user?.plan === 'enterprise' || user?.plan === 'business';
-  const planPrice = user?.plan === 'enterprise' ? '299' : user?.plan === 'business' ? '149' : user?.plan === 'pro' ? '79' : '0';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
         {/* Fixed bottom save bar */}
         <div
-          className={`fixed bottom-0 left-0 right-0 z-50 px-4 py-3 border-t border-v-border bg-v-surface/95 backdrop-blur-sm transition-transform duration-300 ease-out ${
+          className={`fixed bottom-0 left-0 right-0 z-50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-v-border bg-v-surface/95 backdrop-blur-sm transition-transform duration-300 ease-out ${
             pendingChanges.size > 0 || saveSuccess ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
@@ -1815,12 +1815,15 @@ function SettingsShell({ bucket: activeBucket = null }) {
                   No logo
                 </div>
               )}
-              <label className="cursor-pointer px-4 py-2 border border-v-border text-v-text-secondary text-sm hover:border-v-gold hover:text-v-gold transition-colors">
+              <label className="cursor-pointer inline-flex items-center min-h-[44px] px-4 py-2 border border-v-border text-v-text-secondary text-sm hover:border-v-gold hover:text-v-gold transition-colors">
                 {logoUploading ? 'Uploading...' : logoUrl ? 'Change Logo' : 'Upload Logo'}
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} className="hidden" disabled={logoUploading} />
               </label>
             </div>
             <p className="text-v-text-secondary/50 text-xs mt-2">PNG, JPG, or WebP. Max 2MB.</p>
+            {!hasFeature(user?.plan, 'customLogo', { isAdmin: user?.is_admin }) && (
+              <UpgradePrompt feature="customLogo" compact className="mt-3" />
+            )}
           </div>
 
           {/* Website Fonts */}
@@ -2133,7 +2136,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                               }
                               markDirty('branding');
                             }}
-                            className="text-[10px] text-[var(--v-gold)] hover:underline"
+                            className="min-h-[32px] px-2 text-[11px] text-[var(--v-gold)] hover:underline"
                           >
                             Fix
                           </button>
@@ -2199,83 +2202,61 @@ function SettingsShell({ bucket: activeBucket = null }) {
           <h2 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">{'Billing'}</h2>
 
           {/* Current Plan Card */}
-          <div className={`rounded-lg p-5 mb-4 border ${
-            user?.plan === 'enterprise' ? 'bg-yellow-900/10 border-yellow-700/30' :
-            user?.plan === 'business' ? 'bg-cyan-900/10 border-cyan-700/30' :
-            user?.plan === 'pro' ? 'bg-cyan-900/10 border-cyan-700/30' :
-            'bg-white/5 border-v-border'
-          }`}>
-            <p className="text-[10px] uppercase tracking-widest text-v-text-secondary mb-2">Your Current Plan</p>
-            <div className="flex items-center gap-3 mb-3">
-              <span className={`text-2xl font-bold capitalize ${
-                user?.plan === 'enterprise' ? 'text-yellow-300' :
-                (user?.plan === 'pro' || user?.plan === 'business') ? 'text-cyan-300' :
-                'text-v-text-primary'
-              }`}>
-                {user?.is_admin ? 'Enterprise' : (user?.plan || 'Free')}
-              </span>
-              {user?.is_admin && <span className="text-xs bg-v-gold/20 text-v-gold px-2 py-0.5 rounded">Admin</span>}
-            </div>
-            <div className="text-sm text-v-text-secondary space-y-1 mb-4">
-              {(user?.plan === 'pro' || user?.plan === 'business' || user?.plan === 'enterprise' || user?.is_admin) ? (
-                <>
-                  <p>&#10003; Unlimited quotes</p>
-                  <p>&#10003; Crew management</p>
-                  <p>&#10003; Customer portal</p>
-                  {(user?.plan === 'business' || user?.plan === 'enterprise' || user?.is_admin) && <p>&#10003; White-label branding</p>}
-                  {(user?.plan === 'enterprise' || user?.is_admin) && <p>&#10003; 0% platform fee</p>}
-                </>
-              ) : (
-                <>
-                  <p>&#10003; 5 quotes / month</p>
-                  <p>&#10003; Basic quoting</p>
-                  <p className="text-v-text-secondary/50">&#10007; Crew management (Pro)</p>
-                  <p className="text-v-text-secondary/50">&#10007; Customer portal (Pro)</p>
-                </>
-              )}
-            </div>
-            {user?.subscription_source === 'course_bundle' ? (
-              <p className="text-xs text-cyan-400">Pro access included with your 5-Day Course purchase</p>
-            ) : user?.subscription_status === 'active' && !user?.is_admin ? (
-              <a href="https://shinyjets.com/account/subscriptions" target="_blank" rel="noreferrer" className="text-xs text-v-text-secondary hover:text-v-gold transition-colors underline">
-                Manage Subscription
-              </a>
-            ) : null}
-          </div>
+          {(() => {
+            const cur = user?.is_admin ? 'business' : normalizePlan(user?.plan);
+            const tier = PLAN_MARKETING[cur];
+            const expires = user?.plan_expires_at ? new Date(user.plan_expires_at) : null;
+            return (
+              <div className={`rounded-lg p-4 sm:p-5 mb-4 border ${cur === 'business' ? 'bg-yellow-900/10 border-yellow-700/30' : cur === 'lite' ? 'bg-cyan-900/10 border-cyan-700/30' : 'bg-white/5 border-v-border'}`}>
+                <p className="text-[10px] uppercase tracking-widest text-v-text-secondary mb-2">Your Current Plan</p>
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <span className={`text-2xl font-bold ${cur === 'business' ? 'text-yellow-300' : cur === 'lite' ? 'text-cyan-300' : 'text-v-text-primary'}`}>
+                    {PLAN_NAMES[cur]}
+                  </span>
+                  <span className="text-sm text-v-text-secondary">{tier.priceLabel}{cur === 'free' ? '' : tier.cadence}{tier.altPriceLabel ? ` ${tier.altPriceLabel}` : ''}</span>
+                  {user?.is_admin && <span className="text-xs bg-v-gold/20 text-v-gold px-2 py-0.5 rounded">Admin</span>}
+                </div>
+                <ul className="text-sm text-v-text-secondary space-y-1 mb-4">
+                  {tier.features.filter(f => !f.endsWith('plus:')).slice(0, 6).map(f => (
+                    <li key={f}>&#10003; {f}</li>
+                  ))}
+                </ul>
+                {expires && !isNaN(expires) && (
+                  <p className="text-xs text-v-text-secondary mb-2">
+                    {user?.subscription_status === 'cancelled' ? 'Access ends' : 'Current term through'} {expires.toLocaleDateString()}
+                  </p>
+                )}
+                {user?.subscription_source === 'course_bundle' ? (
+                  <p className="text-xs text-cyan-400">Business access included with your 5-Day Course purchase</p>
+                ) : user?.subscription_status === 'active' && !user?.is_admin && cur !== 'free' ? (
+                  <a href="https://shinyjets.com/account/subscriptions" target="_blank" rel="noreferrer" className="inline-flex items-center min-h-[44px] text-xs text-v-text-secondary hover:text-v-gold transition-colors underline">
+                    Manage Subscription
+                  </a>
+                ) : null}
+              </div>
+            );
+          })()}
 
-          {/* Upgrade options for non-max plans — hide for course_bundle users */}
-          {!user?.is_admin && user?.plan !== 'enterprise' && user?.subscription_source !== 'course_bundle' && (
-            <div className="flex flex-wrap gap-2">
-              {user?.plan !== 'pro' && user?.plan !== 'business' && (
+          {/* Upgrade options — all plan purchases go through the CRM plan page */}
+          {!user?.is_admin && normalizePlan(user?.plan) !== 'business' && (
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+              {normalizePlan(user?.plan) === 'free' && (
                 <a
-                  href={`https://shinyjets.com/products/aircraft-detailing-crm-pro?email=${encodeURIComponent(user?.email || '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 bg-v-gold text-v-charcoal text-xs uppercase tracking-widest font-semibold hover:bg-v-gold-dim transition-colors"
+                  href="/upgrade?plan=lite"
+                  className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 bg-v-gold text-v-charcoal text-xs uppercase tracking-widest font-semibold hover:bg-v-gold-dim transition-colors"
                 >
-                  Upgrade to Pro - $79/mo
+                  Upgrade to Lite - $39.95/mo
                 </a>
               )}
-              {user?.plan !== 'business' && user?.plan !== 'enterprise' && (
-                <a
-                  href={`https://shinyjets.com/products/aircraft-detailing-crm-business?email=${encodeURIComponent(user?.email || '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 rounded bg-gradient-to-r from-v-gold to-v-gold-dim text-white text-sm"
-                >
-                  Upgrade to Business - $149/mo
-                </a>
-              )}
-              {user?.plan !== 'enterprise' && (
-                <a
-                  href={`https://shinyjets.com/products/aircraft-detailing-crm-enterprise?email=${encodeURIComponent(user?.email || '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 border border-v-gold text-v-gold text-xs uppercase tracking-widest font-semibold hover:bg-v-gold/10 transition-colors"
-                >
-                  Upgrade to Enterprise - $299/mo
-                </a>
-              )}
+              <a
+                href="/upgrade?plan=business"
+                className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 border border-v-gold text-v-gold text-xs uppercase tracking-widest font-semibold hover:bg-v-gold/10 transition-colors"
+              >
+                Upgrade to Business - $89.95/mo or $899/yr
+              </a>
+              <a href="/upgrade" className="inline-flex items-center justify-center min-h-[44px] px-2 text-xs text-v-text-secondary underline hover:text-v-gold">
+                Compare plans
+              </a>
             </div>
           )}
         </div>
@@ -2502,12 +2483,12 @@ function SettingsShell({ bucket: activeBucket = null }) {
 
         )}
 
-        {show('platformFee') && user?.plan !== 'enterprise' && (
-        /* Platform Fee — hidden for enterprise (white-label, 0% fee) */
+        {show('platformFee') && !user?.is_admin && normalizePlan(user?.plan) !== 'business' && (
+        /* Platform Fee — hidden for Business (0% fee) */
         <div className="pb-6 mb-2">
           <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">{'Platform fee'}</h3>
           <p className="text-sm text-v-text-secondary mb-3">
-            {'Shiny Jets CRM charges a {rate}% platform fee on each job. Choose who pays it.'.replace('{rate}', user?.plan === 'business' ? '1' : user?.plan === 'pro' ? '2' : '5')}
+            {'Shiny Jets CRM charges a {rate}% platform fee on each job. Choose who pays it.'.replace('{rate}', String(Math.round(platformFeeForPlan(user?.plan) * 100)))}
           </p>
           <div className="space-y-3">
             <label
@@ -2621,12 +2602,10 @@ function SettingsShell({ bucket: activeBucket = null }) {
             Choose how customers pay when they accept a quote.
           </p>
           {(() => {
-            const plan = user?.plan || 'free';
             const isAdmin = user?.is_admin;
-            const canBookLater = isAdmin || plan === 'pro' || plan === 'business' || plan === 'enterprise';
-            // Deposits loosened from Business+ → Pro+ to match the new
-            // pricing-page promise. Free tier still locked.
-            const canDeposit = isAdmin || plan === 'pro' || plan === 'business' || plan === 'enterprise';
+            // Deposits and Book Now Pay Later are Lite+ (Free still locked).
+            const canBookLater = hasFeature(user?.plan, 'bookNowPayLater', { isAdmin });
+            const canDeposit = hasFeature(user?.plan, 'deposits', { isAdmin });
             return (
             <div className="space-y-3">
               <label
@@ -2665,7 +2644,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                   <p className="font-medium text-v-text-primary">Book Now, Pay Later</p>
                   <p className="text-sm text-v-text-secondary">Customer accepts and schedules without paying. You send an invoice separately.</p>
                   {!canBookLater && (
-                    <a href="/settings#billing" className="text-xs text-v-gold hover:underline mt-1 inline-block">Available on Pro — Upgrade</a>
+                    <a href="/upgrade?plan=lite" className="text-xs text-v-gold hover:underline mt-1 inline-flex items-center min-h-[40px]">Available on Lite ($39.95/mo) — Upgrade</a>
                   )}
                 </div>
               </div>
@@ -2688,7 +2667,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                   <p className="font-medium text-v-text-primary">Deposit to Book</p>
                   <p className="text-sm text-v-text-secondary">Customer pays a percentage upfront to hold their date. You invoice the remainder after completion.</p>
                   {!canDeposit && (
-                    <a href="/settings#billing" className="text-xs text-v-gold hover:underline mt-1 inline-block">Available on Pro — Upgrade</a>
+                    <a href="/upgrade?plan=lite" className="text-xs text-v-gold hover:underline mt-1 inline-flex items-center min-h-[40px]">Available on Lite ($39.95/mo) — Upgrade</a>
                   )}
                 </div>
               </div>
@@ -3012,6 +2991,9 @@ function SettingsShell({ bucket: activeBucket = null }) {
           <p className="text-sm text-v-text-secondary mb-4">
             Automatically follow up with customers who haven't responded to quotes.
           </p>
+          {!hasFeature(user?.plan, 'quoteFollowups', { isAdmin: user?.is_admin }) && (
+            <UpgradePrompt feature="quoteFollowups" compact className="mb-4" />
+          )}
 
           {/* Not Viewed */}
           <div className="py-3 border-b border-v-border/50">

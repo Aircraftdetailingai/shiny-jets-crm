@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { normalizePlan } from '@/lib/plans';
 
 export default function DirectorySettingsPage() {
   const router = useRouter();
@@ -315,12 +316,12 @@ export default function DirectorySettingsPage() {
       <div>
         <h2 className="text-xs font-medium uppercase tracking-widest text-v-gold pb-2 border-b border-v-gold/20 mb-4">Verified Finish Program</h2>
 
-        {userPlan !== 'enterprise' ? (
+        {normalizePlan(userPlan) !== 'business' ? (
           <div className="bg-v-surface border border-v-border rounded p-5 text-center space-y-3">
             <div className="text-2xl">🏅</div>
             <p className="text-sm text-v-text-primary font-medium">Verified Finish Certification</p>
-            <p className="text-xs text-v-text-secondary">The Verified Finish badge signals premium quality to aircraft owners. Available on the Enterprise plan.</p>
-            <a href="https://shinyjets.com/products/aircraft-detailing-crm-enterprise" target="_blank" rel="noreferrer" className="inline-block px-5 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded">Upgrade to Enterprise</a>
+            <p className="text-xs text-v-text-secondary">The Verified Finish badge signals premium quality to aircraft owners. Available on the Business plan ($89.95/mo or $899/yr).</p>
+            <a href="/upgrade?plan=business" className="inline-flex items-center min-h-[44px] px-5 py-2 bg-v-gold text-v-charcoal text-xs font-semibold rounded">Upgrade to Business</a>
           </div>
         ) : verifiedFinishStatus === 'approved' ? (
           <div className="bg-v-surface border border-v-gold/30 rounded p-5 space-y-3">
