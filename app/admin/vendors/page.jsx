@@ -229,7 +229,7 @@ export default function AdminVendorsPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         {activeTab === 'vendors' && (
-          <div className="bg-v-surface border border-v-border rounded-sm overflow-hidden">
+          <div className="bg-v-surface border border-v-border rounded-sm overflow-x-auto">
             <table className="w-full">
               <thead className="bg-v-charcoal">
                 <tr>

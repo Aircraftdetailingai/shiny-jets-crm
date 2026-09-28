@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { nanoid } from 'nanoid';
 import { upsertCustomerAircraft } from '@/lib/upsertCustomerAircraft';
 import { resolveValidityDays, computeValidUntil } from '@/lib/quote-validity';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,11 +140,13 @@ export async function POST(request) {
 
       if (!canCreateQuote(plan, quotesThisMonth)) {
         return Response.json({
-          error: 'Monthly quote limit reached. Upgrade to Pro for unlimited quotes.',
+          error: 'Monthly quote limit reached. Upgrade to Lite ($39.95/mo) for unlimited quotes.',
+          code: 'PLAN_REQUIRED',
+          upgrade_url: '/upgrade?plan=lite',
           upgrade: true,
           quotesUsed: quotesThisMonth,
           quotesLimit: tierConfig.quotesPerMonth,
-          message: `You've used ${quotesThisMonth}/${tierConfig.quotesPerMonth} free quotes this month. Upgrade to Pro for unlimited quotes.`,
+          message: `You've used ${quotesThisMonth}/${tierConfig.quotesPerMonth} free quotes this month. Upgrade to Lite ($39.95/mo) for unlimited quotes.`,
         }, { status: 403 });
       }
     }
@@ -253,8 +256,8 @@ export async function POST(request) {
         || booking_mode === 'deposit'
         || (parseFloat(deposit_percentage) || 0) > 0
         || (parseFloat(deposit_amount) || 0) > 0;
-      if (wantsDeposit && plan === 'free' && !isAdmin) {
-        return Response.json({ error: 'Deposits require a Pro plan or higher.' }, { status: 403 });
+      if (wantsDeposit && normalizePlan(plan) === 'free' && !isAdmin) {
+        return Response.json({ error: 'Deposits are included with Lite ($39.95/mo) and Business.', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=lite' }, { status: 403 });
       }
     }
 

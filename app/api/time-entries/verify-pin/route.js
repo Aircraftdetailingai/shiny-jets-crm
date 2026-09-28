@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { detailerHasFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export async function POST(request) {
     // Fetch ALL active matches for this PIN (platform-wide) and never auto-pick.
     const { data: members, error } = await supabase
       .from('team_members')
-      .select('id, name, type')
+      .select('id, name, type, detailer_id')
       .eq('pin_code', pin_code)
       .eq('status', 'active');
 
@@ -39,6 +40,14 @@ export async function POST(request) {
     }
     if (active.length > 1) {
       return Response.json({ error: 'This PIN matches more than one worker. Contact your manager for a unique PIN.', code: 'pin_ambiguous' }, { status: 409 });
+    }
+
+    if (!(await detailerHasFeature(active[0].detailer_id, 'timeClock', supabase))) {
+      return Response.json({
+        error: 'The time clock is not available on this company\'s current Shiny Jets plan. Ask your manager to upgrade to Business.',
+        code: 'PLAN_REQUIRED',
+        required_plan: 'business',
+      }, { status: 403 });
     }
 
     return Response.json({ name: active[0].name, type: active[0].type });

@@ -3,6 +3,8 @@ import { calculateCcFee } from '@/lib/cc-fee';
 import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { platformFeeRate } from './pricing-tiers';
+import { normalizePlan } from './plans';
 
 // Shared quote-PDF generator. The customer-facing route
 // (app/api/quotes/[id]/pdf/route.js) and the quote send path
@@ -110,8 +112,7 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
   // Fee calculations
   const basePrice = parseFloat(quote.total_price) || 0;
   const plan = detailer?.plan || 'free';
-  const PLATFORM_FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
-  const feeRate = PLATFORM_FEES[plan] || PLATFORM_FEES.free;
+  const feeRate = platformFeeRate(plan);
   const passFee = detailer?.pass_fee_to_customer;
   const serviceFee = passFee ? Math.round(basePrice * feeRate * 100) / 100 : 0;
   const subtotalWithService = basePrice + serviceFee;
@@ -431,9 +432,9 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
           </View>
         )}
 
-        {/* Footer — only PRO surfaces "Powered by". Free has SJ in the
-            header already; business + enterprise are white-label. */}
-        {plan === 'pro' && (
+        {/* Footer — only LITE surfaces "Powered by". Free has SJ in the
+            header already; Business is white-label. */}
+        {normalizePlan(plan) === 'lite' && (
           <View style={s.footer} fixed>
             <Text style={s.footerText}>Powered by Shiny Jets Aviation</Text>
           </View>

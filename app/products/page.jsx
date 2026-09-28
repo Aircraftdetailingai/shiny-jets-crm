@@ -510,12 +510,12 @@ export default function ProductsPage() {
     <AppShell title="Inventory">
     <div className="page-transition p-4 text-v-text-primary">
       {/* Header */}
-      <header className="flex justify-between items-center mb-6 text-v-text-primary">
+      <header className="flex flex-wrap justify-between items-center gap-3 mb-6 text-v-text-primary">
         <div className="flex items-center space-x-4">
-          <a href="/dashboard" className="text-2xl hover:text-v-gold">&#8592;</a>
+          <a href="/dashboard" aria-label="Back to dashboard" className="w-10 h-10 -ml-2 flex items-center justify-center text-2xl hover:text-v-gold">&#8592;</a>
           <h1 className="text-2xl font-bold">{'Inventory'}</h1>
         </div>
-        <div className="space-x-4 text-sm">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <a href="/equipment" className="underline">{'Equipment'}</a>
           <a href="/dashboard" className="underline">{'Dashboard'}</a>
           <a href="/settings" className="underline">{'Settings'}</a>
@@ -829,7 +829,7 @@ export default function ProductsPage() {
               <h2 className="text-lg font-semibold text-v-text-primary">
                 {editingProduct ? 'Edit Product' : 'Add Product'}
               </h2>
-              <button type="button" onClick={handleCloseModal} className="text-v-text-secondary hover:text-white text-2xl leading-none px-2" aria-label="Close">&times;</button>
+              <button type="button" onClick={handleCloseModal} className="w-10 h-10 flex items-center justify-center text-v-text-secondary hover:text-white text-2xl leading-none" aria-label="Close">&times;</button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -1147,7 +1147,7 @@ export default function ProductsPage() {
       {/* Transfer Modal */}
       {showTransferModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowTransferModal(null)}>
-          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-sm p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-1">Transfer Product</h3>
             <p className="text-sm text-v-text-secondary mb-4">{showTransferModal.name}</p>
 

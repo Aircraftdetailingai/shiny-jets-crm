@@ -109,7 +109,7 @@ export default function RedemptionsPage() {
       {/* Admin Nav */}
       <nav className="bg-v-surface border-b border-v-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 min-w-0 flex-1 overflow-x-auto whitespace-nowrap -mx-1 px-1">
             <a href="/dashboard" className="text-v-text-secondary hover:text-v-text-primary text-sm">&larr; App</a>
             <span className="text-v-text-primary font-bold">Admin</span>
             {ADMIN_NAV.map(nav => (
@@ -167,7 +167,7 @@ export default function RedemptionsPage() {
         {/* Tracking Modal */}
         {trackingModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-sm">
+            <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto">
               <h3 className="font-semibold text-v-text-primary mb-3">Add Tracking Number</h3>
               <input
                 type="text"

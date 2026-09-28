@@ -334,7 +334,7 @@ export default function RequestDetailPage() {
         {/* Decline Modal */}
         {showDecline && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => !declining && setShowDecline(false)}>
-            <div className="bg-v-surface border border-v-border rounded-lg p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="bg-v-surface border border-v-border rounded-lg p-6 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <h3 className="text-white font-medium mb-1">Decline Request</h3>
               <p className="text-v-text-secondary text-xs mb-4">Internal only — the customer receives a generic professional email.</p>
 

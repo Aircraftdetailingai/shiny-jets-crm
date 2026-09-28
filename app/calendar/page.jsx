@@ -536,7 +536,7 @@ export default function CalendarPage() {
       {/* Job Detail Modal */}
       {selectedJob && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={() => setSelectedJob(null)}>
-          <div className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold text-v-text-primary">Job Details</h3>
               <button onClick={() => setSelectedJob(null)} className="text-v-text-secondary hover:text-v-text-primary text-xl">&times;</button>
@@ -568,7 +568,7 @@ export default function CalendarPage() {
       {/* Schedule Modal */}
       {scheduleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={() => setScheduleModal(null)}>
-          <div className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-v-text-primary mb-4">Schedule Job</h3>
             <div className="mb-4">
               <p className="font-medium text-v-text-primary">{scheduleModal.client_name || 'No name'}</p>

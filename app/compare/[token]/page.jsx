@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { PLATFORM_FEES } from '@/lib/pricing-tiers';
 import { formatPrice } from '@/lib/formatPrice';
 import { getCurrencySymbol } from '@/lib/currency';
+import { normalizePlan } from '@/lib/plans';
 
 const STATUS_LABELS = {
   sent: 'Pending',
@@ -518,7 +519,7 @@ export default function CompareQuotesPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 pb-8">
-          {detailer?.plan !== 'enterprise' && <p className="text-xs text-gray-400">Powered by <a href="https://shinyjets.com" className="underline">Shiny Jets</a></p>}
+          {normalizePlan(detailer?.plan) !== 'business' && <p className="text-xs text-gray-400">Powered by <a href="https://shinyjets.com" className="underline">Shiny Jets</a></p>}
         </div>
       </div>
     </div>

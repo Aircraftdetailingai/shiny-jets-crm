@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { normalizePlan } from '@/lib/plans';
 
 export default function DeliveryReportPage() {
   const params = useParams();
@@ -226,9 +227,9 @@ export default function DeliveryReportPage() {
         )}
       </main>
 
-      {/* Footer — only PRO surfaces "Powered by". Free has SJ in the
-          header already; business + enterprise are white-label. */}
-      {detailer?.plan === 'pro' && (
+      {/* Footer — only LITE surfaces "Powered by". Free has SJ in the
+          header already; Business is white-label. */}
+      {normalizePlan(detailer?.plan) === 'lite' && (
         <footer style={{ textAlign: 'center', padding: '24px 20px 40px', borderTop: '1px solid #111827' }}>
           <p style={{ color: '#2A3A50', fontSize: 11, letterSpacing: '0.1em', margin: 0 }}>
             Powered by Shiny Jets CRM

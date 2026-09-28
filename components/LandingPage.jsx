@@ -2,11 +2,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LANGUAGES } from '@/lib/landing-translations';
+import { PLAN_PRICES } from '@/lib/plans';
 
+// Free / Lite / Business — prices come from lib/plans.js.
 const PRICING_AMOUNTS = [
-  { monthlyPrice: 0, annualPrice: 0 },
-  { monthlyPrice: 79, annualPrice: 59 },
-  { monthlyPrice: 149, annualPrice: 112 },
+  { key: 'free', monthlyPrice: PLAN_PRICES.free.monthly, yearlyPrice: null },
+  { key: 'lite', monthlyPrice: PLAN_PRICES.lite.monthly, yearlyPrice: null },
+  { key: 'business', monthlyPrice: PLAN_PRICES.business.monthly, yearlyPrice: PLAN_PRICES.business.yearly },
 ];
 
 const PROBLEM_ICONS = ['\u23F1\uFE0F', '\u2708\uFE0F', '\uD83D\uDCA1'];
@@ -14,7 +16,6 @@ const FEATURE_ICONS = ['\u2708\uFE0F', '\u26A1', '\uD83D\uDCE7', '\uD83D\uDCB3',
 
 export default function LandingPage({ t, lang = 'en' }) {
   const router = useRouter();
-  const [billingAnnual, setBillingAnnual] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
@@ -210,33 +211,11 @@ export default function LandingPage({ t, lang = 'en' }) {
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t.pricing.title}</h2>
             <p className="text-gray-400 max-w-2xl mx-auto mb-8">{t.pricing.sub}</p>
 
-            {/* Billing Toggle */}
-            <div className="inline-flex items-center gap-3 bg-white/[0.05] border border-white/10 rounded-full p-1.5">
-              <button
-                onClick={() => setBillingAnnual(false)}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  !billingAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {t.pricing.monthly}
-              </button>
-              <button
-                onClick={() => setBillingAnnual(true)}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  billingAnnual ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {t.pricing.annual}
-                <span className="ml-1.5 text-xs font-bold text-green-500">-25%</span>
-              </button>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {t.pricing.tiers.map((tier, i) => {
               const amounts = PRICING_AMOUNTS[i] || PRICING_AMOUNTS[0];
-              const price = billingAnnual ? amounts.annualPrice : amounts.monthlyPrice;
-              const showSavings = billingAnnual && amounts.monthlyPrice > 0;
               const isHighlight = i === 1;
               return (
                 <div
@@ -255,16 +234,10 @@ export default function LandingPage({ t, lang = 'en' }) {
                   <h3 className="text-xl font-bold text-white">{tier.name}</h3>
                   <p className="text-gray-400 text-sm mt-1 mb-5">{tier.desc}</p>
                   <div className="mb-6">
-                    <span className="text-4xl font-bold text-white">{price === 0 ? '$0' : `$${price}`}</span>
+                    <span className="text-4xl font-bold text-white">${amounts.monthlyPrice}</span>
                     <span className="text-gray-400 text-sm">{t.pricing.mo}</span>
-                    {showSavings && (
-                      <div className="mt-1">
-                        <span className="text-gray-500 text-sm line-through">${amounts.monthlyPrice}{t.pricing.mo}</span>
-                        <span className="ml-2 text-green-400 text-xs font-semibold">{t.pricing.save} ${(amounts.monthlyPrice - amounts.annualPrice) * 12}{t.pricing.yr}</span>
-                      </div>
-                    )}
-                    {billingAnnual && price > 0 && (
-                      <p className="text-gray-500 text-xs mt-1">{t.pricing.billed} ${price * 12}{t.pricing.year}</p>
+                    {amounts.yearlyPrice && (
+                      <p className="text-gray-500 text-xs mt-1">${amounts.yearlyPrice}{t.pricing.yr}</p>
                     )}
                   </div>
                   <ul className="space-y-2.5 mb-6 flex-1">
@@ -276,9 +249,7 @@ export default function LandingPage({ t, lang = 'en' }) {
                     ))}
                   </ul>
                   <a
-                    href={i === 0 ? '/signup' : i === 1 ? 'https://shinyjets.com/products/aircraft-detailing-crm-pro' : i === 2 ? 'https://shinyjets.com/products/aircraft-detailing-crm-business' : '/login'}
-                    target={i > 0 ? '_blank' : undefined}
-                    rel={i > 0 ? 'noreferrer' : undefined}
+                    href={i === 0 ? '/signup' : `/upgrade?plan=${amounts.key}`}
                     className={`w-full py-3 rounded-xl font-semibold text-center block text-sm transition-opacity ${
                       isHighlight
                         ? 'bg-gradient-to-r from-v-gold to-v-gold-dim text-white hover:opacity-90 shadow-lg shadow-v-gold/25'

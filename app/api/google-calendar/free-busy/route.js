@@ -1,5 +1,6 @@
 import { getAuthUser } from '@/lib/auth';
 import { getValidAccessToken } from '@/lib/google-calendar';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,8 @@ const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'googleCalendar', { user: user });
+  if (planGate) return planGate;
 
   const { searchParams } = new URL(request.url);
   const durationHours = parseFloat(searchParams.get('duration') || '4');

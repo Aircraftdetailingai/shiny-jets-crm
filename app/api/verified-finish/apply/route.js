@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +42,8 @@ export async function POST(request) {
     return Response.json({ error: 'Detailer not found' }, { status: 404 });
   }
 
-  if (detailer.plan !== 'enterprise') {
-    return Response.json({ error: 'Verified Finish requires an Enterprise plan' }, { status: 403 });
+  if (normalizePlan(detailer.plan) !== 'business') {
+    return Response.json({ error: 'The Verified Finish badge is available on the Business plan ($89.95/mo or $899/yr).', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=business' }, { status: 403 });
   }
 
   if (detailer.verified_finish_status === 'pending') {

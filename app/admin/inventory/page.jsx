@@ -14,7 +14,7 @@ const ADMIN_NAV = [
 ];
 
 const CATEGORIES = ['Supplies', 'Swag', 'Training', 'Credits', 'Exclusive', 'VIP', 'Coaching'];
-const TIERS = ['pro', 'business', 'enterprise'];
+const TIERS = ['pro', 'business']; // 'pro' = Lite (legacy value)
 const REWARD_TYPES = ['Physical', 'Digital', 'Discount', 'Subscription Credit'];
 
 const EMPTY_FORM = {
@@ -272,7 +272,7 @@ export default function InventoryPage() {
       {/* Admin Nav */}
       <nav className="bg-v-surface border-b border-v-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 min-w-0 flex-1 overflow-x-auto whitespace-nowrap -mx-1 px-1">
             <a href="/dashboard" className="text-v-text-secondary hover:text-v-text-primary text-sm">&larr; App</a>
             <span className="text-v-text-primary font-bold">Admin</span>
             {ADMIN_NAV.map(nav => (
@@ -387,7 +387,7 @@ export default function InventoryPage() {
                   style={{ colorScheme: 'dark' }}
                 >
                   {TIERS.map(t => (
-                    <option key={t} value={t} style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                    <option key={t} value={t} style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>{t === 'pro' ? 'Lite' : t.charAt(0).toUpperCase() + t.slice(1)}</option>
                   ))}
                 </select>
               </div>
@@ -438,9 +438,8 @@ export default function InventoryPage() {
                       className="w-full bg-transparent border-0 border-b border-v-border text-v-text-primary px-0 py-2 focus:border-v-gold focus:ring-0 outline-none transition-colors"
                       style={{ colorScheme: 'dark' }}
                     >
-                      <option value="pro" style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>Pro</option>
+                      <option value="pro" style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>Lite</option>
                       <option value="business" style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>Business</option>
-                      <option value="enterprise" style={{ backgroundColor: '#1A2236', color: '#F5F5F5' }}>Enterprise</option>
                     </select>
                   </div>
                 </>

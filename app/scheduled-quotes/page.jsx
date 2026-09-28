@@ -307,7 +307,7 @@ export default function ScheduledQuotesPage() {
       {/* Edit Modal */}
       {editModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setEditModal(null)}>
-          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-v-text-primary">{'Edit Scheduled Send'}</h2>
               <button onClick={() => setEditModal(null)} className="text-v-text-secondary hover:text-v-text-secondary text-xl">&times;</button>

@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +13,8 @@ function getSupabase() {
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'products', { user: user });
+  if (planGate) return planGate;
 
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get('days')) || 14;
@@ -65,7 +69,7 @@ export async function GET(request) {
     .single();
 
   let networkAverages = [];
-  if (detailer?.plan === 'enterprise') {
+  if (normalizePlan(detailer?.plan) === 'business') {
     const { data: netAvg } = await supabase
       .from('network_consumption_averages')
       .select('*');

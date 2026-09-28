@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,8 @@ function getSupabase() {
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const { searchParams } = new URL(request.url);
   const quoteId = searchParams.get('quote_id');
@@ -26,6 +29,8 @@ export async function GET(request) {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const formData = await request.formData();
   const quoteId = formData.get('quote_id');
@@ -61,6 +66,8 @@ export async function POST(request) {
 export async function DELETE(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');

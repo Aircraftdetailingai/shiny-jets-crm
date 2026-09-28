@@ -1,60 +1,12 @@
 "use client";
 import { useState } from 'react';
+import { PLAN_MARKETING } from '@/lib/plans';
 
 const TIERS = [
-  {
-    key: 'free',
-    name: 'Free',
-    monthlyPrice: 0,
-    annualPrice: 0,
-    description: 'Get started with Shiny Jets CRM',
-    features: [
-      'Up to 3 quotes/month',
-      'Basic aircraft database',
-      'Share quotes via link',
-      'Email support',
-      '5% platform fee',
-    ],
-    cta: 'START FREE',
-    highlight: false,
-  },
-  {
-    key: 'pro',
-    name: 'Pro',
-    monthlyPrice: 79,
-    annualPrice: 59,
-    description: 'Most popular for full-time detailers',
-    features: [
-      'Unlimited quotes',
-      'Full aircraft database (208 models)',
-      'Custom services & packages',
-      'Email notifications',
-      'Remove Shiny Jets branding',
-      'Priority support',
-      '2% platform fee',
-    ],
-    cta: 'GO PRO',
-    highlight: true,
-  },
-  {
-    key: 'business',
-    name: 'Business',
-    monthlyPrice: 149,
-    annualPrice: 112,
-    description: 'For teams and high-volume shops',
-    features: [
-      'Unlimited quotes',
-      'Full aircraft database (208 models)',
-      'Custom services & packages',
-      'Email notifications',
-      'Team management',
-      'Priority support',
-      '1% platform fee',
-    ],
-    cta: 'GET BUSINESS',
-    highlight: false,
-  },
-];
+  { key: 'free', description: 'Get started with Shiny Jets CRM', cta: 'START FREE', highlight: false },
+  { key: 'lite', description: 'Everything a solo detailer needs', cta: 'GET LITE', highlight: true },
+  { key: 'business', description: 'For crews and growing shops', cta: 'GET BUSINESS', highlight: false },
+].map((t) => ({ ...t, ...PLAN_MARKETING[t.key] }));
 
 const FEATURES = [
   {
@@ -85,7 +37,7 @@ const FEATURES = [
   {
     num: '06',
     title: 'Growth Analytics',
-    description: 'Track revenue, job completion rates, and ROI. Understand your business performance at a glance.',
+    description: 'Track revenue, job completion rates, and profitability. Understand your business performance at a glance.',
   },
 ];
 
@@ -108,7 +60,6 @@ const STEPS = [
 ];
 
 export default function LandingPage() {
-  const [annualBilling, setAnnualBilling] = useState(false);
 
   return (
     <div className="min-h-screen" style={{ fontFamily: 'Poppins, Inter, system-ui, sans-serif' }}>
@@ -317,33 +268,8 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Billing Toggle */}
-          <div className="flex justify-center mb-14">
-            <div className="inline-flex items-center gap-0 border border-[#2A3A50]">
-              <button
-                onClick={() => setAnnualBilling(false)}
-                className={`px-6 py-2.5 text-[10px] tracking-[0.2em] uppercase font-medium transition-all ${
-                  !annualBilling ? 'bg-v-gold text-white' : 'text-[#8A9BB0] hover:text-[#F5F5F5]'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setAnnualBilling(true)}
-                className={`px-6 py-2.5 text-[10px] tracking-[0.2em] uppercase font-medium transition-all ${
-                  annualBilling ? 'bg-v-gold text-white' : 'text-[#8A9BB0] hover:text-[#F5F5F5]'
-                }`}
-              >
-                Annual
-                <span className="ml-2 text-[9px]" style={{ color: annualBilling ? '#080C12' : '#4ade80' }}>-25%</span>
-              </button>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {TIERS.map((tier) => {
-              const price = annualBilling ? tier.annualPrice : tier.monthlyPrice;
-              const showSavings = annualBilling && tier.monthlyPrice > 0;
               return (
                 <div
                   key={tier.key}
@@ -373,20 +299,13 @@ export default function LandingPage() {
                       className="text-[#F5F5F5] text-[2.5rem] font-light"
                       style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
                     >
-                      {price === 0 ? 'Free' : `$${price}`}
+                      {tier.key === 'free' ? 'Free' : tier.priceLabel}
                     </span>
-                    {price > 0 && (
-                      <span className="text-[#8A9BB0] text-xs ml-1">/mo</span>
+                    {tier.key !== 'free' && (
+                      <span className="text-[#8A9BB0] text-xs ml-1">{tier.cadence}</span>
                     )}
-                    {showSavings && (
-                      <div className="mt-2">
-                        <span className="text-[#8A9BB0]/40 text-xs line-through">${tier.monthlyPrice}/mo</span>
-                        <span className="ml-2 text-[#4ade80] text-[10px] tracking-[0.1em] uppercase">Save ${(tier.monthlyPrice - tier.annualPrice) * 12}/yr</span>
-                      </div>
-                    )}
-                    {annualBilling && price > 0 && (
-                      <p className="text-[#8A9BB0]/40 text-[10px] mt-1">Billed ${price * 12}/year</p>
-                    )}
+                    {tier.altPriceLabel && <p className="text-[#8A9BB0] text-xs mt-1">{tier.altPriceLabel}</p>}
+                    {tier.note && <p className="text-[#8A9BB0] text-xs mt-1">{tier.note}</p>}
                   </div>
 
                   <div className="w-full h-[1px] bg-[#2A3A50] mb-8" />
@@ -401,7 +320,7 @@ export default function LandingPage() {
                   </ul>
 
                   <a
-                    href="/signup"
+                    href={tier.key === 'free' ? '/signup' : `/upgrade?plan=${tier.key}`}
                     className={`w-full py-3.5 text-center text-[10px] tracking-[0.25em] uppercase font-medium transition-colors block ${
                       tier.highlight
                         ? 'bg-v-gold text-white hover:bg-[#0091CC]'
@@ -416,7 +335,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center text-[#8A9BB0]/40 mt-10 text-xs tracking-[0.1em]">
-            All plans include a platform fee on completed transactions. Upgrade anytime to reduce your fee rate.
+            Platform fee on online payments: 5% on Free, 2% on Lite, 0% on Business. A quarterly Pricing Tool subscription includes Lite.
           </p>
         </div>
       </section>

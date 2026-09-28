@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -26,6 +27,8 @@ async function resolveJobOrQuote(supabase, id, detailerId) {
 export async function GET(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('quote_id') || searchParams.get('job_id');
@@ -58,6 +61,8 @@ export async function POST(request) {
     console.log('[crew/photos] no crew user — unauthorized');
     return Response.json({ error: 'Unauthorized — please log in again' }, { status: 401 });
   }
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
   console.log('[crew/photos] user:', { id: user.id, detailer_id: user.detailer_id, name: user.name });
 
   // Parse body defensively

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { logNotification } from '@/lib/notification-log';
 import crypto from 'crypto';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ function getSupabase() {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const body = await request.json();
   const { quote_id, resend: forceResend = false } = body;

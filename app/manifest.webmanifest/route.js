@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ export async function GET(request) {
   // (don't ship a broken icon).
   const logo = detailer?.logo_url || detailer?.logo_dark_url || detailer?.logo_light_url;
   const plan = detailer?.plan;
-  if ((plan === 'business' || plan === 'enterprise') && logo) {
+  if (normalizePlan(plan) === 'business' && logo) {
     const fullName = detailer.company || detailer.name || 'CRM';
     return new Response(JSON.stringify({
       ...SHINY_JETS_DEFAULT,

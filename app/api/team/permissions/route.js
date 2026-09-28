@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { DEFAULT_PERMISSIONS } from '@/lib/permissions';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,8 @@ export async function GET(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
@@ -49,6 +52,8 @@ export async function POST(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createToken } from '@/lib/auth';
 import { redeemCompInviteIfAny } from '@/lib/comp-invites';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,7 +163,8 @@ export async function POST(request) {
       name: detailer.name,
       phone: detailer.phone || null,
       company: detailer.company || '',
-      plan: isAdmin ? 'enterprise' : (detailer.plan || 'free'),
+      plan: isAdmin ? 'business' : normalizePlan(detailer.plan),
+      plan_raw: detailer.plan || 'free',
       subscription_status: detailer.subscription_status || null,
       subscription_source: detailer.subscription_source || null,
       is_admin: isAdmin,

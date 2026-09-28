@@ -8,6 +8,7 @@ import {
 } from '@/lib/email';
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import { createNotification } from '@/lib/notifications';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -77,7 +78,10 @@ export async function GET(request) {
       .select('id, name, company, email, phone, notification_settings, availability, theme_primary, theme_accent, theme_logo_url, font_heading, font_body')
       .eq('status', 'active');
 
+    const allowed = planChecker(supabase);
     for (const detailer of detailers || []) {
+      // Quote follow-ups are a Lite+ feature.
+      if (!(await allowed(detailer.id, 'quoteFollowups'))) continue;
       const followups = detailer.notification_settings?.followups || {};
       const settings = {
         notViewed: { ...DEFAULT_SETTINGS.notViewed, ...followups.notViewed },

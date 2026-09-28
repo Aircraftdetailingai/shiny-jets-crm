@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { sendPaymentReceivedEmail, sendPaymentConfirmedEmail } from '@/lib/email';
 import { notifyQuotePaid } from '@/lib/push';
 import { sendPaymentConfirmationSms } from '@/lib/sms';
-import { hasPremiumAccess, PLATFORM_FEES } from '@/lib/pricing-tiers';
+import { hasPremiumAccess, PLATFORM_FEES, platformFeeRate } from '@/lib/pricing-tiers';
 import { notifyPaymentReceived } from '@/lib/notifications';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
 import { processReferralReward } from '@/app/api/referrals/reward/route';
@@ -312,7 +312,7 @@ export async function POST(request) {
 
           // Calculate fee breakdown for emails
           const plan = detailer?.plan || 'free';
-          const feeRate = PLATFORM_FEES[plan] || PLATFORM_FEES.free;
+          const feeRate = platformFeeRate(plan);
           const passFee = detailer?.pass_fee_to_customer || false;
           const basePrice = quote.total_price || 0;
           const platformFeeAmount = Math.round(basePrice * feeRate * 100) / 100;

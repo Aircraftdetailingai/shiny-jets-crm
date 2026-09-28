@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
     .eq('id', id)
     .eq('listed_in_directory', true)
     .eq('status', 'active')
-    .in('plan', ['pro', 'business', 'enterprise'])
+    .in('plan', ['lite', 'pro', 'business', 'enterprise'])
     .single();
 
   if (error || !detailer) {

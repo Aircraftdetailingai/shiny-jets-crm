@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { UpgradePrompt, usePlanFeature } from '@/components/PlanGate';
 
 export default function TeamAccessPage() {
+  const { ready: planReady, allowed: teamAllowed } = usePlanFeature('team');
   const [scheduleDays, setScheduleDays] = useState(7);
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
@@ -42,13 +44,14 @@ export default function TeamAccessPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-xs font-medium uppercase tracking-widest text-v-gold pb-2 border-b border-v-gold/20">Team & Access</h2>
+      {planReady && !teamAllowed && <UpgradePrompt feature="team" compact />}
 
       <div className="pb-6 border-b border-v-border/40">
         <h3 className="text-sm font-medium text-v-text-primary mb-2">Team members</h3>
         <p className="text-xs text-v-text-secondary mb-4">Add, remove, and manage permissions for crew members and staff.</p>
         <Link
           href="/team"
-          className="inline-block px-4 py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim transition-colors"
+          className="inline-flex items-center min-h-[44px] px-4 py-2 bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-widest hover:bg-v-gold-dim transition-colors"
         >
           Manage team
         </Link>

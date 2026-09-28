@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { PLATFORM_FEES } from '@/lib/pricing-tiers';
+import { PLATFORM_FEES, platformFeeRate } from '@/lib/pricing-tiers';
 import { formatPrice } from '@/lib/formatPrice';
 import { getCurrencySymbol } from '@/lib/currency';
 import { calculateCcFee } from '@/lib/cc-fee';
+import { normalizePlan } from '@/lib/plans';
 
 const PAYMENT_ERROR_MESSAGES = {
   card_declined: "Your card was declined. Please try a different card.",
@@ -494,7 +495,7 @@ export default function QuoteViewPage() {
           )}
         </div>
 
-        {plan !== 'enterprise' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
+        {normalizePlan(plan) !== 'business' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
       </div>
     );
   }
@@ -541,7 +542,7 @@ export default function QuoteViewPage() {
               Skip for now
             </button>
           </div>
-          {plan !== 'enterprise' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
+          {normalizePlan(plan) !== 'business' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
         </div>
       );
     }
@@ -736,7 +737,7 @@ export default function QuoteViewPage() {
             </div>
           )}
         </div>
-        {plan !== 'enterprise' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
+        {normalizePlan(plan) !== 'business' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
       </div>
     );
   }
@@ -934,14 +935,14 @@ export default function QuoteViewPage() {
           )}
         </div>
 
-        {plan !== 'enterprise' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
+        {normalizePlan(plan) !== 'business' && detailer?.company && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.3em] uppercase mt-8">Powered by {detailer.company}</p>}
       </div>
     );
   }
 
   // --- NORMAL QUOTE VIEW ---
   const plan = detailer?.plan || 'free';
-  const feeRate = PLATFORM_FEES[plan] || PLATFORM_FEES.free;
+  const feeRate = platformFeeRate(plan);
   const passFee = detailer?.pass_fee_to_customer;
   const ccFeeMode = detailer?.cc_fee_mode || 'absorb';
   const basePrice = parseFloat(quote.total_price) || 0;

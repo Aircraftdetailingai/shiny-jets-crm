@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { meetsMinTier, canRedeem, TIER_MULTIPLIERS } from '@/lib/points';
+import { meetsMinTier, canRedeem, TIER_MULTIPLIERS, tierMultiplier } from '@/lib/points';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +70,7 @@ export async function GET(request) {
     },
     tier,
     canRedeem: canRedeem(tier),
-    multiplier: TIER_MULTIPLIERS[tier] || 1.0,
+    multiplier: tierMultiplier(tier),
     redemptions: redemptions || [],
   });
 }

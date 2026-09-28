@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
-import { canRedeem, meetsMinTier } from '@/lib/points';
+import { canRedeem, meetsMinTier, getTierLabel } from '@/lib/points';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,11 +49,11 @@ export async function POST(request) {
 
   // Check tier eligibility
   if (!canRedeem(tier)) {
-    return Response.json({ error: 'Free tier cannot redeem rewards. Upgrade to Pro or higher.' }, { status: 403 });
+    return Response.json({ error: 'Free plan cannot redeem rewards. Upgrade to Lite ($39.95/mo) or Business to redeem.', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=lite' }, { status: 403 });
   }
 
   if (!meetsMinTier(tier, reward.min_tier || 'free')) {
-    return Response.json({ error: `This reward requires ${reward.min_tier} tier or higher` }, { status: 403 });
+    return Response.json({ error: `This reward requires the ${getTierLabel(reward.min_tier)} plan or higher`, upgrade_url: '/upgrade' }, { status: 403 });
   }
 
   // Check points

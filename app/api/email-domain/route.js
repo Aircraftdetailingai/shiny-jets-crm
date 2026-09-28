@@ -1,4 +1,4 @@
-// Enterprise-only custom email sending domain — wraps Resend Domains API.
+// Business-plan custom email sending domain — wraps Resend Domains API.
 //
 //   POST   /api/email-domain/setup    create + return DNS records
 //   POST   /api/email-domain/verify   ask Resend to recheck DNS, stamp verified_at on success
@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ async function loadDetailer(supabase, id) {
 
 function isEligible(detailer) {
   const plan = (detailer?.plan || '').toLowerCase();
-  return plan === 'business' || plan === 'enterprise';
+  return normalizePlan(plan) === 'business';
 }
 
 function noRsendKey() {
@@ -48,7 +49,7 @@ export async function GET(request) {
     plan: detailer.plan,
     eligible: isEligible(detailer),
     // Back-compat for UIs that read isEnterprise — keep populated.
-    isEnterprise: (detailer?.plan || '').toLowerCase() === 'enterprise',
+    isEnterprise: normalizePlan(detailer?.plan) === 'business',
     domain: detailer.custom_email_domain,
     verifiedAt: detailer.custom_email_verified_at,
     resendDomainId: detailer.custom_email_resend_domain_id,

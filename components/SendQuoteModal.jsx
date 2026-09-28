@@ -89,8 +89,6 @@ export default function SendQuoteModal({ isOpen, onClose, onSuccess, quote, user
 
   if (!isOpen) return null;
 
-  const ADMIN_EMAILS = ['brett@vectorav.ai', 'admin@vectorav.ai', 'brett@shinyjets.com'];
-  const isBusiness = user?.plan === "business" || user?.plan === "enterprise" || user?.is_admin || ADMIN_EMAILS.includes(user?.email?.toLowerCase());
   const totalPrice = parseFloat(quote?.totalPrice) || 0;
   const aircraftName = quote?.aircraft?.name || "";
 
@@ -638,45 +636,21 @@ ${companyName}${user?.phone ? '\n' + user.phone : ''}`
                 <p className="font-semibold text-v-gold mb-1">Quote limit reached this month</p>
                 <p className="text-sm text-v-gold/80 mb-3">
                   You&apos;ve used {quoteLimitHit.quotesUsed}/{quoteLimitHit.quotesLimit} free quotes this month.
-                  Upgrade to Pro for unlimited quotes.
+                  Upgrade to Lite for unlimited quotes.
                 </p>
                 <div className="flex flex-col gap-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const token = localStorage.getItem("vector_token");
-                        const res = await fetch("/api/upgrade", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ tier: "pro" }),
-                        });
-                        const data = await res.json();
-                        if (data.url) window.location.href = data.url;
-                        else if (data.error) setError(data.error);
-                      } catch (e) { setError("Failed to start upgrade"); }
-                    }}
-                    className="w-full px-4 py-2 rounded bg-v-gold hover:bg-v-gold-dim text-white font-semibold"
+                  <a
+                    href="/upgrade?plan=lite"
+                    className="w-full inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded bg-v-gold hover:bg-v-gold-dim text-white font-semibold"
                   >
-                    Upgrade to Pro - $79/mo
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const token = localStorage.getItem("vector_token");
-                        const res = await fetch("/api/upgrade", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ tier: "business" }),
-                        });
-                        const data = await res.json();
-                        if (data.url) window.location.href = data.url;
-                        else if (data.error) setError(data.error);
-                      } catch (e) { setError("Failed to start upgrade"); }
-                    }}
-                    className="w-full px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold hover:opacity-90"
+                    Upgrade to Lite - $39.95/mo
+                  </a>
+                  <a
+                    href="/upgrade?plan=business"
+                    className="w-full inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold hover:opacity-90"
                   >
-                    Upgrade to Business - $149/mo
-                  </button>
+                    Upgrade to Business - $89.95/mo
+                  </a>
                 </div>
               </div>
             )}

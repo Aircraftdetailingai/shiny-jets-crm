@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { recalculateAverages, updateNetworkAverages } from '@/lib/record-usage';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,8 @@ export async function GET(request) {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'products', { user: user });
+  if (planGate) return planGate;
   // Crew members need can_log_products; owners (non-crew sessions) always can.
   if (user.role === 'crew' && user.can_log_products === false) {
     return Response.json({ error: 'Not authorized to log product usage' }, { status: 403 });

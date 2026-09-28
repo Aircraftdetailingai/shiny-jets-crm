@@ -9,7 +9,7 @@ const FAQ_ITEMS = [
       { q: 'How do I create my first quote?', a: 'From the dashboard, click "New Quote". Select a manufacturer and aircraft model, choose your services or a package, then click "Send Quote" to deliver it via email or shareable link.' },
       { q: 'How do I set up my services and rates?', a: 'Go to Settings > Services to add your service menu. Each service links to an aircraft hour column (e.g., Exterior Wash uses ext_wash_hours). Set your hourly rate, and Shiny Jets CRM calculates pricing automatically based on aircraft size.' },
       { q: 'How do I connect Stripe for payments?', a: 'Go to Settings and click "Connect Stripe" in the Payments section. You\'ll be redirected to Stripe to create or link your account. Once connected, customers can pay directly from your quotes.' },
-      { q: 'What are the different subscription plans?', a: 'Free: 3 quotes/month, 5% fee. Pro ($79/mo): Unlimited quotes, 2% fee, priority support. Business ($149/mo): Team management, 1% fee. Enterprise: Custom pricing, 0% fee.' },
+      { q: 'What are the different subscription plans?', a: 'Free ($0): 5 sent quotes/month, customers and aircraft history, quote PDFs and share links, public request link, 1 user, 5% platform fee. Lite ($39.95/mo, also included with a quarterly Pricing Tool subscription): unlimited quotes, follow-ups and scheduled send, Google Calendar sync, invoices and online payments with deposits, jobs with photos and reports, customer portal, Detailing AI, review requests, your own logo, 2% platform fee. Business ($89.95/mo or $899/yr): everything in Lite plus Pricing Tool access, up to 3 users with crew app, time clock and payroll, dispatch, change orders, reports, recurring services, marketing, products and inventory, full white-label and custom sending domain, 0% platform fee. Compare plans at /upgrade.' },
     ],
   },
   {
@@ -26,7 +26,7 @@ const FAQ_ITEMS = [
     category: 'Payments',
     questions: [
       { q: 'When do I get paid?', a: 'Payments are processed through Stripe and deposited to your connected bank account. Standard Stripe payout timing applies (typically 2 business days).' },
-      { q: 'What is the platform fee?', a: 'Shiny Jets CRM charges a small fee on each transaction based on your plan: Free (5%), Pro (2%), Business (1%), Enterprise (0%). This is separate from Stripe\'s processing fees.' },
+      { q: 'What is the platform fee?', a: 'Shiny Jets CRM charges a small fee on each transaction based on your plan: Free (5%), Lite (2%), Business (0%). This is separate from Stripe\'s processing fees.' },
       { q: 'Can I pass the platform fee to the customer?', a: 'Yes. In Settings, enable "Pass fee to customer" and the platform fee will be added to the customer\'s total instead of deducted from your payout.' },
       { q: 'How do refunds work?', a: 'Refunds are handled through your Stripe dashboard at dashboard.stripe.com. Shiny Jets CRM does not process refunds directly.' },
     ],
@@ -268,7 +268,7 @@ export default function HelpPage() {
         {activeTab === 'shortcuts' && (
           <div>
             <p className="text-gray-400 text-sm mb-4">Keyboard shortcuts to speed up your workflow.</p>
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/10">

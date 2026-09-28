@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email';
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import crypto from 'crypto';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,8 +58,10 @@ export async function POST(request) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 
+  const allowed = planChecker(supabase);
   for (const job of jobs || []) {
     if (isUnsubscribed(unsubscribed, job.customer_email)) { skippedUnsubscribed++; continue; }
+    if (!(await allowed(job.detailer_id, 'reviewRequests'))) continue; // Lite+
     try {
       // Get detailer info
       const { data: detailer } = await supabase

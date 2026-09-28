@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { EquipmentTeaser } from './EquipmentROI';
 import { formatPrice, formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
+import { normalizePlan, planName } from '@/lib/plans';
 
 export default function UpgradeModal({ isOpen, onClose, detailerId, existingServices = [] }) {
   const [analysis, setAnalysis] = useState(null);
@@ -67,20 +68,12 @@ export default function UpgradeModal({ isOpen, onClose, detailerId, existingServ
 
   const handleUpgrade = () => {
     if (!analysis?.nextTier) return;
-    const planUrls = {
-      pro: 'https://shinyjets.com/products/aircraft-detailing-crm-pro',
-      business: 'https://shinyjets.com/products/aircraft-detailing-crm-business',
-      enterprise: 'https://shinyjets.com/products/aircraft-detailing-crm-enterprise',
-    };
-    const url = planUrls[analysis.nextTier];
+    // All upgrades go through the CRM plan page (correct prices + checkout links).
+    const url = `/upgrade?plan=${normalizePlan(analysis.nextTier)}`;
     if (url) {
       try {
-        const user = JSON.parse(localStorage.getItem('vector_user') || '{}');
-        const email = user.email || '';
-        window.open(`${url}?email=${encodeURIComponent(email)}`, '_blank');
-      } catch {
-        window.open(url, '_blank');
-      }
+        window.location.href = url;
+      } catch {}
       onClose?.();
     }
   };
@@ -106,10 +99,10 @@ export default function UpgradeModal({ isOpen, onClose, detailerId, existingServ
                    `✨ ${'Your Plan Status'}`}
                 </h2>
                 <p className="text-sm text-v-text-secondary mt-1">
-                  {'Current plan:'} <span className="font-medium capitalize">{analysis.currentTier}</span>
+                  {'Current plan:'} <span className="font-medium">{planName(analysis.currentTier)}</span>
                 </p>
               </div>
-              <button onClick={onClose} className="text-v-text-secondary hover:text-v-text-secondary text-2xl">
+              <button onClick={onClose} aria-label="Close" className="w-10 h-10 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-white text-2xl">
                 &times;
               </button>
             </div>

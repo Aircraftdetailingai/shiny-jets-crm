@@ -201,7 +201,8 @@ export default function CustomerSelector({
                 <button
                   type="button"
                   onClick={onClear}
-                  className="text-gray-500 hover:text-red-400 text-lg leading-none"
+                  aria-label="Clear customer"
+                  className="w-10 h-10 -my-2 flex items-center justify-center text-gray-500 hover:text-red-400 text-xl leading-none"
                 >
                   &times;
                 </button>

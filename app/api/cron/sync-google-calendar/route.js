@@ -1,5 +1,6 @@
 import { getValidAccessToken, fetchCalendarEvents } from '@/lib/google-calendar';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -74,7 +75,9 @@ export async function GET(request) {
     const timeMax = new Date(now);
     timeMax.setDate(timeMax.getDate() + 90);
 
+    const allowed = planChecker(supabase);
     for (const conn of connections) {
+      if (!(await allowed(conn.detailer_id, 'googleCalendar'))) continue; // Lite+
       try {
         // Get valid access token (refreshes if expired)
         const tokenData = await getValidAccessToken(conn.detailer_id);

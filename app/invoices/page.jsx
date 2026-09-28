@@ -8,6 +8,7 @@ import { computeCalibratedHours, applyMinimumPrice } from '@/lib/calibrate-hours
 import { HOURS_FIELD_TO_HRS_COL } from '@/lib/calibration-reference';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 import { FEE_TYPES, feeTypeMeta, computeAddonAmount, computeAddonTotal, normalizeFee } from '@/lib/addon-fees';
+import { hasFeature } from '@/lib/plans';
 
 const statusColors = {
   draft: 'bg-white/10 text-white/60',
@@ -204,12 +205,9 @@ function InvoicesPageInner() {
     try {
       const stored = localStorage.getItem('vector_user');
       const u = stored ? JSON.parse(stored) : {};
-      const plan = u.plan || 'free';
-      if (plan === 'free' && !u.is_admin) {
-        alert('Invoicing is available on Pro and above. Upgrade in Settings.');
-        router.push('/quotes');
-        return;
-      }
+      // Plan gate is handled by app/invoices/layout.jsx (upgrade prompt) and
+      // the invoices API (server-side 403).
+      if (!hasFeature(u.plan, 'invoices', { isAdmin: u.is_admin === true })) return;
     } catch {}
     fetchInvoices(token);
     fetch('/api/user/me?include_remit=1', { headers: { Authorization: `Bearer ${token}` } })
@@ -414,7 +412,7 @@ function InvoicesPageInner() {
     // Free-tier reads as deposit_required=false regardless of detailer.booking_mode.
     const planNow = (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('vector_user') || '{}'))?.plan || 'free';
     const isAdminNow = (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('vector_user') || '{}'))?.is_admin === true;
-    const tierAllowsDeposit = isAdminNow || ['pro', 'business', 'enterprise'].includes(planNow);
+    const tierAllowsDeposit = hasFeature(planNow, 'deposits', { isAdmin: isAdminNow });
     const detailerBookingMode = detailer?.booking_mode || 'pay_to_book';
     const detailerDepositPct = parseInt(detailer?.deposit_percentage, 10) || 25;
     setBlankForm({
@@ -1480,7 +1478,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
           ) : (
             <>
               {/* Desktop table */}
-              <div className="hidden md:block bg-v-surface rounded-lg shadow border border-v-border-subtle overflow-hidden">
+              <div className="hidden md:block bg-v-surface rounded-lg shadow border border-v-border-subtle overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-v-border-subtle">
@@ -1611,20 +1609,20 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                         </div>
                         <p className="text-v-text-primary text-base font-semibold">{sym}{formatPrice(inv.total)}</p>
                       </div>
-                      <div className="flex gap-1 mt-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-2 mt-3 flex-wrap" onClick={e => e.stopPropagation()}>
                         {ds !== 'paid' && (
-                          <button onClick={() => openEdit(inv)} className="text-xs px-2 py-1 bg-v-charcoal border border-v-border text-v-text-primary rounded">Edit</button>
+                          <button onClick={() => openEdit(inv)} className="text-xs min-h-[40px] px-3 py-2 bg-v-charcoal border border-v-border text-v-text-primary rounded">Edit</button>
                         )}
                         {ds === 'draft' && (
-                          <button onClick={() => sendInvoice(inv)} disabled={!inv.customer_email || actionLoading} className="text-xs px-2 py-1 bg-blue-600 text-white rounded disabled:opacity-40">Send</button>
+                          <button onClick={() => sendInvoice(inv)} disabled={!inv.customer_email || actionLoading} className="text-xs min-h-[40px] px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-40">Send</button>
                         )}
                         {ds === 'overdue' && (
-                          <button onClick={() => sendReminder(inv)} disabled={!inv.customer_email || actionLoading} className="text-xs px-2 py-1 bg-red-600 text-white rounded disabled:opacity-40">Remind</button>
+                          <button onClick={() => sendReminder(inv)} disabled={!inv.customer_email || actionLoading} className="text-xs min-h-[40px] px-3 py-2 bg-red-600 text-white rounded disabled:opacity-40">Remind</button>
                         )}
                         {ds !== 'paid' && ds !== 'draft' && (
-                          <button onClick={() => { setMarkPaidModal(inv); setPaymentMethod('cash'); setPaymentNote(''); }} className="text-xs px-2 py-1 bg-green-600/80 text-white rounded">Mark Paid</button>
+                          <button onClick={() => { setMarkPaidModal(inv); setPaymentMethod('cash'); setPaymentNote(''); }} className="text-xs min-h-[40px] px-3 py-2 bg-green-600/80 text-white rounded">Mark Paid</button>
                         )}
-                        <button onClick={() => downloadPDF(inv)} className="text-xs px-2 py-1 bg-v-charcoal text-v-text-secondary rounded">PDF</button>
+                        <button onClick={() => downloadPDF(inv)} className="text-xs min-h-[40px] px-3 py-2 bg-v-charcoal text-v-text-secondary rounded">PDF</button>
                       </div>
                     </div>
                   );
@@ -1711,7 +1709,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
 
             {/* Line items */}
             {(viewInvoice.line_items || []).length > 0 && (
-              <div className="border border-v-border-subtle rounded-lg overflow-hidden mb-3 mt-3">
+              <div className="border border-v-border-subtle rounded-lg overflow-x-auto mb-3 mt-3">
                 <table className="w-full text-sm">
                   <thead className="bg-v-charcoal">
                     <tr>
@@ -1887,7 +1885,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
       {/* Mark Paid Modal */}
       {markPaidModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setMarkPaidModal(null)}>
-          <div className="bg-v-surface rounded-xl max-w-sm w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-xl max-w-sm w-full p-6 shadow-xl max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-v-text-primary mb-3">Mark as Paid</h3>
             <p className="text-sm text-v-text-secondary mb-3">{invoiceLabel(markPaidModal)} &mdash; {sym}{formatPrice(markPaidModal.total)}</p>
             <label className="block text-sm font-medium text-v-text-primary mb-1">Payment method</label>
@@ -1930,7 +1928,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
           blank modal). Replaces the old standalone "choose" picker. */}
       {createModal === 'from_job' && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setCreateModal(false)}>
-          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-v-text-primary mb-3">Create Invoice from Job</h3>
             <p className="text-sm text-v-text-secondary mb-3">Select a job to invoice.</p>
             {error && <p className="text-red-400 text-sm mb-2">{error}</p>}
@@ -2286,7 +2284,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
             {(() => {
               const planNow = (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('vector_user') || '{}'))?.plan || 'free';
               const isAdminNow = (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('vector_user') || '{}'))?.is_admin === true;
-              const tierAllowsDeposit = isAdminNow || ['pro', 'business', 'enterprise'].includes(planNow);
+              const tierAllowsDeposit = hasFeature(planNow, 'deposits', { isAdmin: isAdminNow });
               const total = blankSelectedServices.reduce((s, id) => {
                 const svc = blankServices.find(x => x.id === id);
                 if (!svc) return s;
@@ -2314,7 +2312,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
                       <span>Require deposit</span>
                     </label>
                     {!tierAllowsDeposit && (
-                      <a href="/settings#billing" className="text-xs text-v-gold hover:underline">Upgrade to Pro to require deposits</a>
+                      <a href="/upgrade?plan=lite" className="text-xs text-v-gold hover:underline">Upgrade to Lite to require deposits</a>
                     )}
                   </div>
                   {tierAllowsDeposit && blankForm.deposit_required && (
@@ -2403,7 +2401,7 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
               </div>
               <div className="flex items-center gap-2">
                 {editSavedFlash && <span className="text-green-400 text-xs">Saved ✓</span>}
-                <button onClick={closeEditModal} className="text-v-text-secondary hover:text-white text-xl">&times;</button>
+                <button onClick={closeEditModal} aria-label="Close" className="w-10 h-10 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-white text-2xl">&times;</button>
               </div>
             </div>
             {editError && <p className="text-red-400 text-sm mb-3">{editError}</p>}

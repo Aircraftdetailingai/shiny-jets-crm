@@ -853,7 +853,7 @@ export default function CustomersPage() {
                             checked={isSelected}
                             onChange={() => toggleSelect(customer.id)}
                             className={`w-4 h-4 rounded border-v-border accent-v-gold cursor-pointer transition-opacity duration-150 ${
-                              hasSelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              hasSelection ? 'opacity-100' : '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100'
                             }`}
                           />
                         )}
@@ -929,7 +929,7 @@ export default function CustomersPage() {
       {/* Edit Tags Modal (single customer) */}
       {editCustomer && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-md modal-glow">
+          <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-md modal-glow max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-heading text-v-text-primary mb-1">Edit Tags</h3>
             <p className="text-sm text-v-text-secondary mb-4">{editCustomer.name} &mdash; {editCustomer.email}</p>
 
@@ -998,7 +998,7 @@ export default function CustomersPage() {
       {/* Bulk Tag Modal */}
       {bulkTagModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-md modal-glow">
+          <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-md modal-glow max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-heading text-v-text-primary mb-1">Manage Tags</h3>
             <p className="text-sm text-v-text-secondary mb-4">{selectedIds.size} customer{selectedIds.size !== 1 ? 's' : ''} selected</p>
 
@@ -1066,7 +1066,7 @@ export default function CustomersPage() {
       {/* Email Blast Modal */}
       {emailBlastModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-v-surface border border-v-border rounded-t-lg sm:rounded-sm p-5 sm:p-6 w-full sm:max-w-lg modal-glow">
+          <div className="bg-v-surface border border-v-border rounded-t-lg sm:rounded-sm p-5 sm:p-6 w-full sm:max-w-lg modal-glow max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-heading text-v-text-primary">Send Email Blast</h3>
               <button onClick={() => setEmailBlastModal(false)} className="text-v-text-secondary hover:text-v-text-primary text-xl">&times;</button>

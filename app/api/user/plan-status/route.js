@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,8 @@ export async function GET(request) {
 
   return new Response(
     JSON.stringify({
-      plan: data.plan || 'free',
+      plan: normalizePlan(data.plan),
+      plan_raw: data.plan || 'free',
       subscription_status: data.subscription_status || null,
       subscription_source: data.subscription_source || null,
       plan_updated_at: data.plan_updated_at || null,

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export async function GET(request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'recurring', { user: user });
+    if (planGate) return planGate;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -67,6 +70,8 @@ export async function PATCH(request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'recurring', { user: user });
+    if (planGate) return planGate;
 
     const body = await request.json();
     const { quote_id, recurring_enabled, recurring_interval, next_service_date } = body;

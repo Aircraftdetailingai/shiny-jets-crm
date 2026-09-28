@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,9 +43,9 @@ export async function GET(request) {
     .single();
 
   const plan = detailer?.plan || 'free';
-  if (plan === 'free') {
+  if (normalizePlan(plan) === 'free') {
     return Response.json({
-      error: 'Upgrade to Pro to export your data',
+      error: 'Data export is included with Lite ($39.95/mo) and Business.',
       upgrade: true,
     }, { status: 403 });
   }

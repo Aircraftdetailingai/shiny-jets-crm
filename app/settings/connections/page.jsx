@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast } from '@/components/Toast';
+import { UpgradePrompt, usePlanFeature } from '@/components/PlanGate';
 
 function IntegrationsContent() {
   const router = useRouter();
@@ -10,6 +11,7 @@ function IntegrationsContent() {
   const { success: toastSuccess, error: toastError } = useToast();
 
   const [loading, setLoading] = useState(true);
+  const { allowed: gcalAllowed } = usePlanFeature('googleCalendar');
 
   // Calendly state
   const [calendlyUrl, setCalendlyUrl] = useState('');
@@ -387,6 +389,9 @@ function IntegrationsContent() {
               )}
             </div>
 
+            {!gcalAllowed ? (
+              <UpgradePrompt feature="googleCalendar" compact />
+            ) : (<>
             {gcalError && (
               <div className="mb-3 p-2 bg-red-900/20 border border-red-500/30 text-red-400 text-xs flex items-center justify-between">
                 <span>{gcalError}</span>
@@ -477,6 +482,7 @@ function IntegrationsContent() {
                 </div>
               </div>
             )}
+            </>)}
           </div>
         </div>
       </div>
@@ -562,9 +568,6 @@ function IntegrationsContent() {
               >
                 Import CSV Data
               </a>
-              <p className="text-[10px] text-v-text-secondary mt-3">
-                Direct QuickBooks sync coming soon.
-              </p>
             </div>
           </div>
         </div>

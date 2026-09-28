@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { PLAN_MARKETING } from '@/lib/plans';
 
 const FEATURES = [
   { icon: '📋', title: 'Instant Quotes', desc: 'Build accurate quotes in 60 seconds with our 300+ aircraft database. Send branded PDFs customers can accept and pay online.' },
@@ -13,11 +14,10 @@ const FEATURES = [
 ];
 
 const TIERS = [
-  { name: 'Free', price: '$0', period: '/mo', features: ['5 quotes/month', 'Aircraft database', 'FAA tail lookup', 'Basic customer management'], cta: 'Get Started', highlight: false },
-  { name: 'Pro', price: '$79', period: '/mo', features: ['Unlimited quotes', 'Online payments', 'Google Calendar sync', 'Automated follow-ups', 'Review requests'], cta: 'Start Free Trial', highlight: true },
-  { name: 'Business', price: '$149', period: '/mo', features: ['Everything in Pro', 'Crew management', 'Change orders', 'Product tracking', 'Custom intake flows'], cta: 'Start Free Trial', highlight: false },
-  { name: 'Enterprise', price: '$899', price: '$899', period: '/mo', features: ['Everything in Business', 'White-label branding', 'Flight hours tracking', 'Priority support', 'Custom integrations'], cta: 'Contact Sales', highlight: false },
-];
+  { id: 'free', highlight: false, cta: 'Get Started Free' },
+  { id: 'lite', highlight: true, cta: 'Start with Lite' },
+  { id: 'business', highlight: false, cta: 'Choose Business' },
+].map(t => ({ ...t, ...PLAN_MARKETING[t.id] }));
 
 export default function RootPage() {
   const router = useRouter();
@@ -107,14 +107,16 @@ export default function RootPage() {
             <p className="text-[#0081b8] text-xs font-medium uppercase tracking-[0.3em] mb-3">Pricing</p>
             <h2 className="text-3xl sm:text-4xl font-light">Simple, transparent pricing</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TIERS.map((t, i) => (
               <div key={i} className={`rounded-xl p-6 ${t.highlight ? 'bg-[#0081b8]/10 border-2 border-[#0081b8]/50 relative' : 'bg-white/[0.03] border border-white/[0.06]'}`}>
                 {t.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0081b8] text-white text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full">Most Popular</div>}
                 <h3 className="text-lg font-semibold mb-1">{t.name}</h3>
                 <div className="mb-4">
-                  <span className="text-3xl font-bold">{t.price}</span>
-                  <span className="text-white/40 text-sm">{t.period}</span>
+                  <span className="text-3xl font-bold">{t.priceLabel}</span>
+                  <span className="text-white/40 text-sm">{t.id === 'free' ? '/mo' : t.cadence}</span>
+                  {t.altPriceLabel && <span className="block text-white/40 text-xs mt-1">{t.altPriceLabel}</span>}
+                  {t.note && <span className="block text-white/40 text-xs mt-1">{t.note}</span>}
                 </div>
                 <ul className="space-y-2 mb-6">
                   {t.features.map((f, j) => (
@@ -124,7 +126,7 @@ export default function RootPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href={t.name === 'Enterprise' ? 'mailto:brett@shinyjets.com' : '/signup?plan=free'}
+                <Link href={t.id === 'free' ? '/signup?plan=free' : `/upgrade?plan=${t.id}`}
                   className={`block text-center py-3 rounded-lg text-sm font-semibold transition-colors ${
                     t.highlight ? 'bg-[#0081b8] text-white hover:bg-[#006a9e]' : 'border border-white/20 text-white/80 hover:border-white/40'
                   }`}>

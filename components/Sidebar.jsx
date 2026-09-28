@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import NotificationBell from './NotificationBell.jsx';
 import PointsBadge from './PointsBadge.jsx';
 import { applyFullTheme } from '@/lib/theme';
+import { normalizePlan, hasFeature, requiredPlanFor } from '@/lib/plans';
 
 const NAV_GROUPS = [
   {
@@ -20,18 +21,18 @@ const NAV_GROUPS = [
       { href: '/quotes', label: 'Quotes', icon: QuotesIcon },
       { href: '/customers', label: 'Customers', icon: CustomersIcon },
       { href: '/aircraft', label: 'Aircraft', icon: AircraftIcon },
-      { href: '/jobs', label: 'Jobs', icon: JobsIcon },
-      { href: '/change-orders', label: 'Change Orders', icon: ChangeOrdersIcon },
-      { href: '/dispatch', label: 'Dispatch', icon: DispatchIcon },
-      { href: '/calendar', label: 'Schedule', icon: CalendarIcon },
-      { href: '/invoices', label: 'Invoices', icon: InvoicesIcon },
+      { href: '/jobs', label: 'Jobs', icon: JobsIcon, feature: 'jobs' },
+      { href: '/change-orders', label: 'Change Orders', icon: ChangeOrdersIcon, feature: 'changeOrders' },
+      { href: '/dispatch', label: 'Dispatch', icon: DispatchIcon, feature: 'dispatch' },
+      { href: '/calendar', label: 'Schedule', icon: CalendarIcon, feature: 'calendar' },
+      { href: '/invoices', label: 'Invoices', icon: InvoicesIcon, feature: 'invoices' },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { href: '/equipment', label: 'Equipment', icon: EquipmentIcon },
-      { href: '/products', label: 'Products', icon: ProductsIcon },
+      { href: '/equipment', label: 'Equipment', icon: EquipmentIcon, feature: 'equipment' },
+      { href: '/products', label: 'Products', icon: ProductsIcon, feature: 'products' },
       // /services top-level doesn't exist yet; point at the existing
       // Settings → Services & Pricing page until a dedicated browse page
       // is built. Route works today.
@@ -41,16 +42,16 @@ const NAV_GROUPS = [
   {
     label: 'Relationships',
     items: [
-      { href: '/reviews', label: 'Reviews', icon: ReviewsIcon },
-      { href: '/team', label: 'Team', icon: TeamIcon },
+      { href: '/reviews', label: 'Reviews', icon: ReviewsIcon, feature: 'reviewRequests' },
+      { href: '/team', label: 'Team', icon: TeamIcon, feature: 'team' },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon },
-      { href: '/reports', label: 'Reports', icon: ReportsIcon },
-      { href: '/detailing-ai', label: 'Detailing AI', icon: DetailingAiIcon },
+      { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon, feature: 'reports' },
+      { href: '/reports', label: 'Reports', icon: ReportsIcon, feature: 'reports' },
+      { href: '/detailing-ai', label: 'Detailing AI', icon: DetailingAiIcon, feature: 'detailingAi' },
     ],
   },
 ];
@@ -262,6 +263,11 @@ export default function Sidebar() {
                   {active && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
                   <Icon />
                   <span>{item.label}</span>
+                  {item.feature && user && !user.is_admin && !hasFeature(user.plan, item.feature) && (
+                    <span className="ml-auto text-[8px] font-semibold tracking-wider px-1.5 py-0.5 rounded border border-v-gold/40 text-v-gold/80" title="Upgrade to unlock">
+                      {requiredPlanFor(item.feature) === 'business' ? 'BUSINESS' : 'LITE'}
+                    </span>
+                  )}
                   {item.badge && requestCount > 0 && (
                     <span className="ml-auto bg-v-gold text-v-charcoal text-[9px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{requestCount}</span>
                   )}
@@ -301,23 +307,22 @@ export default function Sidebar() {
               {user?.name || user?.email || ''}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              {user?.plan === 'enterprise' ? (
-                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-900/30 text-yellow-300 border border-yellow-700/50">Enterprise</span>
-              ) : user?.plan === 'business' ? (
-                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-900/30 text-cyan-300 border border-cyan-700/50">Business</span>
-              ) : user?.plan === 'pro' ? (
-                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-900/30 text-cyan-300 border border-cyan-700/50">&#9889; Pro</span>
-              ) : (
-                <>
-                  <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-300 border border-gray-600/50">Free</span>
-                  <a href="/settings" className="text-[9px] text-cyan-400 hover:underline">Upgrade &rarr;</a>
-                </>
-              )}
+              {(() => {
+                const cur = user?.is_admin ? 'business' : normalizePlan(user?.plan);
+                if (cur === 'business') return <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-900/30 text-yellow-300 border border-yellow-700/50">Business</span>;
+                if (cur === 'lite') return <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-900/30 text-cyan-300 border border-cyan-700/50">&#9889; Lite</span>;
+                return (
+                  <>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-300 border border-gray-600/50">Free</span>
+                    <a href="/upgrade" className="text-[9px] text-cyan-400 hover:underline">Upgrade &rarr;</a>
+                  </>
+                );
+              })()}
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="text-v-text-secondary hover:text-v-gold transition-colors p-1"
+            className="text-v-text-secondary hover:text-v-gold transition-colors p-2 min-w-[40px] min-h-[40px] flex items-center justify-center"
             title="Logout"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
@@ -346,8 +351,9 @@ export default function Sidebar() {
           <NotificationBell />
           <button
             onClick={() => setMobileOpen(prev => !prev)}
-            className="p-2 text-v-text-secondary hover:text-v-text-primary"
-            aria-label="Menu"
+            className="w-11 h-11 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-v-text-primary"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               {mobileOpen
@@ -363,7 +369,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <>
           <div className="md:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setMobileOpen(false)} />
-          <aside className="md:hidden fixed left-0 top-0 bottom-0 w-[260px] bg-v-sidebar border-r border-v-border-subtle z-50 flex flex-col slide-in-left">
+          <aside className="md:hidden fixed left-0 top-0 bottom-0 w-[260px] max-w-[85vw] overflow-y-auto overscroll-contain bg-v-sidebar border-r border-v-border-subtle z-50 flex flex-col slide-in-left">
             {navContent}
           </aside>
         </>

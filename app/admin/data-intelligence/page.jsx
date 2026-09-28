@@ -770,7 +770,7 @@ export default function DataIntelligencePage() {
       {/* Update Default Modal */}
       {showModal && modalItem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-v-surface rounded-sm max-w-md w-full p-6">
+          <div className="bg-v-surface rounded-sm max-w-md w-full p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-bold text-v-text-primary mb-1">Update Default Hours</h3>
             <p className="text-sm text-v-text-secondary mb-4">
               {modalItem.manufacturer} {modalItem.model} - {modalItem.hours_field_label}
@@ -841,7 +841,7 @@ export default function DataIntelligencePage() {
       {/* Bulk Update Modal */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-v-surface rounded-sm max-w-lg w-full p-6">
+          <div className="bg-v-surface rounded-sm max-w-lg w-full p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-bold text-v-text-primary mb-2">Bulk Update Defaults</h3>
             <p className="text-sm text-v-text-secondary mb-4">
               Update {selectedCount} aircraft defaults to their field averages?

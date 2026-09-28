@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,8 @@ function getSupabase() {
 
 function getTier(detailer) {
   const certs = detailer.certifications || [];
-  if (detailer.plan === 'enterprise') return 'enterprise';
+  // Top directory placement is a Business feature (legacy enterprise aliases to business).
+  if (normalizePlan(detailer.plan) === 'business') return 'enterprise';
   if (certs.includes('Shiny Jets 5-Day Private Course')) return 'private_course';
   if (certs.includes('Shiny Jets 5-Day Group Class')) return 'group_course';
   if (certs.includes('Shiny Jets Online Course')) return 'online';

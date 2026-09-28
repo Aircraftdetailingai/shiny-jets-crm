@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +17,8 @@ export async function GET(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'invoices', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
@@ -44,6 +48,8 @@ export async function PATCH(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'invoices', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
@@ -123,8 +129,8 @@ export async function PATCH(request, { params }) {
       const wantsDeposit = updates.booking_mode === 'pay_to_book'
         || (parseFloat(updates.deposit_percentage) || 0) > 0
         || (parseFloat(updates.deposit_amount) || 0) > 0;
-      if (wantsDeposit && plan === 'free' && !isAdmin) {
-        return Response.json({ error: 'Deposits require a Pro plan or higher.' }, { status: 403 });
+      if (wantsDeposit && normalizePlan(plan) === 'free' && !isAdmin) {
+        return Response.json({ error: 'Deposits are included with Lite ($39.95/mo) and Business.', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=lite' }, { status: 403 });
       }
       if (updates.booking_mode != null && !['regular', 'pay_to_book'].includes(updates.booking_mode)) {
         return Response.json({ error: 'Invalid booking_mode (expected regular or pay_to_book).' }, { status: 400 });
@@ -206,6 +212,8 @@ export async function PUT(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'invoices', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });

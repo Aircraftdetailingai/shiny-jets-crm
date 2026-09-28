@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { TIERS } from '@/lib/pricing-tiers';
+import { normalizePlan, planRank } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,17 +24,20 @@ export async function POST(request) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const { tier, billing, promo_code } = await request.json();
+  const { tier: rawTier, billing, promo_code } = await request.json();
   const isAnnual = billing === 'annual';
+  const tier = rawTier ? normalizePlan(rawTier) : null;
 
-  if (!tier || !TIERS[tier]) {
+  if (!tier || tier === 'free' || !TIERS[tier]) {
     return new Response(JSON.stringify({ error: 'Invalid tier' }), { status: 400 });
   }
 
   const tierConfig = TIERS[tier];
   const priceId = isAnnual ? tierConfig.stripeAnnualPriceId : tierConfig.stripePriceId;
   if (!priceId) {
-    return new Response(JSON.stringify({ error: 'Tier not available for purchase' }), { status: 400 });
+    // Shopify is the primary billing path; Stripe checkout only works when
+    // STRIPE_PRICE_LITE / STRIPE_PRICE_BUSINESS_V2 / _YEARLY are configured.
+    return new Response(JSON.stringify({ error: 'Online checkout for this plan is not available here. Visit the upgrade page.', upgrade_url: '/upgrade' }), { status: 400 });
   }
 
   const supabase = getSupabase();
@@ -48,9 +52,8 @@ export async function POST(request) {
       .single();
 
     // Check if already on this tier or higher
-    const tierOrder = ['free', 'pro', 'business', 'enterprise'];
-    const currentTierIndex = tierOrder.indexOf(detailer?.plan || 'free');
-    const targetTierIndex = tierOrder.indexOf(tier);
+    const currentTierIndex = planRank(detailer?.plan);
+    const targetTierIndex = planRank(tier);
 
     if (targetTierIndex <= currentTierIndex) {
       return new Response(JSON.stringify({

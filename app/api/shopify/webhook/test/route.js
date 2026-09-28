@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
+import { resolveCrmLineItem } from '@/lib/crm-plan-grants';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,14 +41,15 @@ export async function POST(request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { email, plan = 'pro' } = await request.json();
+  const { email, plan: rawPlan = 'lite' } = await request.json();
+  const plan = normalizePlan(rawPlan);
   const testEmail = email?.toLowerCase()?.trim();
   if (!testEmail) {
     return Response.json({ error: 'Email is required' }, { status: 400 });
   }
 
-  const priceMap = { free: '0.00', pro: '79.00', business: '149.00', enterprise: '899.00' };
-  const price = priceMap[plan] || '79.00';
+  const priceMap = { free: '0.00', lite: '39.95', business: '89.95' };
+  const price = priceMap[plan] || '39.95';
 
   const supabase = getSupabase();
   const results = { steps: [], success: false };
@@ -113,14 +116,10 @@ export async function POST(request) {
     order_number: 'TEST-001',
   };
 
-  // Test title matching
-  const titleMatch = testPayload.line_items[0].title.toLowerCase().includes(`shiny jets crm ${plan}`);
-  // Test price matching
-  const p = parseFloat(price);
-  const priceMatch = (plan === 'free' && p === 0) ||
-    (plan === 'pro' && p >= 70 && p <= 90) ||
-    (plan === 'business' && p >= 140 && p <= 160) ||
-    (plan === 'enterprise' && p >= 850 && p <= 950);
+  // Resolve exactly like the live webhook does
+  const resolved = resolveCrmLineItem(testPayload.line_items[0]);
+  const titleMatch = resolved?.plan === plan;
+  const priceMatch = resolveCrmLineItem({ price }).plan === plan;
 
   results.steps.push({
     step: 'payload_validation',

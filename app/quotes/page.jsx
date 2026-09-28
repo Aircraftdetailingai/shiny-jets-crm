@@ -681,7 +681,7 @@ export default function QuotesPage() {
         )}
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 bg-v-charcoal/95 backdrop-blur-sm border-b border-[#1A2236]">
-          <div className="px-6 pt-5 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="px-4 sm:px-6 pt-5 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h1 className="text-[1.75rem] font-light tracking-[0.2em] uppercase text-white" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>Quotes</h1>
             <div className="flex items-center gap-3 flex-wrap">
               <label className="flex items-center gap-1.5 text-v-text-secondary text-xs uppercase tracking-widest">
@@ -712,7 +712,7 @@ export default function QuotesPage() {
                   className="text-v-text-secondary hover:text-white text-xs uppercase tracking-widest transition-colors"
                 >Export</button>
               </ExportGate>
-              <a href="/quotes/new" className="px-5 py-2 bg-v-gold text-white text-xs font-medium uppercase tracking-[0.15em] hover:bg-v-gold-dim transition-colors">New Quote</a>
+              <a href="/quotes/new" className="inline-flex items-center min-h-[40px] px-5 py-2 bg-v-gold text-white text-xs font-medium uppercase tracking-[0.15em] hover:bg-v-gold-dim transition-colors">New Quote</a>
             </div>
           </div>
 
@@ -722,9 +722,9 @@ export default function QuotesPage() {
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-v-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-base sm:text-sm pl-9 pr-4 py-1.5 w-full sm:w-56 focus:outline-none focus:border-v-gold/40 transition-colors" />
             </div>
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               {['all', 'drafts', 'active', 'paid', 'completed', 'expired'].map((f) => (
-                <button key={f} onClick={() => setFilter(f)} className={`text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-v-gold' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
+                <button key={f} onClick={() => setFilter(f)} className={`min-h-[40px] text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-v-gold' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
                   {f === 'all' ? `All (${stats.total})` : f === 'drafts' ? `Drafts (${stats.drafts})` : f === 'active' ? `Active (${stats.active})` : f === 'paid' ? `Paid (${stats.paid})` : f === 'completed' ? `Done (${stats.completed})` : 'Expired'}
                 </button>
               ))}
@@ -733,7 +733,7 @@ export default function QuotesPage() {
 
           {/* Gmail-style Bulk Toolbar */}
           {selectedIds.size > 0 && (
-            <div className="px-6 py-2.5 bg-v-surface border-t border-v-border flex items-center gap-4">
+            <div className="px-4 sm:px-6 py-2.5 bg-v-surface border-t border-v-border flex flex-wrap items-center gap-4">
               <span className="text-white text-sm font-medium">{selectedIds.size} selected</span>
               <button onClick={clearSelection} className="text-v-text-secondary hover:text-white text-xs uppercase tracking-wider transition-colors">Clear</button>
               <div className="w-px h-4 bg-[#2A3A50]" />
@@ -746,7 +746,7 @@ export default function QuotesPage() {
         </div>
 
         {/* Stats */}
-        <div className="px-6 py-5 grid grid-cols-3 sm:grid-cols-6 gap-8 border-b border-[#1A2236]">
+        <div className="px-4 sm:px-6 py-5 grid grid-cols-3 sm:grid-cols-6 gap-4 sm:gap-8 border-b border-[#1A2236]">
           {[
             { label: 'Total', value: stats.total, color: 'text-white' },
             { label: 'Active', value: stats.active, color: 'text-v-gold' },
@@ -781,6 +781,23 @@ export default function QuotesPage() {
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(q.total_price)}</span>
                   <span className="text-v-text-secondary text-xs">{q.created_at ? new Date(q.created_at).toLocaleDateString() : ''}</span>
+                </div>
+                {/* Always-visible actions on phones (no hover on touch screens) */}
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-[#1A2236]" onClick={(e) => e.stopPropagation()}>
+                  {status === 'draft' && (
+                    <button type="button" onClick={() => openInBuilder(q)} className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded active:bg-v-gold/10">Continue</button>
+                  )}
+                  {(status === 'paid' || status === 'approved') && (
+                    <button type="button" onClick={() => openScheduleModal(q)} className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded active:bg-indigo-400/10">Schedule</button>
+                  )}
+                  {(status === 'scheduled' || status === 'in_progress') && (
+                    <button type="button" onClick={() => openCompleteModal(q)} className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-purple-300 border border-purple-400/30 rounded active:bg-purple-400/10">Complete</button>
+                  )}
+                  {(status === 'sent' || status === 'viewed' || status === 'accepted') && (
+                    <button type="button" onClick={() => { setMarkPaidModal(q); setMarkPaidData({ payment_method: 'cash', amount: String(q.total_price || ''), note: '' }); }} className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-green-300 border border-green-400/30 rounded active:bg-green-400/10">Mark Paid</button>
+                  )}
+                  <button type="button" onClick={() => openFeesModal(q)} className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded active:bg-blue-400/10">Fees</button>
+                  <button type="button" onClick={() => askDeleteQuote(q)} aria-label={`Delete quote for ${getDisplayName(q)}`} className="ml-auto min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-red-400 border border-red-400/40 rounded active:bg-red-400/10">Delete</button>
                 </div>
               </div>
             );
@@ -836,28 +853,28 @@ export default function QuotesPage() {
                     <span className="text-v-text-secondary text-xs">{formatDate(q.created_at)}</span>
                   </div>
                   <div className="flex justify-end gap-1 flex-shrink-0 [&>button]:flex-shrink-0 [&>button]:whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openFeesModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">
+                    <button onClick={() => openFeesModal(q)} className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">
                       Fees
                     </button>
                     {status === 'draft' && (
                       <button onClick={() => openInBuilder(q)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">
+                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">
                         Continue
                       </button>
                     )}
                     {(status === 'paid' || status === 'approved') && (
-                      <button onClick={() => openScheduleModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded hover:bg-indigo-400/10">
+                      <button onClick={() => openScheduleModal(q)} className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded hover:bg-indigo-400/10">
                         Schedule
                       </button>
                     )}
                     {(status === 'scheduled' || status === 'in_progress') && (
-                      <button onClick={() => openCompleteModal(q)} className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-purple-300 border border-purple-400/30 rounded hover:bg-purple-400/10">
+                      <button onClick={() => openCompleteModal(q)} className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-purple-300 border border-purple-400/30 rounded hover:bg-purple-400/10">
                         Complete
                       </button>
                     )}
                     {(status === 'sent' || status === 'viewed' || status === 'accepted') && (
                       <button onClick={() => { setMarkPaidModal(q); setMarkPaidData({ payment_method: 'cash', amount: String(q.total_price || ''), note: '' }); }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-green-300 border border-green-400/30 rounded hover:bg-green-400/10">
+                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-green-300 border border-green-400/30 rounded hover:bg-green-400/10">
                         Mark Paid
                       </button>
                     )}
@@ -888,7 +905,7 @@ export default function QuotesPage() {
             aria-label="Quote preview"
           >
             <div
-              className="bg-v-surface border border-v-border rounded-t-2xl sm:rounded-lg w-full sm:max-w-3xl max-h-[95vh] flex flex-col shadow-2xl"
+              className="bg-v-surface border border-v-border rounded-t-2xl sm:rounded-lg w-full sm:max-w-3xl h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-v-border shrink-0">
@@ -916,14 +933,14 @@ export default function QuotesPage() {
                 <button
                   type="button"
                   onClick={() => setPreviewTab('client')}
-                  className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded ${previewTab === 'client' ? 'bg-v-gold/20 text-v-gold border border-v-gold/40' : 'text-v-text-secondary border border-transparent hover:text-white'}`}
+                  className={`min-h-[40px] px-3 py-1.5 text-xs uppercase tracking-wider rounded ${previewTab === 'client' ? 'bg-v-gold/20 text-v-gold border border-v-gold/40' : 'text-v-text-secondary border border-transparent hover:text-white'}`}
                 >
                   Client view
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreviewTab('pdf')}
-                  className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded ${previewTab === 'pdf' ? 'bg-v-gold/20 text-v-gold border border-v-gold/40' : 'text-v-text-secondary border border-transparent hover:text-white'}`}
+                  className={`min-h-[40px] px-3 py-1.5 text-xs uppercase tracking-wider rounded ${previewTab === 'pdf' ? 'bg-v-gold/20 text-v-gold border border-v-gold/40' : 'text-v-text-secondary border border-transparent hover:text-white'}`}
                 >
                   PDF
                 </button>
@@ -931,13 +948,13 @@ export default function QuotesPage() {
                   href={`/q/${previewQuote.share_link}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="ml-auto text-xs text-v-text-secondary hover:text-v-gold"
+                  className="ml-auto min-h-[40px] inline-flex items-center text-xs text-v-text-secondary hover:text-v-gold"
                 >
                   Open in new tab
                 </a>
               </div>
 
-              <div className="flex-1 min-h-0 bg-[#0F1117] relative" style={{ height: '70vh' }}>
+              <div className="flex-1 min-h-[240px] sm:flex-initial sm:min-h-0 sm:h-[70vh] bg-[#0F1117] relative">
                 {previewTab === 'client' ? (
                   <iframe
                     key={`client-${previewQuote.id}`}
@@ -955,20 +972,20 @@ export default function QuotesPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-v-border shrink-0 bg-v-charcoal/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 px-4 sm:px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-v-border shrink-0 bg-v-charcoal/80">
                 {previewTab === 'pdf' ? (
                   <a
                     href={`/api/quotes/${previewQuote.id}/pdf?shareToken=${encodeURIComponent(previewQuote.share_link)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-v-text-secondary hover:text-v-gold"
+                    className="min-h-[40px] inline-flex items-center text-xs text-v-text-secondary hover:text-v-gold"
                   >
                     Download / open PDF
                   </a>
                 ) : (
-                  <span className="text-xs text-v-text-secondary">This is how the client sees the quote</span>
+                  <span className="hidden sm:inline text-xs text-v-text-secondary">This is how the client sees the quote</span>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-auto">
                   <button
                     type="button"
                     onClick={() => askDeleteQuote(previewQuote)}
@@ -1096,7 +1113,7 @@ export default function QuotesPage() {
         {/* Mark Paid Modal */}
         {markPaidModal && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-            <div className="bg-v-surface border border-v-border rounded-lg w-full max-w-sm p-5">
+            <div className="bg-v-surface border border-v-border rounded-lg w-full max-w-sm p-5 max-h-[calc(100dvh-2rem)] overflow-y-auto">
               <h3 className="text-white font-semibold mb-1">Mark as Paid</h3>
               <p className="text-v-text-secondary text-xs mb-4">{markPaidModal.aircraft_model || markPaidModal.aircraft_type} — {markPaidModal.client_name}</p>
               <div className="space-y-3">
@@ -1156,7 +1173,7 @@ export default function QuotesPage() {
         {/* Schedule Job Modal */}
         {scheduleModal && (
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
-            <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-md">
+            <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-4 text-white">Schedule Job</h3>
               <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4">
                 <div className="flex justify-between items-center mb-1">
@@ -1186,7 +1203,7 @@ export default function QuotesPage() {
         {/* Single quote delete confirm */}
         {deleteConfirm && (
           <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4" onClick={() => !deletingQuote && setDeleteConfirm(null)}>
-            <div className="bg-v-surface border border-v-border rounded-lg p-5 sm:p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-v-surface border border-v-border rounded-lg p-5 sm:p-6 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold text-white mb-2">Delete this quote?</h3>
               <p className="text-sm text-v-text-secondary mb-2">
                 {(deleteConfirm.customer_company || deleteConfirm.client_name || 'Untitled')}
@@ -1194,8 +1211,8 @@ export default function QuotesPage() {
               </p>
               <p className="text-sm text-v-text-secondary mb-6">This cannot be undone.</p>
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setDeleteConfirm(null)} disabled={deletingQuote} className="px-4 py-2 border border-v-border text-v-text-secondary hover:text-white disabled:opacity-50">Cancel</button>
-                <button type="button" onClick={confirmDeleteQuote} disabled={deletingQuote} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50">
+                <button type="button" onClick={() => setDeleteConfirm(null)} disabled={deletingQuote} className="min-h-[44px] px-4 py-2 border border-v-border text-v-text-secondary hover:text-white disabled:opacity-50">Cancel</button>
+                <button type="button" onClick={confirmDeleteQuote} disabled={deletingQuote} className="min-h-[44px] px-4 py-2 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50">
                   {deletingQuote ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
@@ -1206,7 +1223,7 @@ export default function QuotesPage() {
         {/* Bulk Confirm Modal */}
         {bulkConfirm && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-sm">
+            <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto">
               <h3 className="text-lg font-semibold text-white mb-2">{bulkConfirm.label}</h3>
               <p className="text-sm text-v-text-secondary mb-6">{bulkConfirm.description}</p>
               <div className="flex justify-end gap-3">

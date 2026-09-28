@@ -79,32 +79,32 @@ export default function TeamPage() {
 
   return (
     <AppShell title="Team">
-    <div className="px-6 md:px-10 py-8 pb-40 max-w-[1400px]">
+    <div className="px-4 sm:px-6 md:px-10 py-8 pb-40 max-w-[1400px]">
       {/* Header */}
-      <header className="flex items-center justify-between mb-6">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>TEAM</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <a
             href="/team/activity"
-            className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
+            className="inline-flex items-center min-h-[40px] px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
           >
             {'Activity'}
           </a>
           <a
             href="/team/payroll"
-            className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
+            className="inline-flex items-center min-h-[40px] px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
           >
             {'Payroll'}
           </a>
           <a
             href="/team/permissions"
-            className="px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
+            className="inline-flex items-center min-h-[40px] px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
           >
             {'Permissions'}
           </a>
           <a
             href="/team/add"
-            className="px-4 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium"
+            className="inline-flex items-center min-h-[40px] px-4 py-2 bg-v-gold text-white rounded-lg hover:bg-v-gold-dim transition-colors font-medium"
           >
             {'+ Add Member'}
           </a>
@@ -158,7 +158,7 @@ export default function TeamPage() {
           </a>
         </div>
       ) : (
-        <div className="bg-v-surface rounded-lg overflow-hidden">
+        <div className="bg-v-surface rounded-lg overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-v-charcoal text-left text-sm text-v-text-secondary">

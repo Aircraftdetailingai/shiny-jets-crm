@@ -33,13 +33,13 @@ export default function MediaLightbox({ items, index, onClose, onNav }) {
             href={item.url}
             download
             onClick={(e) => e.stopPropagation()}
-            className="text-white/70 hover:text-white text-xs px-3 py-1.5 border border-white/20 rounded"
+            className="inline-flex items-center min-h-[40px] text-white/70 hover:text-white text-xs px-3 py-1.5 border border-white/20 rounded"
           >
             Download
           </a>
           <button
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="text-white/70 hover:text-white text-2xl w-8 h-8 flex items-center justify-center"
+            className="text-white/70 hover:text-white text-2xl w-11 h-11 flex items-center justify-center"
             aria-label="Close"
           >
             &times;

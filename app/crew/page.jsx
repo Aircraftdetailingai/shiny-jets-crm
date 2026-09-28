@@ -1718,7 +1718,7 @@ export default function CrewDashboard() {
         {/* ===== SUB-MINUTE CLOCK-OUT PROMPT ===== */}
         {subMinutePrompt && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-            <div className="bg-[#0f1623] border border-white/10 rounded-2xl w-full max-w-sm p-5">
+            <div className="bg-[#0f1623] border border-white/10 rounded-2xl w-full max-w-sm p-5 max-h-[calc(100dvh-2rem)] overflow-y-auto">
               <p className="text-white font-semibold mb-1">Clocked out under a minute</p>
               <p className="text-white/60 text-sm mb-4">That entry is under 60 seconds. Discard it, or keep it anyway?</p>
               <div className="grid grid-cols-2 gap-2">
@@ -1815,7 +1815,7 @@ export default function CrewDashboard() {
             {/* Delete confirmation modal */}
             {confirmDeleteProduct && (
               <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setConfirmDeleteProduct(null)}>
-                <div className="bg-[#0f1623] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="bg-[#0f1623] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
@@ -2370,7 +2370,7 @@ export default function CrewDashboard() {
       {/* Completion confirmation modal */}
       {showCompleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowCompleteConfirm(false)}>
-          <div className="bg-v-charcoal border border-white/10 rounded-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-charcoal border border-white/10 rounded-lg p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-semibold mb-2">Mark this job as complete?</h3>
             <p className="text-white/60 text-sm mb-4">Setting progress to 100% will mark the job as completed and move it out of your active jobs.</p>
             <div className="flex justify-end gap-3">

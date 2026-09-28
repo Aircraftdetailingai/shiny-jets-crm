@@ -6,6 +6,7 @@ import {
   fetchPortalPhotos,
   computePortalStats,
 } from '@/lib/portal-aircraft-data';
+import { filterRowsByDetailerFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +77,11 @@ export async function GET(request, { params }) {
     }
   }
 
-  const shaped = shapePortalServices(quotes, jobs);
+  // Customer portal + live aircraft progress is a Lite+ feature of the detailer.
+  const shaped = shapePortalServices(
+    await filterRowsByDetailerFeature(supabase, quotes, 'customerPortal'),
+    await filterRowsByDetailerFeature(supabase, jobs, 'customerPortal'),
+  );
   const photos = await fetchPortalPhotos(supabase, shaped);
   const services = publicServices(shaped);
 

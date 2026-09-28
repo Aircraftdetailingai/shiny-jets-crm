@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendRecurringReminderEmail } from '@/lib/email';
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,7 +97,9 @@ export async function POST(request) {
       errors.push(`Fetch due: ${dueError.message}`);
     }
 
+    const allowed = planChecker(supabase);
     for (const quote of dueQuotes || []) {
+      if (!(await allowed(quote.detailer_id, 'recurring'))) continue; // Business
       try {
         // Generate a new quote based on the recurring template
         const { nanoid } = await import('nanoid');
@@ -185,6 +188,7 @@ export async function POST(request) {
     }
 
     for (const quote of upcomingQuotes || []) {
+      if (!(await allowed(quote.detailer_id, 'recurring'))) continue; // Business
       try {
         const clientEmail = quote.customer_email || quote.client_email;
         if (!clientEmail) continue;

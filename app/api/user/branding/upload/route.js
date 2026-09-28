@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,8 @@ export async function POST(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'customLogo', { user: user });
+    if (planGate) return planGate;
 
     // 3db3b3d resolution — owner JWTs have user.id == detailer.id, crew JWTs
     // need user.detailer_id. Without this a crew-shaped session would write

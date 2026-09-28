@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { platformFeeRate } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,12 +10,7 @@ const ADMIN_EMAILS = [
   'brett@shinyjets.com',
 ];
 
-const PLATFORM_FEES = {
-  free: 0.05,
-  pro: 0.02,
-  business: 0.01,
-  enterprise: 0.00,
-};
+// Plan fee table lives in lib/plans.js (Free 5% / Lite 2% / Business 0%).
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -136,7 +132,7 @@ export async function GET(request) {
       if ((q.status === 'paid' || q.status === 'approved' || q.status === 'completed') && q.total_price) {
         const week = getWeekStart(q.paid_at || q.created_at);
         const plan = detailerPlan[q.detailer_id] || 'free';
-        const fee = parseFloat(q.total_price) * (PLATFORM_FEES[plan] || 0.05);
+        const fee = parseFloat(q.total_price) * platformFeeRate(plan);
         revenueWeeks[week] = (revenueWeeks[week] || 0) + fee;
       }
     }

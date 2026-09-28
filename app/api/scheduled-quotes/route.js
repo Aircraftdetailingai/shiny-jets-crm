@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ export async function GET(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'scheduledSend', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
@@ -43,6 +46,8 @@ export async function POST(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'scheduledSend', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
@@ -127,6 +132,8 @@ export async function PUT(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'scheduledSend', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     const body = await request.json();
@@ -175,6 +182,8 @@ export async function DELETE(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'scheduledSend', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     const { searchParams } = new URL(request.url);

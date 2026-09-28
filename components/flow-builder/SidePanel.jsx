@@ -51,11 +51,11 @@ export default function SidePanel({ node, nodes, services = [], packages = [], o
   );
 
   return (
-    <div className="fixed top-0 right-0 w-[360px] h-full bg-v-surface border-l border-v-border z-40 flex flex-col shadow-2xl">
+    <div className="fixed top-0 right-0 w-full sm:w-[360px] h-full bg-v-surface border-l border-v-border z-40 flex flex-col shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-v-border">
         <h2 className="text-white text-sm font-medium">Edit Node</h2>
-        <button onClick={handleCancel} className="text-v-text-secondary hover:text-white text-lg">&times;</button>
+        <button onClick={handleCancel} aria-label="Close" className="w-10 h-10 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-white text-2xl">&times;</button>
       </div>
 
       {/* Body */}

@@ -187,9 +187,9 @@ export default function PortalOnboarding() {
                 )}
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={back} className="px-4 py-2.5 border border-[#ddd] rounded-lg text-sm text-[#666] hover:bg-[#f5f5f5]">Back</button>
+                <button onClick={back} className="min-h-[44px] px-4 py-2.5 border border-[#ddd] rounded-lg text-sm text-[#666] hover:bg-[#f5f5f5]">Back</button>
                 <button onClick={async () => { await saveProfile(); next(); }} disabled={!firstName.trim() || saving}
-                  className="flex-1 py-2.5 bg-[#007CB1] text-white rounded-lg text-sm font-semibold hover:bg-[#006a9a] disabled:opacity-50">
+                  className="flex-1 min-h-[44px] py-2.5 bg-[#007CB1] text-white rounded-lg text-sm font-semibold hover:bg-[#006a9a] disabled:opacity-50">
                   {saving ? 'Saving...' : 'Continue'}
                 </button>
               </div>
@@ -244,9 +244,9 @@ export default function PortalOnboarding() {
                 <button onClick={addAircraft} className="text-[#007CB1] text-sm font-medium hover:underline">+ Add another aircraft</button>
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={back} className="px-4 py-2.5 border border-[#ddd] rounded-lg text-sm text-[#666] hover:bg-[#f5f5f5]">Back</button>
+                <button onClick={back} className="min-h-[44px] px-4 py-2.5 border border-[#ddd] rounded-lg text-sm text-[#666] hover:bg-[#f5f5f5]">Back</button>
                 <button onClick={async () => { await saveAircraft(); next(); }} disabled={saving}
-                  className="flex-1 py-2.5 bg-[#007CB1] text-white rounded-lg text-sm font-semibold hover:bg-[#006a9a] disabled:opacity-50">
+                  className="flex-1 min-h-[44px] py-2.5 bg-[#007CB1] text-white rounded-lg text-sm font-semibold hover:bg-[#006a9a] disabled:opacity-50">
                   {saving ? 'Saving...' : 'Continue'}
                 </button>
               </div>
@@ -275,19 +275,11 @@ export default function PortalOnboarding() {
                   </label>
                 ))}
               </div>
-              <div className="border-t border-[#e5e7eb] mt-5 pt-5">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div onClick={() => setSmsEnabled(!smsEnabled)}
-                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${smsEnabled ? 'bg-[#007CB1]' : 'bg-[#ddd]'}`}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${smsEnabled ? 'translate-x-5' : ''}`} />
-                  </div>
-                  <span className="text-sm text-[#333]">Also notify me via SMS</span>
-                </label>
-              </div>
+              {/* SMS notifications are not available yet — email only. */}
               <div className="flex gap-3 mt-6">
-                <button onClick={back} className="px-4 py-2.5 border border-[#ddd] rounded-lg text-sm text-[#666] hover:bg-[#f5f5f5]">Back</button>
+                <button onClick={back} className="min-h-[44px] px-4 py-2.5 border border-[#ddd] rounded-lg text-sm text-[#666] hover:bg-[#f5f5f5]">Back</button>
                 <button onClick={completeOnboarding} disabled={saving}
-                  className="flex-1 py-2.5 bg-[#007CB1] text-white rounded-lg text-sm font-semibold hover:bg-[#006a9a] disabled:opacity-50">
+                  className="flex-1 min-h-[44px] py-2.5 bg-[#007CB1] text-white rounded-lg text-sm font-semibold hover:bg-[#006a9a] disabled:opacity-50">
                   {saving ? 'Finishing...' : 'Complete Setup'}
                 </button>
               </div>

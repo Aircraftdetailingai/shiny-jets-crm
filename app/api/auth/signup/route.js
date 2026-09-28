@@ -3,6 +3,7 @@ import { hashPassword, createToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { welcomeTemplate } from '@/lib/email-templates';
 import { redeemCompInviteIfAny } from '@/lib/comp-invites';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -328,18 +329,23 @@ export async function POST(request) {
       await supabase.from('prospects').update({ status: 'signed_up' }).eq('email', normalizedEmail);
     } catch {}
 
-    // Course purchase (app_access) → Enterprise free 1 year (Brett rule).
-    // Aligns with Shopify webhook course_bundle grant. Comp invite redeem below still wins.
+    // Course purchase (app_access) → CRM Business free 1 year (Brett rule; was
+    // Enterprise). Active PRICING-QUARTERLY subscribers → CRM Lite through their
+    // Pricing Tool access_end. Aligns with the Shopify webhook grants. Comp
+    // invite redeem below still wins.
     if (detailer.plan === 'free') {
       try {
-        const { data: courseAccess } = await supabase
+        const { data: accessRow } = await supabase
           .from('app_access')
-          .select('product_type, status')
+          .select('product_type, status, access_end')
           .eq('email', normalizedEmail)
           .eq('status', 'active')
-          .in('product_type', ['masterclass_annual', 'online_course_annual', 'airventure_annual', 'onsite_annual'])
+          .in('product_type', ['masterclass_annual', 'online_course_annual', 'airventure_annual', 'onsite_annual', 'quarterly'])
           .limit(1)
           .maybeSingle();
+        const courseAccess = accessRow && accessRow.product_type !== 'quarterly' ? accessRow : null;
+        const quarterlyAccess = accessRow && accessRow.product_type === 'quarterly' &&
+          accessRow.access_end && new Date(accessRow.access_end).getTime() > Date.now() ? accessRow : null;
 
         if (courseAccess) {
           const courseExpiry = new Date();
@@ -347,19 +353,39 @@ export async function POST(request) {
           const expiryISO = courseExpiry.toISOString();
           const { defaultFeePercentForPlan } = await import('@/lib/branding');
           await supabase.from('detailers').update({
-            plan: 'enterprise',
+            plan: 'business',
             subscription_status: 'comped',
             subscription_source: 'course_bundle',
             trial_ends_at: expiryISO,
             plan_expires_at: expiryISO,
-            platform_fee_percent: defaultFeePercentForPlan('enterprise'),
+            platform_fee_percent: defaultFeePercentForPlan('business'),
             plan_updated_at: new Date().toISOString(),
           }).eq('id', detailer.id);
-          detailer.plan = 'enterprise';
+          detailer.plan = 'business';
           detailer.subscription_status = 'comped';
           detailer.subscription_source = 'course_bundle';
           detailer.trial_ends_at = expiryISO;
-          console.log(`[signup] Course purchaser detected, upgraded to Enterprise: ${normalizedEmail}`);
+          console.log(`[signup] Course purchaser detected, upgraded to Business: ${normalizedEmail}`);
+        } else if (quarterlyAccess) {
+          const { defaultFeePercentForPlan } = await import('@/lib/branding');
+          const liteUpdate = {
+            plan: 'lite',
+            subscription_status: 'active',
+            subscription_source: 'pricing_quarterly',
+            plan_expires_at: quarterlyAccess.access_end,
+            platform_fee_percent: defaultFeePercentForPlan('lite'),
+            plan_updated_at: new Date().toISOString(),
+          };
+          let { error: liteErr } = await supabase.from('detailers').update(liteUpdate).eq('id', detailer.id);
+          if (liteErr && (liteErr.code === '23514' || /check constraint/i.test(liteErr.message || ''))) {
+            ({ error: liteErr } = await supabase.from('detailers').update({ ...liteUpdate, plan: 'pro' }).eq('id', detailer.id));
+          }
+          if (!liteErr) {
+            detailer.plan = 'lite';
+            detailer.subscription_status = 'active';
+            detailer.subscription_source = 'pricing_quarterly';
+            console.log(`[signup] Quarterly Pricing subscriber detected, granted Lite until ${quarterlyAccess.access_end}: ${normalizedEmail}`);
+          }
         }
       } catch (e) {
         console.log('[signup] Course check failed (non-critical):', e.message);
@@ -464,7 +490,7 @@ export async function POST(request) {
       email: detailer.email,
       name: detailer.name,
       company: detailer.company,
-      plan: detailer.plan,
+      plan: normalizePlan(detailer.plan),
       subscription_status: detailer.subscription_status || null,
       subscription_source: detailer.subscription_source || null,
       status: detailer.status,

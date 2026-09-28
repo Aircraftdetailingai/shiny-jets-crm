@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getPortalUser } from '@/lib/portal-customer-auth';
+import { filterRowsByDetailerFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +35,14 @@ export async function GET(request) {
     .order('created_at', { ascending: false })
     .limit(20);
 
+  // Customer portal is a Lite+ feature of each detailer.
+  const portalQuotes = await filterRowsByDetailerFeature(supabase, quotes, 'customerPortal');
+  const portalJobs = await filterRowsByDetailerFeature(supabase, jobs, 'customerPortal');
+
   // Merge and sort
   const allServices = [
-    ...(quotes || []).map(q => ({ ...q, _source: 'quotes', aircraft: q.aircraft_model || q.aircraft_type })),
-    ...(jobs || []).map(j => ({ ...j, _source: 'jobs', aircraft: [j.aircraft_make, j.aircraft_model].filter(Boolean).join(' ') })),
+    ...(portalQuotes || []).map(q => ({ ...q, _source: 'quotes', aircraft: q.aircraft_model || q.aircraft_type })),
+    ...(portalJobs || []).map(j => ({ ...j, _source: 'jobs', aircraft: [j.aircraft_make, j.aircraft_model].filter(Boolean).join(' ') })),
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   // Upcoming (scheduled in the future)

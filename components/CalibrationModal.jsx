@@ -368,7 +368,7 @@ export default function CalibrationModal({
           </h2>
           <button
             onClick={onClose}
-            className="text-v-text-secondary hover:text-v-text-primary text-2xl leading-none px-2"
+            className="w-10 h-10 flex items-center justify-center text-v-text-secondary hover:text-v-text-primary text-2xl leading-none"
             aria-label="Close"
           >
             &times;

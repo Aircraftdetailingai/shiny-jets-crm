@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendMonthlyReportEmail } from '@/lib/email';
+import { resolveFeeRate } from '@/lib/pricing-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export async function POST(request) {
   // Find detailers with monthly report enabled
   const { data: detailers, error: dErr } = await supabase
     .from('detailers')
-    .select('id, email, name, company, notification_settings, plan');
+    .select('id, email, name, company, notification_settings, plan, platform_fee_percent');
 
   if (dErr || !detailers) {
     console.log('[monthly-reports] Failed to fetch detailers:', dErr?.message);
@@ -59,8 +60,9 @@ export async function POST(request) {
       const allQuotes = quotes || [];
       const paidQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
 
-      const PLATFORM_FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
-      const feeRate = PLATFORM_FEES[detailer.plan] || 0.05;
+      // Free 5% / Lite 2% / Business 0% (or per-detailer override). The old
+      // `|| 0.05` fallback reported 5% for 0% plans.
+      const feeRate = resolveFeeRate(detailer);
 
       const totalRevenue = paidQuotes.reduce((s, q) => s + (parseFloat(q.total_price) || 0), 0);
       const totalFees = Math.round(totalRevenue * feeRate * 100) / 100;

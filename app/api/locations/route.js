@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { planLookupKeys } from '@/lib/plans';
 import { getAuthUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -31,11 +32,13 @@ async function checkAirportTierLimit(supabase, detailerId, tier) {
     .maybeSingle();
   const plan = detailer?.plan || 'free';
 
-  const { data: limitRow } = await supabase
+  // Raw plan first (legacy rows keep their limits), then new-tier aliases.
+  const keys = planLookupKeys(plan);
+  const { data: limitRows } = await supabase
     .from('plan_limits')
-    .select(`${limitCol}`)
-    .eq('plan', plan)
-    .maybeSingle();
+    .select(`plan, ${limitCol}`)
+    .in('plan', keys);
+  const limitRow = keys.map((k) => (limitRows || []).find((r) => r.plan === k)).find(Boolean);
   const limit = limitRow?.[limitCol];
   if (typeof limit !== 'number') {
     // Plan missing from plan_limits — allow through, let the cron log it.
@@ -59,7 +62,7 @@ function airportLimitResponse({ limit, current, plan, tier }) {
     limit,
     current,
     plan,
-    upgrade_url: 'https://pricing.shinyjets.com',
+    upgrade_url: '/upgrade',
   }, { status: 403 });
 }
 

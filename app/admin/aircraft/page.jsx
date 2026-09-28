@@ -1072,7 +1072,7 @@ export default function AdminAircraftPage() {
       {/* Bulk Import Modal */}
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-2xl">
+          <div className="bg-v-surface border border-v-border rounded-sm p-6 w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4 text-v-text-primary">Bulk Import Aircraft</h3>
 
             <p className="text-sm text-v-text-secondary mb-2">

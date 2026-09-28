@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,6 +25,8 @@ export async function GET(request) {
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
 
@@ -116,6 +119,8 @@ export async function POST(request) {
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const body = await request.json();
   const { quote_id, actual_hours, labor_rate, product_cost, service_breakdown, notes } = body;
