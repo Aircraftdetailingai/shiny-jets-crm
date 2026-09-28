@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from 'react';
 import { useToast } from '@/components/Toast';
+import { normalizePlan, planRank, PLAN_NAMES } from '@/lib/plans';
 
 // How often the hook will re-poll /api/user/plan-status while the tab is
 // focused. 60s matches the spec; the debounce below (10s minimum between
@@ -8,16 +9,6 @@ import { useToast } from '@/components/Toast';
 const POLL_INTERVAL_MS = 60 * 1000;
 const MIN_FETCH_INTERVAL_MS = 10 * 1000;
 
-const PLAN_LABELS = {
-  free: 'Free',
-  pro: 'Pro',
-  business: 'Business',
-  enterprise: 'Enterprise',
-};
-
-// Simple tier ordering so we only congratulate on upgrades, not on the
-// daily write-back when the server has the same plan we already knew.
-const PLAN_RANK = { free: 0, pro: 1, business: 2, enterprise: 3 };
 
 function readStoredUser() {
   if (typeof window === 'undefined') return null;
@@ -73,12 +64,13 @@ export function usePlanGuard() {
         const stored = readStoredUser();
         if (!stored) return;
 
-        const previousPlan = stored.plan || 'free';
-        const nextPlan = data.plan || 'free';
+        // Legacy values (pro/enterprise) compare as lite/business.
+        const previousPlan = normalizePlan(stored.plan);
+        const nextPlan = normalizePlan(data.plan);
         const previousStamp = stored.plan_updated_at || null;
         const nextStamp = data.plan_updated_at || null;
 
-        const planChanged = previousPlan !== nextPlan;
+        const planChanged = previousPlan !== nextPlan || stored.plan !== nextPlan;
         const stampChanged = previousStamp !== nextStamp;
         const statusChanged = stored.subscription_status !== data.subscription_status;
 
@@ -106,10 +98,10 @@ export function usePlanGuard() {
 
         // Toast only on a true upgrade — not on replays, status-only changes,
         // or downgrades (downgrades get an email + admin SMS already).
-        const prevRank = PLAN_RANK[previousPlan] ?? 0;
-        const nextRank = PLAN_RANK[nextPlan] ?? 0;
+        const prevRank = planRank(previousPlan);
+        const nextRank = planRank(nextPlan);
         if (planChanged && nextRank > prevRank) {
-          const label = PLAN_LABELS[nextPlan] || nextPlan;
+          const label = PLAN_NAMES[nextPlan] || nextPlan;
           try {
             success(`Your plan has been updated to ${label}. New features unlocked.`);
           } catch {}
