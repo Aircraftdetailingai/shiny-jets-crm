@@ -18,5 +18,8 @@ Business-jet interiors mix leather, Alcantara, wool carpet, veneers, and soft pl
 - Odor jobs → find source first; enzyme where organic, replace filters if operator allows, ozone only with clear safety protocol and customer OK.
 - Damaged leather / veneer → detailing maintains; repair is upholstery / completion center work.
 
+## Brett shop recipe
+For carpet grease / ink / Sharpie stains (Oil Delete + terry towel press method), see [shop-recipes-paint-brightwork-carpet.md](shop-recipes-paint-brightwork-carpet.md). When it conflicts with the generic guidance above on products, the shop recipe wins.
+
 ## Brett's notes
 Interior oversell without time-on-aircraft is painful. Confirm access hours and whether soft goods can come out. Never soak veneers or flood seats — "wetter is better" ruins cabins.
