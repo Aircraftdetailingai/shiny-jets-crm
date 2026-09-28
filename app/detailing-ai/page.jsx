@@ -146,9 +146,12 @@ export default function DetailingAiPage() {
 
   return (
     <AppShell title="Detailing AI">
-      <div className="flex flex-col h-[calc(100vh-3.5rem)] max-w-3xl mx-auto px-4 md:px-8 py-4">
-        <div className="mb-4">
-          <h2 className="font-heading text-v-text-primary text-lg font-light uppercase tracking-widest">
+      {/* dvh keeps the composer above mobile browser toolbars (100vh is
+          taller than the visible area on phones, which pushed the input
+          off-screen). min-h-0 lets the message list shrink instead. */}
+      <div className="flex flex-col w-full min-w-0 h-[calc(100vh-3.5rem)] supports-[height:100dvh]:h-[calc(100dvh-3.5rem)] max-w-3xl mx-auto px-4 md:px-8 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="mb-3 md:mb-4 shrink-0 min-w-0">
+          <h2 className="font-heading text-v-text-primary text-lg font-light uppercase tracking-wider md:tracking-widest break-words">
             Detailing AI
           </h2>
           <p className="text-sm text-v-text-secondary mt-1">
@@ -157,7 +160,7 @@ export default function DetailingAiPage() {
           </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto rounded-xl border border-v-border-subtle bg-v-surface/40 p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-xl border border-v-border-subtle bg-v-surface/40 p-3 md:p-4 space-y-4">
           {messages.map((m, i) => (
             <div
               key={i}
@@ -231,7 +234,7 @@ export default function DetailingAiPage() {
         </div>
 
         {messages.length <= 1 && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2 shrink-0 max-h-[30vh] overflow-y-auto">
             {STARTERS.map((s) => (
               <button
                 key={s}
@@ -250,7 +253,7 @@ export default function DetailingAiPage() {
           <p className="mt-2 text-xs text-red-400">{error}</p>
         )}
 
-        <form onSubmit={onSubmit} className="mt-3 flex gap-2 items-end">
+        <form onSubmit={onSubmit} className="mt-3 flex gap-2 items-end shrink-0 min-w-0">
           <textarea
             ref={inputRef}
             value={input}
@@ -263,13 +266,13 @@ export default function DetailingAiPage() {
             }}
             rows={2}
             placeholder="Describe the aircraft and the issue…"
-            className="flex-1 resize-none rounded-xl bg-v-charcoal border border-v-border-subtle px-4 py-3 text-sm text-v-text-primary placeholder:text-v-text-secondary/60 focus:outline-none focus:border-v-gold/50"
+            className="flex-1 min-w-0 resize-none rounded-xl bg-v-charcoal border border-v-border-subtle px-4 py-3 text-sm text-v-text-primary placeholder:text-v-text-secondary/60 focus:outline-none focus:border-v-gold/50"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="h-11 px-5 rounded-xl bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition"
+            className="h-11 px-4 md:px-5 shrink-0 rounded-xl bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition"
           >
             Send
           </button>

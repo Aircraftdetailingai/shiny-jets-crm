@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DataTable from '@/components/DataTable';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 export default function CustomerDashboardPage() {
   const router = useRouter();
@@ -473,7 +474,7 @@ export default function CustomerDashboardPage() {
                     <div key={job.id} className="p-4">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <p className="font-medium">{job.aircraft_type} {job.aircraft_model}</p>
+                          <p className="font-medium">{aircraftDisplayName(job)}</p>
                           <p className="text-sm text-gray-500">{job.detailers?.company_name}</p>
                           <p className="text-xs text-gray-400">{formatDate(job.completed_at || job.scheduled_date)}</p>
                         </div>

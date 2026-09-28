@@ -342,6 +342,7 @@ export default function RequestsPage() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-white text-sm font-medium truncate">{lead.name || lead.customer_name || 'Customer'}</p>
+                          {lead.email && <p className="text-v-text-secondary/80 text-xs truncate">{lead.email}</p>}
                           <p className="text-v-text-secondary text-xs truncate">
                             {lead.aircraft_model || 'Aircraft not specified'}
                             {lead.tail_number ? ` · ${lead.tail_number}` : ''}
@@ -417,8 +418,8 @@ export default function RequestsPage() {
                   <div
                     key={lead.id}
                     onClick={() => router.push(`/requests/${lead.id}`)}
-                    className={`group grid grid-cols-[40px_1fr_1fr_180px_110px_90px_140px] min-w-[900px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
-                    style={{ height: '56px' }}
+                    className={`group grid grid-cols-[40px_1fr_1fr_180px_110px_90px_140px] min-w-[900px] px-6 py-2 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
+                    style={{ minHeight: '60px' }}
                   >
                     <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                       <input
@@ -428,16 +429,17 @@ export default function RequestsPage() {
                         className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100'}`}
                       />
                     </div>
-                    <div className="truncate pr-4">
-                      <span className="text-white text-sm">{lead.name || lead.customer_name || 'Customer'}</span>
-                      {lead.email && <span className="text-v-text-secondary text-xs ml-2 truncate">{lead.email}</span>}
+                    {/* Name and email on their own lines (email used to be jammed onto the name) */}
+                    <div className="min-w-0 pr-4">
+                      <p className="text-white text-sm truncate" title={lead.name || lead.customer_name || ''}>{lead.name || lead.customer_name || 'Customer'}</p>
+                      {lead.email && <p className="text-v-text-secondary text-xs truncate" title={lead.email}>{lead.email}</p>}
                     </div>
-                    <div className="truncate pr-4">
-                      <span className="text-v-text-secondary text-sm">{lead.aircraft_model || '—'}</span>
-                      {lead.tail_number && <span className="text-v-text-secondary/60 text-xs ml-2">{lead.tail_number}</span>}
+                    <div className="min-w-0 pr-4">
+                      <p className="text-v-text-secondary text-sm truncate" title={lead.aircraft_model || ''}>{lead.aircraft_model || '—'}</p>
+                      {lead.tail_number && <p className="text-v-text-secondary/60 text-xs truncate">{lead.tail_number}</p>}
                     </div>
-                    <div className="truncate pr-4">
-                      <span className="text-v-text-secondary text-sm" title={lead.services_requested || ''}>{lead.services_requested || '—'}</span>
+                    <div className="min-w-0 pr-4">
+                      <p className="text-v-text-secondary text-sm line-clamp-2 break-words" title={lead.services_requested || ''}>{lead.services_requested || '—'}</p>
                     </div>
                     <div className="flex flex-col items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                       <div className="relative">
@@ -483,13 +485,13 @@ export default function RequestsPage() {
                     <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => createQuoteFromLead(lead)}
-                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10"
+                        className="px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10"
                       >
                         Quote
                       </button>
                       <button
                         onClick={() => setConfirm({ kind: 'delete', ids: [lead.id], label: 'Delete this request?', description: 'This cannot be undone.' })}
-                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-red-400/70 border border-red-500/30 rounded hover:bg-red-500/10 hover:text-red-400"
+                        className="px-2 py-1 text-[10px] uppercase tracking-wider text-red-400/70 border border-red-500/30 rounded hover:bg-red-500/10 hover:text-red-400"
                       >
                         Delete
                       </button>

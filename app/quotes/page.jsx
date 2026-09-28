@@ -703,7 +703,7 @@ export default function QuotesPage() {
                   onClick={() => {
                     if (quotes.length === 0) return;
                     const escCSV = (v) => { const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s; };
-                    const rows = quotes.map(q => [q.created_at ? new Date(q.created_at).toISOString().split('T')[0] : '', q.customer_company || q.client_name || '', q.aircraft_model || q.aircraft_type || '', q.total_price?.toFixed(2) || '0.00', q.status || 'draft']);
+                    const rows = quotes.map(q => [q.created_at ? new Date(q.created_at).toISOString().split('T')[0] : '', q.customer_company || q.client_name || '', aircraftDisplayName(q) || '', q.total_price?.toFixed(2) || '0.00', q.status || 'draft']);
                     const csv = ['date,customer,aircraft,amount,status', ...rows.map(r => r.map(escCSV).join(','))].join('\n');
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `quotes-export-${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(a.href);
@@ -717,14 +717,14 @@ export default function QuotesPage() {
           </div>
 
           {/* Search + Filter */}
-          <div className="px-4 sm:px-6 pb-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 overflow-x-auto">
+          <div className="px-4 sm:px-6 pb-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6">
             <div className="relative flex-shrink-0">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-v-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search quotes..." className="bg-transparent border border-[#1A2236] text-white placeholder-[#8A9BB0] text-base sm:text-sm pl-9 pr-4 py-1.5 w-full sm:w-56 focus:outline-none focus:border-v-gold/40 transition-colors" />
             </div>
-            <div className="flex items-center gap-5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-x-5">
               {['all', 'drafts', 'active', 'paid', 'completed', 'expired'].map((f) => (
-                <button key={f} onClick={() => setFilter(f)} className={`min-h-[40px] text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-v-gold' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
+                <button key={f} onClick={() => setFilter(f)} className={`min-h-[40px] shrink-0 text-xs uppercase tracking-[0.15em] pb-2 transition-colors whitespace-nowrap ${filter === f ? 'text-v-gold border-b border-v-gold' : 'text-v-text-secondary hover:text-white border-b border-transparent'}`}>
                   {f === 'all' ? `All (${stats.total})` : f === 'drafts' ? `Drafts (${stats.drafts})` : f === 'active' ? `Active (${stats.active})` : f === 'paid' ? `Paid (${stats.paid})` : f === 'completed' ? `Done (${stats.completed})` : 'Expired'}
                 </button>
               ))}
@@ -763,7 +763,7 @@ export default function QuotesPage() {
         </div>
 
         {/* Mobile Card Layout */}
-        <div className="sm:hidden px-4 space-y-2">
+        <div className="lg:hidden px-4 sm:px-6 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
           {filteredQuotes.length === 0 ? (
             <div className="py-12 text-center text-v-text-secondary text-sm">{search ? 'No quotes match your search' : 'No quotes yet'}</div>
           ) : filteredQuotes.map((q) => {
@@ -777,7 +777,7 @@ export default function QuotesPage() {
                     {status}
                   </span>
                 </div>
-                <p className="text-v-text-secondary text-xs truncate">{getAircraftLabel(q)}{q.tail_number ? ` · ${q.tail_number}` : ''}</p>
+                <p className="text-v-text-secondary text-xs line-clamp-2 break-words">{getAircraftLabel(q)}{q.tail_number ? ` · ${q.tail_number}` : ''}</p>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(q.total_price)}</span>
                   <span className="text-v-text-secondary text-xs">{q.created_at ? new Date(q.created_at).toLocaleDateString() : ''}</span>
@@ -805,8 +805,8 @@ export default function QuotesPage() {
         </div>
 
         {/* Desktop Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_180px] min-w-[980px] px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
+        <div className="hidden lg:block overflow-x-auto">
+          <div className="grid grid-cols-[40px_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.2fr)_100px_100px_84px_210px] min-w-[960px] gap-x-3 px-6 py-3 border-b border-[#1A2236] text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">
             <div className="flex items-center justify-center">
               <input type="checkbox" checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer" onClick={(e) => e.stopPropagation()} />
             </div>
@@ -827,21 +827,21 @@ export default function QuotesPage() {
               const isSelected = selectedIds.has(q.id);
               return (
                 <div key={q.id} onClick={() => openQuote(q)}
-                  className={`group grid grid-cols-[40px_1fr_1fr_1fr_120px_100px_100px_180px] min-w-[980px] px-6 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
-                  style={{ height: '56px' }}>
+                  className={`group grid grid-cols-[40px_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.2fr)_100px_100px_84px_210px] min-w-[960px] gap-x-3 px-6 py-2.5 items-center border-b border-[#1A2236] transition-colors cursor-pointer ${isSelected ? 'bg-v-gold/[0.04]' : 'hover:bg-white/[0.02]'}`}
+                  style={{ minHeight: '56px' }}>
                   <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={isSelected} onChange={(e) => toggleSelect(q.id, e)} className="w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer opacity-100"  />
                   </div>
-                  <div className="truncate pr-4">
-                    <span className="text-white text-sm">{getDisplayName(q)}</span>
-                    {q.customer_company && q.client_name && q.customer_company !== q.client_name && <span className="text-v-text-secondary text-xs ml-2">{q.client_name}</span>}
+                  <div className="min-w-0">
+                    <p className="text-white text-sm line-clamp-2 break-words" title={getDisplayName(q)}>{getDisplayName(q)}</p>
+                    {q.customer_company && q.client_name && q.customer_company !== q.client_name && <p className="text-v-text-secondary text-xs truncate" title={q.client_name}>{q.client_name}</p>}
                   </div>
-                  <div className="truncate pr-4">
-                    <span className="text-v-text-secondary text-sm">{getAircraftLabel(q)}</span>
-                    {q.tail_number && <span className="text-v-text-secondary/60 text-xs ml-2">{q.tail_number}</span>}
+                  <div className="min-w-0">
+                    <p className="text-v-text-secondary text-sm line-clamp-2 break-words" title={getAircraftLabel(q)}>{getAircraftLabel(q)}</p>
+                    {q.tail_number && <p className="text-v-text-secondary/60 text-xs truncate">{q.tail_number}</p>}
                   </div>
-                  <div className="truncate pr-4">
-                    <span className="text-v-text-secondary text-sm" title={(q.line_items || []).map(i => i.description || i.service).join(', ')}>{getServicesLabel(q)}</span>
+                  <div className="min-w-0">
+                    <p className="text-v-text-secondary text-sm line-clamp-2 break-words" title={(q.line_items || []).map(i => i.description || i.service).filter(Boolean).join(', ') || getServicesLabel(q)}>{getServicesLabel(q)}</p>
                   </div>
                   <div className="text-right">
                     <span className="text-v-gold text-sm font-data">{currencySymbol()}{formatPrice(q.total_price)}</span>
@@ -852,29 +852,29 @@ export default function QuotesPage() {
                   <div className="text-right">
                     <span className="text-v-text-secondary text-xs">{formatDate(q.created_at)}</span>
                   </div>
-                  <div className="flex justify-end gap-1 flex-shrink-0 [&>button]:flex-shrink-0 [&>button]:whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openFeesModal(q)} className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">
+                  <div className="flex flex-wrap justify-end gap-1 [&>button]:whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => openFeesModal(q)} className="px-2 py-1 text-[10px] uppercase tracking-wider text-blue-300 border border-blue-400/30 rounded hover:bg-blue-400/10">
                       Fees
                     </button>
                     {status === 'draft' && (
                       <button onClick={() => openInBuilder(q)}
-                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">
+                        className="px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10">
                         Continue
                       </button>
                     )}
                     {(status === 'paid' || status === 'approved') && (
-                      <button onClick={() => openScheduleModal(q)} className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded hover:bg-indigo-400/10">
+                      <button onClick={() => openScheduleModal(q)} className="px-2 py-1 text-[10px] uppercase tracking-wider text-indigo-300 border border-indigo-400/30 rounded hover:bg-indigo-400/10">
                         Schedule
                       </button>
                     )}
                     {(status === 'scheduled' || status === 'in_progress') && (
-                      <button onClick={() => openCompleteModal(q)} className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-purple-300 border border-purple-400/30 rounded hover:bg-purple-400/10">
+                      <button onClick={() => openCompleteModal(q)} className="px-2 py-1 text-[10px] uppercase tracking-wider text-purple-300 border border-purple-400/30 rounded hover:bg-purple-400/10">
                         Complete
                       </button>
                     )}
                     {(status === 'sent' || status === 'viewed' || status === 'accepted') && (
                       <button onClick={() => { setMarkPaidModal(q); setMarkPaidData({ payment_method: 'cash', amount: String(q.total_price || ''), note: '' }); }}
-                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-green-300 border border-green-400/30 rounded hover:bg-green-400/10">
+                        className="px-2 py-1 text-[10px] uppercase tracking-wider text-green-300 border border-green-400/30 rounded hover:bg-green-400/10">
                         Mark Paid
                       </button>
                     )}
@@ -914,7 +914,7 @@ export default function QuotesPage() {
                     {previewQuote.customer_company || previewQuote.client_name || 'Quote'}
                   </p>
                   <p className="text-v-text-secondary text-xs truncate">
-                    {(previewQuote.aircraft_model || previewQuote.aircraft_type || 'Aircraft')}
+                    {(getAircraftLabel(previewQuote))}
                     {previewQuote.tail_number ? ` · ${previewQuote.tail_number}` : ''}
                     {previewQuote.total_price != null ? ` · ${currencySymbol()}${formatPrice(previewQuote.total_price)}` : ''}
                   </p>
@@ -1011,7 +1011,7 @@ export default function QuotesPage() {
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-4 text-white">Complete Job</h3>
-              <p className="text-v-text-secondary mb-4">{completeModal.aircraft_model || completeModal.aircraft_type}{completeModal.client_name && ` - ${completeModal.client_name}`}</p>
+              <p className="text-v-text-secondary mb-4">{getAircraftLabel(completeModal)}{completeModal.client_name && ` - ${completeModal.client_name}`}</p>
               {(completeModal.poc_name || completeModal.emergency_contact_name) && (
                 <div className="mb-4 p-3 bg-[#0F1117] border border-[#1A2236] text-sm space-y-2">
                   {completeModal.poc_name && (
@@ -1115,7 +1115,7 @@ export default function QuotesPage() {
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
             <div className="bg-v-surface border border-v-border rounded-lg w-full max-w-sm p-5 max-h-[calc(100dvh-2rem)] overflow-y-auto">
               <h3 className="text-white font-semibold mb-1">Mark as Paid</h3>
-              <p className="text-v-text-secondary text-xs mb-4">{markPaidModal.aircraft_model || markPaidModal.aircraft_type} — {markPaidModal.client_name}</p>
+              <p className="text-v-text-secondary text-xs mb-4">{getAircraftLabel(markPaidModal)} — {markPaidModal.client_name}</p>
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs text-v-text-secondary mb-1">Payment Method</label>
@@ -1177,7 +1177,7 @@ export default function QuotesPage() {
               <h3 className="text-lg font-semibold mb-4 text-white">Schedule Job</h3>
               <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-white">{scheduleModal.aircraft_model || scheduleModal.aircraft_type || 'Aircraft'}</span>
+                  <span className="text-sm font-medium text-white">{getAircraftLabel(scheduleModal)}</span>
                   <span className="font-bold text-v-gold font-data">{currencySymbol()}{formatPrice(scheduleModal.total_price)}</span>
                 </div>
                 <p className="text-xs text-v-text-secondary">{getDisplayName(scheduleModal)}</p>
@@ -1207,7 +1207,7 @@ export default function QuotesPage() {
               <h3 className="text-lg font-semibold text-white mb-2">Delete this quote?</h3>
               <p className="text-sm text-v-text-secondary mb-2">
                 {(deleteConfirm.customer_company || deleteConfirm.client_name || 'Untitled')}
-                {(deleteConfirm.aircraft_model || deleteConfirm.aircraft_type) ? ` — ${deleteConfirm.aircraft_model || deleteConfirm.aircraft_type}` : ''}
+                {getAircraftLabel(deleteConfirm) ? ` — ${getAircraftLabel(deleteConfirm)}` : ''}
               </p>
               <p className="text-sm text-v-text-secondary mb-6">This cannot be undone.</p>
               <div className="flex justify-end gap-3">
@@ -1242,7 +1242,7 @@ export default function QuotesPage() {
               <p className="text-v-text-secondary mb-4">Create a copy of this quote with new customer details.</p>
               <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-white">{duplicateModal.aircraft_model || duplicateModal.aircraft_type || 'Aircraft'}</span>
+                  <span className="text-sm font-medium text-white">{getAircraftLabel(duplicateModal)}</span>
                   <span className="font-bold text-v-gold font-data">{currencySymbol()}{formatPrice(duplicateModal.total_price)}</span>
                 </div>
                 {duplicateModal.line_items && duplicateModal.line_items.length > 0 && (
@@ -1283,7 +1283,7 @@ export default function QuotesPage() {
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-2 text-white">Change Order</h3>
-              <p className="text-v-text-secondary mb-4">{changeOrderModal.aircraft_model || changeOrderModal.aircraft_type}{changeOrderModal.client_name && ` - ${changeOrderModal.client_name}`}</p>
+              <p className="text-v-text-secondary mb-4">{getAircraftLabel(changeOrderModal)}{changeOrderModal.client_name && ` - ${changeOrderModal.client_name}`}</p>
               <div className="bg-[#0F1117] border border-[#1A2236] p-3 mb-4"><p className="text-sm text-v-text-secondary"><strong className="text-white">Current Quote Total:</strong> <span className="text-v-gold font-data">{currencySymbol()}{formatPrice(changeOrderModal.total_price)}</span></p></div>
               <div className="space-y-4">
                 <div>
@@ -1318,7 +1318,7 @@ export default function QuotesPage() {
           <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 sm:p-4">
             <div className="bg-v-surface border border-v-border rounded-sm p-5 sm:p-6 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold mb-1 text-white">Fees &amp; Add-ons</h3>
-              <p className="text-v-text-secondary text-sm mb-4">{feesModal.aircraft_model || feesModal.aircraft_type}{feesModal.client_name && ` — ${feesModal.client_name}`}</p>
+              <p className="text-v-text-secondary text-sm mb-4">{getAircraftLabel(feesModal)}{feesModal.client_name && ` — ${feesModal.client_name}`}</p>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>

@@ -9,6 +9,7 @@ import {
   FAMILY_LEADING_EDGE,
 } from '@/lib/calibration-reference';
 import { derivePctFromHours } from '@/lib/calibration-derive';
+import { humanizeAircraftCategory } from '@/lib/aircraft-labels';
 
 // Built-in reference types, tagged with their measurement family. A service can
 // only be calibrated against references in its OWN family (see filtering below).
@@ -589,7 +590,7 @@ export default function CalibrationModal({
                     >
                       <div className="truncate pr-2">
                         <span className="text-v-text-primary">{[row.make, row.model].filter(Boolean).join(' ') || '—'}</span>
-                        {row.category && <span className="text-v-text-secondary/60 text-[10px] ml-2">{row.category}</span>}
+                        {row.category && <span className="text-v-text-secondary/60 text-[10px] ml-2">{humanizeAircraftCategory(row.category)}</span>}
                       </div>
                       <div className="text-right text-xs text-v-text-secondary">
                         {baseNum == null ? '—' : `${baseNum.toFixed(1)}h`}

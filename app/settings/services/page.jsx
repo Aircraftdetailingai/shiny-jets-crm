@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, Fragment, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import CalibrationModal from '@/components/CalibrationModal';
 import { isCrossFamily } from '@/lib/calibration-reference';
 import { currencySymbol } from '@/lib/formatPrice';
@@ -295,66 +294,44 @@ export default function ServicesPage() {
 
   const fetchData = async () => {
     const token = localStorage.getItem('vector_token');
-    try {
-      const [svcRes, pkgRes, feeRes, prodRes, equipRes, calRes] = await Promise.all([
-        fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/packages', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/addon-fees', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('/api/equipment', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('/api/services/calibrations', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-      ]);
-      if (svcRes.ok) {
-        const data = await svcRes.json();
-        setServices(data.services || []);
-      }
-      if (pkgRes.ok) {
-        const data = await pkgRes.json();
-        setPackages(data.packages || []);
-      }
-      if (feeRes.ok) {
-        const data = await feeRes.json();
-        setAddonFees(data.fees || []);
-      }
-      if (prodRes?.ok) {
-        const data = await prodRes.json();
-        setAllProducts(data.products || []);
-      }
-      if (equipRes?.ok) {
-        const data = await equipRes.json();
-        setAllEquipment(data.equipment || []);
-      }
-      if (calRes?.ok) {
-        try {
-          const data = await calRes.json();
-          setCalibrations(data.calibrations || []);
-        } catch {}
-      }
-      // Fetch all service links for badge counts
-      const [spRes, seRes] = await Promise.all([
-        fetch('/api/services/products', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        fetch('/api/services/equipment', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-      ]);
-      if (spRes?.ok) { const d = await spRes.json(); setAllProductLinks(d.links || []); }
-      if (seRes?.ok) { const d = await seRes.json(); setAllEquipmentLinks(d.links || []); }
+    const opts = { headers: { Authorization: `Bearer ${token}` } };
+    const get = (url) => fetch(url, opts).then((r) => (r?.ok ? r.json() : null)).catch(() => null);
 
-      // Fetch service accuracy data for badges
-      try {
-        const accRes = await fetch('/api/services/accuracy', { headers: { Authorization: `Bearer ${token}` } });
-        if (accRes?.ok) {
-          const accData = await accRes.json();
-          const accMap = {};
-          (accData.accuracy || []).forEach(a => {
-            accMap[a.service_name] = { avg_variance_pct: a.avg_variance_pct, sample_size: a.sample_size, badge: a.badge };
-          });
-          setServiceAccuracy(accMap);
-        }
-      } catch {}
+    // Fire every request at once. The page used to wait for six requests
+    // (including products + equipment) and then two more sequential waves
+    // before showing anything. Now it renders as soon as the core lists
+    // (services, packages, fees) arrive; the rest fill in behind.
+    const secondary = [
+      get('/api/products').then((d) => { if (d) setAllProducts(d.products || []); }),
+      get('/api/equipment').then((d) => { if (d) setAllEquipment(d.equipment || []); }),
+      get('/api/services/calibrations').then((d) => { if (d) setCalibrations(d.calibrations || []); }),
+      get('/api/services/products').then((d) => { if (d) setAllProductLinks(d.links || []); }),
+      get('/api/services/equipment').then((d) => { if (d) setAllEquipmentLinks(d.links || []); }),
+      get('/api/services/accuracy').then((d) => {
+        if (!d) return;
+        const accMap = {};
+        (d.accuracy || []).forEach(a => {
+          accMap[a.service_name] = { avg_variance_pct: a.avg_variance_pct, sample_size: a.sample_size, badge: a.badge };
+        });
+        setServiceAccuracy(accMap);
+      }),
+    ];
+
+    try {
+      const [svcData, pkgData, feeData] = await Promise.all([
+        get('/api/services'),
+        get('/api/packages'),
+        get('/api/addon-fees'),
+      ]);
+      if (svcData) setServices(svcData.services || []);
+      if (pkgData) setPackages(pkgData.packages || []);
+      if (feeData) setAddonFees(feeData.fees || []);
     } catch (err) {
       console.error('Failed to fetch:', err);
     } finally {
       setLoading(false);
     }
+    await Promise.allSettled(secondary);
   };
 
   const getToken = () => localStorage.getItem('vector_token');
@@ -920,7 +897,22 @@ export default function ServicesPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Loading services..." />;
+    // Skeleton instead of a blank spinner so the page feels instant.
+    return (
+      <div className="min-h-screen bg-v-charcoal p-4" aria-busy="true" aria-label="Loading services">
+        <div className="max-w-5xl mx-auto animate-pulse">
+          <div className="h-7 w-56 bg-v-surface rounded mb-6" />
+          <div className="flex gap-2 mb-6">
+            {[0, 1, 2].map((i) => <div key={i} className="h-9 w-28 bg-v-surface rounded" />)}
+          </div>
+          <div className="space-y-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-16 bg-v-surface border border-v-border rounded-sm" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

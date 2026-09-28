@@ -4,6 +4,14 @@ import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AppShell from '@/components/AppShell';
+import { decodeHtmlEntities, shortProductName } from '@/lib/html-entities';
+
+// "32" → "32 oz" using the product's unit; leaves "32 oz" / "1 gal" alone.
+function containerSizeLabel(p) {
+  const size = String(p?.size ?? '').trim();
+  if (!size) return '';
+  return /^\d+(\.\d+)?$/.test(size) && p?.unit ? `${size} ${p.unit}` : size;
+}
 import BarcodeScanner from '@/components/BarcodeScanner';
 
 export default function ProductsPage() {
@@ -507,13 +515,13 @@ export default function ProductsPage() {
   }
 
   return (
-    <AppShell title="Inventory">
+    <AppShell title="Products">
     <div className="page-transition p-4 text-v-text-primary">
       {/* Header */}
       <header className="flex flex-wrap justify-between items-center gap-3 mb-6 text-v-text-primary">
         <div className="flex items-center space-x-4">
           <a href="/dashboard" aria-label="Back to dashboard" className="w-10 h-10 -ml-2 flex items-center justify-center text-2xl hover:text-v-gold">&#8592;</a>
-          <h1 className="text-2xl font-bold">{'Inventory'}</h1>
+          <h1 className="text-2xl font-bold">{'Products'}</h1>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <a href="/equipment" className="underline">{'Equipment'}</a>
@@ -539,7 +547,7 @@ export default function ProductsPage() {
             <p className="text-v-text-secondary text-xs">{'Products Tracked'}</p>
             <p className="text-2xl font-bold text-v-text-primary">{products.length}</p>
           </div>
-          {insights && (
+          {insights?.summary && (
             <>
               <div className="bg-v-surface rounded-sm p-4 border border-v-border">
                 <p className="text-v-text-secondary text-xs">{'Material Cost (Month)'}</p>
@@ -562,11 +570,16 @@ export default function ProductsPage() {
                 <p className="font-semibold text-red-400">{'Low Stock Alert'} ({lowStock.length})</p>
                 <div className="mt-2 space-y-2">
                   {lowStock.map(p => (
-                    <div key={p.id} className="flex items-center justify-between">
-                      <div className="text-sm text-red-400">
-                        <span className="font-medium">{p.name}</span>
-                        <span className="text-red-400/70 ml-1">&#8212; {p.current_quantity} {'remaining'}{p.size ? ` (${p.size} containers)` : ''}</span>
-                        <span className="text-red-400 text-xs ml-1">{`(reorder at ${p.reorder_threshold})`}</span>
+                    <div key={p.id} className="flex items-center justify-between gap-3">
+                      <div className="text-sm text-red-400 min-w-0">
+                        <p className="font-medium truncate" title={decodeHtmlEntities(p.name)}>{shortProductName(p.name, 60)}</p>
+                        <p className="text-red-400/80 text-xs">
+                          {[
+                            `${p.current_quantity || 0} left`,
+                            containerSizeLabel(p) ? `${containerSizeLabel(p)} each` : null,
+                            `reorder at ${p.reorder_threshold}`,
+                          ].filter(Boolean).join(' · ')}
+                        </p>
                       </div>
                       {p.product_url && (
                         <a
@@ -671,7 +684,7 @@ export default function ProductsPage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-medium text-v-text-primary break-words">{product.name}</p>
+                              <p className="font-medium text-v-text-primary break-words" title={decodeHtmlEntities(product.name)}>{shortProductName(product.name, 70)}</p>
                               {isLow && (
                                 <span className="text-[10px] bg-yellow-900/40 text-yellow-400 px-2 py-0.5 rounded-full flex-shrink-0 font-medium">Low Stock</span>
                               )}
@@ -684,7 +697,7 @@ export default function ProductsPage() {
                                 + gap-y let pieces wrap cleanly as a group. */}
                             <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-xs text-v-text-secondary flex-wrap">
                               {product.size && (
-                                <span className="whitespace-nowrap">Size: <strong className="text-v-text-primary">{product.size}</strong></span>
+                                <span className="whitespace-nowrap">Size: <strong className="text-v-text-primary">{containerSizeLabel(product)}</strong></span>
                               )}
                               <span className="whitespace-nowrap">In stock: <strong className={`${isLow ? 'text-yellow-400' : 'text-v-text-primary'}`}>{qty}</strong></span>
                               {product.cost_per_unit > 0 && (

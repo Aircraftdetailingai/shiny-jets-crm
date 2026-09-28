@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/formatPrice';
 import { getCurrencySymbol } from '@/lib/currency';
 import { calculateCcFee } from '@/lib/cc-fee';
 import { normalizePlan } from '@/lib/plans';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 const PAYMENT_ERROR_MESSAGES = {
   card_declined: "Your card was declined. Please try a different card.",
@@ -520,7 +521,7 @@ export default function QuoteViewPage() {
 
             <div className="flex items-center justify-between mb-8 pb-4 border-b border-[var(--brand-border,#1A2236)]">
               <div>
-                <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{quote.aircraft_model || quote.aircraft_type}</p>
+                <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{aircraftDisplayName(quote)}</p>
                 {quote.tail_number && <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs font-mono">{quote.tail_number}</p>}
               </div>
               <p className="text-[var(--brand-primary,#007CB1)] text-lg font-light">{sym}{formatPrice(quote.total_price)}</p>
@@ -577,7 +578,7 @@ export default function QuoteViewPage() {
           {/* Aircraft summary */}
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-[var(--brand-border,#1A2236)]">
             <div>
-              <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{quote.aircraft_model || quote.aircraft_type}</p>
+              <p className="text-[var(--brand-text,#F5F5F5)] text-sm font-medium">{aircraftDisplayName(quote)}</p>
               {quote.tail_number && <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-xs font-mono">{quote.tail_number}</p>}
             </div>
             <p className="text-[var(--brand-primary,#007CB1)] text-lg font-light">{sym}{formatPrice(quote.total_price)}</p>
@@ -777,7 +778,7 @@ export default function QuoteViewPage() {
           {/* Aircraft */}
           <div className="mb-8">
             <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">Aircraft</p>
-            <p className="text-[var(--brand-text,#F5F5F5)] text-[1.2rem]">{quote.aircraft_model || quote.aircraft_type}</p>
+            <p className="text-[var(--brand-text,#F5F5F5)] text-[1.2rem]">{aircraftDisplayName(quote)}</p>
             {quote.tail_number && (
               <>
                 <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mt-4 mb-1">Registration</p>
@@ -1003,7 +1004,7 @@ export default function QuoteViewPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
           <div>
             <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">Aircraft</p>
-            <p className="text-[var(--brand-text,#F5F5F5)] text-[1.2rem]">{quote.aircraft_model || quote.aircraft_type}</p>
+            <p className="text-[var(--brand-text,#F5F5F5)] text-[1.2rem]">{aircraftDisplayName(quote)}</p>
           </div>
           {quote.tail_number && (
             <div>
