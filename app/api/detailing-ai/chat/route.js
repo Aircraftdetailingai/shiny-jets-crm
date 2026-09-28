@@ -263,7 +263,16 @@ async function loadKnowledgeStub(userMessage) {
             score += 4;
           }
         } else {
-          score += 3;
+          // +3 only when the question actually hits this book file (filename token or needle).
+          // 'beyond' / 'shiny' are skipped: "Fly Shiny" product names would otherwise match every book file.
+          // Ignore cross-links like `shop-recipes-paint-brightwork-carpet.md` so the linked filename
+          // doesn't count as the book file being about paint / brightwork / carpet.
+          const bookHay = text.toLowerCase().replace(/shop-recipes-[a-z0-9-]+\.md/g, '');
+          const fileTermHit = keywords.some(
+            (kw) => kw.length > 2 && kw !== 'beyond' && kw !== 'shiny' && lower.includes(kw)
+          );
+          const needleHit = KNOWLEDGE_NEEDLES.some((n) => lower.includes(n) && bookHay.includes(n));
+          if (fileTermHit || needleHit) score += 3;
           if (rel.includes('safety-cautions')) {
             const safetyHit = ['pitot', 'static', 'fog', 'mek', 'agemaster', '150', 'boot', 'strut',
               'landing gear', 'faa', 'cover', 'craz', 'caution', 'safety', 'respirator', 'wash',
@@ -293,7 +302,7 @@ async function loadKnowledgeStub(userMessage) {
     }
 
     scored.sort((a, b) => b.score - a.score);
-    const top = scored.filter((s) => s.score > 0).slice(0, 8);
+    const top = scored.filter((s) => s.score > 0).slice(0, 7);
     const chosen = top.length > 0 ? top : scored.filter((s) => s.score >= 0).slice(0, 2);
 
     const excerpts = chosen
