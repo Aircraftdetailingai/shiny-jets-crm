@@ -22,6 +22,7 @@ Hard rules:
 - No customer-facing SMS, Podium, or portal talk — this assistant is for CRM staff only.
 - Never auto-send quotes. You only suggest draft line items for the owner to review in the quote wizard.
 - Before recommending paint correction products, pads, or machines, ask whether the paint is single-stage or clearcoat if that is not already known. When knowledge/detailing/shop-recipes-* excerpts are present, prefer their exact products/pads/steps (Brett shop recipes win over generic guidance) and do not invent substitutes.
+- Beyond Shiny book knowledge (knowledge/detailing/beyond-shiny/**): Brett's shop recipes (shop-recipes-*.md, Sep 28 2026) override the book where they conflict on products, pads, or steps (e.g. book medium oxidation = Rupes blue wool + Fly Shiny Pro Cut; current single-stage = SPTA wool + Menzerna 400; book has no clearcoat — use shop recipes). ALWAYS keep the book's safety and FAA cautions (pitot/static covers, no interior fogging, brightwork under 150°F / 150F, MEK limits, Agemaster not on silver boots, landing-gear strut/seal cautions, OEM approval for ceramic). Never invent chemical mixes or dilutions — only repeat ratios stated in knowledge; otherwise say "follow the manufacturer label".
 
 Manual interpretation (U-turn rule):
 - If the manual says you cannot do it, do not do it. If it does NOT say you cannot, you can.
@@ -177,6 +178,32 @@ const KNOWLEDGE_NEEDLES = [
   'lake country',
   'aca 500',
   'grant',
+  'fogging',
+  'mek',
+  'agemaster',
+  '150f',
+  '150°f',
+  '150 °f',
+  'boots',
+  'beyond shiny',
+  'rejex',
+  'pro cut',
+  'pro polish',
+  'rupes',
+  'granitize',
+  'icex',
+  'shinemaster',
+  'wool perfect',
+  'wool zone',
+  'citrus solv',
+  'colourlock',
+  'colourloc',
+  'dreadnaught',
+  'tornador',
+  'static',
+  'static port',
+  'air guard',
+  'bond enhancer',
 ];
 
 async function collectMarkdownFiles(dir, relative = '') {
@@ -220,6 +247,34 @@ async function loadKnowledgeStub(userMessage) {
       if (rel.includes('aircraft/') || rel.includes('type-class/')) {
         score += 2;
       }
+      // Shop recipes (Sep 28 2026) — strong boost when paint / brightwork / carpet topics appear
+      if (rel.includes('shop-recipes')) {
+        const shopHit = ['oxid', 'paint', 'polish', 'compound', 'brightwork', 'carpet', 'grease',
+          'sharpie', 'ink', 'clearcoat', 'clear coat', 'single-stage', 'single stage', 'hologram',
+          'menzerna', 'spta', 'striker', 'maverick', 'oil delete', 'wool pad', 'correction'].some((k) => lower.includes(k));
+        if (shopHit) score += 10;
+      }
+      // Beyond Shiny digest — skip bare index unless the book is named; boost topic files + safety
+      if (rel.includes('beyond-shiny/')) {
+        if (rel.endsWith('beyond-shiny/index.md') || rel.endsWith('beyond-shiny/README.md')) {
+          if (!(lower.includes('beyond shiny') || lower.includes('beyond-shiny'))) {
+            score = -999;
+          } else {
+            score += 4;
+          }
+        } else {
+          score += 3;
+          if (rel.includes('safety-cautions')) {
+            const safetyHit = ['pitot', 'static', 'fog', 'mek', 'agemaster', '150', 'boot', 'strut',
+              'landing gear', 'faa', 'cover', 'craz', 'caution', 'safety', 'respirator', 'wash',
+              'brightwork', 'silver boot', 'vortex'].some((k) => lower.includes(k));
+            if (safetyHit) score += 8;
+          }
+          if (lower.includes('beyond shiny') || lower.includes('beyond-shiny') || lower.includes('brett') || lower.includes('book')) {
+            score += 4;
+          }
+        }
+      }
       // Boost exact aircraft profile when make/model tokens appear in the user message
       if (rel.startsWith('aircraft/')) {
         const tokens = rel.replace(/^aircraft\//, '').replace(/\.md$/, '').split('-').filter((t) => t.length > 2);
@@ -238,13 +293,13 @@ async function loadKnowledgeStub(userMessage) {
     }
 
     scored.sort((a, b) => b.score - a.score);
-    const top = scored.filter((s) => s.score > 0).slice(0, 6);
-    const chosen = top.length > 0 ? top : scored.slice(0, 2);
+    const top = scored.filter((s) => s.score > 0).slice(0, 8);
+    const chosen = top.length > 0 ? top : scored.filter((s) => s.score >= 0).slice(0, 2);
 
     const excerpts = chosen
       .map((c) => {
         let cap = 3500;
-        if (c.file.includes('sops/') || c.file.includes('aircraft/') || c.file.includes('manuals/') || c.file.includes('policy/')) {
+        if (c.file.includes('sops/') || c.file.includes('aircraft/') || c.file.includes('manuals/') || c.file.includes('policy/') || c.file.includes('beyond-shiny/') || c.file.includes('shop-recipes')) {
           cap = 5500;
         }
         return `### ${c.file}\n${c.text.slice(0, cap)}`;

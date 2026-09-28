@@ -2,6 +2,9 @@
 
 **Source:** Shop standards taught by Brett Berry (Sep 28, 2026). These are the Shiny Jets procedure of record for the products, pads, and machines listed below. When other knowledge files suggest different products or pads for the same job, **these recipes win**.
 
+
+**Related:** For broader book guidance and ALWAYS-ON safety/FAA cautions (pitot/static covers, no interior fogging, brightwork under 150°F, MEK limits, Agemaster not on silver boots), see `beyond-shiny/`. Shop recipes in this file still win on products/pads when they conflict with the book.
+
 Keywords: single-stage, single stage, clearcoat, clear coat, oxidation, Menzerna 400, SPTA wool pad, Lake Country, rotary, DA polisher, Fly Shiny Polish Pro, 3D ACA 500, brightwork, Grant's microfiber pad, Harbor Freight, Fly Shiny Striker, Fly Shiny Maverick, hologram, carpet, grease, ink, Sharpie, Oil Delete, terry towel.
 
 ---
