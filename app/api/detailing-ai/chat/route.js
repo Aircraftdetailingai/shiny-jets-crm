@@ -222,6 +222,32 @@ async function collectMarkdownFiles(dir, relative = '') {
   return out;
 }
 
+// Meta files (ingest progress, catalog/library indexes, READMEs) are never injected as knowledge.
+function isNonContentFile(rel) {
+  const base = rel.split('/').pop().toLowerCase();
+  return base === 'readme.md' || base === 'index.md' || base.includes('progress');
+}
+
+// Folder / generic path tokens that shouldn't count as the question matching a specific file.
+const GENERIC_PATH_TOKENS = new Set(['aircraft', 'manuals', 'type', 'class', 'sops', 'beyond', 'shiny', 'policy']);
+
+// True when the question hits this file: a specific filename token, or a needle present in both
+// the question and the file text. Cross-links to shop-recipes-*.md are ignored in the text.
+function questionMatchesFile(keywords, text, lower) {
+  const fileTermHit = keywords.some((kw) => kw.length > 2 && !GENERIC_PATH_TOKENS.has(kw) && lower.includes(kw));
+  if (fileTermHit) return true;
+  const hay = text.toLowerCase().replace(/shop-recipes-[a-z0-9-]+\.md/g, '');
+  return KNOWLEDGE_NEEDLES.some((n) => lower.includes(n) && hay.includes(n));
+}
+
+// Tie-break groups (lower wins on equal score): SOPs, shop recipes, book topics, everything else.
+function tieGroup(rel) {
+  if (rel.startsWith('sops/')) return 0;
+  if (rel.startsWith('shop-recipes-')) return 1;
+  if (rel.startsWith('beyond-shiny/')) return 2;
+  return 3;
+}
+
 async function loadKnowledgeStub(userMessage) {
   // Recurse knowledge/detailing/** so existing stubs and sops/ are both included.
   const root = path.join(process.cwd(), 'knowledge', 'detailing');
@@ -232,8 +258,10 @@ async function loadKnowledgeStub(userMessage) {
     const lower = (userMessage || '').toLowerCase();
     const scored = [];
     for (const { rel, full } of files) {
+      if (isNonContentFile(rel)) continue;
       const text = await readFile(full, 'utf8');
       const keywords = rel.replace(/\.md$/, '').split(/[-_./]/);
+      const matchesQuestion = questionMatchesFile(keywords, text, lower);
       let score = 0;
       for (const kw of keywords) {
         if (kw.length > 2 && lower.includes(kw)) score += 2;
@@ -241,10 +269,11 @@ async function loadKnowledgeStub(userMessage) {
       if (rel.includes('sops') && (lower.includes('sop') || lower.includes('procedure'))) {
         score += 3;
       }
-      if (rel.includes('manuals/') || rel.includes('policy/')) {
+      if (rel.includes('policy/')) {
         score += 2;
       }
-      if (rel.includes('aircraft/') || rel.includes('type-class/')) {
+      // Folder baseline only when the question actually matches the file (no alphabetical filler).
+      if ((rel.includes('manuals/') || rel.includes('aircraft/') || rel.includes('type-class/')) && matchesQuestion) {
         score += 2;
       }
       // Shop recipes (Sep 28 2026) — strong boost when paint / brightwork / carpet topics appear
@@ -254,34 +283,18 @@ async function loadKnowledgeStub(userMessage) {
           'menzerna', 'spta', 'striker', 'maverick', 'oil delete', 'wool pad', 'correction'].some((k) => lower.includes(k));
         if (shopHit) score += 10;
       }
-      // Beyond Shiny digest — skip bare index unless the book is named; boost topic files + safety
+      // Beyond Shiny digest topic files (README / index are skipped above as non-content)
       if (rel.includes('beyond-shiny/')) {
-        if (rel.endsWith('beyond-shiny/index.md') || rel.endsWith('beyond-shiny/README.md')) {
-          if (!(lower.includes('beyond shiny') || lower.includes('beyond-shiny'))) {
-            score = -999;
-          } else {
-            score += 4;
-          }
-        } else {
-          // +3 only when the question actually hits this book file (filename token or needle).
-          // 'beyond' / 'shiny' are skipped: "Fly Shiny" product names would otherwise match every book file.
-          // Ignore cross-links like `shop-recipes-paint-brightwork-carpet.md` so the linked filename
-          // doesn't count as the book file being about paint / brightwork / carpet.
-          const bookHay = text.toLowerCase().replace(/shop-recipes-[a-z0-9-]+\.md/g, '');
-          const fileTermHit = keywords.some(
-            (kw) => kw.length > 2 && kw !== 'beyond' && kw !== 'shiny' && lower.includes(kw)
-          );
-          const needleHit = KNOWLEDGE_NEEDLES.some((n) => lower.includes(n) && bookHay.includes(n));
-          if (fileTermHit || needleHit) score += 3;
-          if (rel.includes('safety-cautions')) {
-            const safetyHit = ['pitot', 'static', 'fog', 'mek', 'agemaster', '150', 'boot', 'strut',
-              'landing gear', 'faa', 'cover', 'craz', 'caution', 'safety', 'respirator', 'wash',
-              'brightwork', 'silver boot', 'vortex'].some((k) => lower.includes(k));
-            if (safetyHit) score += 8;
-          }
-          if (lower.includes('beyond shiny') || lower.includes('beyond-shiny') || lower.includes('brett') || lower.includes('book')) {
-            score += 4;
-          }
+        const bookNamed = lower.includes('beyond shiny') || lower.includes('beyond-shiny');
+        if (matchesQuestion) score += 3;
+        if (rel.includes('safety-cautions')) {
+          const safetyHit = ['pitot', 'static', 'fog', 'mek', 'agemaster', '150', 'boot', 'strut',
+            'landing gear', 'faa', 'cover', 'craz', 'caution', 'safety', 'respirator', 'wash',
+            'brightwork', 'silver boot', 'vortex'].some((k) => lower.includes(k));
+          if (safetyHit) score += 8;
+        }
+        if (bookNamed || ((lower.includes('brett') || lower.includes('book')) && matchesQuestion)) {
+          score += 4;
         }
       }
       // Boost exact aircraft profile when make/model tokens appear in the user message
@@ -301,8 +314,10 @@ async function loadKnowledgeStub(userMessage) {
       scored.push({ file: rel, text, score });
     }
 
-    scored.sort((a, b) => b.score - a.score);
-    const top = scored.filter((s) => s.score > 0).slice(0, 7);
+    scored.sort(
+      (a, b) => b.score - a.score || tieGroup(a.file) - tieGroup(b.file) || a.file.localeCompare(b.file)
+    );
+    const top = scored.filter((s) => s.score > 0).slice(0, 6);
     const chosen = top.length > 0 ? top : scored.filter((s) => s.score >= 0).slice(0, 2);
 
     const excerpts = chosen
