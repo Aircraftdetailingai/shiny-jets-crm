@@ -3,7 +3,9 @@
 // the repo — only this reader/chunker.
 //
 // Folder layout:
-//   recipes/*.md                 one row per file. Optional front matter:
+//   recipes/*.md                 Shiny Jets shop methods (internal folder/category name
+//                                  'recipes' matches the DB source value), one row per file.
+//                                  Optional front matter:
 //                                  ---
 //                                  slug: shop-recipes-...
 //                                  title: ...

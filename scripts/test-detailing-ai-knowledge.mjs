@@ -4,7 +4,7 @@
  *
  * Usage: node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-knowledge.mjs
  *
- * Private rows (shop recipes + Beyond Shiny full text) come from, in order:
+ * Private rows (Shiny Jets shop methods + Beyond Shiny full text) come from, in order:
  *   1. the live `private_knowledge` table, when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set
  *      in the environment and the table answers ("db" mode);
  *   2. the private source folder outside the repo (PRIVATE_KNOWLEDGE_DIR, default
@@ -21,6 +21,7 @@ import {
   resetPrivateKnowledgeCache,
   MAX_BOOK_CHUNKS,
   MAX_EXCERPTS,
+  toMethodsWording,
 } from '../lib/detailing-ai-knowledge.js';
 import { buildAllRows, DEFAULT_PRIVATE_DIR } from './lib/private-knowledge-build.mjs';
 
@@ -30,6 +31,8 @@ process.chdir(root);
 // ---------------------------------------------------------------------------
 // Private rows source
 // ---------------------------------------------------------------------------
+// Shop-method rows keep the DB's internal identifiers (source 'recipes', slug 'shop-recipes-…') and the
+// mock text deliberately says "recipe(s)" so the tests prove the loader never shows that word to the model.
 const MOCK_ROWS = [
   {
     slug: 'shop-recipes-mock-paint-brightwork-carpet',
@@ -66,9 +69,9 @@ async function pickRows() {
 }
 
 const { mode, rows: PRIVATE_ROWS } = await pickRows();
-const recipeRows = PRIVATE_ROWS.filter((r) => r.source === 'recipes');
+const methodRows = PRIVATE_ROWS.filter((r) => r.source === 'recipes'); // DB category value (internal)
 const bookRows = PRIVATE_ROWS.filter((r) => r.source === 'beyond-shiny');
-console.log(`private rows: ${mode} mode — ${recipeRows.length} recipe, ${bookRows.length} book`);
+console.log(`private rows: ${mode} mode — ${methodRows.length} shop method, ${bookRows.length} book`);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -83,21 +86,21 @@ const HELICOPTER_FILES = fs
 
 const NON_CONTENT = /(^|\/)(readme|index)\.md$|progress[^/]*\.md$/i;
 
-// Loader headers: "### <path>" (public files) or "### shop-recipes/<slug> (…)" / "### beyond-shiny-book/<slug> (…)".
+// Loader headers: "### <path>" (public files) or "### shop-methods/<slug> (…)" / "### beyond-shiny-book/<slug> (…)".
 function chosenFiles(out) {
-  return [...out.matchAll(/^### ((?:shop-recipes|beyond-shiny-book)\/\S+|\S+\.md)(?: \(.*\))?$/gm)].map((m) => m[1]);
+  return [...out.matchAll(/^### ((?:shop-methods|beyond-shiny-book)\/\S+|\S+\.md)(?: \(.*\))?$/gm)].map((m) => m[1]);
 }
 
-const RECIPE = 'shop-recipes/';
+const METHOD = 'shop-methods/';
 const BOOK_FULL = 'beyond-shiny-book/';
 
 const checks = [
   {
     q: 'medium oxidation single stage',
-    mustIncludeAny: [RECIPE],
-    mustIncludeAny2: ['beyond-shiny/paint-single-stage', 'beyond-shiny/recipe-quick-list', 'beyond-shiny/paint-compound'],
-    recipeBeforeBook: true,
-    note: 'shop recipe row + book paint topic; recipe outranks book',
+    mustIncludeAny: [METHOD],
+    mustIncludeAny2: ['beyond-shiny/paint-single-stage', 'beyond-shiny/quick-list', 'beyond-shiny/paint-compound'],
+    methodBeforeBook: true,
+    note: 'Shiny Jets method row + book paint topic; method outranks book',
   },
   {
     q: 'pitot cover wash',
@@ -106,14 +109,14 @@ const checks = [
   },
   {
     q: 'how do I get sharpie out of carpet',
-    mustIncludeAny: [RECIPE],
-    recipeBeforeBook: true,
-    note: 'shop carpet stain recipe row',
+    mustIncludeAny: [METHOD],
+    methodBeforeBook: true,
+    note: 'Shiny Jets carpet stain method row',
   },
   {
     q: 'clearcoat cirrus polish',
-    mustIncludeAny: [RECIPE],
-    note: 'shop clearcoat recipe row',
+    mustIncludeAny: [METHOD],
+    note: 'Shiny Jets clearcoat method row',
   },
   {
     q: 'brightwork overheating 150F',
@@ -153,8 +156,8 @@ const checks = [
   {
     q: 'Citation CJ3 leather seats',
     mustIncludeAll: ['aircraft/cessna-citation-cj3.md'],
-    mustExclude: [RECIPE],
-    note: 'specific aircraft profile still selected; no recipe filler',
+    mustExclude: [METHOD],
+    note: 'specific aircraft profile still selected; no shop-method filler',
   },
   {
     q: 'what does beyond shiny say about using a foam cannon and pressure washer',
@@ -190,12 +193,13 @@ for (const c of checks) {
   if (files.length > MAX_EXCERPTS) problems.push(`more than ${MAX_EXCERPTS} excerpts`);
   const bookCount = files.filter((f) => f.startsWith(BOOK_FULL)).length;
   if (bookCount > MAX_BOOK_CHUNKS) problems.push(`${bookCount} full-text book chunks (max ${MAX_BOOK_CHUNKS})`);
-  if (c.recipeBeforeBook) {
-    const ri = files.findIndex((f) => f.startsWith(RECIPE));
+  if (c.methodBeforeBook) {
+    const ri = files.findIndex((f) => f.startsWith(METHOD));
     const bi = files.findIndex((f) => f.startsWith('beyond-shiny'));
-    if (ri < 0 || (bi >= 0 && bi < ri)) problems.push('shop recipe must rank above Beyond Shiny (digest and full text)');
+    if (ri < 0 || (bi >= 0 && bi < ri)) problems.push('Shiny Jets method must rank above Beyond Shiny (digest and full text)');
   }
   if (c.q.includes('pitot') && !/pitot/i.test(out)) problems.push('injected text has no "pitot"');
+  if (/recipe/i.test(out)) problems.push('injected knowledge says "recipe" (must say "method")');
   report(problems.length === 0, `"${c.q}"  (${c.note})`, files, problems);
 }
 
@@ -207,7 +211,7 @@ for (const c of checks) {
   const files = chosenFiles(out);
   const problems = [];
   if (!files.includes('sops/sop-04-carpet-cleaning.md')) problems.push('carpet SOP missing in fallback');
-  if (files.some((f) => f.startsWith(RECIPE) || f.startsWith(BOOK_FULL))) problems.push('private rows present with none loaded');
+  if (files.some((f) => f.startsWith(METHOD) || f.startsWith(BOOK_FULL))) problems.push('private rows present with none loaded');
   report(problems.length === 0, 'fallback (no private rows): public SOP still selected', files, problems);
 }
 {
@@ -224,7 +228,7 @@ for (const c of checks) {
   const files = chosenFiles(out);
   const problems = [];
   if (!files.length) problems.push('no knowledge returned');
-  if (files.some((f) => f.startsWith(RECIPE) || f.startsWith(BOOK_FULL))) problems.push('private rows present while DB unreachable');
+  if (files.some((f) => f.startsWith(METHOD) || f.startsWith(BOOK_FULL))) problems.push('private rows present while DB unreachable');
   if (ms > 5000) problems.push(`took ${ms}ms (timeout too long)`);
   report(problems.length === 0, `fallback (DB unreachable): public files in ${ms}ms`, files, problems);
   process.env.SUPABASE_URL = saved.url ?? '';
@@ -235,33 +239,64 @@ for (const c of checks) {
 }
 
 // ---------------------------------------------------------------------------
-// Repo hygiene: no recipe file, no private text in public files, no knowledge in API responses.
+// Repo hygiene: no shop-method file, no private text in public files, no knowledge in API responses.
 // ---------------------------------------------------------------------------
 {
   const problems = [];
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (
     e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
   const publicFiles = walk('knowledge/detailing').filter((f) => f.endsWith('.md'));
-  const recipeFiles = publicFiles.filter((f) => /shop-recipes-/.test(path.basename(f)));
-  if (recipeFiles.length) problems.push(`recipe files in public repo: ${recipeFiles}`);
+  const methodFiles = publicFiles.filter((f) => /shop-(?:recipes|methods)-/.test(path.basename(f)));
+  if (methodFiles.length) problems.push(`shop-method files in public repo: ${methodFiles}`);
   if (mode !== 'mock') {
     const publicText = [...publicFiles, 'app/api/detailing-ai/chat/route.js', 'lib/detailing-ai-knowledge.js']
       .map((f) => fs.readFileSync(f, 'utf8').toLowerCase().replace(/\s+/g, ' '))
       .join('\n');
-    for (const r of recipeRows) {
+    for (const r of methodRows) {
       const lines = r.content.split('\n').map((l) => l.replace(/[*#>`_-]/g, '').trim().toLowerCase().replace(/\s+/g, ' '))
         .filter((l) => l.length >= 30 && !/^(source|related|keywords):/.test(l));
       const leaked = lines.filter((l) => publicText.includes(l));
-      if (leaked.length) problems.push(`recipe "${r.slug}" text found in public files: ${leaked.slice(0, 3).join(' | ')}`);
+      if (leaked.length) problems.push(`shop method "${r.slug}" text found in public files: ${leaked.slice(0, 3).join(' | ')}`);
     }
   }
   const route = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
   const jsonCalls = [...route.matchAll(/Response\.json\(\{([\s\S]*?)\}\s*(?:,|\))/g)].map((m) => m[1]);
   if (jsonCalls.some((b) => /\b(system|knowledge|excerpts)\b/.test(b))) problems.push('route returns system/knowledge to the client');
-  if (/knowledge\/detailing\/shop-recipes-/i.test(route)) problems.push('system prompt still points at a public recipe file');
-  report(problems.length === 0, 'repo hygiene: no public recipe content; API never returns knowledge', [], problems);
+  if (/knowledge\/detailing\/shop-(?:recipes|methods)-/i.test(route)) problems.push('system prompt still points at a public shop-method file');
+  report(problems.length === 0, 'repo hygiene: no public shop-method content; API never returns knowledge', [], problems);
 }
 
-const total = checks.length + 3;
+// ---------------------------------------------------------------------------
+// Wording: customers never see "recipe(s)" — Brett's procedures are "methods".
+// ---------------------------------------------------------------------------
+{
+  const problems = [];
+  const route = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
+  const prompt = (route.match(/const SYSTEM_PROMPT = `([\s\S]*?)`;/) || [])[1] || '';
+  if (!prompt) problems.push('SYSTEM_PROMPT not found');
+  const promptLines = prompt.split('\n');
+  const rule = promptLines.find((l) => /never call them "recipes"/i.test(l) && /"method\(s\)"/i.test(l));
+  if (!rule) problems.push('system prompt lacks the "never call them recipes; say methods" rule');
+  const stray = promptLines.filter((l) => l !== rule && /recipe/i.test(l));
+  if (stray.length) problems.push(`system prompt says "recipe" outside the terminology rule: ${stray.map((l) => l.slice(0, 80))}`);
+  if (!/Shiny Jets methods/.test(prompt)) problems.push('system prompt never says "Shiny Jets methods"');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (
+    e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const publicHits = walk('knowledge/detailing').filter((f) => f.endsWith('.md') && /recipe/i.test(f + fs.readFileSync(f, 'utf8')));
+  if (publicHits.length) problems.push(`public knowledge files say "recipe": ${publicHits}`);
+  // Private rows (DB / local / mock) may still say "recipe" in slug, title, or text: the loader must normalize it.
+  const qs = ['medium oxidation single stage', 'shop recipes for brightwork', 'Recipe for sharpie on carpet', 'clearcoat cirrus polish'];
+  for (const q of qs) {
+    const out = await loadKnowledgeStub(q, { privateRows: PRIVATE_ROWS });
+    if (/recipe/i.test(out)) problems.push(`loader output for "${q}" says "recipe"`);
+    if (!chosenFiles(out).some((f) => f.startsWith(METHOD))) problems.push(`no Shiny Jets method excerpt for "${q}"`);
+  }
+  if (toMethodsWording('Brett Shop Recipes: the recipe; RECIPES') !== 'Brett Shop Methods: the method; METHODS') {
+    problems.push('toMethodsWording does not preserve case');
+  }
+  report(problems.length === 0, 'wording: prompt + injected knowledge say "method(s)", never "recipe(s)"', [], problems);
+}
+
+const total = checks.length + 4;
 console.log(`\n${total - failed}/${total} passed (${mode} mode)`);
 process.exit(failed ? 1 : 0);
