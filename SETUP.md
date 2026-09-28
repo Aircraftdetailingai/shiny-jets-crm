@@ -2,28 +2,18 @@
 
 ## 1. Create Subscription Products in Shopify
 
-In your Shopify admin (shinyjets.myshopify.com), create 3 products:
+In your Shopify admin (shinyjets.myshopify.com), set up the CRM plan products
+(full copy in `SHOPIFY-PRODUCT-COPY.md`; `scripts/update-shopify-products.js` can apply it — dry-run by default):
 
-### Product 1: Shiny Jets CRM Pro
-- **Title:** Shiny Jets CRM Pro
-- **Price:** $79.00/month
-- **SKU:** SJ-CRM-PRO
-- **Description:** Unlimited quotes, full aircraft database, custom services, email notifications, remove branding, priority support, 2% platform fee
-- **Product type:** Digital / Subscription
+| Product | Price | SKU | Days granted per unit |
+|---------|-------|-----|-----------------------|
+| Shiny Jets CRM — Free | $0 | SJ-CRM-FREE | — |
+| Shiny Jets CRM — Lite | $39.95/month | SJ-CRM-LITE | 30 |
+| Shiny Jets CRM — Business | $89.95/month | SJ-CRM-BUSINESS | 30 |
+| Shiny Jets CRM — Business (Annual) | $899/year | SJ-CRM-BUSINESS-YEARLY | 365 |
 
-### Product 2: Shiny Jets CRM Business
-- **Title:** Shiny Jets CRM Business
-- **Price:** $149.00/month
-- **SKU:** SJ-CRM-BUSINESS
-- **Description:** Everything in Pro + team management, 1% platform fee
-- **Product type:** Digital / Subscription
-
-### Product 3: Shiny Jets CRM Enterprise
-- **Title:** Shiny Jets CRM Enterprise
-- **Price:** $299.00/month
-- **SKU:** SJ-CRM-ENTERPRISE
-- **Description:** Everything in Business + AI Sales Assistant, API access, 0% platform fee
-- **Product type:** Digital / Subscription
+Legacy SKUs `SJ-CRM-PRO` (→ Lite) and `SJ-CRM-ENTERPRISE` (→ Business) are still accepted by the webhook.
+Paid `PRICING-QUARTERLY` orders also grant Lite for 90 days per unit; Business grants Pricing Tool access.
 
 ## 2. Install a Subscription App
 
@@ -32,7 +22,7 @@ Shopify requires a subscription app to handle recurring billing. Choose one:
 ### Option A: Shopify Native Subscriptions (Recommended)
 1. Go to **Settings > Payments > Manage subscriptions**
 2. Enable Shopify Subscriptions
-3. Configure each product with a monthly subscription selling plan
+3. Configure Lite and Business with a monthly selling plan and Business (Annual) with a yearly plan
 
 ### Option B: Recharge Subscriptions
 1. Install from the Shopify App Store

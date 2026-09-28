@@ -1,174 +1,205 @@
 #!/usr/bin/env node
 /**
- * Update Shiny Jets CRM Shopify products.
- * Run: SHOPIFY_ACCESS_TOKEN=shpat_xxx node scripts/update-shopify-products.js
+ * Update the Shiny Jets CRM subscription products in Shopify to the
+ * three-tier structure (Free / Lite / Business).
+ *
+ * DRY RUN BY DEFAULT — prints what would change and exits.
+ * To actually write to the store you must pass --apply:
+ *
+ *   SHOPIFY_ACCESS_TOKEN=shpat_xxx SHOPIFY_STORE_URL=shinyjets.myshopify.com \
+ *     node scripts/update-shopify-products.js --apply
+ *
+ * Credentials are read from the environment only (never hard-code secrets).
+ *
+ * Product mapping (existing handles are kept so current links keep working):
+ *   - Free      → existing "Free Starter" product      SKU SJ-CRM-FREE          $0
+ *   - Lite      → existing "Pro" product (renamed)      SKU SJ-CRM-LITE          $39.95 / month
+ *   - Business  → existing "Business" product           SKU SJ-CRM-BUSINESS      $89.95 / month
+ *   - Business (Annual) → existing "Enterprise" product SKU SJ-CRM-BUSINESS-YEARLY $899 / year
+ *
+ * The CRM webhook still accepts the legacy SKUs SJ-CRM-PRO (→ Lite) and
+ * SJ-CRM-ENTERPRISE (→ Business), so existing subscriptions keep working
+ * until their contracts renew on the new SKUs.
+ *
+ * Subscription frequency (monthly / yearly) is configured in the
+ * subscriptions app (Seal), not by this script.
  */
 
+const APPLY = process.argv.includes('--apply');
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE_URL || 'shinyjets.myshopify.com';
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// Also check SHOPIFY_API_SECRET for combined auth
-const API_SECRET = process.env.SHOPIFY_API_SECRET || '79ebbb4c545f31d7bc98066c5290da5a';
-
-if (!TOKEN) {
-  console.error('Missing SHOPIFY_ACCESS_TOKEN env var');
-  process.exit(1);
-}
-
-const STORE_DOMAIN = SHOPIFY_STORE.replace('https://', '').replace('http://', '');
+const STORE_DOMAIN = SHOPIFY_STORE.replace('https://', '').replace('http://', '').replace(/\/$/, '');
 const API_URL = `https://${STORE_DOMAIN}/admin/api/2025-01/graphql.json`;
+
+const TAGS = ['crm-subscription', 'shiny-jets-crm'];
+
+const PRODUCTS = [
+  {
+    key: 'free',
+    id: 'gid://shopify/Product/8175564488889',
+    title: 'Shiny Jets CRM — Free',
+    sku: 'SJ-CRM-FREE',
+    price: '0.00',
+    descriptionHtml: `<p>Start quoting aircraft detailing jobs today. Free forever — no credit card required.</p>
+<p><strong>Includes:</strong></p>
+<ul>
+<li>5 sent quotes per month</li>
+<li>Customers + aircraft service history</li>
+<li>FAA tail-number lookup</li>
+<li>Quote builder with PDF + share link</li>
+<li>Public request link, QR code &amp; website embed + Requests inbox</li>
+<li>Public directory listing</li>
+<li>1 user</li>
+<li>Shiny Jets branding on customer-facing pages</li>
+<li>5% platform fee on online payments</li>
+</ul>`,
+  },
+  {
+    key: 'lite',
+    id: 'gid://shopify/Product/8363801084089', // formerly "Shiny Jets CRM — Pro"
+    title: 'Shiny Jets CRM — Lite',
+    sku: 'SJ-CRM-LITE',
+    price: '39.95',
+    descriptionHtml: `<p>Everything a solo aircraft detailer needs to quote, book, invoice and get paid — for $39.95/month.</p>
+<p><strong>Everything in Free, plus:</strong></p>
+<ul>
+<li>Unlimited quotes</li>
+<li>Quote follow-ups + scheduled sending</li>
+<li>Google Calendar sync</li>
+<li>Invoices + Stripe payments, deposits and Book Now, Pay Later</li>
+<li>Jobs with photos + completion and delivery reports</li>
+<li>Customer portal + live aircraft progress portal</li>
+<li>Detailing AI + AI quote drafts</li>
+<li>Review and feedback requests</li>
+<li>Your own logo on quotes (with "Powered by Shiny Jets")</li>
+<li>1 user</li>
+<li>2% platform fee on online payments</li>
+</ul>
+<p>Lite is included at no extra cost with a quarterly Pricing Tool subscription.</p>
+<p>Use the same email address as your CRM account so your plan activates automatically. Each monthly renewal adds 30 days.</p>`,
+  },
+  {
+    key: 'business',
+    title: 'Shiny Jets CRM — Business',
+    findByTitle: ['Shiny Jets CRM — Business', 'Shiny Jets CRM Business'],
+    sku: 'SJ-CRM-BUSINESS',
+    price: '89.95',
+    descriptionHtml: BUSINESS_HTML('$89.95/month', 'Each monthly renewal adds 30 days.'),
+  },
+  {
+    key: 'business_yearly',
+    title: 'Shiny Jets CRM — Business (Annual)',
+    findByTitle: ['Shiny Jets CRM — Enterprise', 'Shiny Jets CRM Enterprise', 'Shiny Jets CRM — Business (Annual)'],
+    sku: 'SJ-CRM-BUSINESS-YEARLY',
+    price: '899.00',
+    descriptionHtml: BUSINESS_HTML('$899/year', 'Each annual payment adds 365 days.'),
+  },
+];
+
+function BUSINESS_HTML(priceLabel, termNote) {
+  return `<p>For detailing operations running a crew — ${priceLabel}.</p>
+<p><strong>Everything in Lite, plus:</strong></p>
+<ul>
+<li>Pricing Tool access included</li>
+<li>Up to 3 users (you + 2 team members) with roles &amp; permissions</li>
+<li>Crew app, PIN time clock and payroll</li>
+<li>Dispatch board + manager dashboard</li>
+<li>Change orders</li>
+<li>Reports &amp; profitability</li>
+<li>Recurring services</li>
+<li>Marketing campaigns</li>
+<li>Products, inventory &amp; barcode scanning, equipment tracking</li>
+<li>Full white-label + custom sending domain</li>
+<li>Top directory placement</li>
+<li>0% platform fee on online payments</li>
+</ul>
+<p>Use the same email address as your CRM account so your plan activates automatically. ${termNote}</p>`;
+}
 
 async function shopifyGraphQL(query, variables = {}) {
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': TOKEN,
-    },
+    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': TOKEN },
     body: JSON.stringify({ query, variables }),
   });
   const data = await res.json();
-  if (data.errors) {
-    console.error('GraphQL errors:', JSON.stringify(data.errors, null, 2));
-  }
+  if (data.errors) console.error('GraphQL errors:', JSON.stringify(data.errors, null, 2));
   return data;
 }
 
-const PRODUCTS = [
-  {
-    id: 'gid://shopify/Product/8175564488889',
-    title: 'Shiny Jets CRM — Free Starter',
-    tags: ['crm-subscription', 'shiny-jets-crm'],
-    descriptionHtml: `<p>The fastest way to start quoting aircraft detailing jobs. Free forever. No credit card required.</p>
-<p><strong>Includes:</strong></p>
-<ul>
-<li>5 quotes per month</li>
-<li>FAA tail number autofill</li>
-<li>300+ aircraft hours database</li>
-<li>Customer quote portal</li>
-<li>Before/after photo uploads</li>
-<li>Directory listing</li>
-<li>1 user</li>
-</ul>`,
-    variants: [{ sku: 'SJ-CRM-FREE', price: '0.00' }],
-  },
-  {
-    id: 'gid://shopify/Product/8363801084089',
-    title: 'Shiny Jets CRM — Pro',
-    tags: ['crm-subscription', 'shiny-jets-crm'],
-    descriptionHtml: `<p>Built for the solo aircraft detailer ready to run a professional operation. Send quotes, take payments, track jobs, and build customer relationships — all in one place.</p>
-<p><strong>Includes everything in Free, plus:</strong></p>
-<ul>
-<li>Unlimited quotes</li>
-<li>Stripe online payments</li>
-<li>Google Calendar sync + auto-scheduling</li>
-<li>Automated review requests (7 days post-job)</li>
-<li>Customer accounts with job history + photo portal</li>
-<li>Recurring service tracking dashboard</li>
-<li>Directory listing with Online Booking badge</li>
-<li>1 user</li>
-</ul>`,
-    variants: [{ sku: 'SJ-CRM-PRO', price: '79.00' }],
-  },
-  {
-    create: true,
-    title: 'Shiny Jets CRM — Business',
-    status: 'DRAFT',
-    tags: ['crm-subscription', 'shiny-jets-crm'],
-    descriptionHtml: `<p>For detailing operations running a crew. Dispatch jobs, manage your team, and never let a recurring service fall through the cracks.</p>
-<p><strong>Includes everything in Pro, plus:</strong></p>
-<ul>
-<li>Up to 5 team members</li>
-<li>Dispatch module</li>
-<li>Recurring service reminders sent to customers</li>
-<li>Team job assignment and tracking</li>
-<li>Priority directory placement</li>
-</ul>`,
-    variants: [{ sku: 'SJ-CRM-BUSINESS', price: '149.00' }],
-  },
-  {
-    create: true, // Will update if found by title
-    title: 'Shiny Jets CRM — Enterprise',
-    status: 'DRAFT',
-    tags: ['crm-subscription', 'shiny-jets-crm'],
-    descriptionHtml: `<p>For FBOs, flight departments, and detailing companies that need full control, custom branding, and unlimited scale.</p>
-<p><strong>Includes everything in Business, plus:</strong></p>
-<ul>
-<li>Unlimited team members</li>
-<li>White label branding (your logo, your colors)</li>
-<li>Custom intake questions per job type</li>
-<li>FlightAware API integration — automatic flight hour tracking per aircraft</li>
-<li>Fuel receipt upload portal (pilot or aircraft owner submits receipts via their customer account)</li>
-<li>Pre/post ceramic coating fuel burn comparison</li>
-<li>Automated ROI reporting for aircraft owners</li>
-<li>Anomaly detection on fuel burn data</li>
-<li>Priority support</li>
-<li>Dedicated onboarding</li>
-</ul>`,
-    variants: [{ sku: 'SJ-CRM-ENTERPRISE', price: '899.00' }],
-  },
-];
-
-async function updateProduct(product) {
-  if (product.id && !product.create) {
-    // Update existing
-    const mutation = `mutation productUpdate($input: ProductInput!) {
-      productUpdate(input: $input) {
-        product { id title status tags }
-        userErrors { field message }
-      }
-    }`;
-    const input = {
-      id: product.id,
-      title: product.title,
-      descriptionHtml: product.descriptionHtml,
-      tags: product.tags,
-    };
-    const result = await shopifyGraphQL(mutation, { input });
-    const errors = result.data?.productUpdate?.userErrors;
-    if (errors?.length) {
-      console.error(`  ERRORS for ${product.title}:`, errors);
-    } else {
-      console.log(`  Updated: ${product.title} → ${result.data?.productUpdate?.product?.id}`);
-    }
-    return result.data?.productUpdate?.product;
-  } else {
-    // Create new
-    const mutation = `mutation productCreate($input: ProductInput!) {
-      productCreate(input: $input) {
-        product { id title status tags }
-        userErrors { field message }
-      }
-    }`;
-    const input = {
-      title: product.title,
-      descriptionHtml: product.descriptionHtml,
-      tags: product.tags,
-      status: product.status || 'DRAFT',
-    };
-    const result = await shopifyGraphQL(mutation, { input });
-    const errors = result.data?.productCreate?.userErrors;
-    if (errors?.length) {
-      console.error(`  ERRORS for ${product.title}:`, errors);
-    } else {
-      console.log(`  Created: ${product.title} → ${result.data?.productCreate?.product?.id}`);
-    }
-    return result.data?.productCreate?.product;
+async function findProductId(product) {
+  if (product.id) return product.id;
+  for (const title of product.findByTitle || []) {
+    const q = `query($q: String!) { products(first: 5, query: $q) { nodes { id title handle } } }`;
+    const r = await shopifyGraphQL(q, { q: `title:'${title.replace(/'/g, "\\'")}'` });
+    const hit = r.data?.products?.nodes?.find((n) => n.title === title);
+    if (hit) return hit.id;
   }
+  return null;
+}
+
+async function getVariants(productId) {
+  const q = `query($id: ID!) { product(id: $id) { id title handle variants(first: 10) { nodes { id sku price } } } }`;
+  const r = await shopifyGraphQL(q, { id: productId });
+  return r.data?.product || null;
+}
+
+async function applyProduct(product) {
+  let productId = await findProductId(product);
+  if (!productId) {
+    const r = await shopifyGraphQL(
+      `mutation($input: ProductInput!) { productCreate(input: $input) { product { id } userErrors { field message } } }`,
+      { input: { title: product.title, descriptionHtml: product.descriptionHtml, tags: TAGS, status: 'DRAFT' } },
+    );
+    const errs = r.data?.productCreate?.userErrors;
+    if (errs?.length) { console.error(`  ERRORS creating ${product.title}:`, errs); return; }
+    productId = r.data?.productCreate?.product?.id;
+    console.log(`  Created (DRAFT): ${product.title} → ${productId}`);
+  } else {
+    const r = await shopifyGraphQL(
+      `mutation($input: ProductInput!) { productUpdate(input: $input) { product { id } userErrors { field message } } }`,
+      { input: { id: productId, title: product.title, descriptionHtml: product.descriptionHtml, tags: TAGS } },
+    );
+    const errs = r.data?.productUpdate?.userErrors;
+    if (errs?.length) { console.error(`  ERRORS updating ${product.title}:`, errs); return; }
+    console.log(`  Updated: ${product.title} → ${productId}`);
+  }
+
+  const info = await getVariants(productId);
+  const variant = info?.variants?.nodes?.[0];
+  if (!variant) { console.warn(`  No variant found on ${product.title}; set SKU ${product.sku} / $${product.price} manually.`); return; }
+  const r = await shopifyGraphQL(
+    `mutation($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkUpdate(productId: $productId, variants: $variants) { productVariants { id sku price } userErrors { field message } }
+    }`,
+    { productId, variants: [{ id: variant.id, price: product.price, inventoryItem: { sku: product.sku } }] },
+  );
+  const errs = r.data?.productVariantsBulkUpdate?.userErrors;
+  if (errs?.length) console.error(`  ERRORS updating variant for ${product.title}:`, errs);
+  else console.log(`  Variant: ${variant.sku || '(none)'} $${variant.price} → ${product.sku} $${product.price}`);
 }
 
 async function main() {
-  console.log('Updating Shiny Jets CRM Shopify products...\n');
-
-  for (const product of PRODUCTS) {
-    await updateProduct(product);
+  console.log(`Shiny Jets CRM Shopify products — ${APPLY ? 'APPLY MODE (writes to the store)' : 'DRY RUN (no changes)'}\n`);
+  for (const p of PRODUCTS) {
+    console.log(`• ${p.title}  [${p.sku}  $${p.price}]  ${p.id ? `id=${p.id}` : `find by title: ${p.findByTitle.join(' | ')}`}`);
   }
-
-  console.log('\nDone. All products updated/created in DRAFT status.');
-  console.log('Verify at: https://shinyjets.com/admin/products');
+  if (!APPLY) {
+    console.log('\nDry run only. Re-run with --apply (and SHOPIFY_ACCESS_TOKEN set) to update the store.');
+    return;
+  }
+  if (!TOKEN) {
+    console.error('Missing SHOPIFY_ACCESS_TOKEN env var');
+    process.exit(1);
+  }
+  console.log('');
+  for (const p of PRODUCTS) await applyProduct(p);
+  console.log('\nDone. Review at https://admin.shopify.com (new products are created as DRAFT).');
+  console.log('Remember to configure monthly (Lite, Business) and yearly (Business Annual) plans in the subscriptions app.');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Failed:', err);
   process.exit(1);
 });
