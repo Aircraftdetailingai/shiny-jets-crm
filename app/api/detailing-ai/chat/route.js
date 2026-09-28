@@ -2,6 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
 import { loadKnowledgeStub } from '@/lib/detailing-ai-knowledge';
+import {
+  normalizeChatMessages,
+  describeProviderError,
+  FRIENDLY_PROVIDER_ERROR,
+  FRIENDLY_NOT_CONFIGURED,
+} from '@/lib/detailing-ai-messages';
 
 export const dynamic = 'force-dynamic';
 
@@ -206,60 +212,55 @@ function matchSuggestionsToCatalog(suggestions, catalog) {
   return { ...suggestions, services: matchedServices };
 }
 
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+async function postProvider(provider, model, url, headers, payload) {
+  let response;
+  try {
+    response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+  } catch (err) {
+    const info = { provider, model, status: 0, type: 'network_error', message: err?.message || String(err), reason: 'network_error' };
+    console.error('[detailing-ai/chat] provider request failed:', JSON.stringify(info));
+    return { error: 'api_error', info };
+  }
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    const requestId = response.headers.get('request-id') || response.headers.get('x-request-id');
+    const info = { provider, model, ...describeProviderError(response.status, errText, requestId) };
+    console.error('[detailing-ai/chat] provider API error:', JSON.stringify(info));
+    return { error: 'api_error', info };
+  }
+  return { data: await response.json() };
+}
+
 async function callAnthropic({ system, messages }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { error: 'missing_key' };
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1600,
-      system,
-      messages,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error('[detailing-ai/chat] Claude API error:', response.status, errText);
-    return { error: 'api_error', status: response.status, detail: errText.slice(0, 300) };
-  }
-
-  const data = await response.json();
-  return { reply: data.content?.[0]?.text || '' };
+  const res = await postProvider(
+    'anthropic',
+    ANTHROPIC_MODEL,
+    'https://api.anthropic.com/v1/messages',
+    { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    { model: ANTHROPIC_MODEL, max_tokens: 1600, system, messages },
+  );
+  if (res.error) return res;
+  const text = (res.data?.content || []).filter((b) => b?.type === 'text').map((b) => b.text).join('\n');
+  return { reply: text };
 }
 
 async function callOpenAI({ system, messages }) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return { error: 'missing_key' };
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      max_tokens: 1600,
-      messages: [{ role: 'system', content: system }, ...messages],
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error('[detailing-ai/chat] OpenAI API error:', response.status, errText);
-    return { error: 'api_error', status: response.status, detail: errText.slice(0, 300) };
-  }
-
-  const data = await response.json();
-  return { reply: data.choices?.[0]?.message?.content || '' };
+  const res = await postProvider(
+    'openai',
+    OPENAI_MODEL,
+    'https://api.openai.com/v1/chat/completions',
+    { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    { model: OPENAI_MODEL, max_tokens: 1600, messages: [{ role: 'system', content: system }, ...messages] },
+  );
+  if (res.error) return res;
+  return { reply: res.data?.choices?.[0]?.message?.content || '' };
 }
 
 function requireOwnerOrStaff(user) {
@@ -281,11 +282,8 @@ export async function POST(request) {
     if (planGate) return planGate;
 
     const body = await request.json().catch(() => ({}));
-    const incoming = Array.isArray(body.messages) ? body.messages : [];
-    const messages = incoming
-      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-      .map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content.slice(0, 8000) }))
-      .slice(-20);
+    // Drops the page's leading assistant greeting, merges same-role turns, removes empty turns.
+    const messages = normalizeChatMessages(body.messages, { maxTurns: 20, maxChars: 8000 });
 
     if (messages.length === 0) {
       return Response.json({ error: 'messages required' }, { status: 400 });
@@ -298,35 +296,35 @@ export async function POST(request) {
     ]);
     const system = SYSTEM_PROMPT + formatCatalogForPrompt(catalog) + knowledge;
 
+    const notConfigured = () => {
+      console.error('[detailing-ai/chat] no AI provider key configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)');
+      return Response.json({ reply: FRIENDLY_NOT_CONFIGURED, configured: false, suggestions: null });
+    };
+
     let result;
     if (process.env.ANTHROPIC_API_KEY) {
       result = await callAnthropic({ system, messages });
     } else if (process.env.OPENAI_API_KEY) {
       result = await callOpenAI({ system, messages });
     } else {
-      return Response.json({
-        reply:
-          'Detailing AI is not configured yet. Set ANTHROPIC_API_KEY (preferred) or OPENAI_API_KEY in the environment, then try again.',
-        configured: false,
-        suggestions: null,
-      });
+      return notConfigured();
     }
 
-    if (result.error === 'missing_key') {
-      return Response.json({
-        reply:
-          'Detailing AI is not configured yet. Set ANTHROPIC_API_KEY (preferred) or OPENAI_API_KEY in the environment, then try again.',
-        configured: false,
-        suggestions: null,
-      });
-    }
+    if (result.error === 'missing_key') return notConfigured();
 
     if (result.error) {
+      console.error('[detailing-ai/chat] request context:', JSON.stringify({
+        systemChars: system.length,
+        turns: messages.length,
+        lastUserChars: lastUser?.content?.length || 0,
+      }));
+      // Shop owners only see a friendly message; details (status, error type, request id) are in the server log.
       return Response.json({
-        reply:
-          'The AI provider returned an error. Check the API key and try again. If this keeps happening, verify ANTHROPIC_API_KEY / OPENAI_API_KEY in env.',
+        reply: FRIENDLY_PROVIDER_ERROR,
         configured: true,
         error: 'provider_error',
+        reason: result.info?.reason || 'provider_error',
+        provider_status: result.info?.status ?? null,
         suggestions: null,
       }, { status: 502 });
     }
@@ -341,6 +339,6 @@ export async function POST(request) {
     });
   } catch (err) {
     console.error('[detailing-ai/chat] error:', err);
-    return Response.json({ error: err.message || 'Server error' }, { status: 500 });
+    return Response.json({ reply: FRIENDLY_PROVIDER_ERROR, error: 'server_error', suggestions: null }, { status: 500 });
   }
 }
