@@ -27,7 +27,7 @@ const load = new Function(
 function chosenFiles(out) {
   // Only the loader's file headers: "### <path>" at start of a knowledge block line.
   // Paths always contain a slash or end with .md and have no spaces for our files.
-  return [...out.matchAll(/^### ([^\n]+)$/gm)]
+  return [...out.matchAll(/^### (\S+\.md)$/gm)]
     .map((m) => m[1])
     .filter((f) => f.includes('.md') || f.includes('/'));
 }
@@ -69,6 +69,16 @@ const checks = [
     mustIncludeAny: ['beyond-shiny/safety-cautions', 'beyond-shiny/interior'],
     note: 'no fogging FAA caution',
   },
+  {
+    q: 'sharpie out of carpet',
+    mustIncludeAll: ['sops/sop-04-carpet-cleaning.md'],
+    note: 'carpet SOP not crowded out by book files',
+  },
+  {
+    q: 'can I fog the cabin for disinfection',
+    mustExclude: ['beyond-shiny/acrylic', 'beyond-shiny/brightwork'],
+    note: 'no unrelated book files for fogging',
+  },
 ];
 
 let failed = 0;
@@ -77,12 +87,16 @@ for (const c of checks) {
   const files = chosenFiles(out);
   const ok1 = !c.mustIncludeAny || c.mustIncludeAny.some((p) => files.some((f) => f.includes(p)));
   const ok2 = !c.mustIncludeAny2 || c.mustIncludeAny2.some((p) => files.some((f) => f.includes(p)));
-  const ok = ok1 && ok2;
+  const ok3 = !c.mustIncludeAll || c.mustIncludeAll.every((p) => files.some((f) => f.includes(p)));
+  const bad = (c.mustExclude || []).filter((p) => files.some((f) => f.includes(p)));
+  const ok = ok1 && ok2 && ok3 && bad.length === 0;
   if (!ok) failed += 1;
   console.log(`\n${ok ? 'PASS' : 'FAIL'}  "${c.q}"  (${c.note})`);
   files.forEach((f, i) => console.log(`  ${i + 1}. ${f}`));
   if (!ok1) console.log(`  missing any of: ${c.mustIncludeAny}`);
   if (!ok2) console.log(`  missing any of: ${c.mustIncludeAny2}`);
+  if (!ok3) console.log(`  missing all of: ${c.mustIncludeAll}`);
+  if (bad.length) console.log(`  must not include: ${bad}`);
   // Presence of safety language for pitot query
   if (c.q.includes('pitot') && !/pitot/i.test(out)) {
     console.log('  WARN: injected text has no "pitot"');
