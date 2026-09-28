@@ -24,6 +24,17 @@ const load = new Function(
   `${code}\nreturn loadKnowledgeStub;`
 )(readdir, readFile, path, console);
 
+// Helicopter profile slugs, from the type-class column of aircraft/index.md.
+const HELICOPTER_FILES = fs
+  .readFileSync('knowledge/detailing/aircraft/index.md', 'utf8')
+  .split('\n')
+  .filter((l) => l.includes('`helicopter`'))
+  .map((l) => (l.match(/`([a-z0-9-]+)`/) || [])[1])
+  .filter(Boolean)
+  .map((slug) => `aircraft/${slug}.md`);
+
+const NON_CONTENT = /(^|\/)(readme|index)\.md$|progress[^/]*\.md$/i;
+
 function chosenFiles(out) {
   // Only the loader's file headers: "### <path>" at start of a knowledge block line.
   // Paths always contain a slash or end with .md and have no spaces for our files.
@@ -79,6 +90,21 @@ const checks = [
     mustExclude: ['beyond-shiny/acrylic', 'beyond-shiny/brightwork'],
     note: 'no unrelated book files for fogging',
   },
+  {
+    q: 'can I fog the cabin for disinfection',
+    mustExclude: [...HELICOPTER_FILES, 'PROGRESS.md'],
+    note: 'no helicopter aircraft/ filler or PROGRESS.md for fogging',
+  },
+  {
+    q: 'how do I get sharpie out of carpet',
+    mustIncludeAll: ['sops/sop-04-carpet-cleaning.md'],
+    note: 'carpet SOP (longer phrasing)',
+  },
+  {
+    q: 'Citation CJ3 leather seats',
+    mustIncludeAll: ['aircraft/cessna-citation-cj3.md'],
+    note: 'specific aircraft profile still selected',
+  },
 ];
 
 let failed = 0;
@@ -89,7 +115,8 @@ for (const c of checks) {
   const ok2 = !c.mustIncludeAny2 || c.mustIncludeAny2.some((p) => files.some((f) => f.includes(p)));
   const ok3 = !c.mustIncludeAll || c.mustIncludeAll.every((p) => files.some((f) => f.includes(p)));
   const bad = (c.mustExclude || []).filter((p) => files.some((f) => f.includes(p)));
-  const ok = ok1 && ok2 && ok3 && bad.length === 0;
+  const meta = files.filter((f) => NON_CONTENT.test(f));
+  const ok = ok1 && ok2 && ok3 && bad.length === 0 && meta.length === 0;
   if (!ok) failed += 1;
   console.log(`\n${ok ? 'PASS' : 'FAIL'}  "${c.q}"  (${c.note})`);
   files.forEach((f, i) => console.log(`  ${i + 1}. ${f}`));
@@ -97,6 +124,7 @@ for (const c of checks) {
   if (!ok2) console.log(`  missing any of: ${c.mustIncludeAny2}`);
   if (!ok3) console.log(`  missing all of: ${c.mustIncludeAll}`);
   if (bad.length) console.log(`  must not include: ${bad}`);
+  if (meta.length) console.log(`  non-content files selected: ${meta}`);
   // Presence of safety language for pitot query
   if (c.q.includes('pitot') && !/pitot/i.test(out)) {
     console.log('  WARN: injected text has no "pitot"');
