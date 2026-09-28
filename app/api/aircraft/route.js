@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { resolveDetailerId } from '@/lib/resolve-detailer';
+import { aircraftMakeModel, isAircraftCategory } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -76,20 +77,47 @@ export async function GET(request) {
     rollupByTail[t] = r;
   });
 
-  const aircraft = aircraftRows.map((r) => {
-    const roll = rollupByTail[normTail(r.tail_number)] || { job_count: 0, total_revenue: 0, last_service: null };
+  // One entry per tail. The same tail can have several customer_aircraft
+  // rows (a portal-side row keyed on customer_account_id plus a CRM-side
+  // row keyed on customer_id, or older rows whose manufacturer column holds
+  // the quote's category slug such as "large_jet"). Showing every row
+  // listed N60LD under both "GULFSTREAM G4" and "LARGE_JET GULFSTREAM G4".
+  // Rows are merged here for display only; nothing is deleted.
+  const byTail = new Map();
+  const rank = (r) => (r.customer_id ? 2 : 0) + (r.manufacturer && !isAircraftCategory(r.manufacturer) ? 1 : 0);
+  for (const r of aircraftRows) {
+    const key = normTail(r.tail_number) || `id:${r.id}`;
+    const prev = byTail.get(key);
+    if (!prev) { byTail.set(key, { primary: r, rows: [r] }); continue; }
+    prev.rows.push(r);
+    if (rank(r) > rank(prev.primary)) prev.primary = r;
+  }
+
+  const aircraft = [...byTail.values()].map(({ primary, rows: group }) => {
+    const pick = (field, ok = (v) => !!v) => {
+      if (ok(primary[field])) return primary[field];
+      const other = group.find((g) => ok(g[field]));
+      return other ? other[field] : null;
+    };
+    const manufacturer = pick('manufacturer', (v) => !!v && !isAircraftCategory(v));
+    const model = pick('model');
+    const customerRow = group.find((g) => g.customer_id) || primary;
+    const tail = normTail(primary.tail_number) || primary.tail_number;
+    const roll = rollupByTail[normTail(tail)] || { job_count: 0, total_revenue: 0, last_service: null };
+    const lastSvcDate = group.map((g) => g.last_service_date).filter(Boolean).sort().pop() || null;
     return {
-      id: r.id,
-      tail_number: r.tail_number,
-      aircraft_model: [r.manufacturer, r.model].filter(Boolean).join(' ') || r.model || null,
-      manufacturer: r.manufacturer || null,
-      model: r.model || null,
-      customer_id: r.customer_id || null,
-      customer_name: r.customer_id ? (nameById[r.customer_id] || null) : null,
-      home_airport: r.home_airport || null,
+      id: primary.id,
+      tail_number: tail,
+      aircraft_model: aircraftMakeModel(manufacturer, model) || null,
+      manufacturer: manufacturer || null,
+      model: model || null,
+      customer_id: customerRow.customer_id || null,
+      customer_name: customerRow.customer_id ? (nameById[customerRow.customer_id] || null) : null,
+      home_airport: pick('home_airport'),
       job_count: roll.job_count,
       total_revenue: roll.total_revenue,
-      last_service: roll.last_service || r.last_service_date || null,
+      last_service: roll.last_service || lastSvcDate,
+      duplicate_rows: group.length > 1 ? group.length : undefined,
     };
   });
 

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AppShell from '@/components/AppShell';
+import { decodeHtmlEntities, shortProductName } from '@/lib/html-entities';
 
 export default function EquipmentPage() {
   const router = useRouter();
@@ -156,7 +157,7 @@ export default function EquipmentPage() {
     if (item) {
       setEditingItem(item);
       setFormData({
-        name: item.name || '',
+        name: decodeHtmlEntities(item.name || ''),
         brand: item.brand || '',
         model: item.model || '',
         category: item.category || 'other',
@@ -221,7 +222,7 @@ export default function EquipmentPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to extract product info');
       setFormData(prev => ({
         ...prev,
-        name: data.name || prev.name,
+        name: decodeHtmlEntities(data.name) || prev.name,
         brand: data.brand || prev.brand,
         model: data.model || prev.model,
         category: data.category || prev.category,
@@ -449,7 +450,7 @@ export default function EquipmentPage() {
                         {STATUS_LABELS[item.status] || item.status}
                       </span>
                       <div>
-                        <p className="font-medium text-v-text-primary text-sm">{item.name}</p>
+                        <p className="font-medium text-v-text-primary text-sm break-words" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</p>
                         {item.brand && <span className="text-xs text-v-text-secondary">{item.brand} {item.model || ''}</span>}
                       </div>
                     </div>
@@ -487,7 +488,7 @@ export default function EquipmentPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-lg">{idx === 0 ? '\u{1F947}' : idx === 1 ? '\u{1F948}' : '\u{1F949}'}</span>
                     <div>
-                      <p className="font-medium text-v-text-primary">{item.name}</p>
+                      <p className="font-medium text-v-text-primary break-words" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</p>
                       <p className="text-xs text-v-text-secondary">
                         {item.brand && `${item.brand} `}{item.model && `${item.model} - `}{item.jobs_completed} {'jobs'}
                       </p>
@@ -580,16 +581,16 @@ export default function EquipmentPage() {
                         <div className="flex items-start justify-between gap-3">
                           {item.image_url && (
                             <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-v-charcoal border">
-                              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                              <img src={item.image_url} alt={decodeHtmlEntities(item.name)} className="w-full h-full object-cover" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
                             {/* Name + Status row */}
                             <div className="flex items-center gap-2 flex-wrap">
                               {item.product_url ? (
-                                <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-v-text-primary hover:text-v-gold underline decoration-v-border hover:decoration-v-gold">{item.name}</a>
+                                <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-v-text-primary hover:text-v-gold underline decoration-v-border hover:decoration-v-gold break-words min-w-0" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</a>
                               ) : (
-                                <p className="font-semibold text-v-text-primary">{item.name}</p>
+                                <p className="font-semibold text-v-text-primary break-words min-w-0" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</p>
                               )}
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[item.status] || 'bg-v-charcoal text-v-text-secondary'}`}>
                                 {STATUS_LABELS[item.status] || item.status}
@@ -954,7 +955,7 @@ export default function EquipmentPage() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowTransferModal(null)}>
           <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-sm p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-1">Transfer Equipment</h3>
-            <p className="text-sm text-v-text-secondary mb-4">{showTransferModal.name}</p>
+            <p className="text-sm text-v-text-secondary mb-4 break-words">{decodeHtmlEntities(showTransferModal.name)}</p>
 
             <div>
               <label className="block text-xs text-v-text-secondary mb-1">Destination Location</label>

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 import AppShell from '@/components/AppShell';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 const statusColors = {
   paid: 'border border-green-500/40 text-green-400',
@@ -87,7 +88,8 @@ export default function JobsPage() {
   };
 
   const getAircraftLabel = (job) => {
-    return job.aircraft_model || job.aircraft_type || '—';
+    const label = aircraftDisplayName(job);
+    return label === 'Aircraft' && !job.aircraft_model && !job.aircraft_type ? '—' : label;
   };
 
   return (
@@ -109,24 +111,26 @@ export default function JobsPage() {
 
         {/* Stats Bar */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
             {[
               { label: 'Total Jobs', value: stats.total || 0, color: 'text-v-gold' },
               { label: 'Scheduled', value: stats.scheduled || 0, color: 'text-indigo-300' },
               { label: 'In Progress', value: stats.inProgress || 0, color: 'text-cyan-300' },
               { label: 'Completed', value: stats.completed || 0, color: 'text-purple-300' },
-              { label: 'Revenue', value: `${currencySymbol()}${formatPrice(stats.totalRevenue || 0)}`, color: 'text-v-gold', isText: true },
+              { label: 'Scheduled value', sub: 'Booked, not yet done', title: 'Total price of open jobs (accepted, paid, scheduled or in progress). Not money collected yet.', value: `${currencySymbol()}${formatPrice(stats.scheduledValue ?? stats.totalRevenue ?? 0)}`, color: 'text-v-gold', isText: true },
+              { label: 'Collected', sub: 'Paid + completed', title: 'Paid or completed jobs — same definition as Dashboard revenue.', value: `${currencySymbol()}${formatPrice(stats.collectedRevenue || 0)}`, color: 'text-green-400', isText: true },
             ].map(s => (
-              <div key={s.label} className="bg-v-surface border border-v-border-subtle rounded-sm p-4 text-center">
-                <p className={`text-xl font-bold font-data ${s.color}`}>{s.value}</p>
+              <div key={s.label} title={s.title} className="bg-v-surface border border-v-border-subtle rounded-sm p-3 sm:p-4 text-center min-w-0">
+                <p className={`text-lg sm:text-xl font-bold font-data truncate ${s.color}`}>{s.value}</p>
                 <p className="text-[10px] text-v-text-secondary uppercase tracking-wider mt-1">{s.label}</p>
+                {s.sub && <p className="text-[10px] text-v-text-secondary/70 mt-0.5">{s.sub}</p>}
               </div>
             ))}
           </div>
         )}
 
         {/* Filter Tabs */}
-        <div className="flex gap-1.5 mb-6">
+        <div className="flex flex-wrap gap-1.5 mb-6">
           {FILTER_TABS.map(f => {
             const count = f.key === 'all' ? jobs.length
               : jobs.filter(j => j.status === f.key).length;

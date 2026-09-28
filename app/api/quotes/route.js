@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { upsertCustomerAircraft } from '@/lib/upsertCustomerAircraft';
 import { resolveValidityDays, computeValidUntil } from '@/lib/quote-validity';
 import { normalizePlan } from '@/lib/plans';
+import { aircraftDisplayName, humanizeAircraftCategory } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,9 +62,10 @@ export async function GET(request) {
     // Transform data to include aircraft_name for display
     const quotes = (data || []).map(q => ({
       ...q,
-      aircraft_name: q.aircraft_model
-        ? `${q.aircraft_type || ''} ${q.aircraft_model}`.trim()
-        : q.aircraft_type || 'Unknown Aircraft',
+      // Human label only — never prefix the raw category slug
+      // ("large_jet Gulfstream G4"). Category stays available separately.
+      aircraft_name: aircraftDisplayName(q),
+      aircraft_category_label: humanizeAircraftCategory(q.aircraft_type) || null,
     }));
 
     // Enrich with customer tags (batch lookup)
@@ -453,6 +455,8 @@ export async function POST(request) {
             customer_id: customerRow.id,
             tail_number,
             model: aircraft_model,
+            // aircraft_type on quotes is the size category (large_jet …);
+            // upsertCustomerAircraft drops category slugs from manufacturer.
             manufacturer: aircraft_type ?? null,
           });
         }

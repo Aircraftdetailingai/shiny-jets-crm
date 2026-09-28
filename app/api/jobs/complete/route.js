@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { logActivity, ACTIVITY } from '@/lib/activity-log';
 import { supersedePendingAssignments } from '@/lib/supersede-assignments';
 import { createHash } from 'crypto';
+import { isAircraftCategory, aircraftDisplayName } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -236,7 +237,8 @@ export async function POST(request) {
           customer_name: quote.client_name || quote.customer_name,
           customer_email: quote.client_email || quote.customer_email,
           tail_number: quote.tail_number,
-          aircraft_make: quote.aircraft_type,
+          // quotes.aircraft_type is the size category, not the make.
+          aircraft_make: quote.aircraft_type && !isAircraftCategory(quote.aircraft_type) ? quote.aircraft_type : null,
           aircraft_model: quote.aircraft_model,
           services: typeof quote.services === 'object' ? JSON.stringify(quote.services) : quote.services,
           status: 'complete',
@@ -252,7 +254,7 @@ export async function POST(request) {
     // Log activity
     const clientEmail = quote.customer_email || quote.client_email;
     if (clientEmail) {
-      const aircraft = quote.aircraft_model || quote.aircraft_type || 'Aircraft';
+      const aircraft = aircraftDisplayName(quote);
       logActivity({
         detailer_id: user.detailer_id || user.id,
         customer_email: clientEmail,

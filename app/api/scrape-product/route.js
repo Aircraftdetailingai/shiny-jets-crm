@@ -1,5 +1,6 @@
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { decodeHtmlEntities } from '@/lib/html-entities';
 
 export const dynamic = 'force-dynamic';
 
@@ -267,19 +268,20 @@ export async function POST(request) {
       name = titleMatch ? titleMatch[1].trim() : null;
     }
 
-    // Clean up name - remove site suffix
+    // Clean up name - decode HTML entities (&amp; …), remove site suffix
     if (name) {
-      name = name
+      name = decodeHtmlEntities(name)
+        .replace(/\s+/g, ' ')
         .replace(/\s*[\|\-\u2013\u2014]\s*(Detail King|Autogeek|Amazon\.com|Chemical Guys|Home Depot|Grainger|Lowe's|Fly Shiny|Real Clean Aviation|Skygeek|Aircraft Spruce|Chief Aircraft|Nuvite).*$/i, '')
         .replace(/\s*:\s*Amazon\.com.*$/i, '')
         .trim();
     }
 
     // Extract description
-    const description = jsonLd?.description
+    const description = decodeHtmlEntities(jsonLd?.description
       || getMeta(html, 'og:description')
       || getMeta(html, 'description')
-      || '';
+      || '');
 
     // Extract image
     let imageUrl = null;
@@ -298,7 +300,7 @@ export async function POST(request) {
     const price = extractPrice(html, jsonLd);
 
     // Extract brand
-    const brand = extractBrand(name, html, jsonLd, siteDetected);
+    const brand = decodeHtmlEntities(extractBrand(name, html, jsonLd, siteDetected));
 
     // Extract size
     const size = extractSize(name || '', html);

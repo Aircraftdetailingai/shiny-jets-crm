@@ -2,8 +2,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { normalizePlan } from '@/lib/plans';
 
-// Default question IDs already handled by hardcoded steps
-const DEFAULT_Q_IDS = ['q_tail', 'q_services', 'q_paint_goal', 'q_notes', 'q_photos'];
+// Default question IDs already handled by hardcoded steps. Legacy flat
+// questions use underscores; the visual flow builder (lib/default-flow.js)
+// uses hyphens — only the underscore set was filtered before, so every
+// shop with a saved flow was asked "Upload photos" (and services) twice.
+const DEFAULT_Q_IDS = [
+  'q_tail', 'q_services', 'q_paint_goal', 'q_notes', 'q_photos',
+  'q-tail', 'q-services', 'q-paint-goal', 'q-photos',
+];
+
+// Questions the hardcoded steps already cover (services picker = steps 2-4,
+// photos = step 5). Also drops exact-duplicate question text.
+function customIntakeQuestions(questions) {
+  const seenText = new Set();
+  return (questions || []).filter((q) => {
+    if (!q || DEFAULT_Q_IDS.includes(q.id)) return false;
+    if (q.isServiceSelect) return false;
+    if (q.type === 'photo_upload') return false;
+    const key = String(q.text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (key) {
+      if (seenText.has(key)) return false;
+      seenText.add(key);
+    }
+    return true;
+  });
+}
 
 // Service picker options for Detailing path
 const SERVICE_OPTIONS = [
@@ -44,7 +67,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   const [intakeResponses, setIntakeResponses] = useState({});
 
   // Custom questions = intake questions minus the ones already hardcoded in the UI
-  const customQuestions = (intakeQuestions || []).filter(q => !DEFAULT_Q_IDS.includes(q.id));
+  const customQuestions = customIntakeQuestions(intakeQuestions);
   const hasCustomQ = customQuestions.length > 0;
   // Steps: 1-4 hardcoded, 5=photos, then optionally intake, then contact, then submit
   // When no custom Qs: 5→6(contact)→7(submit)

@@ -247,10 +247,69 @@ function SettingsShell({ bucket: activeBucket = null }) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const savedUserRef = useRef(null); // snapshot of user data for cancel/revert
 
+  // Dirty tracking is value-based, not just event-based. The first time a
+  // section is touched we snapshot its values as they were *before* the
+  // change (handlers close over the previous render's state), and the
+  // "unsaved changes" bar only shows while the current values actually
+  // differ from that snapshot. Autofill / re-hydration that writes the same
+  // value, or editing a field back to its original value, no longer leaves
+  // the page stuck in a dirty state. Values are normalized so null,
+  // undefined and '' compare equal, and "50" equals 50.
+  const dirtyBaselineRef = useRef({});
   const markDirty = (field) => {
+    if (!Object.prototype.hasOwnProperty.call(dirtyBaselineRef.current, field)) {
+      dirtyBaselineRef.current[field] = sectionSnapshot(field);
+    }
     setPendingChanges(prev => new Set(prev).add(field));
     setSaveSuccess(false);
   };
+  const resetDirtyTracking = () => {
+    dirtyBaselineRef.current = {};
+    setPendingChanges(new Set());
+  };
+  // Returns a normalized JSON string for the section's current values, or
+  // undefined for sections we can't snapshot (those stay event-based).
+  function sectionSnapshot(field) {
+    const values = sectionValues(field);
+    if (values === undefined) return undefined;
+    return JSON.stringify(values, (_k, v) => {
+      if (v === undefined || v === null) return null;
+      if (typeof v === 'string') {
+        const t = v.trim();
+        if (t === '') return null;
+        if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+        return t;
+      }
+      return v;
+    });
+  }
+  function sectionValues(field) {
+    switch (field) {
+      case 'profile': return [profileName, profileCompany, profilePhone, mailingAddressLine1, mailingAddressLine2, mailingCity, mailingState, mailingZip, mailingCountry, achBankName, achAccountName, achRoutingNumber, achAccountNumber];
+      case 'laborRate': return [laborRate];
+      case 'efficiencyFactor': return [efficiencyFactor];
+      case 'minimumFee': return [minimumFee || 0, minimumFeeLocations];
+      case 'currency': return [currency];
+      case 'country': return [country];
+      case 'language': return [language];
+      case 'directoryListing': return [!!listedInDirectory];
+      case 'homeAirport': return [homeAirport];
+      case 'airportsServed': return [airportsServed];
+      case 'passFee': return [!!passFeeToCustomer];
+      case 'ccFee': return [ccFeeMode];
+      case 'bookingMode': return [bookingMode, depositPercentage];
+      case 'quoteDisplay': return [quoteDisplayPref, quoteDisplayMode, quotePackageName, !!quoteShowBreakdown, !!quoteItemizedCheckout];
+      case 'notifications':
+      case 'automation': return [emailNotifs, smsAlerts, smsClient, priceReminder, !!autoDiscountEnabled, !!monthlyReportEnabled, !!notifyQuoteViewed, !!notifyWeeklyDigest, !!reviewRequestEnabled, reviewRequestDelay, followupSettings];
+      case 'followupDiscount': return [followupDiscountPercent];
+      case 'smsEnabled': return [!!smsEnabled];
+      case 'productRatios': return [productRatios || {}];
+      case 'availability': return [availability];
+      case 'calendly': return [calendlyUrl, !!useCalendlyScheduling];
+      case 'branding': return [logoUrl, websiteUrl, disclaimerText, selectedTheme, portalTheme, pendingFonts, brandColors, selectedPalette];
+      default: return undefined;
+    }
+  }
 
   // Hydrate all settings state from a user object
   const hydrateFromUser = (u) => {
@@ -347,6 +406,9 @@ function SettingsShell({ bucket: activeBucket = null }) {
           setAchAccountNumber(ach_account_number || '');
           savedUserRef.current = { ...data.user };
           localStorage.setItem('vector_user', JSON.stringify(safeUser));
+          // Server data just replaced the form values, so anything flagged
+          // before it arrived (e.g. browser autofill) is no longer pending.
+          resetDirtyTracking();
         }
       })
       .catch(err => console.error('[settings] user/me error:', err));
@@ -1453,7 +1515,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
           localStorage.setItem('vector_user', JSON.stringify(u));
         } catch {}
       }
-      setPendingChanges(new Set());
+      resetDirtyTracking();
       setSaveSuccess(true);
       // Update the saved snapshot so cancel reverts to the just-saved state
       try { savedUserRef.current = JSON.parse(localStorage.getItem('vector_user') || '{}'); } catch {}
@@ -1466,33 +1528,51 @@ function SettingsShell({ bucket: activeBucket = null }) {
   };
 
 
+  // Sections whose values really differ from their pre-edit snapshot.
+  // Sections without a snapshot (undefined) fall back to event-based.
+  const dirtySections = [...pendingChanges].filter((f) => {
+    const base = dirtyBaselineRef.current[f];
+    if (base === undefined) return true;
+    return sectionSnapshot(f) !== base;
+  });
+  const hasUnsavedChanges = dirtySections.length > 0;
+  const showSaveBar = hasUnsavedChanges || saveSuccess;
+
   return (
     <div className="space-y-4 pb-24">
-        {/* Fixed bottom save bar */}
+        {/* Fixed bottom save bar — only mounted when there is something to
+            save (previously it was always in the DOM, translated off-screen,
+            so "You have unsaved changes" was present on every load). */}
+        {showSaveBar && (
         <div
-          className={`fixed bottom-0 left-0 right-0 z-50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-v-border bg-v-surface/95 backdrop-blur-sm transition-transform duration-300 ease-out ${
-            pendingChanges.size > 0 || saveSuccess ? 'translate-y-0' : 'translate-y-full'
-          }`}
+          role="region"
+          aria-live="polite"
+          aria-label="Unsaved changes"
+          className="fixed bottom-0 left-0 right-0 z-[70] px-3 sm:px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-v-border bg-v-surface/95 backdrop-blur-sm shadow-[0_-8px_24px_rgba(0,0,0,0.35)] animate-slide-up"
         >
-          <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-v-gold text-sm">&#9679;</span>
-              <span className="text-sm text-v-text-secondary">You have unsaved changes</span>
+          <div className="max-w-3xl mx-auto w-full flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`text-sm ${saveSuccess && !hasUnsavedChanges ? 'text-green-400' : 'text-v-gold'}`}>&#9679;</span>
+              <span className="text-sm text-v-text-secondary truncate">
+                {saveSuccess && !hasUnsavedChanges ? 'All changes saved' : (<><span className="sm:hidden">Unsaved changes</span><span className="hidden sm:inline">You have unsaved changes</span></>)}
+              </span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {hasUnsavedChanges && (
               <button
                 onClick={() => {
                   if (savedUserRef.current) hydrateFromUser(savedUserRef.current);
-                  setPendingChanges(new Set());
+                  resetDirtyTracking();
                 }}
-                className="px-4 py-1.5 text-sm border border-v-border rounded text-v-text-secondary hover:bg-white/5 transition-colors"
+                className="min-h-[40px] px-3 sm:px-4 py-1.5 text-sm border border-v-border rounded text-v-text-secondary hover:bg-white/5 transition-colors"
               >
                 Cancel
               </button>
+              )}
               <button
                 onClick={saveAllChanges}
                 disabled={saving || saveSuccess}
-                className={`px-6 py-2 text-xs uppercase tracking-widest font-semibold rounded transition-all min-w-[140px] ${
+                className={`min-h-[40px] px-4 sm:px-6 py-2 text-xs uppercase tracking-widest font-semibold rounded transition-all sm:min-w-[140px] ${
                   saveSuccess
                     ? 'bg-green-600 text-white'
                     : 'bg-[#007CB1] hover:bg-[#006a9e] text-white disabled:opacity-50'
@@ -1503,6 +1583,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
             </div>
           </div>
         </div>
+        )}
         {/* Bottom spacer rendered at end of page content to prevent overlap */}
 
 
@@ -3446,7 +3527,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
         {/* Calendly moved to Integrations tab */}
 
         {/* Spacer for fixed bottom save bar */}
-        {(pendingChanges.size > 0 || saveSuccess) && <div className="h-16" />}
+        {showSaveBar && <div className="h-24" />}
       </div>
   );
 }

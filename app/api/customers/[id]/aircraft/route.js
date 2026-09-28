@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { resolveDetailerId } from '@/lib/resolve-detailer';
 import { pinCustomerAircraft } from '@/lib/pin-customer-aircraft';
+import { aircraftDisplayName, aircraftMakeModel } from '@/lib/aircraft-labels';
+import { selectWithRetry } from '@/lib/select-with-retry';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -71,7 +73,7 @@ export async function GET(request, { params }) {
     aircraft = (rows || []).map((r) => ({
       id: r.id,
       tail_number: r.tail_number,
-      aircraft_model: [r.manufacturer, r.model].filter(Boolean).join(' ') || r.model || null,
+      aircraft_model: aircraftMakeModel(r.manufacturer, r.model) || r.model || null,
       manufacturer: r.manufacturer || null,
       model: r.model || null,
       year: r.year || null,
@@ -96,7 +98,69 @@ export async function GET(request, { params }) {
     })).filter((a) => !!a.tail_number);
   }
 
-  return new Response(JSON.stringify({ aircraft }), { status: 200, headers: NO_STORE });
+  // Aircraft that only appear on this customer's quotes / jobs (e.g. a
+  // quote for a Piper M500 with no saved tail) used to be invisible — the
+  // tab said "Aircraft (0)". Merge them in, de-duped by tail (or by model
+  // when there's no tail), and attach per-aircraft job/revenue rollups so
+  // the page no longer has to guess from an unfiltered quotes list.
+  const email = String(customer.email || '').trim();
+  const [quotesRes, jobsRes] = email ? await Promise.all([
+    selectWithRetry(supabase, 'quotes',
+      'id, tail_number, aircraft_type, aircraft_model, total_price, status, created_at, scheduled_date, completed_at',
+      (q) => q.eq('detailer_id', detailerId).ilike('client_email', email).order('created_at', { ascending: false }).limit(500),
+      { label: 'customers/aircraft' }),
+    selectWithRetry(supabase, 'jobs',
+      'id, quote_id, tail_number, aircraft_make, aircraft_model, total_price, status, created_at, scheduled_date, completed_at',
+      (q) => q.eq('detailer_id', detailerId).ilike('customer_email', email).order('created_at', { ascending: false }).limit(500),
+      { label: 'customers/aircraft' }),
+  ]) : [{ data: [] }, { data: [] }];
+
+  const quoteIds = new Set((quotesRes.data || []).map((q) => q.id));
+  const workRows = [
+    ...(quotesRes.data || []).map((q) => ({ ...q, _kind: 'quote' })),
+    ...(jobsRes.data || []).filter((j) => !j.quote_id || !quoteIds.has(j.quote_id)).map((j) => ({ ...j, _kind: 'job' })),
+  ];
+
+  const keyFor = (tail, model) => (tail ? `T:${normTail(tail)}` : (model ? `M:${String(model).toLowerCase().trim()}` : null));
+  const byKey = new Map();
+  for (const a of aircraft) {
+    const k = keyFor(a.tail_number, a.aircraft_model);
+    if (k && !byKey.has(k)) byKey.set(k, { ...a, jobs: 0, total_revenue: 0, last_service: null, source: a.id ? 'saved' : 'legacy' });
+  }
+  const DONE = new Set(['accepted', 'approved', 'deposit_paid', 'paid', 'scheduled', 'in_progress', 'completed', 'complete']);
+  for (const w of workRows) {
+    // Only a real model counts as an identity; a bare category ("Turboprop")
+    // is not an aircraft.
+    const label = aircraftDisplayName(w);
+    const model = w.aircraft_model && label && label !== 'Aircraft' ? label : null;
+    const k = keyFor(w.tail_number, model);
+    if (!k) continue;
+    if (!byKey.has(k)) {
+      byKey.set(k, {
+        id: null,
+        tail_number: w.tail_number ? normTail(w.tail_number) : null,
+        aircraft_model: model,
+        manufacturer: null,
+        model,
+        jobs: 0,
+        total_revenue: 0,
+        last_service: null,
+        source: w._kind === 'job' ? 'job' : 'quote',
+      });
+    }
+    const entry = byKey.get(k);
+    if (!entry.aircraft_model && model) entry.aircraft_model = model;
+    const st = String(w.status || '').toLowerCase();
+    if (DONE.has(st) || w._kind === 'job') {
+      entry.jobs += 1;
+      entry.total_revenue += parseFloat(w.total_price || 0) || 0;
+      const d = w.completed_at || w.scheduled_date || w.created_at;
+      if (d && (!entry.last_service || d > entry.last_service)) entry.last_service = d;
+    }
+    entry.quotes = (entry.quotes || 0) + (w._kind === 'quote' ? 1 : 0);
+  }
+
+  return new Response(JSON.stringify({ aircraft: [...byKey.values()] }), { status: 200, headers: NO_STORE });
 }
 
 // POST — append a new aircraft to the customer's tail_numbers array.

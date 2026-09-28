@@ -159,6 +159,19 @@ export default function FlowRequestPage() {
     let nextId = getNextNodeId(fromId, answer);
     if (!nextId) { setPhase('contact'); return; }
 
+    // Never ask for photos twice: if the customer already passed a photo
+    // step, skip any further photo_upload nodes (a flow can contain more
+    // than one after template merges/edits).
+    const isPhotoNode = (id) => {
+      const n = flowNodes.find(x => x.id === id);
+      return n?.type === 'question' && n.data?.answerType === 'photo_upload';
+    };
+    const alreadyAskedPhotos = [...history, fromId].some(isPhotoNode);
+    for (let i = 0; i < 10 && alreadyAskedPhotos && nextId && isPhotoNode(nextId); i++) {
+      nextId = getNextNodeId(nextId, null);
+    }
+    if (!nextId) { setPhase('contact'); return; }
+
     // Auto-skip condition nodes
     const nextNode = flowNodes.find(n => n.id === nextId);
     if (nextNode?.type === 'condition') {
@@ -177,7 +190,7 @@ export default function FlowRequestPage() {
 
     setHistory(h => [...h, fromId]);
     setCurrentNodeId(nextId);
-  }, [getNextNodeId, flowNodes]);
+  }, [getNextNodeId, flowNodes, history]);
 
   // ─── Go back ───
   const goBack = () => {

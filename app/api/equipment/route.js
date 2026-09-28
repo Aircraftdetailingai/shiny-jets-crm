@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { decodeHtmlEntities } from '@/lib/html-entities';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +102,14 @@ export async function GET(request) {
   const now = new Date();
 
   // Calculate ROI and maintenance alerts
-  const equipmentWithROI = (equipment || []).map(item => {
+  const equipmentWithROI = (equipment || []).map(rawItem => {
+    // Titles imported from retailer pages can carry HTML entities (&amp;).
+    const item = {
+      ...rawItem,
+      name: decodeHtmlEntities(rawItem.name),
+      brand: decodeHtmlEntities(rawItem.brand),
+      model: decodeHtmlEntities(rawItem.model),
+    };
     const costPerJob = item.jobs_completed > 0
       ? (item.purchase_price || 0) / item.jobs_completed
       : null;
@@ -196,9 +204,9 @@ export async function POST(request) {
 
   const row = {
     detailer_id: user.detailer_id || user.id,
-    name,
-    brand: brand || null,
-    model: model || null,
+    name: decodeHtmlEntities(String(name)).trim(),
+    brand: brand ? decodeHtmlEntities(brand) : null,
+    model: model ? decodeHtmlEntities(model) : null,
     category: category || 'other',
     purchase_price: parseFloat(purchasePrice) || 0,
     purchase_date: purchaseDate || null,
@@ -267,9 +275,9 @@ export async function PUT(request) {
     updated_at: new Date().toISOString(),
   };
 
-  if (name !== undefined) updates.name = name;
-  if (brand !== undefined) updates.brand = brand || null;
-  if (model !== undefined) updates.model = model || null;
+  if (name !== undefined) updates.name = decodeHtmlEntities(String(name)).trim();
+  if (brand !== undefined) updates.brand = brand ? decodeHtmlEntities(brand) : null;
+  if (model !== undefined) updates.model = model ? decodeHtmlEntities(model) : null;
   if (category !== undefined) updates.category = category;
   if (purchasePrice !== undefined) updates.purchase_price = parseFloat(purchasePrice) || 0;
   if (purchaseDate !== undefined) updates.purchase_date = purchaseDate || null;

@@ -98,7 +98,9 @@ export default function CustomerDetailPage() {
       }
       if (actRes?.ok) {
         const data = await actRes.json();
-        setActivity(data.activity || []);
+        // Newest first by full timestamp (the API sorts too; this guards
+        // against any cached/older response shape).
+        setActivity([...(data.activity || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       } else if (actRes) {
         console.error('Activity API error:', actRes.status);
       }
@@ -107,47 +109,25 @@ export default function CustomerDetailPage() {
         setRecommendations(data.recommendations || []);
       }
 
-      // Fetch the customer's canonical aircraft list from customer_aircraft
-      // (via /api/customers/[id]/aircraft, which resolves through
-      // customer_accounts.id by email). Augment with per-tail job/revenue
-      // rollups from quotes so the Aircraft tab still shows the stat row.
+      // Customer's aircraft: saved customer_aircraft rows plus any aircraft
+      // that only appear on this customer's quotes/jobs, with per-aircraft
+      // job/revenue rollups computed server-side. (The page used to roll up
+      // /api/quotes?customer_id=…, which ignores customer_id and returned
+      // every quote in the account.)
       try {
-        const [acRes, quotesRes] = await Promise.all([
-          fetch(`/api/customers/${customerId}/aircraft`, { headers }),
-          fetch(`/api/quotes?customer_id=${customerId}`, { headers }),
-        ]);
-
-        const rollup = {};
-        if (quotesRes?.ok) {
-          const qData = await quotesRes.json();
-          const quotes = qData.quotes || qData || [];
-          (Array.isArray(quotes) ? quotes : []).forEach(q => {
-            const t = q.tail_number ? String(q.tail_number).toUpperCase() : null;
-            if (!t) return;
-            if (!rollup[t]) rollup[t] = { jobs: 0, total_revenue: 0, last_service: null };
-            rollup[t].jobs++;
-            rollup[t].total_revenue += parseFloat(q.total_price || 0);
-            const date = q.completed_at || q.scheduled_date || q.created_at;
-            if (date && (!rollup[t].last_service || date > rollup[t].last_service)) {
-              rollup[t].last_service = date;
-            }
-          });
-        }
-
+        const acRes = await fetch(`/api/customers/${customerId}/aircraft`, { headers });
         if (acRes?.ok) {
           const acData = await acRes.json();
           const list = Array.isArray(acData.aircraft) ? acData.aircraft : [];
-          setAircraft(list.map(a => {
-            const t = (a.tail_number || '').toUpperCase();
-            const r = rollup[t] || { jobs: 0, total_revenue: 0, last_service: null };
-            return {
-              tail_number: t,
-              aircraft_model: a.aircraft_model || a.model || '',
-              jobs: r.jobs,
-              total_revenue: r.total_revenue,
-              last_service: r.last_service,
-            };
-          }));
+          setAircraft(list.map((a, i) => ({
+            key: a.tail_number || `${a.aircraft_model || 'aircraft'}-${i}`,
+            tail_number: a.tail_number ? String(a.tail_number).toUpperCase() : null,
+            aircraft_model: a.aircraft_model || a.model || '',
+            jobs: a.jobs || 0,
+            total_revenue: a.total_revenue || 0,
+            last_service: a.last_service || null,
+            source: a.source || null,
+          })));
         } else if (acRes) {
           console.error('Aircraft API error:', acRes.status);
           setAircraft([]);
@@ -530,7 +510,7 @@ export default function CustomerDetailPage() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm text-v-text-primary">{item.summary}</p>
                                       <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] text-v-text-secondary">{formatTime(item.date)}</span>
+                                        <span className="text-[10px] text-v-text-secondary">{item.all_day ? 'All day' : formatTime(item.date)}</span>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${config.color} text-white`}>
                                           {config.label}
                                         </span>
@@ -660,15 +640,18 @@ export default function CustomerDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {aircraft.map(ac => (
                     <div
-                      key={ac.tail_number}
-                      onClick={() => router.push(`/aircraft/${encodeURIComponent(ac.tail_number)}`)}
-                      className="bg-v-surface border border-v-border rounded-lg p-5 cursor-pointer hover:border-v-gold/50 transition-colors"
+                      key={ac.key || ac.tail_number}
+                      onClick={ac.tail_number ? () => router.push(`/aircraft/${encodeURIComponent(ac.tail_number)}`) : undefined}
+                      className={`bg-v-surface border border-v-border rounded-lg p-4 sm:p-5 transition-colors ${ac.tail_number ? 'cursor-pointer hover:border-v-gold/50' : ''}`}
                     >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-v-gold/20 flex items-center justify-center text-lg">&#9992;</div>
-                        <div>
-                          <p className="text-v-text-primary font-semibold text-lg">{ac.tail_number}</p>
-                          <p className="text-v-text-secondary text-xs">{ac.aircraft_model || 'Aircraft'}</p>
+                      <div className="flex items-center gap-3 mb-3 min-w-0">
+                        <div className="w-10 h-10 shrink-0 rounded-lg bg-v-gold/20 flex items-center justify-center text-lg">&#9992;</div>
+                        <div className="min-w-0">
+                          <p className="text-v-text-primary font-semibold text-lg break-words">{ac.tail_number || ac.aircraft_model || 'Aircraft'}</p>
+                          <p className="text-v-text-secondary text-xs break-words">
+                            {ac.tail_number ? (ac.aircraft_model || 'Aircraft') : 'No tail number on file'}
+                            {(ac.source === 'quote' || ac.source === 'job') && <span className="ml-1 text-v-text-secondary/70">· from {ac.source === 'job' ? 'a job' : 'quotes'}</span>}
+                          </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">

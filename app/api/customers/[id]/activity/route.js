@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
+import { missingColumnFromError } from '@/lib/select-with-retry';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +28,10 @@ async function queryWithRetry(supabase, table, selectCols, filters, options = {}
     if (options.limit) q = q.limit(options.limit);
     const { data, error } = await q;
     if (!error) return data || [];
-    const colMatch = error.message?.match(/column [\w.]+"?(\w+)"? does not exist/)
-      || error.message?.match(/Could not find the '([^']+)' column/)
-      || error.message?.match(/column "([^"]+)".*does not exist/);
-    if (colMatch) {
-      const badCol = colMatch[1];
+    // Shared matcher — the old regex captured only the last letter of
+    // "quotes.accepted_at", so the retry never stripped the real column.
+    const badCol = missingColumnFromError(error);
+    if (badCol && cols.split(',').map(c => c.trim()).includes(badCol)) {
       cols = cols.split(',').map(c => c.trim()).filter(c => c !== badCol).join(', ');
       console.log(`[activity] Stripped missing column '${badCol}' from ${table}, retrying...`);
       continue;
@@ -39,6 +40,25 @@ async function queryWithRetry(supabase, table, selectCols, filters, options = {}
     return [];
   }
   return [];
+}
+
+// Normalize timestamps so the server sort and the browser display agree.
+//  - "2026-09-14"              (date-only, e.g. scheduled_date) → noon UTC,
+//                               flagged all_day so the UI hides the time
+//  - "2026-09-14T23:54:00"     (timestamp without time zone) → treated as
+//                               UTC. Previously the server sorted it as UTC
+//                               but the browser rendered it as local time,
+//                               so an "11:54 PM" entry sat under 4:56 PM.
+//  - booleans / garbage        → null (entry dropped)
+function normalizeTimestamp(value) {
+  if (value == null || typeof value === 'boolean') return { iso: null, allDay: false };
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { iso: `${raw}T12:00:00.000Z`, allDay: true };
+  let v = raw.replace(' ', 'T');
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(v)) v += 'Z';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return { iso: null, allDay: false };
+  return { iso: d.toISOString(), allDay: false };
 }
 
 // GET - Activity timeline for a customer
@@ -118,7 +138,7 @@ export async function GET(request, { params }) {
 
   // Derive events from quotes
   for (const q of quotes) {
-    const aircraft = q.aircraft_model || q.aircraft_type || 'Aircraft';
+    const aircraft = aircraftDisplayName(q);
     const amount = q.total_price ? `$${Number(q.total_price).toLocaleString()}` : '';
     const shortId = q.id.slice(0, 8).toUpperCase();
 
@@ -274,16 +294,25 @@ export async function GET(request, { params }) {
     });
   }
 
+  // Normalize every timestamp to a real UTC instant before sort/dedupe.
+  const normalized = [];
+  for (const item of timeline) {
+    const { iso, allDay } = normalizeTimestamp(item.date);
+    if (!iso) continue;
+    normalized.push({ ...item, date: iso, all_day: allDay || undefined });
+  }
+
   // Deduplicate by type+date proximity (within 1 minute)
   const seen = new Set();
-  const deduped = timeline.filter(item => {
+  const deduped = normalized.filter(item => {
     const key = `${item.type}-${item.quote_id || item.id}-${Math.floor(new Date(item.date).getTime() / 60000)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
-  deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Newest first by full timestamp.
+  deduped.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return Response.json({ activity: deduped.slice(0, 200) });
 }

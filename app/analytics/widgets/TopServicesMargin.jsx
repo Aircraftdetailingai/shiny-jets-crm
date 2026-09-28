@@ -8,7 +8,7 @@ export default function TopServicesMargin({ data }) {
   return (
     <WidgetCard title="Top Services by Revenue">
       <div className="space-y-2 h-full overflow-y-auto">
-        {services.length === 0 && <p className="text-v-text-secondary text-sm text-center py-6">No service data yet</p>}
+        {services.length === 0 && <p className="text-v-text-secondary text-sm text-center py-6">No services on accepted quotes or jobs in this period</p>}
         {services.map((svc, i) => (
           <div key={svc.name} className="flex items-center gap-3">
             <span className="text-[10px] text-v-text-secondary w-4 text-right">{i + 1}</span>

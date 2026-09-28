@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { logNotification } from '@/lib/notification-log';
 import crypto from 'crypto';
 import { requireFeature } from '@/lib/plan-gate';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,8 @@ export async function POST(request) {
     .ilike('media_type', 'after%')
     .limit(12);
 
-  const aircraft = [quote.aircraft_type, quote.aircraft_model].filter(Boolean).join(' ') || 'your aircraft';
+  const aircraftLabel = aircraftDisplayName(quote);
+  const aircraft = aircraftLabel && aircraftLabel !== 'Aircraft' ? aircraftLabel : 'your aircraft';
   const companyName = detailer?.company || detailer?.name || 'Your detailer';
   const deliveryToken = crypto.randomBytes(16).toString('hex');
 
