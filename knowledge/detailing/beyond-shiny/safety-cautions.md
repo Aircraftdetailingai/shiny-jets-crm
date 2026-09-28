@@ -2,7 +2,7 @@
 
 Short extracts from Brett Berry's book *Beyond Shiny*. [Lxxx] = line refs in the privately stored full text.
 
-**These cautions ALWAYS apply**, including when Brett's shop recipes (stored privately server-side; Sep 28 2026) override the book's products/pads. Key ones: cover pitot tube + all static ports; **no interior fogging** (FAA advises against it); keep brightwork **below 150°F (150F)**; **MEK** only as a coin-sized last resort with gloves + respirator; **Agemaster never on silver boots**; never invent chemical mixes or dilutions.
+**These cautions ALWAYS apply**, including when Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override the book's products/pads. Key ones: cover pitot tube + all static ports; **no interior fogging** (FAA advises against it); keep brightwork **below 150°F (150F)**; **MEK** only as a coin-sized last resort with gloves + respirator; **Agemaster never on silver boots**; never invent chemical mixes or dilutions.
 
 ---
 

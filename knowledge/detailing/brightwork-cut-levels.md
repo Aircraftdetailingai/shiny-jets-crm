@@ -21,8 +21,8 @@ Brightwork (polished aluminum / stainless leading edges, spinners, exhaust, some
 ## Typical service alignment
 Pair brightwork with exterior wash/detail so runoff and polish residue are managed cleanly. Ceramic or metal sealant after polish extends the look between visits.
 
-## Brett shop recipe
-The shop-standard brightwork one-step comes from Brett's shop recipe (stored privately; injected by Detailing AI when relevant). When it conflicts with the generic guidance above on products/pads, the shop recipe wins.
+## Shiny Jets method (Brett)
+The shop-standard brightwork one-step comes from Brett's Shiny Jets method (stored privately; injected by Detailing AI when relevant). When it conflicts with the generic guidance above on products/pads, the Shiny Jets method wins.
 
 ## Brett's notes
 Under-quoting brightwork is the #1 way to lose money on a "simple" exterior. Measure linear feet / surfaces, not vibes. Ask for photos of leading edges and engine inlets before locking the number.

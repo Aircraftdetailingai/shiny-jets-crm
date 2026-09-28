@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Seed / update the server-only `private_knowledge` table (Brett's shop recipes
- * + the full Beyond Shiny book text) from a private folder OUTSIDE this repo.
+ * Seed / update the server-only `private_knowledge` table (Brett's Shiny Jets
+ * shop methods + the full Beyond Shiny book text) from a private folder OUTSIDE
+ * this repo. Shop methods use the internal category value `recipes` (DB CHECK
+ * constraint + live rows); the Detailing AI loader shows them as "methods".
  *
  *   node scripts/upsert-private-knowledge.mjs [--dir /home/box/private-knowledge]
  *        [--only recipes|beyond-shiny] [--dry-run] [--no-prune] [--emit-sql out.sql]

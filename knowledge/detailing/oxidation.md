@@ -17,8 +17,8 @@ Oxidation is paint binder breaking down under UV and contaminants. On business j
 - Moderate oxidation → heavier cut compound first, then polish; budget more hours on dark metallic.
 - Severe / clearcoat failure → do **not** polish through. Flag for paint shop; detailing can only mask / protect surrounding areas.
 
-## Brett shop recipe
-Exact products, pads, and machines for single-stage and clearcoat correction come from Brett's shop recipe (stored privately; injected by Detailing AI when relevant — ask single-stage vs. clearcoat first). When it conflicts with the generic guidance above on products/pads, the shop recipe wins.
+## Shiny Jets method (Brett)
+Exact products, pads, and machines for single-stage and clearcoat correction come from Brett's Shiny Jets method (stored privately; injected by Detailing AI when relevant — ask single-stage vs. clearcoat first). When it conflicts with the generic guidance above on products/pads, the Shiny Jets method wins.
 
 ## Brett's notes
 Never promise "like new" without seeing the jet. Oxidation depth varies panel to panel. Quote a diagnostic polish pass if you're unsure — better than under-quoting a full correction.
