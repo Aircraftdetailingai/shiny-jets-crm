@@ -2,7 +2,7 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation method (Rupes blue wool + Fly Shiny Pro Cut) is **superseded** for current single-stage work — use the shop-method excerpt when Detailing AI provides it. The book does **not** cover clearcoat — use the Shiny Jets method for clearcoat. Always ask single-stage vs clearcoat first.
+**Precedence:** Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation method (Rupes blue wool + Fly Shiny Pro Cut) is an **older (superseded) method** for current single-stage work — lead with the latest Shiny Jets method excerpt; the book method is kept only as a labeled older alternative. It depends on Fly Shiny Pro Cut, which is **not yet released — do not recommend**, so it can't be offered as an alternative. Never pair Fly Shiny Pro Polish with a Rupes blue wool pad. The book does **not** cover clearcoat — use the Shiny Jets method for clearcoat. Always ask single-stage vs clearcoat first.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---
@@ -15,7 +15,7 @@ Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach t
 
 ## 1. Paint types: single-stage vs clearcoat
 - Aircraft paint is treated as **single-stage** throughout. "Even in controlled environments, traditional single-stage aircraft paint is prone to oxidation." [L1161]
-- "Fly Shiny Pro Cut" "cuts single stage aircraft paint efficiently and actually leaves a high gloss finish… my go to for restoring aircraft single stage paint." [L908]
+- "Fly Shiny Pro Cut" (not yet released — do not recommend) "cuts single stage aircraft paint efficiently and actually leaves a high gloss finish… my go to for restoring aircraft single stage paint." [L908]
 - Pads load with paint on aircraft ("pads tend to accumulate more paint compared to clear coat polishing on cars"), so you need the Tornador to clean pads. [L900]
 - Spray sealants "should not be viewed as a replacement for waxes or paint sealants, especially when it comes to single stage aircraft paint, as they lack the ability to effectively remove staining." [L1013, L1017]
 - Orange peel (new paint curing) needs wet sanding. If you can feel a scratch with a fingernail, it can't be polished out, only made less visible. Don't chase every scratch; keep as much paint as possible. [L928-929]
@@ -27,8 +27,8 @@ Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach t
 - **Rotary check:** wipe the panel with a **50/50 isopropyl alcohol and water** solution to reveal leftover oxidation. [L965]
 - **Salvageable?** Look at the paint from a 45° angle. If there is some gloss under the oxidation, it can be restored. [L985]
 - **Light oxidation:** can't be seen, or comes off easily with a foam pad and polish. Paint can lose gloss in about 6 months. **Method:** DA polisher + foam pad + polish; "Fly Shiny Pro Polish is a great options for light oxidation removal." Use a medium-to-fast tempo on larger sections. A light polish or polishing wax can also work. [L940-941, L988-990]
-- **Medium oxidation:** visible to the naked eye, blotchy or faded. **Method:** DA polisher + "Fly Shiny Pro Cut" + "Rupes blue wool pad", one step. [L944] A rotary also works, and is recommended if the oxidation is closer to heavy. [L984]
-  - ⚠ **Superseded for current shop work** → Brett's single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps).
-- **Heavy oxidation:** faded, blotchy, chalky. "sometimes best to walk away" because of the risk of burning through rivets or paint. Heavy compounding shortens paint life, and restored paint re-oxidizes faster. **Method:** DA + Rupes blue wool + Fly Shiny Pro Cut in smaller sections (uses a lot of pads), **or** rotary + wool pad + compound for bigger sections and faster work. [L947-948]
-  - ⚠ **Superseded for current shop work** → Brett's single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps).
+- **Medium oxidation:** visible to the naked eye, blotchy or faded. **Method:** DA polisher + "Fly Shiny Pro Cut" (not yet released — do not recommend) + "Rupes blue wool pad", one step. [L944] A rotary also works, and is recommended if the oxidation is closer to heavy. [L984]
+  - ⚠ **Older book method — superseded for current shop work** → lead with Brett's latest single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps). Older alternative only; it uses Fly Shiny Pro Cut (not yet released — do not recommend).
+- **Heavy oxidation:** faded, blotchy, chalky. "sometimes best to walk away" because of the risk of burning through rivets or paint. Heavy compounding shortens paint life, and restored paint re-oxidizes faster. **Method:** DA + Rupes blue wool + Fly Shiny Pro Cut (not yet released — do not recommend) in smaller sections (uses a lot of pads), **or** rotary + wool pad + compound for bigger sections and faster work. [L947-948]
+  - ⚠ **Older book method — superseded for current shop work** → lead with Brett's latest single-stage Shiny Jets method (private; light/moderate and heavy oxidation steps). Older alternative only; it uses Fly Shiny Pro Cut (not yet released — do not recommend).
 - Washing heavily oxidized paint: rinse, foam, then brush. Put all-purpose cleaner on the brush for stains. Rinse before it dries. You don't need to dry it, because heavily oxidized paint won't spot. [L753-755]
