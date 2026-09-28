@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * Seed / update the server-only `private_knowledge` table (Brett's Shiny Jets
- * shop methods + the full Beyond Shiny book text) from a private folder OUTSIDE
+ * shop methods, the Shiny Jets SOP library, and the full Beyond Shiny book text) from a private folder OUTSIDE
  * this repo. Shop methods use the internal category value `recipes` (DB CHECK
  * constraint + live rows); the Detailing AI loader shows them as "methods".
  *
  *   node scripts/upsert-private-knowledge.mjs [--dir /home/box/private-knowledge]
- *        [--only recipes|beyond-shiny] [--dry-run] [--no-prune] [--emit-sql out.sql]
+ *        [--only recipes|beyond-shiny|sops] [--dry-run] [--no-prune] [--emit-sql out.sql]
  *
  * Env (service role — never commit these, never expose to the browser):
  *   SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
@@ -20,12 +20,14 @@
  * --emit-sql writes an idempotent SQL upsert (for the Supabase SQL editor) instead
  * of calling the API. Write it OUTSIDE the repo — it contains the private content.
  * The table must already exist: supabase/migrations/20260928_private_knowledge.sql
+ * and, for source 'sops', supabase/migrations/20260928_private_knowledge_sops.sql
+ * (widens the source CHECK constraint).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
-import { buildAllRows, contentHash, DEFAULT_PRIVATE_DIR } from './lib/private-knowledge-build.mjs';
+import { buildAllRows, contentHash, DEFAULT_PRIVATE_DIR, PRIVATE_SOURCES } from './lib/private-knowledge-build.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -146,7 +148,7 @@ async function main() {
   }
 
   const summary = {};
-  for (const src of ['recipes', 'beyond-shiny']) {
+  for (const src of PRIVATE_SOURCES) {
     const { count, error } = await supabase
       .from('private_knowledge').select('slug', { count: 'exact', head: true }).eq('source', src);
     summary[src] = error ? `error: ${error.message}` : count;

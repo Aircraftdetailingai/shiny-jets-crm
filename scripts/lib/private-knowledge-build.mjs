@@ -16,6 +16,13 @@
 //                                  short lines ending in " -" or "Chapter N ...")
 //   beyond-shiny/parts.json       optional { parts: [{ start, end, title }] }
 //                                  1-based inclusive line ranges (chapters)
+//   sops/sop-*.md                 Shiny Jets SOP library (source 'sops'), one row per
+//                                  file, slug = file name without .md (e.g.
+//                                  sop-04-carpet-cleaning). The whole file (front
+//                                  matter included) is stored as content so the chat
+//                                  loader scores it exactly like the former public
+//                                  knowledge/detailing/sops/<slug>.md file. The public
+//                                  repo keeps only a pointer stub with the same name.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -48,6 +55,10 @@ function parseFrontMatter(raw) {
   return { meta, body: raw.slice(m[0].length) };
 }
 
+function unquote(s) {
+  return String(s ?? '').trim().replace(/^(['"])(.*)\1$/, '$2');
+}
+
 function splitList(s) {
   return String(s || '')
     .replace(/^\[|\]$/g, '')
@@ -75,6 +86,34 @@ export function buildRecipeRows(dir = DEFAULT_PRIVATE_DIR) {
         section: meta.section || null,
         keywords: splitList(meta.keywords),
         content,
+      };
+    })
+    .filter((r) => r.content);
+}
+
+// SOP file names: sop-<nn>-<topic>.md (index.md / README are catalogs, not SOPs).
+export const SOP_FILE_RE = /^sop-[0-9]{2}-[a-z0-9-]+\.md$/;
+
+export function buildSopRows(dir = DEFAULT_PRIVATE_DIR) {
+  const sdir = path.join(dir, 'sops');
+  if (!fs.existsSync(sdir)) return [];
+  return fs
+    .readdirSync(sdir)
+    .filter((f) => SOP_FILE_RE.test(f))
+    .sort()
+    .map((f) => {
+      const raw = fs.readFileSync(path.join(sdir, f), 'utf8').replace(/\r\n/g, '\n');
+      const { meta, body } = parseFrontMatter(raw);
+      const h1 = (body.match(/^#\s+(.+)$/m) || [])[1];
+      const slug = f.replace(/\.md$/, '');
+      const ids = [meta.id, meta.doc_number].map((v) => unquote(v).toLowerCase()).filter(Boolean);
+      return {
+        slug,
+        source: 'sops',
+        title: (h1 || unquote(meta.title) || slug).trim(),
+        section: unquote(meta.service) || null,
+        keywords: [...new Set([...ids, ...splitList(meta.keywords)])],
+        content: raw.trim(),
       };
     })
     .filter((r) => r.content);
@@ -196,10 +235,14 @@ export function buildBookRows(dir = DEFAULT_PRIVATE_DIR) {
   return rows;
 }
 
+export const PRIVATE_SOURCES = ['recipes', 'beyond-shiny', 'sops'];
+
 export function buildAllRows(dir = DEFAULT_PRIVATE_DIR, { only } = {}) {
+  if (only && !PRIVATE_SOURCES.includes(only)) throw new Error(`unknown source: ${only} (expected ${PRIVATE_SOURCES.join('|')})`);
   const rows = [];
   if (!only || only === 'recipes') rows.push(...buildRecipeRows(dir));
   if (!only || only === 'beyond-shiny') rows.push(...buildBookRows(dir));
+  if (!only || only === 'sops') rows.push(...buildSopRows(dir));
   const slugs = new Set();
   for (const r of rows) {
     if (slugs.has(r.slug)) throw new Error(`duplicate slug: ${r.slug}`);

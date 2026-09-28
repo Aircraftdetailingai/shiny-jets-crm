@@ -4,7 +4,7 @@
  *
  * Usage: node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-knowledge.mjs
  *
- * Private rows (Shiny Jets shop methods + Beyond Shiny full text) come from, in order:
+ * Private rows (Shiny Jets shop methods, Shiny Jets SOPs, Beyond Shiny full text) come from, in order:
  *   1. the live `private_knowledge` table, when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set
  *      in the environment and the table answers ("db" mode);
  *   2. the private source folder outside the repo (PRIVATE_KNOWLEDGE_DIR, default
@@ -22,8 +22,10 @@ import {
   MAX_BOOK_CHUNKS,
   MAX_EXCERPTS,
   toMethodsWording,
+  compareCandidates,
+  isSop,
 } from '../lib/detailing-ai-knowledge.js';
-import { buildAllRows, DEFAULT_PRIVATE_DIR } from './lib/private-knowledge-build.mjs';
+import { buildAllRows, DEFAULT_PRIVATE_DIR, SOP_FILE_RE } from './lib/private-knowledge-build.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(root);
@@ -33,6 +35,29 @@ process.chdir(root);
 // ---------------------------------------------------------------------------
 // Shop-method rows keep the DB's internal identifiers (source 'recipes', slug 'shop-recipes-…') and the
 // mock text deliberately says "recipe(s)" so the tests prove the loader never shows that word to the model.
+// Public SOP pointer stubs (knowledge/detailing/sops/sop-*.md). Each must have a private 'sops' row
+// with slug = file name without .md; the private row replaces the stub in the loader.
+const SOP_DIR = 'knowledge/detailing/sops';
+const SOP_STUBS = fs.readdirSync(SOP_DIR).filter((f) => SOP_FILE_RE.test(f)).sort();
+const STUB_MARKER = 'visibility: pointer-stub';
+
+// Mock SOP rows are generated from the public stubs' scope lines (no proprietary text).
+function mockSopRows() {
+  return SOP_STUBS.map((f) => {
+    const raw = fs.readFileSync(path.join(SOP_DIR, f), 'utf8');
+    const title = ((raw.match(/^#\s+(.+)$/m) || [])[1] || f).replace(/\s*\(pointer\)\s*$/, '');
+    const service = ((raw.match(/^service:\s*(.+)$/m) || [])[1] || '').trim();
+    return {
+      slug: f.replace(/\.md$/, ''),
+      source: 'sops',
+      title,
+      section: service,
+      keywords: [],
+      content: `# ${title}\nMOCK SOP (test fixture — not real content). Scope: ${service}.\n## Procedure\n1. PLACEHOLDER step.\n2. PLACEHOLDER step.`,
+    };
+  });
+}
+
 const MOCK_ROWS = [
   {
     slug: 'shop-recipes-mock-paint-brightwork-carpet',
@@ -52,6 +77,7 @@ const MOCK_ROWS = [
     keywords: t === 'wash' ? ['foam cannon', 'pressure washer'] : [`mock ${t}`],
     content: `Mock book chunk about ${t}: carpet paint polish oxidation wash brightwork pitot sharpie foam cannon pressure washer. (fixture ${n})`,
   }))),
+  ...mockSopRows(),
 ];
 
 async function pickRows() {
@@ -71,7 +97,8 @@ async function pickRows() {
 const { mode, rows: PRIVATE_ROWS } = await pickRows();
 const methodRows = PRIVATE_ROWS.filter((r) => r.source === 'recipes'); // DB category value (internal)
 const bookRows = PRIVATE_ROWS.filter((r) => r.source === 'beyond-shiny');
-console.log(`private rows: ${mode} mode — ${methodRows.length} shop method, ${bookRows.length} book`);
+const sopRows = PRIVATE_ROWS.filter((r) => r.source === 'sops');
+console.log(`private rows: ${mode} mode — ${methodRows.length} shop method, ${sopRows.length} SOP, ${bookRows.length} book`);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -172,7 +199,9 @@ const checks = [
 ];
 
 let failed = 0;
+let total = 0;
 function report(ok, title, files, problems = []) {
+  total += 1;
   if (!ok) failed += 1;
   console.log(`\n${ok ? 'PASS' : 'FAIL'}  ${title}`);
   files.forEach((f, i) => console.log(`  ${i + 1}. ${f}`));
@@ -212,7 +241,9 @@ for (const c of checks) {
   const problems = [];
   if (!files.includes('sops/sop-04-carpet-cleaning.md')) problems.push('carpet SOP missing in fallback');
   if (files.some((f) => f.startsWith(METHOD) || f.startsWith(BOOK_FULL))) problems.push('private rows present with none loaded');
-  report(problems.length === 0, 'fallback (no private rows): public SOP still selected', files, problems);
+  if (/Shiny Jets SOP — procedure of record/.test(out)) problems.push('private SOP header present with none loaded');
+  if (!out.includes(STUB_MARKER)) problems.push('SOP pointer stub text not injected in fallback');
+  report(problems.length === 0, 'fallback (no private rows): carpet SOP pointer stub still selected', files, problems);
 }
 {
   const saved = { url: process.env.SUPABASE_URL, k1: process.env.SUPABASE_SERVICE_ROLE_KEY, k2: process.env.SUPABASE_SERVICE_KEY };
@@ -239,6 +270,62 @@ for (const c of checks) {
 }
 
 // ---------------------------------------------------------------------------
+// SOPs: private rows replace the public pointer stubs; best-matching SOP + tie-break unchanged.
+// ---------------------------------------------------------------------------
+{
+  const problems = [];
+  const slugs = sopRows.map((r) => r.slug).sort();
+  const stubSlugs = SOP_STUBS.map((f) => f.replace(/\.md$/, ''));
+  if (sopRows.length === 0) problems.push(`no private 'sops' rows (${mode} mode) — seed private_knowledge before merging`);
+  const missing = stubSlugs.filter((s) => !slugs.includes(s));
+  const extra = slugs.filter((s) => !stubSlugs.includes(s));
+  if (missing.length) problems.push(`public SOP stubs without a private row: ${missing}`);
+  if (extra.length) problems.push(`private SOP rows without a public pointer stub: ${extra}`);
+  report(problems.length === 0, `SOP rows: ${sopRows.length} private rows ↔ ${SOP_STUBS.length} public pointer stubs`, [], problems);
+}
+{
+  // [question, SOP that must be selected, must it be the top excerpt?]
+  const sopChecks = [
+    ['how do I get sharpie out of carpet', 'sops/sop-04-carpet-cleaning.md', false],
+    ['coffee stain on wool carpet', 'sops/sop-04-carpet-cleaning.md', false],
+    ['leather cleaning SOP', 'sops/sop-03-leather-cleaning.md', true],
+    ['wet wash SOP', 'sops/sop-02-wet-wash.md', true],
+    ['dry wash procedure', 'sops/sop-01-dry-wash.md', true],
+    ['SOP for windows', 'sops/sop-10-window-polishing.md', true],
+    ['de-ice boots restoration', 'sops/sop-07-de-ice-boots.md', false],
+    ['brightwork polishing leading edge', 'sops/sop-11-brightwork-polishing.md', false],
+  ];
+  for (const [q, want, first] of sopChecks) {
+    const out = await loadKnowledgeStub(q, { privateRows: PRIVATE_ROWS });
+    const files = chosenFiles(out);
+    const problems = [];
+    if (!files.includes(want)) problems.push(`missing ${want}`);
+    if (first && files[0] !== want) problems.push(`${want} should rank first`);
+    const dupes = files.filter((f, i) => files.indexOf(f) !== i);
+    if (dupes.length) problems.push(`duplicate excerpts (stub + private row?): ${dupes}`);
+    const header = out.split('\n').find((l) => l.startsWith(`### ${want}`)) || '';
+    if (sopRows.some((r) => `sops/${r.slug}.md` === want)) {
+      if (!/\(Shiny Jets SOP — procedure of record: .+\)$/.test(header)) problems.push(`${want} is not the private SOP row: "${header}"`);
+    }
+    if (out.includes(STUB_MARKER)) problems.push('a public pointer stub was injected although private SOP rows are loaded');
+    if (/recipe/i.test(out)) problems.push('injected knowledge says "recipe" (must say "method")');
+    report(problems.length === 0, `"${q}"  (private SOP ${want}${first ? ' ranks first' : ' kept'})`, files, problems);
+  }
+}
+{
+  // Tie-break on equal score: SOP (private row or stub) → shop method → book → everything else.
+  const problems = [];
+  const mk = (kind, rel) => ({ kind, rel, score: 5 });
+  const pool = [mk('file', 'aircraft/a.md'), mk('book', 'beyond-shiny-book/x'), mk('method', 'shop-methods/x'),
+    mk('file', 'beyond-shiny/y.md'), mk('sop', 'sops/sop-99-b.md'), mk('file', 'sops/sop-98-a.md')];
+  const order = [...pool].sort(compareCandidates).map((c) => c.rel);
+  const want = ['sops/sop-98-a.md', 'sops/sop-99-b.md', 'shop-methods/x', 'beyond-shiny-book/x', 'beyond-shiny/y.md', 'aircraft/a.md'];
+  if (order.join() !== want.join()) problems.push(`tie order ${order} (want ${want})`);
+  if (!isSop(mk('sop', 'sops/x.md')) || !isSop(mk('file', 'sops/x.md')) || isSop(mk('file', 'beyond-shiny/sops.md'))) problems.push('isSop wrong');
+  report(problems.length === 0, 'SOP tie-break: SOPs win ties over methods, book, other files', [], problems);
+}
+
+// ---------------------------------------------------------------------------
 // Repo hygiene: no shop-method file, no private text in public files, no knowledge in API responses.
 // ---------------------------------------------------------------------------
 {
@@ -248,6 +335,18 @@ for (const c of checks) {
   const publicFiles = walk('knowledge/detailing').filter((f) => f.endsWith('.md'));
   const methodFiles = publicFiles.filter((f) => /shop-(?:recipes|methods)-/.test(path.basename(f)));
   if (methodFiles.length) problems.push(`shop-method files in public repo: ${methodFiles}`);
+  // Public SOP files must be pointer stubs: marker, small, one heading, no lists/steps/tables.
+  for (const f of SOP_STUBS) {
+    const raw = fs.readFileSync(path.join(SOP_DIR, f), 'utf8');
+    const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '');
+    if (!raw.includes(STUB_MARKER)) problems.push(`${f}: not marked as a pointer stub`);
+    if (raw.length > 1200) problems.push(`${f}: ${raw.length} bytes (pointer stubs stay under 1200)`);
+    if (/^\s*(?:\d+[.)]|[-*+]|\|)\s/m.test(body)) problems.push(`${f}: has list/step/table lines`);
+    if ((body.match(/^#{1,6}\s/gm) || []).length > 1) problems.push(`${f}: has section headings`);
+  }
+  const otherSopFiles = publicFiles.filter((f) => f.includes(`${path.sep}sops${path.sep}`)
+    && !SOP_STUBS.includes(path.basename(f)) && path.basename(f) !== 'index.md');
+  if (otherSopFiles.length) problems.push(`unexpected files in the public SOP folder: ${otherSopFiles}`);
   if (mode !== 'mock') {
     const publicText = [...publicFiles, 'app/api/detailing-ai/chat/route.js', 'lib/detailing-ai-knowledge.js']
       .map((f) => fs.readFileSync(f, 'utf8').toLowerCase().replace(/\s+/g, ' '))
@@ -258,12 +357,22 @@ for (const c of checks) {
       const leaked = lines.filter((l) => publicText.includes(l));
       if (leaked.length) problems.push(`shop method "${r.slug}" text found in public files: ${leaked.slice(0, 3).join(' | ')}`);
     }
+    // SOP body text (front matter, title and scope line are public by design in the stubs).
+    for (const r of sopRows) {
+      const body = r.content.replace(/^---\n[\s\S]*?\n---\n/, '');
+      const norm = (l) => l.replace(/[*#>`_|-]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const title = norm(r.title || '');
+      const lines = body.split('\n').filter((l) => !/^#\s/.test(l)).map(norm)
+        .filter((l) => l.length >= 30 && !title.includes(l) && !/^(service|author|version|source pdf):/.test(l));
+      const leaked = lines.filter((l) => publicText.includes(l));
+      if (leaked.length) problems.push(`SOP "${r.slug}" text found in public files: ${leaked.slice(0, 3).join(' | ')}`);
+    }
   }
   const route = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
   const jsonCalls = [...route.matchAll(/Response\.json\(\{([\s\S]*?)\}\s*(?:,|\))/g)].map((m) => m[1]);
   if (jsonCalls.some((b) => /\b(system|knowledge|excerpts)\b/.test(b))) problems.push('route returns system/knowledge to the client');
   if (/knowledge\/detailing\/shop-(?:recipes|methods)-/i.test(route)) problems.push('system prompt still points at a public shop-method file');
-  report(problems.length === 0, 'repo hygiene: no public shop-method content; API never returns knowledge', [], problems);
+  report(problems.length === 0, 'repo hygiene: no public shop-method or SOP content (pointer stubs only); API never returns knowledge', [], problems);
 }
 
 // ---------------------------------------------------------------------------
@@ -297,6 +406,5 @@ for (const c of checks) {
   report(problems.length === 0, 'wording: prompt + injected knowledge say "method(s)", never "recipe(s)"', [], problems);
 }
 
-const total = checks.length + 4;
 console.log(`\n${total - failed}/${total} passed (${mode} mode)`);
 process.exit(failed ? 1 : 0);

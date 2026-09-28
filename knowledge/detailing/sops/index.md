@@ -9,6 +9,8 @@ owner: Shiny Jets (Brett)
 
 Canonical extracts from `/Users/brettberry/Downloads/ShinyJets-SOP-Library/`. Filenames follow the PDF library. In-document SOP numbers are noted because two library files were both labeled SOP-02.
 
+**The files in this folder are pointer stubs only.** The full SOP text is proprietary and lives in the server-only Supabase table `private_knowledge` (source `sops`, slug = file name without `.md`). Detailing AI loads it with the service role and uses these stubs only if the database cannot be reached. Update SOPs in the private folder and re-run `scripts/upsert-private-knowledge.mjs --only sops`; never paste SOP text back into this repo.
+
 | Knowledge file | Source PDF | In-doc number | Service |
 | --- | --- | --- | --- |
 | [sop-01-dry-wash.md](sop-01-dry-wash.md) | SOP-01-Dry-Wash.pdf | SOP #2 | Maintenance Dry Wash (Full Exterior) |
