@@ -719,7 +719,7 @@ export default function EquipmentPage() {
               <h2 className="text-lg font-semibold">
                 {editingItem ? 'Edit Equipment' : '+ Add Equipment'}
               </h2>
-              <button onClick={handleCloseModal} className="text-v-text-secondary hover:text-v-text-secondary text-xl">&times;</button>
+              <button onClick={handleCloseModal} aria-label="Close" className="w-10 h-10 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-white text-2xl">&times;</button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -952,7 +952,7 @@ export default function EquipmentPage() {
       {/* Transfer Modal */}
       {showTransferModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowTransferModal(null)}>
-          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-sm p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-1">Transfer Equipment</h3>
             <p className="text-sm text-v-text-secondary mb-4">{showTransferModal.name}</p>
 

@@ -58,7 +58,7 @@ export default function MediaGrid({ items, selectedIds, onSelect, onOpen }) {
                 className={`absolute top-1.5 left-1.5 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
                   isSelected
                     ? 'bg-v-gold border-v-gold'
-                    : 'bg-black/40 border-white/60 opacity-0 group-hover:opacity-100'
+                    : 'bg-black/40 border-white/60 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100'
                 }`}
                 aria-label={isSelected ? 'Deselect' : 'Select'}
               >

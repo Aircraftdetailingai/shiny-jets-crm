@@ -87,7 +87,7 @@ export default function BiometricPrompt() {
                 <p className="text-v-text-primary text-sm font-medium">Enable Face ID / Fingerprint?</p>
                 <p className="text-v-text-secondary text-xs mt-0.5">Sign in faster next time with biometrics.</p>
               </div>
-              <button onClick={handleDismiss} className="text-v-text-secondary hover:text-v-text-primary text-lg leading-none">&times;</button>
+              <button onClick={handleDismiss} aria-label="Dismiss" className="w-10 h-10 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-v-text-primary text-xl leading-none">&times;</button>
             </div>
             <div className="flex gap-2 mt-3">
               <button onClick={handleDismiss} className="flex-1 py-2 text-xs text-v-text-secondary border border-v-border rounded-lg hover:bg-white/5">

@@ -54,12 +54,12 @@ export default function ProfitabilityPage() {
 
   return (
     <div className="page-transition min-h-screen bg-v-charcoal p-4 text-v-text-primary">
-      <header className="text-white flex items-center justify-between mb-4">
+      <header className="text-white flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center space-x-2">
-          <a href="/dashboard" className="text-2xl">&#8592;</a>
+          <a href="/dashboard" aria-label="Back to dashboard" className="w-10 h-10 -ml-2 flex items-center justify-center text-2xl">&#8592;</a>
           <h1 className="text-2xl font-bold">{'Profitability'}</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ExportGate plan={userPlan}>
             <button
               onClick={() => {

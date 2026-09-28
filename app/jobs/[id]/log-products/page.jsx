@@ -187,7 +187,7 @@ export default function LogProductsPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-v-surface border-b border-v-border px-4 py-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-v-text-secondary hover:text-v-text-primary text-xl">&larr;</button>
+          <button onClick={() => router.back()} aria-label="Back" className="w-10 h-10 -ml-2 flex items-center justify-center text-v-text-secondary hover:text-v-text-primary text-xl">&larr;</button>
           <div className="flex-1 min-w-0">
             <h1 className="text-v-text-primary font-semibold text-base truncate">Log Products Used</h1>
             <p className="text-v-text-secondary text-xs truncate">
@@ -276,7 +276,7 @@ export default function LogProductsPage() {
 
       {/* Submit Button - Fixed Bottom */}
       {serviceGroups.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-v-surface border-t border-v-border">
+        <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-v-surface border-t border-v-border">
           <button
             onClick={handleSubmit}
             disabled={submitting}

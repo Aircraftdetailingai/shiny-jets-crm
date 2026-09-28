@@ -87,10 +87,10 @@ export default function FlowPreview({ nodes, edges, services, onClose }) {
 
   if (!activeNode) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 pt-14 overflow-y-auto">
         <div className="relative">
-          <button onClick={onClose} className="absolute -top-10 right-0 text-white/60 hover:text-white text-sm">Close</button>
-          <div className="w-[375px] h-[700px] bg-white rounded-[40px] border-4 border-gray-800 shadow-2xl flex flex-col overflow-hidden">
+          <button onClick={onClose} className="absolute -top-11 right-0 min-h-[40px] px-2 text-white/80 hover:text-white text-sm">Close</button>
+          <div className="w-[min(375px,calc(100vw-2rem))] h-[min(700px,calc(100dvh-5rem))] bg-white rounded-[40px] border-4 border-gray-800 shadow-2xl flex flex-col overflow-hidden">
             <div className="h-10 bg-gray-800 flex items-center justify-center">
               <div className="w-20 h-5 bg-gray-900 rounded-full" />
             </div>
@@ -256,10 +256,10 @@ export default function FlowPreview({ nodes, edges, services, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="relative">
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white/60 hover:text-white text-sm">Close Preview</button>
-        <button onClick={handleReset} className="absolute -top-10 left-0 text-white/60 hover:text-white text-sm">Restart</button>
+        <button onClick={onClose} className="absolute -top-11 right-0 min-h-[40px] px-2 text-white/80 hover:text-white text-sm">Close Preview</button>
+        <button onClick={handleReset} className="absolute -top-11 left-0 min-h-[40px] px-2 text-white/80 hover:text-white text-sm">Restart</button>
         {/* Phone Frame */}
-        <div className="w-[375px] h-[700px] bg-white rounded-[40px] border-4 border-gray-800 shadow-2xl flex flex-col overflow-hidden">
+        <div className="w-[min(375px,calc(100vw-2rem))] h-[min(700px,calc(100dvh-5rem))] bg-white rounded-[40px] border-4 border-gray-800 shadow-2xl flex flex-col overflow-hidden">
           {/* Notch */}
           <div className="h-10 bg-gray-800 flex items-center justify-center">
             <div className="w-20 h-5 bg-gray-900 rounded-full" />

@@ -371,7 +371,7 @@ export default function AircraftDetailPage() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
           onClick={() => !savingOverride && setEditingOverrideFor(null)}>
           <div onClick={e => e.stopPropagation()}
-            className="bg-v-surface border border-v-border rounded-lg p-6 max-w-lg w-full">
+            className="bg-v-surface border border-v-border rounded-lg p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-base font-semibold text-v-text-primary mb-1">
               Aircraft SOP for {editingOverrideFor.name}
             </h3>

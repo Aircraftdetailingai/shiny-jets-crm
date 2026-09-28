@@ -437,7 +437,7 @@ export default function DocumentsPage() {
       {/* Upload Modal */}
       {showUpload && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowUpload(false)}>
-          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-v-text-primary">{'+ Upload Document'}</h2>
               <button onClick={() => setShowUpload(false)} className="text-v-text-secondary hover:text-v-text-secondary text-xl">&times;</button>
@@ -550,7 +550,7 @@ export default function DocumentsPage() {
       {/* Edit Modal */}
       {showEdit && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEdit(null)}>
-          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface rounded-xl max-w-md w-full p-6 shadow-xl max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-v-text-primary">{'Edit Document'}</h2>
               <button onClick={() => setShowEdit(null)} className="text-v-text-secondary hover:text-v-text-secondary text-xl">&times;</button>

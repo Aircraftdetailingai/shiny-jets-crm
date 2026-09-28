@@ -338,7 +338,7 @@ export default function RequestsPage() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(lead.id)}
-                          className="w-3.5 h-3.5 mt-0.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer"
+                          className="w-5 h-5 mt-0.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer"
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-white text-sm font-medium truncate">{lead.name || lead.customer_name || 'Customer'}</p>
@@ -368,14 +368,21 @@ export default function RequestsPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => createQuoteFromLead(lead)}
-                          className="px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10"
+                          className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10"
                         >
                           Quote
                         </button>
                         <a href={`/requests/${lead.id}`}
-                          className="px-2 py-1 text-[10px] uppercase tracking-wider text-v-text-secondary border border-v-border rounded hover:text-white">
+                          className="inline-flex items-center min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-v-text-secondary border border-v-border rounded hover:text-white">
                           View
                         </a>
+                        <button
+                          onClick={() => setConfirm({ kind: 'delete', ids: [lead.id], label: 'Delete this request?', description: 'This cannot be undone.' })}
+                          aria-label="Delete request"
+                          className="min-h-[40px] px-3 text-[11px] uppercase tracking-wider text-red-400 border border-red-500/40 rounded hover:bg-red-500/10"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -418,7 +425,7 @@ export default function RequestsPage() {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelect(lead.id)}
-                        className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                        className={`w-3.5 h-3.5 rounded-sm border-v-border bg-transparent accent-v-gold cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100'}`}
                       />
                     </div>
                     <div className="truncate pr-4">
@@ -476,13 +483,13 @@ export default function RequestsPage() {
                     <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => createQuoteFromLead(lead)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10"
+                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-v-gold border border-v-gold/30 rounded hover:bg-v-gold/10"
                       >
                         Quote
                       </button>
                       <button
                         onClick={() => setConfirm({ kind: 'delete', ids: [lead.id], label: 'Delete this request?', description: 'This cannot be undone.' })}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-red-400/70 border border-red-500/30 rounded hover:bg-red-500/10 hover:text-red-400"
+                        className="[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-[10px] uppercase tracking-wider text-red-400/70 border border-red-500/30 rounded hover:bg-red-500/10 hover:text-red-400"
                       >
                         Delete
                       </button>
@@ -502,7 +509,7 @@ export default function RequestsPage() {
       {/* Confirm modal — single or bulk */}
       {confirm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !bulkProcessing && setConfirm(null)}>
-          <div className="bg-v-surface border border-v-border rounded-md max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-md max-w-sm w-full p-5 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-white mb-1">{confirm.label}</h3>
             {confirm.description && <p className="text-v-text-secondary text-sm mb-4">{confirm.description}</p>}
             <div className="flex justify-end gap-2">

@@ -298,7 +298,7 @@ export default function LocationsPage() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-md p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-4">{editing ? 'Edit Location' : 'Add Location'}</h3>
 
             <div className="space-y-4">
@@ -405,7 +405,7 @@ export default function LocationsPage() {
       {/* Plan limit modal — surfaced on 403 from POST or PUT */}
       {limitModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setLimitModal(null)}>
-          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-xl w-full max-w-md p-6 max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-3">Plan limit reached</h3>
             <p className="text-sm text-v-text-secondary mb-5">
               You&apos;ve reached your <span className="text-white font-medium capitalize">{limitModal.plan}</span> plan limit of <span className="text-white font-medium">{limitModal.limit}</span> {limitModal.tier} airport{limitModal.limit === 1 ? '' : 's'}.

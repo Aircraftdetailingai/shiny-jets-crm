@@ -120,11 +120,11 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#0f1623] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="w-full max-w-md bg-[#0f1623] border border-white/10 rounded-2xl shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <h3 className="text-white font-semibold text-base">Scan Barcode</h3>
-          <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none" aria-label="Close">&times;</button>
+          <button onClick={onClose} className="w-10 h-10 -mr-2 flex items-center justify-center text-white/60 hover:text-white text-2xl leading-none" aria-label="Close">&times;</button>
         </div>
 
         {/* Camera viewfinder */}

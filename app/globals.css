@@ -24,6 +24,15 @@
   input, select, textarea { font-size: 16px !important; }
 }
 
+/* ========== MOBILE LAYOUT SAFETY ========== */
+/* Form controls default to an intrinsic min-width (~20ch) inside flex rows,
+   which pushes rows wider than a phone screen. Let them shrink. */
+input, select, textarea { min-width: 0; }
+/* Media never forces horizontal scroll */
+img, video, iframe { max-width: 100%; }
+/* Long SKUs / URLs / tokens in <code> wrap instead of widening the page */
+code { overflow-wrap: anywhere; }
+
 /* ========== THEME VARIABLES ========== */
 
 :root {

@@ -368,7 +368,7 @@ function PhotoSection({ title, subtitle, photos, phase, uploading, activeUpload,
                     <img src={item.url} alt="" className="w-full h-20 object-cover rounded-lg border border-white/10" />
                     <button
                       onClick={() => onDelete(item.id)}
-                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-600 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      className="absolute top-0.5 right-0.5 w-7 h-7 sm:w-5 sm:h-5 bg-red-600 text-white rounded-full text-xs [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center justify-center"
                     >&times;</button>
                   </div>
                 ))}

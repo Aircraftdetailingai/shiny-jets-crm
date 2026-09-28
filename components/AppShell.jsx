@@ -14,7 +14,7 @@ export default function AppShell({ children, title }) {
       <Sidebar />
 
       {/* Main content */}
-      <main className="md:ml-[260px] min-h-screen">
+      <main className="md:ml-[260px] min-h-screen min-w-0 overflow-x-clip">
         {/* Desktop top bar */}
         <header className="hidden md:flex items-center justify-between h-14 px-8 border-b border-v-border-subtle bg-v-charcoal sticky top-0 z-30">
           <div>

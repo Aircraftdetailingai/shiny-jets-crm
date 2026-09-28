@@ -770,7 +770,7 @@ export default function JobDetailPage() {
                   <span className="text-[10px] uppercase tracking-wider text-v-gold">Unsaved</span>
                 )}
               </div>
-              <button onClick={tryCloseEditModal} className="text-v-text-secondary hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={tryCloseEditModal} aria-label="Close" className="w-10 h-10 -mr-2 flex items-center justify-center text-v-text-secondary hover:text-white text-2xl leading-none">&times;</button>
             </div>
 
             <div className="space-y-3">
@@ -908,7 +908,7 @@ export default function JobDetailPage() {
       {/* Completion confirmation modal (when slider hits 100%) */}
       {showCompleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowCompleteConfirm(false)}>
-          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-semibold mb-2">Mark this job as complete?</h3>
             <p className="text-v-text-secondary text-sm mb-4">Setting progress to 100% will mark the job as completed and stamp the completion time.</p>
             <div className="flex justify-end gap-3">
@@ -941,7 +941,7 @@ export default function JobDetailPage() {
         const headerSub = invoiceResult.sentNow ? `Customer received the email` : isDraft ? 'Saved as draft — not yet sent to customer' : isSent ? 'This invoice was previously sent to the customer' : 'Invoice ready';
         return (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setInvoiceResult(null)}>
-          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {invoiceResult.error && !invoiceResult.id ? (
               <>
                 <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-3">
@@ -1012,7 +1012,7 @@ export default function JobDetailPage() {
       {/* Delete confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-sm w-full">
+          <div className="bg-v-surface border border-v-border rounded-lg p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-white font-semibold mb-2">Delete this job?</h3>
             <p className="text-v-text-secondary text-sm mb-4">This action cannot be undone. The job and all associated data will be permanently removed.</p>
             <div className="flex justify-end gap-3">
@@ -1617,7 +1617,7 @@ export default function JobDetailPage() {
       {/* Completion Calibration Prompt */}
       {showCompletionPrompt && completionData && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-v-surface border border-v-border rounded-xl max-w-lg w-full p-6 shadow-2xl">
+          <div className="bg-v-surface border border-v-border rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-heading text-v-text-primary mb-1">Job Complete — Update your estimates?</h3>
             <p className="text-sm text-v-text-secondary mb-4">
               You estimated {completionData.estimated_total}h but it took {completionData.actual_total.toFixed(1)}h for {completionData.aircraft_model}
