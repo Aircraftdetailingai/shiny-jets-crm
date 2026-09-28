@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
 import { logNotification } from '@/lib/notification-log';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,8 @@ export async function POST(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'invoices', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });

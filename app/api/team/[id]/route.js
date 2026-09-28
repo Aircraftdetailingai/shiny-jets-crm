@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature, requireSeat } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export async function GET(request, { params }) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const { id } = await params;
 
@@ -115,6 +118,8 @@ export async function PATCH(request, { params }) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const { id } = await params;
     const body = await request.json();
@@ -122,13 +127,19 @@ export async function PATCH(request, { params }) {
     // Verify ownership
     const { data: existing } = await supabase
       .from('team_members')
-      .select('id')
+      .select('id, status, role')
       .eq('id', id)
       .eq('detailer_id', user.detailer_id || user.id)
       .single();
 
     if (!existing) {
       return Response.json({ error: 'Team member not found' }, { status: 404 });
+    }
+
+    // Re-activating a member takes a seat — enforce the plan's user cap.
+    if (body.status === 'active' && existing.status !== 'active' && existing.role !== 'owner') {
+      const seatGate = await requireSeat(supabase, user.detailer_id || user.id);
+      if (seatGate) return seatGate;
     }
 
     const updates = {};
@@ -190,6 +201,8 @@ export async function DELETE(request, { params }) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const { id } = await params;
 

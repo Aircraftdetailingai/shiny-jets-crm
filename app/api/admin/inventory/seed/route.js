@@ -47,7 +47,7 @@ const SEED_REWARDS = [
   },
   {
     name: 'Free Month - Pro',
-    description: 'One month of Pro plan free',
+    description: 'One month of CRM Lite free',
     points_cost: 5000,
     quantity_available: 99,
     category: 'credits',

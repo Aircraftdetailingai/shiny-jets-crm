@@ -86,7 +86,9 @@ export async function POST(request, { params }) {
       const quotesThisMonth = count || 0;
       if (quotesThisMonth >= tierConfig.quotesPerMonth) {
         return new Response(JSON.stringify({
-          error: 'Monthly quote limit reached. Upgrade to Pro for unlimited quotes.',
+          error: 'Monthly quote limit reached. Upgrade to Lite ($39.95/mo) for unlimited quotes.',
+          code: 'PLAN_REQUIRED',
+          upgrade_url: '/upgrade?plan=lite',
           upgrade: true,
           quotesUsed: quotesThisMonth,
           quotesLimit: tierConfig.quotesPerMonth,

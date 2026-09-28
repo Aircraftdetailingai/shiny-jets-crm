@@ -4,6 +4,7 @@
 // the caller stores it as products.image_url.
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export async function POST(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'products', { user: user });
+    if (planGate) return planGate;
 
     const detailerId = user.detailer_id || user.id;
 

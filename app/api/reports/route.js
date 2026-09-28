@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { resolveFeeRate } from '@/lib/pricing-tiers';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +18,8 @@ export async function GET(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'reports', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
@@ -56,13 +60,14 @@ export async function GET(request) {
     // Detailer info for fee calculations
     const { data: detailer } = await supabase
       .from('detailers')
-      .select('plan, pass_fee_to_customer')
+      .select('plan, platform_fee_percent, pass_fee_to_customer')
       .eq('id', user.id)
       .single();
 
     const plan = detailer?.plan || 'free';
-    const PLATFORM_FEES = { free: 0.05, pro: 0.02, business: 0.01, enterprise: 0.00 };
-    const feeRate = PLATFORM_FEES[plan] || 0.05;
+    // Actual fee rate charged (per-detailer override, else the plan table:
+    // Free 5% / Lite 2% / Business 0%). The old `|| 0.05` made 0% plans show 5%.
+    const feeRate = resolveFeeRate(detailer || { plan });
 
     const result = {};
 

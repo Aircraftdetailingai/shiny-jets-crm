@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendQuoteSentEmail } from '@/lib/email';
 import { sendQuoteSms } from '@/lib/sms';
 import { hasPremiumAccess } from '@/lib/pricing-tiers';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,10 @@ export async function POST(request) {
   let processed = 0;
   let errors = 0;
 
+  const allowed = planChecker(supabase);
   for (const sq of scheduled || []) {
+    // Scheduled send is Lite+; leave the row pending so it goes out after an upgrade.
+    if (!(await allowed(sq.detailer_id, 'scheduledSend'))) continue;
     try {
       // Fetch the quote
       const { data: quote, error: qErr } = await supabase

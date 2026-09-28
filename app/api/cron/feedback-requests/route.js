@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendFeedbackRequestEmail } from '@/lib/email';
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import crypto from 'crypto';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,9 @@ export async function POST(request) {
     return Response.json({ error: e.message }, { status: 500 });
   }
 
+  const allowed = planChecker(supabase);
   for (const detailer of detailers || []) {
+    if (!(await allowed(detailer.id, 'reviewRequests'))) continue; // Lite+
     const delayDays = detailer.review_request_delay_days || 1;
 
     // Compute time window based on delay setting

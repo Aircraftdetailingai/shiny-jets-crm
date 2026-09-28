@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export async function GET(request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'timeClock', { user: user });
+    if (planGate) return planGate;
 
     const { searchParams } = new URL(request.url);
     const teamMemberId = searchParams.get('team_member_id');
@@ -92,6 +95,8 @@ export async function POST(request) {
       if (!user) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      const planGate = await requireFeature(request, 'timeClock', { user: user });
+      if (planGate) return planGate;
       detailerId = user.id;
       teamMemberId = body.team_member_id;
 

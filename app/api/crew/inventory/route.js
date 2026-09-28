@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -26,6 +27,8 @@ async function getCrewUser(request) {
 export async function GET(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
   if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
 
   const supabase = getSupabase();
@@ -61,6 +64,8 @@ export async function GET(request) {
 export async function PATCH(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
   if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
 
   const { product_id, quantity, adjustment } = await request.json();
@@ -136,6 +141,8 @@ export async function PATCH(request) {
 export async function DELETE(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
   if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
 
   // Accept product_id from body or URL query
@@ -194,6 +201,8 @@ export async function DELETE(request) {
 export async function POST(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
   if (!user.can_see_inventory) return Response.json({ error: 'No inventory access' }, { status: 403 });
 
   const { name, category, unit, size, quantity, brand, notes, image_url, url } = await request.json();

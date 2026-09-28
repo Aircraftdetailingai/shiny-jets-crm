@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,8 @@ async function getCrewUser(request) {
 export async function POST(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   const { quote_id, notes } = await request.json();
   if (!quote_id) return Response.json({ error: 'quote_id required' }, { status: 400 });

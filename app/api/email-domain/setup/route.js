@@ -1,8 +1,9 @@
 // Create the sending domain in Resend and persist the returned records so
-// the UI can show them to the detailer. Enterprise-gated.
+// the UI can show them to the detailer. Business-gated.
 
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,8 +38,8 @@ export async function POST(request) {
     .single();
   if (!detailer) return Response.json({ error: 'Detailer not found' }, { status: 404 });
   const plan = (detailer.plan || '').toLowerCase();
-  if (plan !== 'business' && plan !== 'enterprise') {
-    return Response.json({ error: 'Custom email domain is available on the Business and Enterprise plans' }, { status: 403 });
+  if (normalizePlan(plan) !== 'business') {
+    return Response.json({ error: 'A custom sending domain is included with Business ($89.95/mo or $899/yr).', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=business' }, { status: 403 });
   }
 
   // Reuse existing record if the detailer is re-setting up the same domain

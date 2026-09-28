@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ function getSupabase() {
   );
 }
 
-// GET - Export customer list as CSV (Pro+ only)
+// GET - Export customer list as CSV (Lite+ only)
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) {
@@ -27,9 +28,9 @@ export async function GET(request) {
     .single();
 
   const plan = detailer?.plan || 'free';
-  if (plan === 'free') {
+  if (normalizePlan(plan) === 'free') {
     return Response.json({
-      error: 'Upgrade to Pro to export your customer list',
+      error: 'Customer export is included with Lite ($39.95/mo) and Business.',
       upgrade: true,
     }, { status: 403 });
   }

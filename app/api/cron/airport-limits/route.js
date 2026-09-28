@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { planLookupKeys } from '@/lib/plans';
 import { sendEmail } from '@/lib/email';
 import { airportLimitWarningTemplate, airportLimitEnforcedTemplate } from '@/lib/email-templates';
 
@@ -50,7 +51,8 @@ async function run(request) {
   for (const detailer of detailers || []) {
     summary.checked += 1;
     const plan = detailer.plan;
-    const limits = plan ? limitByPlan[plan] : null;
+    // Raw plan first (legacy rows keep their limits), then new-tier aliases.
+    const limits = plan ? planLookupKeys(plan).map((k) => limitByPlan[k]).find(Boolean) || null : null;
     if (!limits || typeof limits.primary !== 'number' || typeof limits.secondary !== 'number') {
       console.warn('[airport-limits-cron] skipping detailer', detailer.id, '— plan not in plan_limits:', plan);
       summary.skipped_no_plan += 1;

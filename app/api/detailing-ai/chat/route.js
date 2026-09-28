@@ -2,6 +2,7 @@ import { readdir, readFile } from 'fs/promises';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -457,6 +458,8 @@ export async function POST(request) {
     if (!gate.ok) {
       return Response.json({ error: gate.error }, { status: gate.status });
     }
+    const planGate = await requireFeature(request, 'detailingAi', { user });
+    if (planGate) return planGate;
 
     const body = await request.json().catch(() => ({}));
     const incoming = Array.isArray(body.messages) ? body.messages : [];

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createToken, comparePassword } from '@/lib/auth';
+import { detailerHasFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,15 @@ export async function POST(request) {
 
     if (!member) {
       return Response.json({ error: 'Login failed' }, { status: 401 });
+    }
+
+    // Crew app is a Business feature of the owner's plan.
+    if (!(await detailerHasFeature(member.detailer_id, 'crewApp', supabase))) {
+      return Response.json({
+        error: 'The crew app is not available on this company\'s current Shiny Jets plan. Ask your manager to upgrade to Business.',
+        code: 'PLAN_REQUIRED',
+        required_plan: 'business',
+      }, { status: 403 });
     }
 
     // Get detailer company name for display

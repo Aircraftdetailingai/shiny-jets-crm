@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,8 @@ function getSupabase() {
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'team', { user: user });
+  if (planGate) return planGate;
 
   const { searchParams } = new URL(request.url);
   const member_id = searchParams.get('member_id');

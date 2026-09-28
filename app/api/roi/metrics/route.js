@@ -130,9 +130,10 @@ export async function GET(request) {
     const recoveredCosts = waitFeesRecovered + repositioningFeesRecovered;
     const totalValue = timeSavedValue + extraRevenue + recoveredCosts;
 
-    // Subscription cost (estimate $79/month = $948/year)
+    // Subscription cost (estimate: Lite $39.95/month)
     const monthsActive = Math.max(1, Math.ceil((now - new Date(detailer?.created_at || now)) / (1000 * 60 * 60 * 24 * 30)));
-    const subscriptionCost = period === 'month' ? 79 : (period === 'year' ? Math.min(monthsActive, 12) * 79 : monthsActive * 79);
+    const MONTHLY = 39.95;
+    const subscriptionCost = period === 'month' ? MONTHLY : (period === 'year' ? Math.min(monthsActive, 12) * MONTHLY : monthsActive * MONTHLY);
 
     const roi = subscriptionCost > 0 ? Math.round(totalValue / subscriptionCost) : 0;
 

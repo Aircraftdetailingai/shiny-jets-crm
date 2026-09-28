@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
@@ -117,8 +118,8 @@ export async function PUT(request, { params }) {
       || filteredBody.booking_mode === 'deposit'
       || (parseFloat(filteredBody.deposit_percentage) || 0) > 0
       || (parseFloat(filteredBody.deposit_amount) || 0) > 0;
-    if (wantsDeposit && plan === 'free' && !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Deposits require a Pro plan or higher.' }), { status: 403 });
+    if (wantsDeposit && normalizePlan(plan) === 'free' && !isAdmin) {
+      return new Response(JSON.stringify({ error: 'Deposits are included with Lite ($39.95/mo) and Business.', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=lite' }), { status: 403 });
     }
   }
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,8 +65,8 @@ export async function GET(request, { params }) {
     }
   } catch {}
 
-  // Enterprise: FlightAware AeroAPI (placeholder)
-  if (plan === 'enterprise') {
+  // FlightAware AeroAPI (placeholder, not built / not advertised)
+  if (normalizePlan(plan) === 'business') {
     // TODO: Integrate FlightAware AeroAPI
     // Requires FLIGHTAWARE_API_KEY env var
     // Endpoint: https://aeroapi.flightaware.com/aeroapi/flights/{tail}
@@ -75,7 +76,7 @@ export async function GET(request, { params }) {
       last_updated: null,
       source: 'flightaware',
       status: 'coming_soon',
-      message: 'FlightAware integration coming soon for Enterprise plan',
+      message: 'FlightAware integration is not available yet',
     });
   }
 

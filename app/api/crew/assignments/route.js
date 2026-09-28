@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ async function getCrewUser(request) {
 export async function GET(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
 
@@ -107,6 +110,8 @@ export async function GET(request) {
 export async function PATCH(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
 

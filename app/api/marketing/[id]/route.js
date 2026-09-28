@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ export async function GET(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'marketing', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     const { id } = await params;
@@ -39,6 +42,8 @@ export async function PUT(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'marketing', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     const { id } = await params;
@@ -88,6 +93,8 @@ export async function DELETE(request, { params }) {
   try {
     const user = await getAuthUser(request);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const planGate = await requireFeature(request, 'marketing', { user: user });
+    if (planGate) return planGate;
 
     const supabase = getSupabase();
     const { id } = await params;

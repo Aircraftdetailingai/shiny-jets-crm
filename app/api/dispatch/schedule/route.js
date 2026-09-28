@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ function getSupabase() {
   );
 }
 
-const ALLOWED_PLANS = ['business', 'enterprise'];
+const ALLOWED_PLANS = ['business']; // legacy 'enterprise' normalizes to business
 
 // POST — update a job's scheduled_date (drag-drop reschedule)
 export async function POST(request) {
@@ -31,7 +32,7 @@ export async function POST(request) {
   }
 
   const plan = detailer.plan || 'free';
-  if (!ALLOWED_PLANS.includes(plan)) {
+  if (!ALLOWED_PLANS.includes(normalizePlan(plan))) {
     return Response.json(
       { error: 'plan_required', upgrade_required: true },
       { status: 403 },

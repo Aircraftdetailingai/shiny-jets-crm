@@ -6,6 +6,7 @@ import {
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
 import { createNotification } from '@/lib/notifications';
 import { sendSms } from '@/lib/sms';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -55,7 +56,9 @@ export async function GET(request) {
       .gte('sent_at', new Date(now.getTime() - 5 * 86400000).toISOString()) // Don't re-notify for very old quotes
       .is('followup_unopened_notified', null);
 
+    const allowed = planChecker(supabase);
     for (const q of unopenedQuotes || []) {
+      if (!(await allowed(q.detailer_id, 'quoteFollowups'))) continue; // Lite+
       try {
         await createNotification({
           detailerId: q.detailer_id,
@@ -83,6 +86,7 @@ export async function GET(request) {
       .is('followup_viewed_notified', null);
 
     for (const q of viewedNotBooked || []) {
+      if (!(await allowed(q.detailer_id, 'quoteFollowups'))) continue; // Lite+
       try {
         const views = q.view_count || 1;
         await createNotification({
@@ -115,6 +119,7 @@ export async function GET(request) {
       .is('followup_5day_sent', null);
 
     for (const q of expiringIn5 || []) {
+      if (!(await allowed(q.detailer_id, 'quoteFollowups'))) continue; // Lite+
       try {
         // Fetch detailer info for email
         const { data: detailer } = await supabase
@@ -176,6 +181,7 @@ export async function GET(request) {
       .is('followup_discount_sent', null);
 
     for (const q of expiringIn2 || []) {
+      if (!(await allowed(q.detailer_id, 'quoteFollowups'))) continue; // Lite+
       try {
         const { data: detailer } = await supabase
           .from('detailers')

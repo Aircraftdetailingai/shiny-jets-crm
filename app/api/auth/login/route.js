@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { comparePassword, hashPassword, createToken } from '../../../../lib/auth';
 import { cookies } from 'next/headers';
+import { normalizePlan } from '@/lib/plans';
 
 const ADMIN_EMAILS = [
   'brett@vectorav.ai',
@@ -130,7 +131,8 @@ export async function POST(request) {
       name: data.name,
       phone: data.phone,
       company: data.company,
-      plan: isAdmin ? 'enterprise' : (data.plan || 'free'),
+      plan: isAdmin ? 'business' : normalizePlan(data.plan),
+      plan_raw: data.plan || 'free',
       subscription_status: data.subscription_status || null,
       subscription_source: data.subscription_source || null,
       is_admin: isAdmin,

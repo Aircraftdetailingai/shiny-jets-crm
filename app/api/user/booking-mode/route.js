@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
@@ -48,13 +49,13 @@ export async function POST(request) {
 
   const plan = detailer?.plan || 'free';
   const isAdmin = detailer?.is_admin === true;
-  if (booking_mode === 'book_later' && plan === 'free' && !isAdmin) {
-    return new Response(JSON.stringify({ error: 'Book Now, Pay Later requires Pro plan or above' }), { status: 403 });
+  if (booking_mode === 'book_later' && normalizePlan(plan) === 'free' && !isAdmin) {
+    return new Response(JSON.stringify({ error: 'Book Now, Pay Later is included with Lite ($39.95/mo) and Business.', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=lite' }), { status: 403 });
   }
-  // Deposits loosened to Pro+ to match the new pricing-page promise.
+  // Deposits: Lite and Business.
   // Free tier still blocked.
-  if (booking_mode === 'deposit' && !['pro', 'business', 'enterprise'].includes(plan) && !isAdmin) {
-    return new Response(JSON.stringify({ error: 'Deposits require a Pro plan or higher.' }), { status: 403 });
+  if (booking_mode === 'deposit' && normalizePlan(plan) === 'free' && !isAdmin) {
+    return new Response(JSON.stringify({ error: 'Deposits are included with Lite ($39.95/mo) and Business.', code: 'PLAN_REQUIRED', upgrade_url: '/upgrade?plan=lite' }), { status: 403 });
   }
 
   const updates = { booking_mode };

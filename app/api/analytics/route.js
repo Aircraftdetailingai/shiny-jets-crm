@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ export async function GET(request) {
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const planGate = await requireFeature(request, 'reports', { user: user });
+  if (planGate) return planGate;
 
   const url = new URL(request.url);
   const days = parseInt(url.searchParams.get('days') || '90', 10);

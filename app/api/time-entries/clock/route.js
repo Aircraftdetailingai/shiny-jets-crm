@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { detailerHasFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,15 @@ export async function POST(request) {
     return Response.json({ error: 'This PIN matches more than one worker. Contact your manager for a unique PIN.', code: 'pin_ambiguous' }, { status: 409 });
   }
   const member = activeMembers[0];
+
+  // PIN time clock is a Business feature of the owner's plan.
+  if (!(await detailerHasFeature(member.detailer_id, 'timeClock', supabase))) {
+    return Response.json({
+      error: 'The time clock is not available on this company\'s current Shiny Jets plan. Ask your manager to upgrade to Business.',
+      code: 'PLAN_REQUIRED',
+      required_plan: 'business',
+    }, { status: 403 });
+  }
 
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();

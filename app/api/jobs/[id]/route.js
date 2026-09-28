@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { supersedePendingAssignments } from '@/lib/supersede-assignments';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -45,6 +46,8 @@ const ALLOWED_FIELDS = [
 export async function PATCH(request, { params }) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   const { id: jobId } = await params;
   if (!jobId) return Response.json({ error: 'Job ID required' }, { status: 400 });

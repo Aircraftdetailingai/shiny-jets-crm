@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import crypto from 'crypto';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,8 @@ function getSupabase() {
 export async function GET(request, { params }) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'changeOrders', { user: user });
+  if (planGate) return planGate;
   const { id } = await params;
   const supabase = getSupabase();
 
@@ -25,6 +28,8 @@ export async function GET(request, { params }) {
 export async function PATCH(request, { params }) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'changeOrders', { user: user });
+  if (planGate) return planGate;
   const { id } = await params;
   const { line_items, amount, action } = await request.json(); // action: 'send_to_customer' | 'auto_approve' | 'reject'
 

@@ -2,6 +2,7 @@ import { SignJWT } from 'jose';
 import { NextResponse } from 'next/server';
 import { getAuthUser, verifyToken } from '@/lib/auth';
 import { env } from '@/lib/env';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,8 @@ function resolveRedirectUri(request) {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'googleCalendar', { user: user });
+  if (planGate) return planGate;
 
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
     return NextResponse.json({ configured: false, error: 'Google Calendar OAuth is not configured yet' });

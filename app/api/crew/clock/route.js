@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,8 @@ async function getJobLabel(supabase, { job_id, quote_id }) {
 export async function GET(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
   const today = new Date().toISOString().split('T')[0];
@@ -175,6 +178,8 @@ async function closeEntry(supabase, entry_id, closedAt) {
 export async function POST(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   // Single read of the request body — it can only be consumed once. Every action
   // pulls what it needs from here (manual_entry/adjust_clock_in previously called
@@ -442,6 +447,8 @@ export async function POST(request) {
 export async function DELETE(request) {
   const user = await getCrewUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'crewApp', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
   const { searchParams } = new URL(request.url);

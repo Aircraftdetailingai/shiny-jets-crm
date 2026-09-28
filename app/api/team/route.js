@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { sendTeamInviteEmail, sendTeamAddedEmail } from '@/lib/email';
 import crypto from 'crypto';
+import { requireFeature, requireSeat } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,8 @@ export async function GET(request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const { data: members, error } = await supabase
       .from('team_members')
@@ -80,6 +83,8 @@ export async function POST(request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const body = await request.json();
 
@@ -111,6 +116,12 @@ export async function POST(request) {
       invite_token: inviteToken,
       invite_status: body.email ? 'pending' : 'not_invited',
     };
+
+    // Business includes up to 3 users (owner + 2 active team members).
+    if (role !== 'owner') {
+      const seatGate = await requireSeat(supabase, insertData.detailer_id);
+      if (seatGate) return seatGate;
+    }
 
     // Reject a duplicate active PIN within this detailer before insert. The DB
     // partial unique index enforces the same rule — a violation there is caught
@@ -233,6 +244,8 @@ export async function PATCH(request) {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const planGate = await requireFeature(request, 'team', { user: user });
+    if (planGate) return planGate;
 
     const { member_id } = await request.json();
     if (!member_id) {

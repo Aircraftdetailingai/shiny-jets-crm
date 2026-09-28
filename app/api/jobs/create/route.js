@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { upsertCustomerAircraft } from '@/lib/upsertCustomerAircraft';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,8 @@ function getSupabase() {
 export async function POST(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const planGate = await requireFeature(request, 'jobs', { user: user });
+  if (planGate) return planGate;
 
   // Resolve detailer_id: for crew tokens, use detailer_id field; for detailer tokens, use id
   const detailerId = user.detailer_id || user.id;

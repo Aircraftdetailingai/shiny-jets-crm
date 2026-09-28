@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,8 @@ function buildUserResponse(data, isAdmin, { includeRemit = false } = {}) {
       ach_account_name: data.ach_account_name || null,
       ach_bank_name: data.ach_bank_name || null,
     } : {}),
-    plan: isAdmin ? 'enterprise' : (data.plan || 'free'),
+    plan: isAdmin ? 'business' : normalizePlan(data.plan),
+      plan_raw: data.plan || 'free',
     is_admin: isAdmin,
     status: data.status,
     rates: data.rates || {},

@@ -3,6 +3,8 @@ import { getAuthUser } from '@/lib/auth';
 import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { normalizePlan } from '@/lib/plans';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,9 +101,9 @@ function ReportPDF({ type, data, detailer, startDate, endDate }) {
         <View style={s.header}>
           <View style={s.headerRow}>
             <View>
-              <Text style={s.logoText}>{detailer?.plan === 'enterprise' ? companyName : 'Shiny Jets'}</Text>
+              <Text style={s.logoText}>{normalizePlan(detailer?.plan) === 'free' ? 'Shiny Jets' : companyName}</Text>
               <Text style={s.logoSub}>AIRCRAFT DETAILING</Text>
-              {detailer?.plan !== 'enterprise' && <Text style={s.companyName}>{companyName}</Text>}
+              {normalizePlan(detailer?.plan) === 'free' && <Text style={s.companyName}>{companyName}</Text>}
               {detailer?.email && <Text style={s.companyDetail}>{detailer.email}</Text>}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
@@ -123,7 +125,7 @@ function ReportPDF({ type, data, detailer, startDate, endDate }) {
         {/* Footer */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>Generated {generatedDate}</Text>
-          {detailer?.plan === 'pro' && (
+          {normalizePlan(detailer?.plan) === 'lite' && (
             <Text style={s.footerGold}>Powered by Shiny Jets Aviation</Text>
           )}
         </View>
@@ -328,6 +330,8 @@ export async function GET(request) {
   try {
     const user = await getAuthUser(request);
     if (!user) return new Response('Unauthorized', { status: 401 });
+    const planGate = await requireFeature(request, 'reports', { user: user });
+    if (planGate) return planGate;
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'revenue';

@@ -1,6 +1,7 @@
 import { env } from '@/lib/env';
 import { getAuthUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -13,6 +14,8 @@ export async function GET(request) {
       headers: { 'Cache-Control': 'private, no-store' },
     });
   }
+  const planGate = await requireFeature(request, 'googleCalendar', { user: user });
+  if (planGate) return planGate;
 
   const configured = !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CALENDAR_REDIRECT_URI);
 

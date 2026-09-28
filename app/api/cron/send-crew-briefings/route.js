@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendCrewBriefing } from '@/lib/send-crew-briefing';
+import { planChecker } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -50,8 +51,10 @@ export async function GET(request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
+  const allowed = planChecker(supabase);
   for (const job of jobs || []) {
     results.considered++;
+    if (!(await allowed(job.detailer_id, 'crewApp'))) { results.skipped++; continue; } // Business
 
     const inWindow = job.crew_briefing_send === 'morning_of'
       ? job.scheduled_date === todayDate

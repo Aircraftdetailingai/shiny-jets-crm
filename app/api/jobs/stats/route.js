@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
@@ -11,6 +12,8 @@ export async function GET(request) {
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
+  const planGate = await requireFeature(request, 'reports', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
   const { searchParams } = new URL(request.url);

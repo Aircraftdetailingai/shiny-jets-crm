@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { requireFeature } from '@/lib/plan-gate';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,8 @@ export async function POST(request) {
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const planGate = await requireFeature(request, 'products', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
   const { quoteId, productId, amountUsed, unit, notes } = await request.json();
@@ -143,6 +146,8 @@ export async function DELETE(request) {
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const planGate = await requireFeature(request, 'products', { user: user });
+  if (planGate) return planGate;
 
   const supabase = getSupabase();
   const { searchParams } = new URL(request.url);
