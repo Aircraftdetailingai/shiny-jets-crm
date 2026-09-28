@@ -2,7 +2,7 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's shop recipes (`shop-recipes-paint-brightwork-carpet.md`, Sep 28 2026) override this book where they conflict. Current brightwork one-step: Grant's microfiber pad (Harbor Freight) + 4 pea-sized dots Fly Shiny Striker + 1 spray Fly Shiny Maverick (no holograms). The book's multi-step process below is reference; its cautions (under 150°F / 150F, tape & plastic-sheet paint, PPE, dedicated Tornador) always apply.
+**Precedence:** Brett's shop recipes (stored privately server-side; Sep 28 2026) override this book where they conflict. The current brightwork one-step is Brett's shop recipe (private). The book's multi-step process below is reference; its cautions (under 150°F / 150F, tape & plastic-sheet paint, PPE, dedicated Tornador) always apply.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---

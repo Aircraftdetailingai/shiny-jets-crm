@@ -2,7 +2,7 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's shop recipes (`shop-recipes-*.md`, Sep 28 2026) override this book where they conflict on products, pads, or steps.
+**Precedence:** Brett's shop recipes (stored privately server-side; Sep 28 2026) override this book where they conflict on products, pads, or steps.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---

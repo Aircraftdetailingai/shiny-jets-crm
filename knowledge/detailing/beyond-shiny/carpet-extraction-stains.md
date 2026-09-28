@@ -2,7 +2,7 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's shop recipes (`shop-recipes-paint-brightwork-carpet.md`, Sep 28 2026) override this book where they conflict. Current method for carpet grease / ink / Sharpie: Oil Delete + cotton terry fingertip press method (30-60 presses). The book's Citrus Solv / MEK oil path below is older reference; if MEK is ever used, the book's limits (coin-sized last resort, chemical-resistant gloves + respirator, patch test) always apply.
+**Precedence:** Brett's shop recipes (stored privately server-side; Sep 28 2026) override this book where they conflict. Current method for carpet grease / ink / Sharpie is Brett's shop recipe (private). The book's Citrus Solv / MEK oil path below is older reference; if MEK is ever used, the book's limits (coin-sized last resort, chemical-resistant gloves + respirator, patch test) always apply.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---
@@ -20,6 +20,6 @@ Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach t
 **Stain recipes (only as stated):**
 - **Protein:** Wool Perfect pre-spray, then extract. [L2039]
 - **Oil/grease:** blot oil with terry, scrape grease with a plastic scraper → **"Citrus Solv" / "Citrusolve" at 1-2 oz per gallon (of water)** to saturate → pre-spray + extract, and repeat or strengthen slightly if needed → last resort for **coin-sized** spots only: **MEK** on a terry around your finger, with chemical-resistant gloves and a respirator. Test first. [L1981, L2045-2050, L1986-1989]
-  - ⚠ Current shop method for grease / ink / Sharpie → Oil Delete + terry press (shop recipe). The MEK limits above always apply.
+  - ⚠ Current shop method for grease / ink / Sharpie → Brett's shop recipe (private). The MEK limits above always apply.
 - **Coffee:** **"Bridgepoint - Coffee Stain Remover", 1 scoop per quart of hot water** (as hot as the spilled coffee / boiling), spray, repeat if needed, then extract. [L1975, L2054-2055]
 - **Wine (wool):** mix equal parts of solution "A" and solution "B" (as written, a two-part product; the book doesn't say which bottles A and B are). Rinse with hot-water extraction and blot. Put "Pro's Choice CSS" on the colored fibers with a dropper. Apply "Stain Magic for WOOL" and wait up to 15 min. If needed, lay a damp folded terry over it and use a steam iron on its lowest setting for **3 seconds**, **no more than 2 repeats**. Extraction rinse, then saturate with **CSS diluted 3 parts water : 1 part CSS**, then another extraction rinse. "Red Relief for Wool" is mentioned alongside CSS. [L1992-1999, L2059-2062]

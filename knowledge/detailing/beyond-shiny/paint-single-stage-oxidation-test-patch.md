@@ -2,13 +2,13 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's shop recipes (`shop-recipes-paint-brightwork-carpet.md`, Sep 28 2026) override this book for paint correction. The book's medium-oxidation recipe (Rupes blue wool + Fly Shiny Pro Cut) is **superseded**: current single-stage method is DA + SPTA coarse blue wool (5"/6") + Menzerna 400 (heavy: rotary + Lake Country steamed wool first). The book does **not** cover clearcoat — use the shop recipes for clearcoat (Fly Shiny Polish Pro on foam; more correction SPTA wool + 3D ACA 500, finish Polish Pro on foam). Always ask single-stage vs clearcoat first.
+**Precedence:** Brett's shop recipes (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation recipe (Rupes blue wool + Fly Shiny Pro Cut) is **superseded** for current single-stage work — use the shop-recipe excerpt when Detailing AI provides it. The book does **not** cover clearcoat — use the shop recipe for clearcoat. Always ask single-stage vs clearcoat first.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---
 
 ## 0. Coverage gaps (answer carefully)
-- **Menzerna is not mentioned anywhere in the book.** No Menzerna product or recipe exists in this source. Don't attribute any Menzerna guidance to Beyond Shiny.
+- **Only attribute products the book actually names.** Don't attribute shop-recipe products or steps to Beyond Shiny.
 - **Clearcoat aircraft paint is not covered.** The book assumes aircraft **single-stage** paint. "Clear coat" shows up only (a) in a comparison to car clear coat, where pads load up with more paint on aircraft [L900], and (b) for leather topcoat [L1863]. It gives no clearcoat-specific process.
 - Other brands named in passing: Meguiar's (Brett's first car-polishing story, not a recommendation) [L1315]; Simple Green (as a **staining warning**) [L550]; Nuvite, F7, G6 (metal polishes) [L1388-1397].
 - There are no fabric-covered aircraft procedures beyond the degreaser staining caution [L550].
@@ -28,7 +28,7 @@ Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach t
 - **Salvageable?** Look at the paint from a 45° angle. If there is some gloss under the oxidation, it can be restored. [L985]
 - **Light oxidation:** can't be seen, or comes off easily with a foam pad and polish. Paint can lose gloss in about 6 months. **Recipe:** DA polisher + foam pad + polish; "Fly Shiny Pro Polish is a great options for light oxidation removal." Use a medium-to-fast tempo on larger sections. A light polish or polishing wax can also work. [L940-941, L988-990]
 - **Medium oxidation:** visible to the naked eye, blotchy or faded. **Recipe:** DA polisher + "Fly Shiny Pro Cut" + "Rupes blue wool pad", one step. [L944] A rotary also works, and is recommended if the oxidation is closer to heavy. [L984]
-  - ⚠ **Superseded for current shop work** → `shop-recipes-paint-brightwork-carpet.md` (single-stage: DA + SPTA coarse blue wool + Menzerna 400; heavy: rotary + Lake Country steamed wool first, then the DA step).
+  - ⚠ **Superseded for current shop work** → Brett's single-stage shop recipe (private; light/moderate and heavy oxidation steps).
 - **Heavy oxidation:** faded, blotchy, chalky. "sometimes best to walk away" because of the risk of burning through rivets or paint. Heavy compounding shortens paint life, and restored paint re-oxidizes faster. **Recipe:** DA + Rupes blue wool + Fly Shiny Pro Cut in smaller sections (uses a lot of pads), **or** rotary + wool pad + compound for bigger sections and faster work. [L947-948]
-  - ⚠ **Superseded for current shop work** → `shop-recipes-paint-brightwork-carpet.md` (single-stage: DA + SPTA coarse blue wool + Menzerna 400; heavy: rotary + Lake Country steamed wool first, then the DA step).
+  - ⚠ **Superseded for current shop work** → Brett's single-stage shop recipe (private; light/moderate and heavy oxidation steps).
 - Washing heavily oxidized paint: rinse, foam, then brush. Put all-purpose cleaner on the brush for stains. Rinse before it dries. You don't need to dry it, because heavily oxidized paint won't spot. [L753-755]
