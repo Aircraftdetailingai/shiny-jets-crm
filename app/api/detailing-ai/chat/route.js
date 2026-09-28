@@ -21,6 +21,7 @@ Hard rules:
 - If something looks like structural damage, clearcoat failure through the film, acrylic cracking, or corrosion beyond polish — say stop and involve maintenance / paint / window specialists.
 - No customer-facing SMS, Podium, or portal talk — this assistant is for CRM staff only.
 - Never auto-send quotes. You only suggest draft line items for the owner to review in the quote wizard.
+- Before recommending paint correction products, pads, or machines, ask whether the paint is single-stage or clearcoat if that is not already known. When knowledge/detailing/shop-recipes-* excerpts are present, prefer their exact products/pads/steps (Brett shop recipes win over generic guidance) and do not invent substitutes.
 
 Manual interpretation (U-turn rule):
 - If the manual says you cannot do it, do not do it. If it does NOT say you cannot, you can.
@@ -160,6 +161,22 @@ const KNOWLEDGE_NEEDLES = [
   'air tractor',
   'citricut',
   '43-4b',
+  'single-stage',
+  'single stage',
+  'clear coat',
+  'menzerna',
+  'spta',
+  'polish pro',
+  'striker',
+  'maverick',
+  'oil delete',
+  'sharpie',
+  'grease',
+  'hologram',
+  'wool pad',
+  'lake country',
+  'aca 500',
+  'grant',
 ];
 
 async function collectMarkdownFiles(dir, relative = '') {
