@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 const CONFIDENCE_STYLES = {
   estimated: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Estimated' },
@@ -191,7 +192,7 @@ export default function LogProductsPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-v-text-primary font-semibold text-base truncate">Log Products Used</h1>
             <p className="text-v-text-secondary text-xs truncate">
-              {jobData?.client_name} &middot; {jobData?.aircraft_model || jobData?.aircraft_type}
+              {jobData?.client_name} &middot; {aircraftDisplayName(jobData || {})}
             </p>
           </div>
           <span className={`px-2 py-1 rounded text-[10px] uppercase ${

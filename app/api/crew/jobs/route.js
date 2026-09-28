@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -159,10 +160,10 @@ export async function GET(request) {
     let aircraftDisplay;
     if (job._source === 'jobs_table') {
       // Manual job: aircraft_type holds the make, aircraft_model holds the model
-      aircraftDisplay = [job.aircraft_type, job.aircraft_model].filter(Boolean).join(' ') || 'Aircraft';
+      aircraftDisplay = aircraftDisplayName({ aircraft_make: job.aircraft_type, aircraft_model: job.aircraft_model });
     } else {
       // Quote-based: aircraft_model is already the full name
-      aircraftDisplay = job.aircraft_model || 'Aircraft';
+      aircraftDisplay = aircraftDisplayName({ aircraft_model: job.aircraft_model, aircraft_type: job.aircraft_type });
     }
 
     const result = {

@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
+import { selectWithRetry } from '@/lib/select-with-retry';
+import { isCollected, collectedAt, isDone, amountOf, startOfMonthIso } from '@/lib/revenue';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +34,9 @@ export async function GET(request) {
 
     // Time ranges
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    // "This month" in the owner's time zone (dashboard passes ?tz=…).
+    const tz = new URL(request.url).searchParams.get('tz');
+    const startOfMonth = startOfMonthIso(tz, now);
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
     const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -63,11 +68,11 @@ export async function GET(request) {
         .eq('detailer_id', user.detailer_id || user.id)
         .gte('created_at', startOfMonth),
 
-      // All time stats
-      supabase
-        .from('quotes')
-        .select('id, total_price, status, created_at, paid_at, accepted_at, completed_at')
-        .eq('detailer_id', user.detailer_id || user.id),
+      // All time stats. accepted_at is a soft column — if it's missing on
+      // this deployment the old plain select errored and every revenue
+      // figure silently became $0.
+      selectWithRetry(supabase, 'quotes', 'id, total_price, status, created_at, paid_at, accepted_at, completed_at, scheduled_date', (q) => q
+        .eq('detailer_id', user.detailer_id || user.id), { label: 'dashboard' }),
 
       // Pending quotes (sent but not accepted/paid)
       supabase
@@ -123,6 +128,13 @@ export async function GET(request) {
     const weekPoints = weekPointsRes.data || [];
     const monthQuotes = monthQuotesRes.data || [];
     const allQuotes = allQuotesRes.data || [];
+
+    // Manually created jobs (jobs table). Rows spawned from a quote are
+    // skipped so a job is never counted twice.
+    const { data: manualJobRows } = await selectWithRetry(supabase, 'jobs', 'id, quote_id, total_price, status, created_at, completed_at, paid_at, scheduled_date', (q) => q
+      .eq('detailer_id', user.detailer_id || user.id), { label: 'dashboard' });
+    const quoteIdSet = new Set(allQuotes.map((q) => q.id));
+    const manualJobs = (manualJobRows || []).filter((j) => !j.quote_id || !quoteIdSet.has(j.quote_id));
     const pendingQuotes = pendingRes.data || [];
     const todayJobs = todayJobsRes.data || [];
     const feedbackData = feedbackRes.data || [];
@@ -154,10 +166,16 @@ export async function GET(request) {
       const ts = q.paid_at || q.completed_at || q.accepted_at || q.created_at;
       return ts && ts >= startOfMonth;
     });
-    const monthCompletedQuotes = allQuotes.filter(q => {
-      if (q.status !== 'completed') return false;
-      const ts = q.completed_at || q.paid_at || q.created_at;
-      return ts && ts >= startOfMonth;
+    // Collected revenue this month = paid or completed work (quotes + manual
+    // jobs), dated by payment / completion. Same definition the Jobs page
+    // uses for its "Collected" figure (lib/revenue.js).
+    const inMonth = (ts) => !!ts && new Date(ts).getTime() >= new Date(startOfMonth).getTime();
+    const monthCollectedRows = [...allQuotes, ...manualJobs].filter((r) => isCollected(r) && inMonth(collectedAt(r)));
+    const monthCollected = monthCollectedRows.reduce((sum, r) => sum + amountOf(r), 0);
+    const monthCompletedQuotes = [...allQuotes, ...manualJobs].filter(q => {
+      if (!isDone(q)) return false;
+      const ts = q.completed_at || q.paid_at || q.scheduled_date || q.created_at;
+      return inMonth(ts);
     });
     const allPaidQuotes = allQuotes.filter(isRevenue);
 
@@ -209,7 +227,7 @@ export async function GET(request) {
     const recentActivity = [];
     for (const q of recentQuotesRaw) {
       const name = q.client_name || 'Customer';
-      const aircraft = q.aircraft_model || q.aircraft_type || 'Aircraft';
+      const aircraft = aircraftDisplayName(q);
       const price = parseFloat(q.total_price) || 0;
 
       if (q.completed_at) {
@@ -243,7 +261,12 @@ export async function GET(request) {
 
     return Response.json({
       // Quick stats format (for dashboard quick stats bar)
-      monthRevenue: monthBooked,
+      // monthRevenue = collected (paid + completed) this month.
+      // monthBooked = accepted/scheduled pipeline converted this month.
+      monthRevenue: monthCollected,
+      monthCollected,
+      monthBooked,
+      monthStart: startOfMonth,
       weekRevenue: weekBooked,
       monthJobs: monthCompletedQuotes.length,
       pendingQuotes: pendingQuotes.length,

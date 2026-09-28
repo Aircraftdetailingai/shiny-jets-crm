@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import MediaGrid from '@/components/MediaGrid';
 import MediaLightbox from '@/components/MediaLightbox';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 export default function JobPhotosPage() {
   const router = useRouter();
@@ -178,7 +179,7 @@ export default function JobPhotosPage() {
             <h1 className="text-2xl font-bold">Job Documentation</h1>
             {quote && (
               <p className="text-v-text-secondary text-sm">
-                {quote.aircraft_type} {quote.aircraft_model}
+                {aircraftDisplayName(quote)}
                 {quote.tail_number && ` · ${quote.tail_number}`}
               </p>
             )}

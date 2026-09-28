@@ -1,5 +1,6 @@
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { decodeHtmlEntities } from '@/lib/html-entities';
 
 export const dynamic = 'force-dynamic';
 
@@ -225,13 +226,10 @@ function detectSite(url) {
 // Clean up extracted name
 function cleanName(name) {
   if (!name) return null;
-  // Remove site suffixes
-  return name
+  // Decode entities first (&amp; &#39; &#x27; …), then remove site suffixes
+  return decodeHtmlEntities(name)
     .replace(/\s*[-|]\s*(Amazon\.com|Home Depot|Grainger|Detail King|Rupes|Autogeek|Fly Shiny|Real Clean Aviation|Skygeek|Aircraft Spruce|Chief Aircraft|Nuvite).*$/i, '')
     .replace(/\s*[-|]\s*The Home Depot.*$/i, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
     .trim();
 }
 

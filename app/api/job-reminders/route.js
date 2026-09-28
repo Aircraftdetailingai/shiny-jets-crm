@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,7 @@ export async function GET(request) {
         reminders.push({
           type: 'before_media_missing',
           quote_id: job.id,
-          aircraft: `${job.aircraft_type} ${job.aircraft_model}`,
+          aircraft: aircraftDisplayName(job),
           title: 'Take Before Photos/Video',
           message: `Job started but no before documentation. Take photos now to protect yourself.`,
           action_url: `/jobs/${job.id}/photos`,
@@ -79,7 +80,7 @@ export async function GET(request) {
         reminders.push({
           type: 'after_media_reminder',
           quote_id: job.id,
-          aircraft: `${job.aircraft_type} ${job.aircraft_model}`,
+          aircraft: aircraftDisplayName(job),
           title: 'Take After Photos',
           message: `Job ending soon. Document your completed work before you leave.`,
           action_url: `/jobs/${job.id}/photos`,
@@ -92,7 +93,7 @@ export async function GET(request) {
         reminders.push({
           type: 'after_media_missing',
           quote_id: job.id,
-          aircraft: `${job.aircraft_type} ${job.aircraft_model}`,
+          aircraft: aircraftDisplayName(job),
           title: 'Missing After Photos',
           message: `Job marked complete but no after photos. Add them for your records.`,
           action_url: `/jobs/${job.id}/photos`,

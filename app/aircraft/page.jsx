@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
+import { aircraftMakeModel } from '@/lib/aircraft-labels';
 
 export default function FleetIndexPage() {
   const router = useRouter();
@@ -28,13 +29,26 @@ export default function FleetIndexPage() {
       if (!term) return true;
       return `${a.aircraft_model || ''} ${a.tail_number || ''} ${a.customer_name || ''}`.toLowerCase().includes(term);
     });
+    // Defensive de-dupe by tail (the API already merges duplicate rows).
+    const seen = new Set();
+    const unique = filtered.filter((a) => {
+      const k = (a.tail_number || '').toUpperCase().trim() || a.id;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    // Group case-insensitively so "GULFSTREAM G4" and "Gulfstream G4" share
+    // one heading; prefer the mixed-case spelling for the label.
     const byModel = {};
-    for (const a of filtered) {
-      const key = a.aircraft_model || 'Unspecified model';
+    const labelFor = {};
+    for (const a of unique) {
+      const name = aircraftMakeModel(a.manufacturer, a.model) || a.aircraft_model || 'Unspecified model';
+      const key = name.toLowerCase();
       (byModel[key] = byModel[key] || []).push(a);
+      if (!labelFor[key] || (labelFor[key] === labelFor[key].toUpperCase() && name !== name.toUpperCase())) labelFor[key] = name;
     }
     return Object.entries(byModel)
-      .map(([model, rows]) => [model, rows.slice().sort((x, y) => (x.tail_number || '').localeCompare(y.tail_number || ''))])
+      .map(([key, rows]) => [labelFor[key], rows.slice().sort((x, y) => (x.tail_number || '').localeCompare(y.tail_number || ''))])
       .sort((a, b) => a[0].localeCompare(b[0]));
   }, [aircraft, query]);
 
@@ -46,7 +60,7 @@ export default function FleetIndexPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-light text-white">Fleet</h1>
           <p className="text-sm text-v-text-secondary mt-1">
-            {aircraft.length} aircraft on file across your customers
+            {new Set(aircraft.map((a) => (a.tail_number || '').toUpperCase().trim() || a.id)).size} aircraft on file across your customers
           </p>
         </div>
 
@@ -66,13 +80,13 @@ export default function FleetIndexPage() {
             {groups.map(([model, rows]) => (
               <section key={model}>
                 <div className="flex items-baseline justify-between border-b border-v-border pb-2 mb-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-v-gold">{model}</h2>
+                  <h2 className="text-sm font-semibold tracking-wide text-v-gold">{model}</h2>
                   <span className="text-xs text-v-text-secondary">{rows.length} tail{rows.length === 1 ? '' : 's'}</span>
                 </div>
                 <div className="divide-y divide-v-border">
                   {rows.map((a) => (
-                    <div key={a.id || a.tail_number} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
+                    <div key={a.id || a.tail_number} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-3">
+                      <div className="min-w-0 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                         <Link
                           href={`/aircraft/${encodeURIComponent(a.tail_number)}`}
                           className="text-v-text-primary font-mono hover:text-v-gold transition-colors"
@@ -80,7 +94,7 @@ export default function FleetIndexPage() {
                           {a.tail_number}
                         </Link>
                         {a.customer_name && (
-                          <span className="text-v-text-secondary text-sm ml-3">
+                          <span className="text-v-text-secondary text-sm">
                             {a.customer_id ? (
                               <Link href={`/customers/${a.customer_id}`} className="hover:text-v-gold transition-colors">
                                 {a.customer_name}

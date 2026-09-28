@@ -159,7 +159,7 @@ function DashboardContent() {
 
       const [servicesRes, statsRes, quotesRes, upcomingRes, requestsRes, followUpsRes, staleRes, quotaRes, teamRes, corRes] = await Promise.allSettled([
         fetch('/api/services', { headers }),
-        fetch('/api/dashboard/stats', { headers }),
+        fetch(`/api/dashboard/stats?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || '')}`, { headers }),
         fetch('/api/quotes?limit=5&sort=created_at&order=desc', { headers }),
         fetch('/api/quotes?status=paid,scheduled,in_progress&has_date=true&limit=10&sort=scheduled_date&order=asc', { headers }),
         fetch('/api/lead-intake/leads?status=new', { headers }),
@@ -415,13 +415,13 @@ function DashboardContent() {
         <div className="mt-10">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-10 gap-y-8">
             {[
-              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'This Month' },
+              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthCollected ?? quickStats?.monthRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Collected this month (paid + completed)', title: 'Paid or completed work this month (quotes and manual jobs). Booked-but-unpaid work is shown on Jobs as Scheduled value.' },
               { label: 'Conversion', value: conversionRate, sub: quoteCount ? `${bookedCount} of ${quoteCount}` : '' },
               { label: 'Outstanding', value: `${quickStats?.outstandingInvoices || 0}`, sub: `${currencySymbol()}${(quickStats?.outstandingTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, danger: true },
               { label: 'Avg Job', value: `${currencySymbol()}${formatPriceWhole(quickStats?.avgJobValue)}` },
               { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This Month' },
             ].map((kpi) => (
-              <div key={kpi.label} className="min-w-0">
+              <div key={kpi.label} className="min-w-0" title={kpi.title}>
                 <p className={`text-2xl sm:text-[2.5rem] leading-none font-extralight font-data tracking-wide ${kpi.danger ? 'text-v-danger' : 'text-v-gold'}`}>
                   {kpi.value}
                 </p>
@@ -598,12 +598,16 @@ function DashboardContent() {
                 </div>
                 {changeOrderRequests.slice(0, 3).map(cor => (
                   <a key={cor.id} href={`/change-orders/${cor.id}`}
-                    className="flex items-center justify-between py-2.5 border-b border-v-border-subtle/50 hover:bg-white/[0.02] transition-colors">
-                    <div className="min-w-0">
+                    className="flex items-start justify-between gap-3 py-2.5 border-b border-v-border-subtle/50 hover:bg-white/[0.02] transition-colors">
+                    <div className="min-w-0 flex-1">
                       <p className="text-white text-sm truncate">{cor.team_member_name || 'Crew'} found an issue</p>
-                      <p className="text-v-text-secondary text-xs truncate">{cor.description?.slice(0, 60)}</p>
+                      {/* Full note, clamped to two lines with an ellipsis —
+                          never cut mid-word by a fixed character slice. */}
+                      {cor.description && (
+                        <p className="text-v-text-secondary text-xs line-clamp-2 break-words" title={cor.description}>{cor.description}</p>
+                      )}
                     </div>
-                    <span className="text-amber-400 text-[10px] uppercase tracking-wider ml-3 shrink-0">Review</span>
+                    <span className="text-amber-400 text-[10px] uppercase tracking-wider shrink-0 pt-0.5">Review</span>
                   </a>
                 ))}
               </div>
@@ -870,7 +874,7 @@ function DashboardContent() {
             toastSuccess(data?.created ? 'Customer added!' : 'Customer saved!');
             const token = localStorage.getItem('vector_token');
             if (token) {
-              fetch('/api/dashboard/stats', { headers: { Authorization: `Bearer ${token}` } })
+              fetch(`/api/dashboard/stats?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || '')}`, { headers: { Authorization: `Bearer ${token}` } })
                 .then(r => r.ok ? r.json() : null)
                 .then(d => { if (d) setQuickStats(d); })
                 .catch(() => {});

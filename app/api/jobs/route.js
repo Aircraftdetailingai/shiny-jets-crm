@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { selectWithRetry } from '@/lib/select-with-retry';
+import { isCollected, isOpenJob, sumAmounts } from '@/lib/revenue';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -30,41 +32,36 @@ export async function GET(request) {
 
   const supabase = getSupabase();
 
-  // Query quotes directly with column-stripping retry
-  let selectCols = 'id, client_name, client_email, customer_company, aircraft_model, aircraft_type, tail_number, total_price, status, scheduled_date, created_at, completed_at, services, line_items, share_link';
-  let jobs = null;
-
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await supabase
-      .from('quotes')
-      .select(selectCols)
+  // Query quotes directly with column-stripping retry. (The previous
+  // hand-rolled regex captured only the last letter of the missing column,
+  // so one absent soft column emptied the whole list.)
+  const { data: quoteRows } = await selectWithRetry(
+    supabase,
+    'quotes',
+    'id, client_name, client_email, customer_company, aircraft_model, aircraft_type, tail_number, total_price, status, scheduled_date, created_at, completed_at, paid_at, services, line_items, share_link',
+    (q) => q
       .eq('detailer_id', user.detailer_id || user.id)
       .in('status', JOB_STATUSES)
-      .order('scheduled_date', { ascending: true, nullsFirst: false });
-
-    if (!error) { jobs = data; break; }
-
-    const colMatch = error.message?.match(/column [\w.]+"?(\w+)"? does not exist/)
-      || error.message?.match(/Could not find the '([^']+)' column/)
-      || error.message?.match(/column "([^"]+)".*does not exist/);
-    if (colMatch) {
-      selectCols = selectCols.split(',').map(c => c.trim()).filter(c => c !== colMatch[1]).join(', ');
-      console.log(`[jobs] Stripped missing column '${colMatch[1]}', retrying...`);
-      continue;
-    }
-    console.log('[jobs] Quote query error:', error.message);
-    break;
-  }
+      .order('scheduled_date', { ascending: true, nullsFirst: false }),
+    { label: 'jobs' },
+  );
+  let jobs = quoteRows;
 
   jobs = jobs || [];
 
   // Also fetch from jobs table (manually created jobs)
   try {
-    const { data: manualJobs } = await supabase
-      .from('jobs')
-      .select('id, customer_name, customer_email, customer_phone, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, scheduled_time, schedule_override, payment_method, created_at, completed_at, completion_notes')
-      .eq('detailer_id', user.detailer_id || user.id)
-      .order('created_at', { ascending: false });
+    // quote_id is required for the de-dupe below — without it every job
+    // spawned from a quote was listed (and summed into revenue) twice.
+    const { data: manualJobs } = await selectWithRetry(
+      supabase,
+      'jobs',
+      'id, quote_id, customer_name, customer_email, customer_phone, aircraft_make, aircraft_model, tail_number, airport, services, total_price, status, scheduled_date, scheduled_time, schedule_override, payment_method, created_at, completed_at, paid_at, completion_notes',
+      (q) => q
+        .eq('detailer_id', user.detailer_id || user.id)
+        .order('created_at', { ascending: false }),
+      { label: 'jobs' },
+    );
 
     if (manualJobs?.length > 0) {
       // Merge — avoid duplicates by quote_id
@@ -85,6 +82,7 @@ export async function GET(request) {
           schedule_override: !!mj.schedule_override,
           created_at: mj.created_at,
           completed_at: mj.completed_at,
+          paid_at: mj.paid_at,
           services: typeof mj.services === 'string' ? (() => { try { return JSON.parse(mj.services); } catch { return mj.services; } })() : mj.services,
           _source: 'jobs_table',
         });
@@ -106,7 +104,12 @@ export async function GET(request) {
     scheduled: jobs.filter(j => j.status === 'scheduled').length,
     inProgress: jobs.filter(j => j.status === 'in_progress').length,
     completed: jobs.filter(j => ['completed', 'complete'].includes(j.status)).length,
-    totalRevenue: jobs.reduce((sum, j) => sum + (parseFloat(j.total_price) || 0), 0),
+    // Booked, not yet finished — pipeline, not money in the bank.
+    scheduledValue: sumAmounts(jobs.filter(isOpenJob)),
+    // Paid or completed — same definition as the Dashboard revenue KPI.
+    collectedRevenue: sumAmounts(jobs.filter(isCollected)),
+    // Legacy: value of every job on the board (kept for older clients).
+    totalRevenue: sumAmounts(jobs),
   };
 
   console.log(`[jobs] Returning ${jobs.length} jobs (${jobs.filter(j => j._source === 'jobs_table').length} from jobs table, ${jobs.filter(j => !j._source).length} from quotes)`);

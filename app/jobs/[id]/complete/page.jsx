@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { computeLinkedProductQuantity } from '@/lib/product-quantity';
+import { aircraftDisplayName } from '@/lib/aircraft-labels';
 
 const SURFACE_TAGS = [
   { key: 'exterior', label: 'Exterior' },
@@ -197,7 +198,7 @@ export default function JobCompletePage() {
     );
   }
 
-  const aircraft = [quote?.aircraft_type, quote?.aircraft_model].filter(Boolean).join(' ') || 'Aircraft';
+  const aircraft = aircraftDisplayName(quote || {});
 
   return (
     <div className="min-h-screen bg-v-charcoal p-4">

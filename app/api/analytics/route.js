@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { resolveDetailerId } from '@/lib/resolve-detailer';
+import { selectWithRetry } from '@/lib/select-with-retry';
+import { isCollected } from '@/lib/revenue';
+import { aircraftDisplayName, humanizeAircraftCategory } from '@/lib/aircraft-labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,68 +32,82 @@ export async function GET(request) {
   // Owner JWTs put detailer.id in user.id; crew JWTs put it in
   // user.detailer_id. Resolve once so analytics queries land on the right
   // detailer regardless of session shape.
-  const detailerId = user.detailer_id || user.id;
+  const detailerId = await resolveDetailerId(supabase, user);
   // Debug: log resolved detailer_id (the user.id was logged before, which
   // surfaced 500s when crew JWTs fell into this route).
   console.log('[analytics] detailerId:', detailerId, '| user.id:', user.id, '| role:', user.role || 'owner', '| days:', days, '| since:', since);
 
-  // Fetch quotes with column-stripping retry (in case accepted_at or other columns don't exist yet)
-  let quotesSelect = 'id, status, total_price, created_at, sent_at, viewed_at, accepted_at, paid_at, completed_at, scheduled_date, client_name, client_email, aircraft_model, aircraft_type, services';
-  let quotesRes;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    quotesRes = await supabase
-      .from('quotes')
-      .select(quotesSelect)
+  // Quotes in the period. selectWithRetry strips soft columns that don't
+  // exist on this deployment (the old inline regex never matched
+  // PostgREST's "column quotes.x does not exist" message, so one missing
+  // column zeroed the whole dashboard).
+  const quoteCols = 'id, status, total_price, created_at, sent_at, viewed_at, accepted_at, paid_at, completed_at, scheduled_date, client_name, client_email, customer_company, aircraft_model, aircraft_type, line_items';
+  const [periodRes, allTimeRes, customersRes, manualJobsRes] = await Promise.all([
+    selectWithRetry(supabase, 'quotes', quoteCols, (q) => q
       .eq('detailer_id', detailerId)
       .gte('created_at', since)
-      .order('created_at', { ascending: true });
-    if (!quotesRes.error) break;
-    const colMatch = quotesRes.error.message?.match(/column ['"]([\w]+)['"] .* does not exist/i)
-      || quotesRes.error.message?.match(/Could not find the '([\w]+)' column/i);
-    if (colMatch) {
-      console.log(`[analytics] stripping unknown column "${colMatch[1]}", retrying...`);
-      quotesSelect = quotesSelect.split(', ').filter(c => c.trim() !== colMatch[1]).join(', ');
-      continue;
-    }
-    console.error('[analytics] quotes query error:', quotesRes.error.message);
-    break;
-  }
+      .order('created_at', { ascending: true }), { label: 'analytics' }),
+    // All-time quotes (no date filter) for LTV / churn. Filtered in memory
+    // with the shared revenue definitions instead of a status list that
+    // drifted from the real lifecycle (deposit_paid was missing).
+    selectWithRetry(supabase, 'quotes', 'id, status, total_price, client_email, client_name, customer_company, paid_at, accepted_at, completed_at, scheduled_date, created_at', (q) => q
+      .eq('detailer_id', detailerId), { label: 'analytics' }),
+    selectWithRetry(supabase, 'customers', 'id, name, email, company_name', (q) => q
+      .eq('detailer_id', detailerId), { label: 'analytics' }),
+    // Manually created jobs (jobs table) are real work too. Rows linked to
+    // a quote are skipped below so nothing is double counted.
+    selectWithRetry(supabase, 'jobs', 'id, quote_id, customer_name, customer_email, aircraft_make, aircraft_model, services, total_price, status, scheduled_date, created_at, completed_at, paid_at', (q) => q
+      .eq('detailer_id', detailerId), { label: 'analytics' }),
+  ]);
 
-  // Fetch customers (basic info only — LTV/churn computed from quotes)
-  const customersRes = await supabase
-    .from('customers')
-    .select('id, name, email')
-    .eq('detailer_id', detailerId);
+  const allQuotes = periodRes.data;
+  const allCustomers = customersRes.data;
+  const quoteIds = new Set(allTimeRes.data.map((q) => q.id));
+  const manualJobs = manualJobsRes.data
+    .filter((j) => !j.quote_id || !quoteIds.has(j.quote_id))
+    .map((j) => ({
+      id: j.id,
+      status: j.status === 'complete' ? 'completed' : (j.status || 'scheduled'),
+      total_price: j.total_price,
+      client_name: j.customer_name,
+      client_email: j.customer_email,
+      aircraft_model: j.aircraft_model,
+      aircraft_type: j.aircraft_make,
+      created_at: j.created_at,
+      completed_at: j.completed_at,
+      paid_at: j.paid_at,
+      scheduled_date: j.scheduled_date,
+      _services: (() => {
+        if (Array.isArray(j.services)) return j.services;
+        if (typeof j.services === 'string') { try { const v = JSON.parse(j.services); return Array.isArray(v) ? v : []; } catch { return []; } }
+        return [];
+      })(),
+      _source: 'jobs_table',
+    }));
+  const periodManualJobs = manualJobs.filter((j) => (j.created_at || '') >= since || (j.completed_at || '') >= since);
 
-  // Fetch ALL paid quotes for this detailer (no date filter) for LTV and churn calculations
-  const allPaidRes = await supabase
-    .from('quotes')
-    .select('id, status, total_price, client_email, client_name, paid_at, accepted_at, created_at')
-    .eq('detailer_id', detailerId)
-    .in('status', ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed']);
-
-  const allQuotes = quotesRes?.data || [];
-  const allCustomers = customersRes?.data || [];
-  const allTimePaidQuotes = allPaidRes?.data || [];
-
-  console.log('[analytics] quotes found:', allQuotes.length, '| statuses:', allQuotes.map(q => q.status));
+  console.log('[analytics] quotes in period:', allQuotes.length, '| all-time quotes:', allTimeRes.data.length, '| manual jobs:', manualJobs.length, '| customers:', allCustomers.length);
 
   // --- Conversion funnel ---
-  const SENT_STATUSES = ['sent', 'viewed', 'accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
-  const VIEWED_STATUSES = ['viewed', 'accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
-  const PAID_STATUSES = ['paid', 'accepted', 'approved', 'scheduled', 'in_progress', 'completed'];
-  const REVENUE_STATUSES = ['accepted', 'approved', 'paid', 'scheduled', 'in_progress', 'completed'];
+  // "Accepted" = the customer said yes (accepted/approved/deposit/paid/
+  // scheduled/in progress/completed) or accepted_at/paid_at is stamped.
+  const SENT_STATUSES = ['sent', 'viewed', 'accepted', 'approved', 'deposit_paid', 'paid', 'scheduled', 'in_progress', 'completed'];
+  const VIEWED_STATUSES = ['viewed', 'accepted', 'approved', 'deposit_paid', 'paid', 'scheduled', 'in_progress', 'completed'];
+  const ACCEPTED_STATUSES = ['accepted', 'approved', 'deposit_paid', 'paid', 'scheduled', 'in_progress', 'completed'];
+  const isAccepted = (q) => !!(q.accepted_at || q.paid_at) || ACCEPTED_STATUSES.includes(q.status);
 
   const totalCreated = allQuotes.length;
-  const totalSent = allQuotes.filter(q => q.sent_at || SENT_STATUSES.includes(q.status)).length;
-  const totalViewed = allQuotes.filter(q => q.viewed_at || VIEWED_STATUSES.includes(q.status)).length;
-  const totalPaid = allQuotes.filter(q => q.accepted_at || PAID_STATUSES.includes(q.status)).length;
+  const totalSent = allQuotes.filter(q => q.sent_at || SENT_STATUSES.includes(q.status) || isAccepted(q)).length;
+  const totalViewed = allQuotes.filter(q => q.viewed_at || VIEWED_STATUSES.includes(q.status) || isAccepted(q)).length;
+  const totalPaid = allQuotes.filter(isAccepted).length;
   const totalCompleted = allQuotes.filter(q => q.status === 'completed').length;
 
-  // Total revenue from all accepted/paid/completed quotes
+  // Booked revenue in the period: accepted-or-later quotes plus manual jobs.
   const totalRevenue = allQuotes
-    .filter(q => REVENUE_STATUSES.includes(q.status))
-    .reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
+    .filter(isAccepted)
+    .reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0)
+    + periodManualJobs.filter((j) => j.status !== 'cancelled').reduce((sum, j) => sum + (parseFloat(j.total_price) || 0), 0);
+  const collectedRevenue = [...allQuotes, ...periodManualJobs].filter(isCollected).reduce((sum, q) => sum + (parseFloat(q.total_price) || 0), 0);
 
   // --- Conversion rate over time (weekly buckets) ---
   const weeklyData = {};
@@ -103,7 +121,7 @@ export async function GET(request) {
     if (!weeklyData[key]) weeklyData[key] = { week: key, created: 0, sent: 0, converted: 0, revenue: 0 };
     weeklyData[key].created++;
     if (q.sent_at || SENT_STATUSES.includes(q.status)) weeklyData[key].sent++;
-    if (PAID_STATUSES.includes(q.status)) {
+    if (isAccepted(q)) {
       weeklyData[key].converted++;
       weeklyData[key].revenue += parseFloat(q.total_price) || 0;
     }
@@ -125,7 +143,10 @@ export async function GET(request) {
   // --- Busiest days ---
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayCount = [0, 0, 0, 0, 0, 0, 0];
-  const paidQuotes = allQuotes.filter(q => REVENUE_STATUSES.includes(q.status));
+  const paidQuotes = [
+    ...allQuotes.filter(isAccepted),
+    ...periodManualJobs.filter((j) => j.status !== 'cancelled'),
+  ];
   for (const q of paidQuotes) {
     const date = q.scheduled_date || q.accepted_at || q.created_at;
     if (date) {
@@ -148,17 +169,33 @@ export async function GET(request) {
   })).filter(h => h.jobs > 0);
 
   // --- Top services by revenue ---
+  // quotes.services is a settings object ({exterior: true, …}), not a list,
+  // so the old code never found any services. The priced lines live in
+  // quotes.line_items ({ description, amount }) and in jobs.services
+  // ({ name, price }) for manually created jobs.
   const serviceRevenue = {};
+  const addService = (rawName, amount) => {
+    const name = String(rawName || '').replace(/\s*\(min applied\)\s*$/i, '').trim();
+    if (!name) return;
+    if (!serviceRevenue[name]) serviceRevenue[name] = { name, revenue: 0, count: 0 };
+    serviceRevenue[name].revenue += parseFloat(amount) || 0;
+    serviceRevenue[name].count++;
+  };
   for (const q of paidQuotes) {
-    const services = q.services || [];
-    const svcList = Array.isArray(services) ? services : (typeof services === 'string' ? (() => { try { return JSON.parse(services); } catch { return []; } })() : []);
-    for (const svc of svcList) {
-      const name = svc.name || svc.service_name || 'Unknown';
-      if (!serviceRevenue[name]) serviceRevenue[name] = { name, revenue: 0, count: 0 };
-      serviceRevenue[name].revenue += svc.price || svc.total || 0;
-      serviceRevenue[name].count++;
+    if (q._source === 'jobs_table') {
+      for (const svc of q._services || []) {
+        if (typeof svc === 'string') addService(svc, 0);
+        else addService(svc?.name || svc?.service_name || svc?.description, svc?.price ?? svc?.total ?? svc?.amount);
+      }
+      continue;
+    }
+    const items = Array.isArray(q.line_items) ? q.line_items
+      : (typeof q.line_items === 'string' ? (() => { try { return JSON.parse(q.line_items); } catch { return []; } })() : []);
+    for (const li of items || []) {
+      addService(li?.description || li?.service || li?.name, li?.amount ?? li?.price ?? li?.total);
     }
   }
+  for (const svc of Object.values(serviceRevenue)) svc.revenue = Math.round(svc.revenue * 100) / 100;
   const topServices = Object.values(serviceRevenue)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 8);
@@ -235,7 +272,7 @@ export async function GET(request) {
   // --- Revenue by aircraft type ---
   const aircraftRevMap = {};
   for (const q of paidQuotes) {
-    const type = q.aircraft_type || q.aircraft_model || 'Other';
+    const type = humanizeAircraftCategory(q.aircraft_type) || aircraftDisplayName(q) || 'Other';
     if (!aircraftRevMap[type]) aircraftRevMap[type] = { type, revenue: 0, count: 0 };
     aircraftRevMap[type].revenue += parseFloat(q.total_price) || 0;
     aircraftRevMap[type].count++;
@@ -258,13 +295,17 @@ export async function GET(request) {
 
   // --- Customer LTV (top 10) — computed from paid quotes ---
   const ltvByCustomer = {};
+  const allTimePaidQuotes = [
+    ...allTimeRes.data.filter((q) => isAccepted(q)),
+    ...manualJobs.filter((j) => j.status !== 'cancelled'),
+  ];
   for (const q of allTimePaidQuotes) {
-    const key = q.client_email || q.client_name || 'unknown';
-    if (!ltvByCustomer[key]) ltvByCustomer[key] = { name: q.client_name || q.client_email || 'Unknown', email: q.client_email, total_revenue: 0, quote_count: 0, last_service_date: null };
+    const key = (q.client_email || '').toLowerCase().trim() || (q.client_name || '').toLowerCase().trim() || 'unknown';
+    if (!ltvByCustomer[key]) ltvByCustomer[key] = { name: q.client_name || q.customer_company || q.client_email || 'Unknown', email: q.client_email, total_revenue: 0, quote_count: 0, last_service_date: null };
     ltvByCustomer[key].total_revenue += parseFloat(q.total_price) || 0;
     ltvByCustomer[key].quote_count++;
-    const qDate = q.paid_at || q.accepted_at || q.created_at;
-    if (!ltvByCustomer[key].last_service_date || qDate > ltvByCustomer[key].last_service_date) {
+    const qDate = q.completed_at || q.paid_at || q.accepted_at || q.created_at;
+    if (qDate && (!ltvByCustomer[key].last_service_date || qDate > ltvByCustomer[key].last_service_date)) {
       ltvByCustomer[key].last_service_date = qDate;
     }
   }
@@ -294,7 +335,8 @@ export async function GET(request) {
   if (staffingAlertsErr) console.error('[analytics] staffing_alerts query failed:', staffingAlertsErr.message);
 
   return Response.json({
-    funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted, totalRevenue },
+    funnel: { totalCreated, totalSent, totalViewed, totalPaid, totalCompleted, totalRevenue, collectedRevenue },
+    customerCount: allCustomers.length,
     conversionTrend,
     valueTrend,
     busiestDays,
