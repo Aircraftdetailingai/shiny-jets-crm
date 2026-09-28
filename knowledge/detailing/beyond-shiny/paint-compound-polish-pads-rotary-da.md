@@ -2,14 +2,14 @@
 
 Source: digest of Brett Berry's book *Beyond Shiny – The Shiny Jets Approach to Aircraft Detailing* (not the full text). [Lxxx] = line refs in the privately stored full text. Products are spelled as in the book.
 
-**Precedence:** Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation method (Rupes blue wool + Fly Shiny Pro Cut) is an **older (superseded) method** for current single-stage work — lead with the latest Shiny Jets method excerpt; the book method is kept only as a labeled older alternative. It depends on Fly Shiny Pro Cut, which is **not yet released — do not recommend**, so it can't be offered as an alternative. Never pair Fly Shiny Pro Polish with a Rupes blue wool pad. The book does **not** cover clearcoat — use the Shiny Jets method for clearcoat. Always ask single-stage vs clearcoat first.
+**Precedence:** Brett's Shiny Jets methods (stored privately server-side; Sep 28 2026) override this book for paint correction. The book's medium-oxidation method (wool cutting pad + Fly Shiny Pro Cut) is an **older (superseded) method** for current single-stage work — lead with the latest Shiny Jets method excerpt; the book method is kept only as a labeled older alternative. It depends on Fly Shiny Pro Cut, which is **not yet released — do not recommend**, so it can't be offered as an alternative. The book does **not** cover clearcoat — use the Shiny Jets method for clearcoat. Always ask single-stage vs clearcoat first.
 **Safety:** the book's safety / FAA cautions always apply — see `beyond-shiny/safety-cautions.md`. Never invent chemical mixes or dilutions; only repeat ratios stated here, otherwise say "follow the manufacturer label".
 
 ---
 
 ## 3. Compounds, polishes, pads, tools (paint)
 **Products (exact names):**
-- "Fly Shiny Pro Cut" (not yet released — do not recommend): compound. Best on a DA with a Rupes blue wool pad. It also works on a rotary, but other products give less dust and longer working time on a rotary. [L907-909]
+- "Fly Shiny Pro Cut" (not yet released — do not recommend): compound. Best on a DA with a wool cutting pad. It also works on a rotary, but other products give less dust and longer working time on a rotary. [L907-909]
   - ⚠ Book-era pairing. Current single-stage correction → Brett's Shiny Jets method (private).
 - "Fly Shiny Pro Polish": "ideal for removing oxidation with the rotary buffer"; very long working time. [L911-912] Also recommended for light oxidation [L940].
 - "Red Clay" bar: removes overspray and heavy iron. It causes heavy marring, so **compound afterwards**. Clay by hand with clay lube or dry wash. [L922-923]

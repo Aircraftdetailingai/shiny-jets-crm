@@ -2,7 +2,7 @@
  * Detailing AI "latest first" + hard product rules tests (Brett, Sep 28 2026).
  *  - latest Shiny Jets method ranks first; older/superseded content stays loadable, labeled, and after it
  *  - "don't have X" / "didn't work" questions surface the older alternative
- *  - Pro Cut is annotated "not yet released"; Polish Pro + Rupes blue wool is flagged; prompt has both rules
+ *  - Pro Cut is annotated "not yet released"; prompt has the absolute product rules (Rupes rule: see test-detailing-ai-no-rupes.mjs)
  * Synthetic rows only (no proprietary text), so this runs the same locally and in CI.
  * Usage: node --import ./scripts/test-support/register.mjs scripts/test-detailing-ai-latest-first.mjs
  */
@@ -13,7 +13,6 @@ import {
   loadKnowledgeStub,
   wantsAlternative,
   NOTE_PRO_CUT,
-  NOTE_POLISH_PRO_BLUE_WOOL,
   NOTE_OLDER_METHOD,
   NOTE_SUPERSEDED,
 } from '../lib/detailing-ai-knowledge.js';
@@ -95,12 +94,11 @@ for (const q of [
 check('wantsAlternative detects curly apostrophes', wantsAlternative('I don’t have that pad'));
 check('wantsAlternative ignores normal questions', !wantsAlternative('how do I polish a king air'));
 
-// 3. Pro Cut + Polish Pro / blue wool flags on private rows (at load time) and public files.
+// 3. Pro Cut flags on private rows (at load time) and public files.
 {
   const out = await loadKnowledgeStub('mockbookchunk: what does the beyond shiny book say about paint restoration?', { privateRows: ROWS });
   const bookNotes = notesFor(out, 'beyond-shiny-book/beyond-shiny-mock-paint');
   check('private book row mentioning Pro Cut gets the not-yet-released note', bookNotes.includes(NOTE_PRO_CUT), bookNotes);
-  check('private row pairing Pro Polish with blue wool gets the never-pair note', bookNotes.includes(NOTE_POLISH_PRO_BLUE_WOOL), bookNotes);
   const proCutFiles = order(out).filter((r) => !r.startsWith('beyond-shiny-book/') && /pro[\s-]*cut/i.test(out.slice(out.indexOf(`### ${r}`)).split('\n### ')[0]));
   check('every public excerpt mentioning Pro Cut carries the note', proCutFiles.every((r) => notesFor(out, r).includes(NOTE_PRO_CUT)), proCutFiles.join(', '));
 }
@@ -120,8 +118,8 @@ check('wantsAlternative ignores normal questions', !wantsAlternative('how do I p
 {
   const route = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
   const prompt = route.slice(route.indexOf('const SYSTEM_PROMPT'), route.indexOf('function getSupabase'));
-  check('prompt: never Fly Shiny Polish Pro on a Rupes blue wool pad',
-    /NEVER recommend Fly Shiny Polish Pro[^\n]*Rupes blue wool pad/.test(prompt));
+  check('prompt: never Fly Shiny Polish Pro on a Rupes blue wool pad (inside the Rupes rule)',
+    /never putting Fly Shiny Polish Pro on a Rupes blue wool pad/.test(prompt));
   check('prompt: Pro Cut not yet released, never recommend, not available',
     /Fly Shiny Pro Cut is not yet released\. Never recommend it[^\n]*isn't available yet/.test(prompt));
   check('prompt: latest Shiny Jets method first, older only when latest failed / product missing',

@@ -52,9 +52,9 @@ Sanding
 Polishing
 
 - Milwaukee DA polisher with 5" backing plate — main polishing tool
-- 3" DA / Rupes 3" — for edges where the 5" throw is too big
+- 3" DA — for edges where the 5" throw is too big
 - SPTA wool pad (DA-specific) — for ACA 500 compounding
-- Rupes yellow foam pad — for ACA 520 finishing polish
+- Yellow foam pad — for ACA 520 finishing polish
 
 ### Pad cleaning
 
@@ -191,7 +191,7 @@ Inspect The window should now look clear. There may still be very fine micro-mar
 
 ACA 520 with a foam pad removes the micro-marring left by the wool + ACA 500 step, bringing the window to full optical clarity.
 
-1. Rupes yellow foam pad on the 5" DA.
+1. Yellow foam pad on the 5" DA.
 2. Apply ACA 520 to the foam pad — 3–5 pea-sized drops.
 3. 3 passes per section, same working speed, same light pressure, same arm tempo.
 4. Wipe with the Autofiber Motherfluffer between passes if needed; final wipe-off after the third pass.

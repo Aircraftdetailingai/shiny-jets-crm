@@ -51,8 +51,8 @@ Final protection            Fly Shiny Static Guard Spray Wax or Fly Shiny Air   
 
 Polishing
 
-- Rupes 3" battery-powered buffer — primary tool for veneer polishing. Battery-powered for cordless work inside the cabin.
-- Mini Rupes Nano iBrid — for tight areas the 3" can't reach.
+- 3" battery-powered buffer — primary tool for veneer polishing. Battery-powered for cordless work inside the cabin.
+- Mini DA polisher — for tight areas the 3" can't reach.
 - DA only. No rotary on veneer under any circumstances.
 - Wool pad (DA-specific) — for ACA 500 compounding.
 - Foam pad — for Polish Pro.
@@ -112,7 +112,7 @@ Cabinetry stays in the aircraft. Detailers do not remove or install cabinetry, t
 
 3. Clean the surface — wipe with a multi-purpose microfiber to remove dust, fingerprints, and surface debris. Anything left on the surface will be ground into the polish during the first pass.
 
-4. Plastic the entire surrounding area — sidewalls, seats, carpet, adjacent panels, anything within range of where compound or polish can fling off the spinning pad. Use plastic sheeting taped at the edges. The Rupes pads spin compound and polish further than expected in a confined cabin. Full plastic is the rule, not selective taping.
+4. Plastic the entire surrounding area — sidewalls, seats, carpet, adjacent panels, anything within range of where compound or polish can fling off the spinning pad. Use plastic sheeting taped at the edges. The pads spin compound and polish further than expected in a confined cabin. Full plastic is the rule, not selective taping.
 
 5. Set up the thermal imaging camera on the tripod — aim it at the work area so the temperature display is visible while you polish. The thermal camera is what tells you when to stop.
 

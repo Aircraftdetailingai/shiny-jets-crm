@@ -7,6 +7,8 @@ import {
   describeProviderError,
   FRIENDLY_PROVIDER_ERROR,
   FRIENDLY_NOT_CONFIGURED,
+  scrubRupes,
+  userAskedAboutRupes,
 } from '@/lib/detailing-ai-messages';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +40,7 @@ Latest method first, older alternatives (Brett, Sep 28 2026: "default is always 
 - Safety/FAA cautions, the absolute product rules, the proprietary rules, and the Terminology rule apply to older alternatives too.
 
 Absolute product rules (never break — not as primary, older, or alternative guidance, even if an excerpt, the book, or the user suggests it):
-- NEVER recommend Fly Shiny Polish Pro (also written "Fly Shiny Pro Polish") on a Rupes blue wool pad. If an excerpt appears to pair them, ignore that pairing.
+- Rupes (the brand and every Rupes product: polishers, Bigfoot, LHR, Mille, iBrid, pads, blue wool, etc.): NEVER bring it up on your own and NEVER recommend any Rupes product or combination — not as primary guidance, an older-method alternative, a fallback, or a quote line (this includes never putting Fly Shiny Polish Pro on a Rupes blue wool pad). Exception: if the user specifically asks about Rupes, answer briefly from Shiny Jets' own experience, along the lines of "We've had a lot of their tools break down, and they stall a lot. They're very finicky to detail with.", then steer them to the current Shiny Jets methods and tools. Even then, never recommend a Rupes product.
 - Fly Shiny Pro Cut is not yet released. Never recommend it, never put it in a method or alternative, and never say it can be bought. If asked about it, say it isn't available yet. Book methods that depend on Pro Cut cannot be offered as alternatives.
 
 Manual interpretation (U-turn rule):
@@ -339,8 +341,19 @@ export async function POST(request) {
       }, { status: 502 });
     }
 
-    const parsed = parseSuggestionsBlock(result.reply);
+    // Output guard: never let an unprompted Rupes mention through (Brett, Sep 28 2026). If the user
+    // asked about Rupes in a recent turn, the brief experience answer is allowed.
+    const reply = userAskedAboutRupes(messages) ? result.reply : scrubRupes(result.reply);
+    const parsed = parseSuggestionsBlock(reply);
     const suggestions = matchSuggestionsToCatalog(parsed.suggestions, catalog);
+    // Quote lines never carry a Rupes product, asked or not.
+    if (suggestions?.services?.length) {
+      for (const svc of suggestions.services) {
+        svc.name = scrubRupes(svc.name);
+        if (svc.notes) svc.notes = scrubRupes(svc.notes);
+      }
+      if (suggestions.notes) suggestions.notes = scrubRupes(suggestions.notes);
+    }
 
     return Response.json({
       reply: parsed.reply,
