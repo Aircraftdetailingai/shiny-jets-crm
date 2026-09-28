@@ -1,14 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email';
 import { loadUnsubscribedEmails, isUnsubscribed } from '@/lib/email-suppression';
+import { escapeHtml } from '@/lib/crm-plan-grants';
 
 export const dynamic = 'force-dynamic';
 
-// Course-bundle buyers get exactly one included year of Enterprise (legacy: Pro);
-// the grant path stamps plan_expires_at = now + 1yr. This daily cron downgrades
-// those whose year has elapsed and sends one courtesy email. Never touches
-// null plan_expires_at rows (paid + Victor-style comps without an expiry stamp).
-const PRO_CHECKOUT_URL = 'https://shinyjets.com/products/aircraft-detailing-crm-enterprise';
+// Dated plan entitlements stamp plan_expires_at:
+//   • course bundles (1 year of Business), • Shopify CRM SKUs (30 / 365 days per
+//   unit, stacked on renewal), • PRICING-QUARTERLY → Lite (90 days per unit),
+//   • referral reward (30 days of Lite).
+// This daily cron downgrades rows whose term has elapsed (plus a short grace
+// window so a same-day Shopify renewal can land first) and sends one courtesy
+// email. Never touches null plan_expires_at rows (open-ended paid + comps).
+const PLANS_URL = 'https://crm.shinyjets.com/upgrade';
+const GRACE_MS = 2 * 24 * 60 * 60 * 1000;
 
 function verifySecret(request) {
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization') || '';
@@ -26,6 +31,7 @@ export async function POST(request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
   );
   const nowISO = new Date().toISOString();
+  const cutoffISO = new Date(Date.now() - GRACE_MS).toISOString();
 
   // Load the opt-out list once. Fail closed: if we can't verify it, do nothing
   // this run rather than risk emailing someone who opted out. Retried tomorrow.
@@ -44,7 +50,7 @@ export async function POST(request) {
     .from('detailers')
     .select('id, email, name, plan, plan_expires_at')
     .not('plan_expires_at', 'is', null)
-    .lt('plan_expires_at', nowISO)
+    .lt('plan_expires_at', cutoffISO)
     .neq('plan', 'free');
 
   if (error) {
@@ -79,27 +85,27 @@ export async function POST(request) {
     const html = `<!DOCTYPE html>
 <html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
   <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
-    <h2 style="color:#007CB1;margin:0 0 16px;font-size:22px;">Hi ${firstName},</h2>
-    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Your included year of Shiny Jets CRM (course Enterprise / Pro bundle) has ended, so your account has moved to the Free plan. Your data is safe and still here — upgrade anytime to keep Enterprise or Pro features.</p>
-    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">To keep sending professional quotes and invoices, take payments, and use Detailing AI and everything Enterprise/Pro offers, continue below.</p>
+    <h2 style="color:#007CB1;margin:0 0 16px;font-size:22px;">Hi ${escapeHtml(firstName)},</h2>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Your Shiny Jets CRM plan term has ended, so your account has moved to the Free plan. Your data is safe and still here — upgrade anytime to pick up where you left off.</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">Lite ($39.95/mo) brings back unlimited quotes, invoices and payments, jobs, the customer portal and Detailing AI. Business ($89.95/mo or $899/yr) adds your team, dispatch, reports and full white-label.</p>
     <div style="text-align:center;margin:28px 0;">
-      <a href="${PRO_CHECKOUT_URL}" style="display:inline-block;padding:14px 28px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">View CRM plans</a>
+      <a href="${PLANS_URL}" style="display:inline-block;padding:14px 28px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">View CRM plans</a>
     </div>
     <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 0;">Questions? Just reply to this email and we'll help.</p>
   </div>
 </body></html>`;
     const text = `Hi ${firstName},
 
-Your included year of Shiny Jets CRM (course Enterprise / Pro bundle) has ended, so your account has moved to the Free plan. Your data is safe and still here.
+Your Shiny Jets CRM plan term has ended, so your account has moved to the Free plan. Your data is safe and still here.
 
-View plans: ${PRO_CHECKOUT_URL}
+View plans: ${PLANS_URL}
 
 Questions? Just reply to this email and we'll help.`;
 
     // Shared lib/email path so the CAN-SPAM footer + List-Unsubscribe headers apply.
     await sendEmail({
       to: d.email,
-      subject: 'Your included year of Shiny Jets CRM has ended',
+      subject: 'Your Shiny Jets CRM plan has ended',
       html,
       text,
     }).catch((err) =>

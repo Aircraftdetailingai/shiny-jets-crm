@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { calculatePoints, POINTS_ACTIONS } from '@/lib/points';
+import { computeCrmPlanGrant } from '@/lib/crm-plan-grants';
+import { normalizePlan } from '@/lib/plans';
 import { sendReferralRewardReferrerEmail, sendReferralRewardReferredEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -44,7 +46,7 @@ export async function processReferralReward(referredId) {
   // Get referrer and referred details for email + points
   const { data: referrer } = await supabase
     .from('detailers')
-    .select('id, name, company, email, plan, trial_ends_at, points_balance, points_lifetime')
+    .select('id, name, company, email, plan, plan_expires_at, subscription_source, subscription_status, trial_ends_at, points_balance, points_lifetime')
     .eq('id', referral.referrer_id)
     .single();
 
@@ -74,15 +76,33 @@ export async function processReferralReward(referredId) {
     })
     .eq('id', referrer.id);
 
-  // Extend referrer's trial/subscription by 1 month (or upgrade to pro if on free)
-  const currentEnd = referrer.trial_ends_at ? new Date(referrer.trial_ends_at) : new Date();
-  const extendedEnd = new Date(Math.max(currentEnd.getTime(), Date.now()));
-  extendedEnd.setDate(extendedEnd.getDate() + 30);
-
-  const referrerUpdate = { trial_ends_at: extendedEnd.toISOString() };
-  if (referrer.plan === 'free') referrerUpdate.plan = 'pro';
-
-  await supabase.from('detailers').update(referrerUpdate).eq('id', referrer.id);
+  // Referral reward: a Free referrer gets CRM Lite for a fixed 30 days
+  // (plan_expires_at is stamped so cron/plan-expirations downgrades them back
+  // to Free afterwards). A referrer already on a dated Lite grant gets +30
+  // days stacked; paid / open-ended / Business accounts keep their plan.
+  const REWARD_DAYS = 30;
+  const decision = computeCrmPlanGrant({
+    detailer: referrer,
+    plan: 'lite',
+    days: REWARD_DAYS,
+    source: 'referral_reward',
+  });
+  if (decision.update) {
+    const referrerUpdate = {
+      ...decision.update,
+      plan_updated_at: new Date().toISOString(),
+    };
+    if (normalizePlan(referrer.plan) === 'free') {
+      referrerUpdate.subscription_source = 'referral_reward';
+      referrerUpdate.platform_fee_percent = 2;
+    }
+    let { error: rErr } = await supabase.from('detailers').update(referrerUpdate).eq('id', referrer.id);
+    if (rErr && (rErr.code === '23514' || /check constraint/i.test(rErr.message || ''))) {
+      // DB constraint predates 'lite' — legacy alias 'pro' is treated as Lite.
+      ({ error: rErr } = await supabase.from('detailers').update({ ...referrerUpdate, plan: 'pro' }).eq('id', referrer.id));
+    }
+    if (rErr) console.error('[referrals/reward] Lite grant failed:', rErr.message);
+  }
 
   // --- Award referred: 500 points ---
   const referredPoints = calculatePoints('REFERRAL_SIGNUP', referred.plan);

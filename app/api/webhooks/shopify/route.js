@@ -2,8 +2,22 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail as sendLibEmail } from '@/lib/email';
 import { redeemCompInviteIfAny } from '@/lib/comp-invites';
+import { normalizePlan, planName, planRank } from '@/lib/plans';
 import {
-  isPricingSku,
+  resolveCrmLineItem,
+  crmPurchaseFromLineItems,
+  quarterlyLiteDaysFromLineItems,
+  computeCrmPlanGrant,
+  computeBusinessPricingAccess,
+  subscriptionItems,
+  classifySubscriptionItems,
+  decideCancellation,
+  billingAffectsCrm,
+  isCompedDetailer,
+  escapeHtml,
+  DAY_MS,
+} from '@/lib/crm-plan-grants';
+import {
   pricingPurchaseFromLineItems,
   computePricingGrant,
   orderAlreadyApplied,
@@ -12,56 +26,34 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-// SKU → plan mapping (Seal Subscriptions)
-const SKU_PLAN_MAP = {
-  'SJ-CRM-FREE': 'free',
-  'SJ-CRM-PRO': 'pro',
-  'SJ-CRM-BUSINESS': 'business',
-  'SJ-CRM-ENTERPRISE': 'enterprise',
-};
-
-// Price fallback ranges (cents not used here — raw dollar floats from Shopify)
-function planFromPrice(price) {
-  const p = parseFloat(price);
-  if (p === 0) return 'free';
-  if (p >= 70 && p <= 90) return 'pro';
-  if (p >= 140 && p <= 160) return 'business';
-  if (p >= 850 && p <= 950) return 'enterprise';
-  return null;
+// SKU → plan resolution lives in lib/crm-plan-grants.js (pure + unit-tested):
+//   SJ-CRM-FREE, SJ-CRM-LITE (30d), SJ-CRM-BUSINESS (30d), SJ-CRM-BUSINESS-YEARLY (365d)
+//   legacy SJ-CRM-PRO → lite, SJ-CRM-ENTERPRISE → business
+//   PRICING-QUARTERLY also grants Lite 90d; PRICING-MONTHLY is Pricing Tool only.
+function resolvePlan(item) {
+  return resolveCrmLineItem(item)?.plan || null;
 }
 
-// Resolve plan from a Shopify line item
-function resolvePlan(item) {
-  // 0. Pricing Tool SKUs (PRICING-MONTHLY / PRICING-QUARTERLY) are not CRM
-  //    plans. Without this, the $79.95 quarterly variant fell through to the
-  //    price fallback (70–90 → 'pro') and provisioned a CRM Pro account.
-  if (isPricingSku(item.sku)) return null;
-
-  // 1. Exact SKU match
-  const sku = (item.sku || '').toUpperCase().trim();
-  if (SKU_PLAN_MAP[sku]) return SKU_PLAN_MAP[sku];
-
-  // 2. Partial SKU match (e.g. "SJ-CRM-PRO-MONTHLY")
-  for (const [prefix, plan] of Object.entries(SKU_PLAN_MAP)) {
-    if (sku.includes(prefix)) return plan;
+// Write a detailers update. If the production DB still has a CHECK constraint
+// that predates the 'lite' value, retry once with the legacy alias ('pro') so
+// provisioning never silently fails (lib/plans.js treats 'pro' as Lite).
+async function updateDetailerRow(supabase, id, update) {
+  let { error } = await supabase.from('detailers').update(update).eq('id', id);
+  if (error && update.plan === 'lite' && (error.code === '23514' || /check constraint/i.test(error.message || ''))) {
+    console.warn('[shopify-webhook] plan=lite rejected by DB constraint; retrying with legacy alias pro. Run database/migrations/20260927_three_tier_plans.sql.');
+    ({ error } = await supabase.from('detailers').update({ ...update, plan: 'pro' }).eq('id', id));
   }
+  if (error) console.error('[shopify-webhook] detailers update failed:', id, error.message);
+  return { error };
+}
 
-  // 3. Keyword match on the product + variant title. The $0 "Free Starter"
-  //    tier is a variant of a product whose title contains "Pro", and its
-  //    Shopify line items don't always carry the SJ-CRM-FREE sku. The old code
-  //    looked only at item.title (the product title, not the variant), matched
-  //    paid tiers with greedy substrings, and checked "pro" BEFORE "free" — so
-  //    a $0 Free Starter resolved to 'pro'. Now: include variant_title, match
-  //    free/starter FIRST, and use word boundaries so "product"/"professional"
-  //    never read as "pro".
-  const title = `${item.title || ''} ${item.variant_title || ''}`.toLowerCase();
-  if (/\bfree\b/.test(title) || title.includes('starter')) return 'free';
-  if (/\benterprise\b/.test(title)) return 'enterprise';
-  if (/\bbusiness\b/.test(title)) return 'business';
-  if (/\bpro\b/.test(title)) return 'pro';
-
-  // 4. Price fallback ($0 → free)
-  return planFromPrice(item.price);
+async function insertDetailerRow(supabase, row) {
+  let res = await supabase.from('detailers').insert(row).select().maybeSingle();
+  if (res.error && row.plan === 'lite' && (res.error.code === '23514' || /check constraint/i.test(res.error.message || ''))) {
+    console.warn('[shopify-webhook] plan=lite rejected by DB constraint on insert; retrying with legacy alias pro.');
+    res = await supabase.from('detailers').insert({ ...row, plan: 'pro' }).select().maybeSingle();
+  }
+  return res;
 }
 
 function getSupabase() {
@@ -129,26 +121,25 @@ async function sendEmail(to, subject, html, options = {}) {
 }
 
 function planChangeEmail(email, oldPlan, newPlan) {
-  const labels = { free: 'Free', pro: 'Pro', business: 'Business', enterprise: 'Enterprise' };
-  const newLabel = labels[newPlan] || newPlan;
-  const oldLabel = labels[oldPlan] || oldPlan;
+  const newLabel = planName(newPlan);
+  const oldLabel = planName(oldPlan);
 
-  if (newPlan === 'free') {
+  if (normalizePlan(newPlan) === 'free') {
     // Downgrade / cancellation
     return sendEmail(
       email,
       'Your Shiny Jets CRM subscription has been cancelled',
       `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
         <h2 style="color:#333;">Subscription Cancelled</h2>
-        <p>Your plan has been moved from <strong>${oldLabel}</strong> to the <strong>Free</strong> plan.</p>
-        <p>You still have access to your account with Free-tier features. Your data is preserved.</p>
-        <p>Ready to resubscribe? Visit <a href="https://shinyjets.com" style="color:#007CB1;">shinyjets.com</a>.</p>
+        <p>Your plan has been moved from <strong>${escapeHtml(oldLabel)}</strong> to the <strong>Free</strong> plan.</p>
+        <p>You still have access to your account with Free-plan features. Your data is preserved.</p>
+        <p>Ready to come back? See plans at <a href="https://crm.shinyjets.com/upgrade" style="color:#007CB1;">crm.shinyjets.com/upgrade</a>.</p>
         <p style="color:#999;font-size:12px;margin-top:24px;">Shiny Jets CRM</p>
       </body></html>`,
     );
   }
 
-  const isUpgrade = ['free', 'pro', 'business'].indexOf(oldPlan) < ['free', 'pro', 'business'].indexOf(newPlan);
+  const isUpgrade = planRank(oldPlan) < planRank(newPlan);
   const verb = isUpgrade ? 'upgraded' : 'changed';
 
   return sendEmail(
@@ -156,7 +147,7 @@ function planChangeEmail(email, oldPlan, newPlan) {
     `Your Shiny Jets CRM plan has been ${verb} to ${newLabel}`,
     `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
       <h2 style="color:#333;">Plan ${isUpgrade ? 'Upgrade' : 'Change'} Confirmed</h2>
-      <p>Your Shiny Jets CRM plan has been ${verb} from <strong>${oldLabel}</strong> to <strong>${newLabel}</strong>.</p>
+      <p>Your Shiny Jets CRM plan has been ${verb} from <strong>${escapeHtml(oldLabel)}</strong> to <strong>${escapeHtml(newLabel)}</strong>.</p>
       <p>Your new features are active immediately. Log in at <a href="https://crm.shinyjets.com" style="color:#007CB1;">crm.shinyjets.com</a> to get started.</p>
       <p style="color:#999;font-size:12px;margin-top:24px;">Shiny Jets CRM</p>
     </body></html>`,
@@ -204,16 +195,18 @@ async function findDetailer(supabase, payload) {
 }
 
 // ─── Update plan and send notifications ───
-async function updatePlan(supabase, detailer, newPlan, extra = {}) {
-  const oldPlan = detailer.plan || 'free';
-  if (oldPlan === newPlan && !extra.subscription_status) return { oldPlan, newPlan, changed: false };
+// Used for explicit plan changes (subscription update events). Writes the
+// normalized plan value (free | lite | business).
+async function updatePlan(supabase, detailer, newPlanRaw, extra = {}) {
+  const newPlan = normalizePlan(newPlanRaw);
+  const oldPlan = normalizePlan(detailer.plan);
+  if (oldPlan === newPlan && !extra.subscription_status && !extra.plan_expires_at) {
+    return { oldPlan, newPlan, changed: false };
+  }
 
   // Realign platform_fee_percent to the new plan default, UNLESS this is a
-  // comp/manually-overridden account — those keep their custom rate (e.g.
-  // a comped enterprise sitting at 0% should not be reset by a Shopify
-  // event). subscription_source='comp_invite' OR status='comped' protects.
-  const isComped = detailer.subscription_source === 'comp_invite' ||
-                   detailer.subscription_status === 'comped' ||
+  // comp/manually-overridden account — those keep their custom rate.
+  const isComped = isCompedDetailer(detailer) ||
                    extra.subscription_source === 'comp_invite' ||
                    extra.subscription_status === 'comped';
 
@@ -229,24 +222,108 @@ async function updatePlan(supabase, detailer, newPlan, extra = {}) {
     update.platform_fee_percent = defaultFeePercentForPlan(newPlan);
   }
 
-  await supabase.from('detailers').update(update).eq('id', detailer.id);
+  await updateDetailerRow(supabase, detailer.id, update);
 
   // Confirmation email
   if (oldPlan !== newPlan) {
     try { await planChangeEmail(detailer.email, oldPlan, newPlan); } catch {}
   }
 
-  // Admin SMS
   const adminPhone = process.env.ADMIN_PHONE;
-  if (adminPhone) {
+  if (adminPhone && oldPlan !== newPlan) {
     await sendSMS(adminPhone, `Plan change: ${detailer.email} ${oldPlan}→${newPlan}`);
   }
 
-  return { oldPlan, newPlan, changed: true };
+  return { oldPlan, newPlan, changed: oldPlan !== newPlan };
+}
+
+// ─── Idempotency helper: one webhook_logs record per (topic, order id) ───
+async function alreadyLogged(supabase, topic, orderId) {
+  if (!orderId) return false;
+  const { data, error } = await supabase
+    .from('webhook_logs')
+    .select('id')
+    .eq('source', 'shopify')
+    .eq('topic', topic)
+    .filter('payload->>order_id', 'eq', String(orderId))
+    .limit(1);
+  if (!error) return !!(data && data.length);
+  const { data: recent } = await supabase
+    .from('webhook_logs')
+    .select('id, payload')
+    .eq('source', 'shopify')
+    .eq('topic', topic)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  return (recent || []).some((row) => String(row?.payload?.order_id || '') === String(orderId));
+}
+
+async function logGrant(supabase, topic, payload) {
+  const { error } = await supabase.from('webhook_logs').insert({
+    source: 'shopify',
+    topic,
+    payload,
+    processed: true,
+  });
+  if (error) console.error(`[shopify-webhook] ${topic} log insert failed (retry guard degraded):`, error.message);
+}
+
+// Apply a dated CRM plan grant (SKU purchase or quarterly Pricing → Lite) to
+// an existing detailer. Returns { mode, update }.
+async function applyDatedPlanGrant(supabase, detailer, { plan, days, source, extra = {} }) {
+  const decision = computeCrmPlanGrant({ detailer, plan, days, source: source === 'pricing_quarterly' ? 'pricing_quarterly' : 'shopify' });
+  if (!decision.update) return decision;
+  const { defaultFeePercentForPlan } = await import('@/lib/branding');
+  const oldPlan = normalizePlan(detailer.plan);
+  const newPlan = decision.update.plan;
+  const update = {
+    ...decision.update,
+    plan_updated_at: new Date().toISOString(),
+    ...extra,
+  };
+  // Only take over subscription_source when the plan actually changes hands;
+  // stacking keeps the existing source (e.g. a paid Lite sub stays 'shopify').
+  if (oldPlan !== newPlan || !detailer.subscription_source || detailer.subscription_source === 'free') {
+    update.subscription_source = source;
+  }
+  if (detailer.status === 'suspended' && source === 'shopify') update.status = 'active';
+  if (!isCompedDetailer(detailer) && oldPlan !== newPlan) {
+    update.platform_fee_percent = defaultFeePercentForPlan(newPlan);
+  }
+  await updateDetailerRow(supabase, detailer.id, update);
+  if (oldPlan !== newPlan) {
+    try { await planChangeEmail(detailer.email, oldPlan, newPlan); } catch {}
+  }
+  return { ...decision, update };
+}
+
+// Business subscribers get Pricing Tool access for their term. Never shortens
+// or re-labels a longer / different existing app_access row.
+async function ensureBusinessPricingAccess(supabase, email, orderId, accessEnd) {
+  if (!email || !accessEnd) return null;
+  const { data: existing, error } = await supabase
+    .from('app_access')
+    .select('email, product_type, status, access_start, access_end, shopify_order_id')
+    .eq('email', email)
+    .maybeSingle();
+  if (error) {
+    console.error('[shopify-webhook] business pricing access read error:', error.message);
+    return null;
+  }
+  const { mode, row } = computeBusinessPricingAccess({ existing, email, orderId, accessEnd });
+  if (row) {
+    const { error: upErr } = await supabase.from('app_access').upsert(row, { onConflict: 'email' });
+    if (upErr) {
+      console.error('[shopify-webhook] business pricing access upsert error:', upErr.message);
+      return null;
+    }
+  }
+  console.log(`[shopify-webhook] business pricing access ${mode}: ${email} until ${row?.access_end || existing?.access_end}`);
+  return mode;
 }
 
 // ─── Course / training product detection ───
-// Brett rule: ANY course/training purchase → CRM Enterprise free for 1 year.
+// Brett rule: ANY course/training purchase → CRM Business (formerly Enterprise) free for 1 year.
 // Preferred match: Shopify product tags "course" or "training" (Admin API).
 // Fallback: title/SKU keywords + known handles (line_items lack tags).
 const COURSE_KEYWORDS = ['course', 'masterclass', 'certification', 'training', '5 day', '5-day', 'dominate', 'immersive'];
@@ -340,13 +417,15 @@ async function alreadyGrantedCourseEnterprise(supabase, orderId) {
   return (recent || []).some((row) => String(row?.payload?.order_id || '') === String(orderId));
 }
 
-function courseEnterpriseCredentialsEmail({ email, firstName, tempPassword, trialEndsAt }) {
+function courseEnterpriseCredentialsEmail({ email: rawEmail, firstName: rawFirstName, tempPassword, trialEndsAt }) {
+  const email = escapeHtml(rawEmail);
+  const firstName = escapeHtml(rawFirstName || 'there');
   const endStr = new Date(trialEndsAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
-      <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your Enterprise login is inside — 1 year included with your course.</span>
+      <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your CRM Business login is inside — 1 year included with your course.</span>
       <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
         <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Welcome aboard, ${firstName}!</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">Your course purchase includes <strong>Shiny Jets CRM Enterprise for 12 months</strong> — including <strong>Detailing AI</strong> (Insights → Detailing AI). Here are your login details:</p>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">Your course purchase includes <strong>Shiny Jets CRM Business for 12 months</strong> — including <strong>Detailing AI</strong> and team tools. Here are your login details:</p>
         <div style="background:#f0f7fb;border:1px solid #cfe4f0;border-radius:8px;padding:18px 20px;margin:20px 0;">
           <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Login URL</p>
           <p style="margin:0 0 16px;"><a href="https://crm.shinyjets.com/login" style="color:#007CB1;font-weight:600;text-decoration:none;">crm.shinyjets.com/login</a></p>
@@ -364,12 +443,12 @@ function courseEnterpriseCredentialsEmail({ email, firstName, tempPassword, tria
         <p style="font-size:11px;color:#999;margin:0;text-align:center;">Shiny Jets · sales@shinyjets.com · <a href="https://crm.shinyjets.com" style="color:#999;">crm.shinyjets.com</a></p>
       </div>
     </body></html>`;
-  const text = `Hi ${firstName},
+  const text = `Hi ${rawFirstName || 'there'},
 
-Your course purchase includes Shiny Jets CRM Enterprise for 12 months (Detailing AI included).
+Your course purchase includes Shiny Jets CRM Business for 12 months (Detailing AI included).
 
 Login: https://crm.shinyjets.com/login
-Username: ${email}
+Username: ${rawEmail}
 Temporary password: ${tempPassword}
 
 Good through ${endStr}. Change your password on first login.
@@ -381,12 +460,13 @@ sales@shinyjets.com`;
   return { html, text };
 }
 
-function courseEnterpriseUpgradeEmail({ email, firstName, trialEndsAt }) {
+function courseEnterpriseUpgradeEmail({ email, firstName: rawFirstName, trialEndsAt }) {
+  const firstName = escapeHtml(rawFirstName || 'there');
   const endStr = new Date(trialEndsAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
       <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
-        <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Enterprise unlocked, ${firstName}</h1>
-        <p style="font-size:15px;line-height:1.6;margin:0 0 16px;color:#555;">Thanks for taking the course — your Shiny Jets CRM account is on <strong>Enterprise</strong> through <strong>${endStr}</strong>, including <strong>Detailing AI</strong>.</p>
+        <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">CRM Business unlocked, ${firstName}</h1>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 16px;color:#555;">Thanks for taking the course — your Shiny Jets CRM account is on <strong>Business</strong> through <strong>${endStr}</strong>, including <strong>Detailing AI</strong>.</p>
         <div style="text-align:center;margin:28px 0;">
           <a href="https://crm.shinyjets.com/login" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Open CRM</a>
         </div>
@@ -394,9 +474,9 @@ function courseEnterpriseUpgradeEmail({ email, firstName, trialEndsAt }) {
         <p style="font-size:11px;color:#999;margin:24px 0 0;text-align:center;">Shiny Jets · sales@shinyjets.com</p>
       </div>
     </body></html>`;
-  const text = `Hi ${firstName},
+  const text = `Hi ${rawFirstName || 'there'},
 
-Your course purchase unlocked Shiny Jets CRM Enterprise through ${endStr} (Detailing AI included).
+Your course purchase unlocked Shiny Jets CRM Business through ${endStr} (Detailing AI included).
 
 Login: https://crm.shinyjets.com/login
 
@@ -432,7 +512,17 @@ async function handleCoursePricingAccess(supabase, payload) {
 
   const productType = resolveCourseProductType(courseItem);
   const now = new Date();
-  const accessEnd = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+  let accessEnd = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+  // Never shorten a longer active row (e.g. a Business term or stacked Pricing time).
+  const { data: existingAccess } = await supabase
+    .from('app_access')
+    .select('status, access_end')
+    .eq('email', email)
+    .maybeSingle();
+  if (existingAccess?.status === 'active' && existingAccess.access_end &&
+      new Date(existingAccess.access_end).getTime() > accessEnd.getTime()) {
+    accessEnd = new Date(existingAccess.access_end);
+  }
 
   const { error } = await supabase
     .from('app_access')
@@ -453,7 +543,7 @@ async function handleCoursePricingAccess(supabase, payload) {
 
   console.log(`[shopify-webhook] course pricing access granted: ${email} type=${productType} until ${accessEnd.toISOString()}`);
 
-  const firstName = payload?.customer?.first_name || 'there';
+  const firstName = escapeHtml(payload?.customer?.first_name || 'there');
   const accessEndStr = accessEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   await sendEmail(
@@ -467,7 +557,7 @@ async function handleCoursePricingAccess(supabase, payload) {
           <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Login URL</p>
           <p style="margin:0 0 16px;"><a href="https://pricing.shinyjets.com" style="color:#007CB1;font-weight:600;text-decoration:none;">pricing.shinyjets.com</a></p>
           <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Your Email</p>
-          <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:#1a1a1a;">${email}</p>
+          <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:#1a1a1a;">${escapeHtml(email)}</p>
         </div>
         <div style="text-align:center;margin:28px 0;">
           <a href="https://pricing.shinyjets.com" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Access Pricing Tool</a>
@@ -508,7 +598,7 @@ async function alreadyGrantedPricingTool(supabase, orderId) {
   return (recent || []).some((row) => String(row?.payload?.order_id || '') === String(orderId));
 }
 
-async function handlePricingToolAccess(supabase, payload) {
+async function handlePricingToolAccess(supabase, payload, { includesCrmLite = false } = {}) {
   const purchase = pricingPurchaseFromLineItems(payload?.line_items);
   if (!purchase) return;
 
@@ -589,11 +679,13 @@ async function handlePricingToolAccess(supabase, payload) {
     firstName,
     accessEnd: row.access_end,
     productType: purchase.productType,
+    includesCrmLite,
   });
   await sendEmail(email, 'Your Shiny Jets Pricing App Access', mail.html, { text: mail.text });
 }
 
-// ─── Course → Enterprise 1-year (Victor-style fields) ───
+// ─── Course → CRM Business 1-year (was Enterprise; Victor-style fields) ───
+// Function/topic names keep "Enterprise" so idempotency records stay valid.
 async function grantCourseEnterprise(supabase, payload, courseItem) {
   const orderId = String(payload?.id || '');
   const email = extractEmail(payload);
@@ -622,9 +714,10 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
     // admin comp_invite previews (extend only). Never flip paid shopify
     // enterprise → comped.
     const isAdminComp = detailer.subscription_source === 'comp_invite';
+    const isBusinessNow = normalizePlan(detailer.plan) === 'business';
     const isPaidShopify = detailer.subscription_source === 'shopify' &&
       detailer.subscription_status === 'active' &&
-      ['business', 'enterprise'].includes(detailer.plan);
+      isBusinessNow;
 
     const nextTrial = laterISO(detailer.trial_ends_at, trialEndsAt);
     const nextExpiry = laterISO(detailer.plan_expires_at, trialEndsAt);
@@ -635,33 +728,33 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
     };
     if (detailer.status === 'suspended') update.status = 'active';
 
-    if (isPaidShopify && detailer.plan === 'enterprise') {
-      // Keep paid enterprise; only stamp expiry if missing
-      if (!detailer.plan_expires_at) update.plan_expires_at = trialEndsAt;
+    if (isPaidShopify) {
+      // Keep paid Business; the course year extends their term (never shortens).
+      update.plan_expires_at = nextExpiry;
       if (!detailer.trial_ends_at) update.trial_ends_at = trialEndsAt;
-      console.log(`[shopify-webhook] course purchase by paid enterprise ${email}, preserving paid status`);
-    } else if (isAdminComp && detailer.plan === 'enterprise') {
+      console.log(`[shopify-webhook] course purchase by paid business ${email}, preserving paid status`);
+    } else if (isAdminComp && isBusinessNow) {
       update.trial_ends_at = nextTrial;
       update.plan_expires_at = nextExpiry;
       console.log(`[shopify-webhook] course purchase by admin-comp enterprise ${email}, extending dates only`);
     } else {
-      // free / pro / business (or non-enterprise) → Enterprise comp year
-      update.plan = 'enterprise';
+      // free / lite (or lapsed) → CRM Business comp year
+      update.plan = 'business';
       update.subscription_status = 'comped';
       update.subscription_source = 'course_bundle';
       update.trial_ends_at = nextTrial;
       update.plan_expires_at = nextExpiry;
-      update.platform_fee_percent = defaultFeePercentForPlan('enterprise');
+      update.platform_fee_percent = defaultFeePercentForPlan('business');
     }
 
-    await supabase.from('detailers').update(update).eq('id', detailer.id);
+    await updateDetailerRow(supabase, detailer.id, update);
 
     const mail = courseEnterpriseUpgradeEmail({
       email,
       firstName,
       trialEndsAt: update.trial_ends_at || detailer.trial_ends_at || trialEndsAt,
     });
-    await sendEmail(email, 'Your course includes Shiny Jets CRM Enterprise for 1 year', mail.html, {
+    await sendEmail(email, 'Your course includes Shiny Jets CRM Business for 1 year', mail.html, {
       text: mail.text,
       from: COURSE_FROM,
       replyTo: COURSE_REPLY_TO,
@@ -688,12 +781,12 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
         password_hash: hashed,
         must_change_password: true,
         status: 'active',
-        plan: 'enterprise',
+        plan: 'business',
         subscription_status: 'comped',
         subscription_source: 'course_bundle',
         trial_ends_at: trialEndsAt,
         plan_expires_at: trialEndsAt,
-        platform_fee_percent: defaultFeePercentForPlan('enterprise'),
+        platform_fee_percent: defaultFeePercentForPlan('business'),
         shopify_customer_id: shopifyCustomerId,
         plan_updated_at: new Date().toISOString(),
       })
@@ -707,14 +800,11 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
       if (!detailer) return;
       const nextTrial = laterISO(detailer.trial_ends_at, trialEndsAt);
       const nextExpiry = laterISO(detailer.plan_expires_at, trialEndsAt);
-      await supabase.from('detailers').update({
-        plan: detailer.plan === 'enterprise' && detailer.subscription_source === 'shopify'
-          ? detailer.plan
-          : 'enterprise',
-        subscription_status: detailer.subscription_source === 'shopify' && detailer.plan === 'enterprise'
-          ? detailer.subscription_status
-          : 'comped',
-        subscription_source: detailer.subscription_source === 'shopify' && detailer.plan === 'enterprise'
+      const paidBusiness = normalizePlan(detailer.plan) === 'business' && detailer.subscription_source === 'shopify';
+      await updateDetailerRow(supabase, detailer.id, {
+        plan: 'business',
+        subscription_status: paidBusiness ? detailer.subscription_status : 'comped',
+        subscription_source: paidBusiness
           ? detailer.subscription_source
           : (detailer.subscription_source === 'comp_invite' ? 'comp_invite' : 'course_bundle'),
         trial_ends_at: nextTrial,
@@ -722,9 +812,9 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
         shopify_customer_id: shopifyCustomerId || detailer.shopify_customer_id,
         plan_updated_at: new Date().toISOString(),
         ...(detailer.status === 'suspended' ? { status: 'active' } : {}),
-      }).eq('id', detailer.id);
+      });
       const mail = courseEnterpriseUpgradeEmail({ email, firstName, trialEndsAt: nextTrial });
-      await sendEmail(email, 'Your course includes Shiny Jets CRM Enterprise for 1 year', mail.html, {
+      await sendEmail(email, 'Your course includes Shiny Jets CRM Business for 1 year', mail.html, {
         text: mail.text, from: COURSE_FROM, replyTo: COURSE_REPLY_TO,
       });
       await supabase.from('webhook_logs').insert({
@@ -751,7 +841,7 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
       });
       await sendEmail(
         email,
-        'Your Shiny Jets CRM Enterprise login (1 year included with your course)',
+        'Your Shiny Jets CRM Business login (1 year included with your course)',
         mail.html,
         { text: mail.text, from: COURSE_FROM, replyTo: COURSE_REPLY_TO },
       );
@@ -766,7 +856,7 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
 
       const adminPhone = process.env.ADMIN_PHONE;
       if (adminPhone) {
-        await sendSMS(adminPhone, `Course→Enterprise: ${email} (new)`);
+        await sendSMS(adminPhone, `Course→Business: ${email} (new)`);
       }
 
       console.log('[shopify-webhook] course-enterprise', JSON.stringify({
@@ -793,188 +883,106 @@ async function grantCourseEnterprise(supabase, payload, courseItem) {
   });
 }
 
-// ─── Handle: orders/paid ───
-async function handleOrderPaid(supabase, payload) {
-  // Check for course products → grant pricing app access
-  await handleCoursePricingAccess(supabase, payload);
-
-  // Pricing Tool subscriptions (PRICING-MONTHLY / PRICING-QUARTERLY) → app_access.
-  // Isolated so a failure here never blocks CRM / course provisioning below.
-  try {
-    await handlePricingToolAccess(supabase, payload);
-  } catch (e) {
-    console.error('[shopify-webhook] pricing tool access error:', e?.message || e);
-  }
-
-  const items = payload?.line_items || [];
-  const courseItem = await findCourseLineItem(items);
-  const hasCourseGrant = !!courseItem;
-
-  let plan = null;
-  for (const item of items) {
-    plan = resolvePlan(item);
-    if (plan) break;
-  }
-
-  // Course alone (no CRM SKU) → Enterprise provisioning path
-  if (!plan && hasCourseGrant) {
-    console.log('[shopify-webhook] orders/paid: course detected, granting Enterprise (1 year)');
-    await grantCourseEnterprise(supabase, payload, courseItem);
-    return;
-  }
-
-  if (!plan) {
-    console.log('[shopify-webhook] orders/paid: no matching CRM plan, skipping CRM provisioning');
-    return;
-  }
-
-  const email = extractEmail(payload);
-  if (!email) {
-    console.error('[shopify-webhook] orders/paid: no customer email found in payload, cannot create account');
-    return;
-  }
-  console.log(`[shopify-webhook] orders/paid: email=${email} plan=${plan}`);
-
-  const detailer = await findDetailer(supabase, payload);
+// ─── New-account creation for paid CRM SKUs / quarterly Pricing → Lite ───
+async function createShopifyAccount(supabase, payload, { email, plan, planExpiresAt, hasCourseGrant, courseItem, reason }) {
+  const tempPassword = generateTempPassword();
+  const bcrypt = (await import('bcryptjs')).default;
+  const hashed = bcrypt.hashSync(tempPassword, 10);
+  const name = payload?.customer?.first_name
+    ? `${payload.customer.first_name} ${payload.customer.last_name || ''}`.trim()
+    : 'Customer';
   const shopifyCustomerId = String(payload?.customer?.id || '');
+  const { defaultFeePercentForPlan } = await import('@/lib/branding');
 
-  // Paid CRM SKU path — subscription_source=shopify. If the cart also has a
-  // course, still run Enterprise grant AFTER paid sync so free/pro carts get
-  // the course year, while paid enterprise is preserved inside the grant helper.
-  if (detailer) {
-    const extra = {
-      shopify_customer_id: shopifyCustomerId,
-      subscription_source: 'shopify',
-    };
-    if (detailer.status === 'suspended') extra.status = 'active';
-    // Protect admin comps / course comps from being overwritten by a free SKU
-    const isCompedAccount = detailer.subscription_source === 'comp_invite' ||
-      detailer.subscription_source === 'course_bundle' ||
-      detailer.subscription_status === 'comped';
-    if (isCompedAccount && plan === 'free') {
-      console.log(`[shopify-webhook] skipping free SKU overwrite of comped account ${email}`);
-    } else {
-      const result = await updatePlan(supabase, detailer, plan, extra);
-      console.log('[shopify-webhook] plan-change', JSON.stringify({
-        detailer_id: detailer.id,
-        email,
-        old_plan: result.oldPlan,
-        new_plan: result.newPlan,
-        subscription_status: 'active',
-        subscription_source: 'shopify',
-        shopify_order_id: String(payload?.id || ''),
-        topic: 'orders/paid',
-        changed: result.changed,
-      }));
-    }
-  } else {
-    // New customer — create account with temp password (paid CRM SKU)
-    const tempPassword = generateTempPassword();
-    const bcrypt = (await import('bcryptjs')).default;
-    const hashed = bcrypt.hashSync(tempPassword, 10);
-    const name = payload?.customer?.first_name
-      ? `${payload.customer.first_name} ${payload.customer.last_name || ''}`.trim()
-      : 'Customer';
+  // If cart also includes a course, create directly as Business course_bundle
+  // so grantCourseEnterprise later is idempotent and we don't double-email.
+  const courseExpiryISO = hasCourseGrant ? plusOneYearISO() : null;
+  let finalPlan = hasCourseGrant ? 'business' : normalizePlan(plan);
+  const insertRow = {
+    email,
+    name,
+    phone: payload?.customer?.phone || null,
+    password_hash: hashed,
+    must_change_password: true,
+    status: 'active',
+    plan: finalPlan,
+    subscription_status: hasCourseGrant ? 'comped' : 'active',
+    subscription_source: hasCourseGrant ? 'course_bundle' : (reason === 'pricing_quarterly' ? 'pricing_quarterly' : 'shopify'),
+    shopify_customer_id: shopifyCustomerId,
+    platform_fee_percent: defaultFeePercentForPlan(finalPlan),
+    plan_updated_at: new Date().toISOString(),
+  };
+  if (courseExpiryISO) {
+    insertRow.trial_ends_at = courseExpiryISO;
+    insertRow.plan_expires_at = laterISO(planExpiresAt, courseExpiryISO);
+  } else if (planExpiresAt) {
+    insertRow.plan_expires_at = planExpiresAt;
+  }
 
-    // If cart also includes a course, create directly as Enterprise course_bundle
-    // so grantCourseEnterprise later is idempotent and we don't double-email.
-    const courseExpiryISO = hasCourseGrant ? plusOneYearISO() : null;
-    const insertRow = {
+  const { data: inserted, error } = await insertDetailerRow(supabase, insertRow);
+  if (error || !inserted) {
+    console.error('[shopify-webhook] account create failed:', error?.message);
+    return null;
+  }
+  console.log(`[shopify-webhook] Created detailer ${inserted.id} for ${email} plan=${finalPlan} reason=${reason}`);
+
+  const compResult = await redeemCompInviteIfAny(supabase, inserted.id, email);
+  if (compResult.applied) {
+    inserted.plan = compResult.plan;
+    finalPlan = normalizePlan(compResult.plan);
+  }
+
+  const firstNameRaw = (name || '').split(' ')[0] || 'there';
+  const firstName = escapeHtml(firstNameRaw);
+  const safeEmail = escapeHtml(email);
+  const label = planName(finalPlan);
+  const mailOpts = hasCourseGrant ? { from: COURSE_FROM, replyTo: COURSE_REPLY_TO } : {};
+  const intro = reason === 'pricing_quarterly'
+    ? `Your quarterly Pricing Tool subscription includes <strong>Shiny Jets CRM Lite</strong>. Your account is ready. Here are your login details:`
+    : `Your Shiny Jets CRM <strong>${escapeHtml(label)}</strong> account is ready. Here are your login details:`;
+  await sendEmail(
+    email,
+    hasCourseGrant
+      ? 'Your Shiny Jets CRM Business login (1 year included with your course)'
+      : 'Your Shiny Jets CRM login details',
+    `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
+      <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your login details are inside — username, temporary password, and login link.</span>
+      <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
+        <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Welcome aboard, ${firstName}!</h1>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">${intro}</p>
+        <div style="background:#f0f7fb;border:1px solid #cfe4f0;border-radius:8px;padding:18px 20px;margin:20px 0;">
+          <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Login URL</p>
+          <p style="margin:0 0 16px;"><a href="https://crm.shinyjets.com/login" style="color:#007CB1;font-weight:600;text-decoration:none;">crm.shinyjets.com/login</a></p>
+          <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Username</p>
+          <p style="margin:0 0 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:#1a1a1a;">${safeEmail}</p>
+          <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Temporary Password</p>
+          <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:600;color:#007CB1;letter-spacing:0.05em;">${tempPassword}</p>
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="https://crm.shinyjets.com/login" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Log In Now</a>
+        </div>
+        ${hasCourseGrant ? `<p style="font-size:13px;line-height:1.6;margin:0 0 12px;color:#555;">Course bonus: CRM Business for 12 months, including <strong>Detailing AI</strong> and team tools.</p>` : ''}
+        <h3 style="font-size:15px;color:#1a1a1a;margin:32px 0 12px;">Get Started in 3 Steps</h3>
+        <ol style="margin:0;padding-left:20px;line-height:1.8;font-size:14px;color:#555;">
+          <li><strong>Set up your services</strong> — Add your service menu and hourly rate in Settings</li>
+          <li><strong>Connect Stripe</strong> — Accept payments directly through your quotes</li>
+          <li><strong>Send your first quote</strong> — Pick an aircraft, choose services, send to a customer in 2 minutes</li>
+        </ol>
+        <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 0;">You'll be prompted to change your password after your first login. Need help? Just reply to this email.</p>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0;">
+        <p style="font-size:11px;color:#999;margin:0;text-align:center;">Shiny Jets CRM &middot; <a href="https://crm.shinyjets.com" style="color:#999;">crm.shinyjets.com</a></p>
+      </div>
+    </body></html>`,
+    mailOpts,
+  );
+
+  if (reason !== 'pricing_quarterly') {
+    await sendEmail(
       email,
-      name,
-      phone: payload?.customer?.phone || null,
-      password_hash: hashed,
-      must_change_password: true,
-      status: 'active',
-      plan: hasCourseGrant ? 'enterprise' : plan,
-      subscription_status: hasCourseGrant ? 'comped' : 'active',
-      subscription_source: hasCourseGrant ? 'course_bundle' : 'shopify',
-      shopify_customer_id: shopifyCustomerId,
-      ...(courseExpiryISO ? {
-        trial_ends_at: courseExpiryISO,
-        plan_expires_at: courseExpiryISO,
-      } : {}),
-    };
-    if (hasCourseGrant) {
-      const { defaultFeePercentForPlan } = await import('@/lib/branding');
-      insertRow.platform_fee_percent = defaultFeePercentForPlan('enterprise');
-      insertRow.plan_updated_at = new Date().toISOString();
-      plan = 'enterprise';
-    }
-
-    const { data: inserted } = await supabase
-      .from('detailers')
-      .insert(insertRow)
-      .select()
-      .maybeSingle();
-
-    if (inserted) {
-      console.log(`[shopify-webhook] Created detailer ${inserted.id} for ${email}`);
-
-      const compResult = await redeemCompInviteIfAny(supabase, inserted.id, email);
-      if (compResult.applied) {
-        inserted.plan = compResult.plan;
-        inserted.subscription_status = compResult.subscription_status;
-        if (compResult.trial_ends_at) inserted.trial_ends_at = compResult.trial_ends_at;
-        plan = compResult.plan;
-      }
-
-      const labels = { free: 'Free', pro: 'Pro', business: 'Business', enterprise: 'Enterprise' };
-      const firstName = (name || '').split(' ')[0] || 'there';
-      const displayPlan = hasCourseGrant ? 'enterprise' : plan;
-      const mailOpts = hasCourseGrant
-        ? { from: COURSE_FROM, replyTo: COURSE_REPLY_TO }
-        : {};
-      await sendEmail(
-        email,
-        hasCourseGrant
-          ? 'Your Shiny Jets CRM Enterprise login (1 year included with your course)'
-          : 'Your Shiny Jets CRM login details',
-        `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
-          <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your login details are inside — username, temporary password, and login link.</span>
-          <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
-            <h1 style="color:#007CB1;margin:0 0 8px;font-size:24px;">Welcome aboard, ${firstName}!</h1>
-            <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#555;">Your Shiny Jets CRM <strong>${labels[displayPlan] || displayPlan}</strong> account is ready. Here are your login details:</p>
-
-            <div style="background:#f0f7fb;border:1px solid #cfe4f0;border-radius:8px;padding:18px 20px;margin:20px 0;">
-              <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Login URL</p>
-              <p style="margin:0 0 16px;"><a href="https://crm.shinyjets.com/login" style="color:#007CB1;font-weight:600;text-decoration:none;">crm.shinyjets.com/login</a></p>
-
-              <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Username</p>
-              <p style="margin:0 0 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:#1a1a1a;">${email}</p>
-
-              <p style="margin:0 0 8px;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.05em;">Temporary Password</p>
-              <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:600;color:#007CB1;letter-spacing:0.05em;">${tempPassword}</p>
-            </div>
-
-            <div style="text-align:center;margin:28px 0;">
-              <a href="https://crm.shinyjets.com/login" style="display:inline-block;padding:14px 32px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Log In Now</a>
-            </div>
-
-            ${hasCourseGrant ? `<p style="font-size:13px;line-height:1.6;margin:0 0 12px;color:#555;">Course bonus: Enterprise includes <strong>Detailing AI</strong>. Earn points → redeem on Rewards for free products, a free CRM month, and Fly Shiny gear at <a href="https://flyshiny.com" style="color:#007CB1;">flyshiny.com</a>.</p>` : ''}
-
-            <h3 style="font-size:15px;color:#1a1a1a;margin:32px 0 12px;">Get Started in 3 Steps</h3>
-            <ol style="margin:0;padding-left:20px;line-height:1.8;font-size:14px;color:#555;">
-              <li><strong>Set up your services</strong> — Add your service menu and hourly rate in Settings</li>
-              <li><strong>Connect Stripe</strong> — Accept payments directly through your quotes</li>
-              <li><strong>Send your first quote</strong> — Pick an aircraft, choose services, send to a customer in 2 minutes</li>
-            </ol>
-
-            <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 0;">You'll be prompted to change your password after your first login. Need help? Just reply to this email.</p>
-
-            <hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0;">
-            <p style="font-size:11px;color:#999;margin:0;text-align:center;">Shiny Jets CRM &middot; <a href="https://crm.shinyjets.com" style="color:#999;">crm.shinyjets.com</a></p>
-          </div>
-        </body></html>`,
-        mailOpts,
-      );
-
-      await sendEmail(
-        email,
-        'Action required: Check your inbox for CRM access',
-        null,
-        {
-          text: `Hi ${firstName},
+      'Action required: Check your inbox for CRM access',
+      null,
+      {
+        text: `Hi ${firstNameRaw},
 
 Thanks for signing up for Shiny Jets CRM. We just sent you an email with your login details — please check your inbox (and spam folder).
 
@@ -989,45 +997,257 @@ If you have any trouble, just reply to this email.
 
 — Brett
 Shiny Jets`,
-          ...(hasCourseGrant ? { from: COURSE_FROM, replyTo: COURSE_REPLY_TO } : {}),
-        }
-      );
-
-      const now = new Date();
-      const dripRows = [0, 1, 3, 5, 7].map(offset => ({
-        detailer_id: inserted.id,
-        message_id: `drip-day-${offset}`,
-        scheduled_for: new Date(now.getTime() + offset * 86400000).toISOString(),
-      }));
-      await supabase.from('drip_messages').insert(dripRows);
-
-      const adminPhone = process.env.ADMIN_PHONE;
-      if (adminPhone) {
-        await sendSMS(adminPhone, `New Shopify signup: ${email} (${plan})`);
+        ...mailOpts,
       }
+    );
+  }
 
-      if (hasCourseGrant) {
-        await supabase.from('webhook_logs').insert({
-          source: 'shopify',
-          topic: 'course_enterprise_granted',
-          payload: {
-            order_id: String(payload?.id || ''),
-            email,
-            product_title: courseItem?.title || null,
-            product_id: courseItem?.product_id || null,
-            trial_ends_at: courseExpiryISO,
-            path: 'create_with_crm_sku',
-          },
-          processed: true,
-        });
-      }
+  const now = new Date();
+  const dripRows = [0, 1, 3, 5, 7].map(offset => ({
+    detailer_id: inserted.id,
+    message_id: `drip-day-${offset}`,
+    scheduled_for: new Date(now.getTime() + offset * 86400000).toISOString(),
+  }));
+  await supabase.from('drip_messages').insert(dripRows);
+
+  const adminPhone = process.env.ADMIN_PHONE;
+  if (adminPhone) {
+    await sendSMS(adminPhone, `New Shopify signup: ${email} (${finalPlan}${reason === 'pricing_quarterly' ? ' via Pricing quarterly' : ''})`);
+  }
+
+  if (hasCourseGrant) {
+    await logGrant(supabase, 'course_enterprise_granted', {
+      order_id: String(payload?.id || ''),
+      email,
+      product_title: courseItem?.title || null,
+      product_id: courseItem?.product_id || null,
+      trial_ends_at: courseExpiryISO,
+      path: 'create_with_crm_sku',
+    });
+  }
+  return inserted;
+}
+
+// ─── PRICING-QUARTERLY (paid) → CRM Lite for 90 days per unit ───
+// Stacks onto remaining Lite time, never downgrades Business, idempotent per
+// Shopify order via webhook_logs (topic quarterly_lite_granted).
+// PRICING-MONTHLY does NOT grant Lite.
+async function handleQuarterlyLiteGrant(supabase, payload) {
+  const days = quarterlyLiteDaysFromLineItems(payload?.line_items);
+  if (!days) return null;
+  const orderId = String(payload?.id || '');
+  const email = extractEmail(payload);
+  if (!orderId || !email) {
+    console.error(`[shopify-webhook] quarterly→lite: missing order id or email (order=${orderId})`);
+    return null;
+  }
+  if (payload?.financial_status && !['paid', 'partially_refunded'].includes(payload.financial_status)) {
+    console.log(`[shopify-webhook] quarterly→lite: order ${orderId} financial_status=${payload.financial_status}, skipping`);
+    return null;
+  }
+  if (await alreadyLogged(supabase, 'quarterly_lite_granted', orderId)) {
+    console.log(`[shopify-webhook] quarterly→lite: idempotent skip order ${orderId}`);
+    return { mode: 'already_applied', granted: true };
+  }
+
+  const detailer = await findDetailer(supabase, payload);
+  let result;
+  if (detailer) {
+    result = await applyDatedPlanGrant(supabase, detailer, {
+      plan: 'lite',
+      days,
+      source: 'pricing_quarterly',
+      extra: { shopify_customer_id: String(payload?.customer?.id || detailer.shopify_customer_id || '') || null },
+    });
+  } else {
+    const planExpiresAt = new Date(Date.now() + days * DAY_MS).toISOString();
+    const inserted = await createShopifyAccount(supabase, payload, {
+      email, plan: 'lite', planExpiresAt, hasCourseGrant: false, reason: 'pricing_quarterly',
+    });
+    result = { mode: inserted ? 'create_account' : 'create_failed', update: inserted ? { plan: 'lite', plan_expires_at: planExpiresAt } : null };
+  }
+
+  await logGrant(supabase, 'quarterly_lite_granted', {
+    order_id: orderId,
+    order_name: payload?.name || null,
+    email,
+    days,
+    mode: result.mode,
+    previous_plan: detailer?.plan || null,
+    previous_plan_expires_at: detailer?.plan_expires_at || null,
+    plan_expires_at: result.update?.plan_expires_at || null,
+  });
+  console.log(`[shopify-webhook] quarterly→lite ${result.mode}: ${email} order=${orderId} +${days}d until ${result.update?.plan_expires_at || '(unchanged)'}`);
+  const granted = !!result.update || result.mode === 'keep_open_ended' || result.mode === 'keep_open_ended_comp';
+  return { mode: result.mode, granted };
+}
+
+// ─── Handle: orders/paid ───
+async function handleOrderPaid(supabase, payload) {
+  // Course products → Pricing App access
+  await handleCoursePricingAccess(supabase, payload);
+
+  // PRICING-QUARTERLY → CRM Lite (isolated: never blocks other provisioning)
+  let quarterly = null;
+  try {
+    quarterly = await handleQuarterlyLiteGrant(supabase, payload);
+  } catch (e) {
+    console.error('[shopify-webhook] quarterly→lite error:', e?.message || e);
+  }
+
+  // Pricing Tool subscriptions (PRICING-MONTHLY / PRICING-QUARTERLY) → app_access.
+  try {
+    await handlePricingToolAccess(supabase, payload, { includesCrmLite: !!quarterly?.granted });
+  } catch (e) {
+    console.error('[shopify-webhook] pricing tool access error:', e?.message || e);
+  }
+
+  const items = payload?.line_items || [];
+  const courseItem = await findCourseLineItem(items);
+  const hasCourseGrant = !!courseItem;
+
+  const purchase = crmPurchaseFromLineItems(items);
+
+  // Course alone (no CRM SKU) → Business provisioning path
+  if (!purchase && hasCourseGrant) {
+    console.log('[shopify-webhook] orders/paid: course detected, granting CRM Business (1 year)');
+    await grantCourseEnterprise(supabase, payload, courseItem);
+    return;
+  }
+
+  if (!purchase) {
+    console.log('[shopify-webhook] orders/paid: no matching CRM plan, skipping CRM provisioning');
+    return;
+  }
+
+  const email = extractEmail(payload);
+  if (!email) {
+    console.error('[shopify-webhook] orders/paid: no customer email found in payload, cannot create account');
+    return;
+  }
+  const orderId = String(payload?.id || '');
+  const plan = purchase.plan;
+  console.log(`[shopify-webhook] orders/paid: email=${email} plan=${plan} days=${purchase.days} skus=${purchase.skus.join(',')}`);
+
+  // Idempotency: a Shopify retry of the same order must not stack days twice.
+  if (plan !== 'free' && await alreadyLogged(supabase, 'crm_plan_granted', orderId)) {
+    console.log(`[shopify-webhook] crm plan: idempotent skip order ${orderId}`);
+    if (hasCourseGrant) await grantCourseEnterprise(supabase, payload, courseItem);
+    return;
+  }
+
+  const detailer = await findDetailer(supabase, payload);
+  const shopifyCustomerId = String(payload?.customer?.id || '');
+  let planExpiresAt = null;
+  let mode;
+
+  if (detailer) {
+    if (plan === 'free') {
+      // A $0 Free SKU never downgrades an existing account.
+      mode = 'free_sku_noop';
+      const extra = {};
+      if (shopifyCustomerId && !detailer.shopify_customer_id) extra.shopify_customer_id = shopifyCustomerId;
+      if (Object.keys(extra).length) await updateDetailerRow(supabase, detailer.id, extra);
+    } else {
+      const res = await applyDatedPlanGrant(supabase, detailer, {
+        plan,
+        days: purchase.days,
+        source: 'shopify',
+        extra: { shopify_customer_id: shopifyCustomerId || detailer.shopify_customer_id || null },
+      });
+      mode = res.mode;
+      planExpiresAt = res.update?.plan_expires_at || null;
+    }
+    console.log('[shopify-webhook] plan-change', JSON.stringify({
+      detailer_id: detailer.id,
+      email,
+      old_plan: detailer.plan,
+      new_plan: plan,
+      mode,
+      plan_expires_at: planExpiresAt,
+      shopify_order_id: orderId,
+      topic: 'orders/paid',
+    }));
+  } else {
+    planExpiresAt = plan === 'free' ? null : new Date(Date.now() + purchase.days * DAY_MS).toISOString();
+    const inserted = await createShopifyAccount(supabase, payload, {
+      email, plan, planExpiresAt, hasCourseGrant, courseItem, reason: 'crm_sku',
+    });
+    mode = inserted ? 'create_account' : 'create_failed';
+  }
+
+  if (plan !== 'free') {
+    await logGrant(supabase, 'crm_plan_granted', {
+      order_id: orderId,
+      order_name: payload?.name || null,
+      email,
+      plan,
+      days: purchase.days,
+      skus: purchase.skus,
+      mode,
+      previous_plan: detailer?.plan || null,
+      previous_plan_expires_at: detailer?.plan_expires_at || null,
+      plan_expires_at: planExpiresAt,
+    });
+  }
+
+  // Business includes the Pricing Tool: keep app_access active for the term.
+  if (plan === 'business') {
+    const accessEnd = planExpiresAt || new Date(Date.now() + purchase.days * DAY_MS).toISOString();
+    try {
+      await ensureBusinessPricingAccess(supabase, email, orderId, accessEnd);
+    } catch (e) {
+      console.error('[shopify-webhook] business pricing access error:', e?.message || e);
     }
   }
 
-  // Cart also has a course → apply Enterprise year (idempotent; preserves paid enterprise)
+  // Cart also has a course → apply Business year (idempotent; preserves paid business)
   if (hasCourseGrant) {
     await grantCourseEnterprise(supabase, payload, courseItem);
   }
+}
+
+// ─── Which product does a subscription event belong to? ───
+function extractOrderId(v) {
+  if (!v) return null;
+  const m = String(v).match(/(\d+)\s*$/);
+  return m ? m[1] : null;
+}
+
+async function classifySubscriptionEvent(supabase, payload) {
+  let items = subscriptionItems(payload);
+  let classification = classifySubscriptionItems(items);
+  if (!classification.known) {
+    // Seal / Shopify contract events often omit items — fall back to the
+    // original order's line items from webhook_logs.
+    const originId = extractOrderId(payload?.origin_order_id || payload?.order_id || payload?.origin_order?.id || payload?.last_order_id);
+    if (originId) {
+      const { data } = await supabase
+        .from('webhook_logs')
+        .select('payload')
+        .eq('source', 'shopify')
+        .eq('topic', 'orders/paid')
+        .filter('payload->>id', 'eq', originId)
+        .limit(1);
+      const order = data?.[0]?.payload;
+      if (order?.line_items?.length) {
+        items = order.line_items;
+        classification = classifySubscriptionItems(items);
+      }
+    }
+  }
+  return classification;
+}
+
+async function hasActivePricingRow(supabase, email) {
+  if (!email) return false;
+  const { data } = await supabase
+    .from('app_access')
+    .select('product_type, status, access_end')
+    .eq('email', email)
+    .maybeSingle();
+  return !!(data && ['monthly', 'quarterly'].includes(data.product_type) &&
+    data.status === 'active' && data.access_end && new Date(data.access_end).getTime() > Date.now());
 }
 
 // ─── Handle: subscription update (upgrade/downgrade) ───
@@ -1035,13 +1255,18 @@ async function handleSubscriptionUpdate(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   if (!detailer) return;
 
-  const items = payload?.line_items || [];
-  let plan = null;
-  for (const item of items) {
-    plan = resolvePlan(item);
-    if (plan) break;
+  const classification = await classifySubscriptionEvent(supabase, payload);
+  if (!classification.hasCrm) {
+    console.log(`[shopify-webhook] subscription update for non-CRM product (pricing=${classification.hasPricing}) — CRM plan untouched for ${detailer.email}`);
+    return;
   }
-  if (!plan) return;
+  const plan = classification.crmPlan;
+
+  // Never let a lower-tier subscription event downgrade a comp / course entitlement.
+  if (isCompedDetailer(detailer) && planRank(plan) < planRank(detailer.plan)) {
+    console.log(`[shopify-webhook] subscription update ${plan} ignored for comped ${normalizePlan(detailer.plan)} account ${detailer.email}`);
+    return;
+  }
 
   const result = await updatePlan(supabase, detailer, plan, {
     shopify_customer_id: String(payload?.customer?.id || payload?.customer_id || detailer.shopify_customer_id || ''),
@@ -1060,45 +1285,55 @@ async function handleSubscriptionUpdate(supabase, payload) {
 }
 
 // ─── Handle: subscription cancel / expire ───
+// Only affects the product the subscription belongs to: cancelling the
+// Pricing Tool never touches the CRM plan.
 async function handleSubscriptionCancel(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   if (!detailer) return;
 
-  // Do not wipe course-bundle or admin comp Enterprise — plan-expirations cron
-  // handles dated entitlements. Protects Victor-style comps.
-  if (
-    detailer.subscription_source === 'course_bundle' ||
-    detailer.subscription_source === 'comp_invite' ||
-    detailer.subscription_status === 'comped' ||
-    detailer.subscription_status === 'complimentary'
-  ) {
-    console.log(`[shopify-webhook] cancel ignored for comped/course account ${detailer.email}`);
+  const classification = await classifySubscriptionEvent(supabase, payload);
+  const pricingRow = await hasActivePricingRow(supabase, detailer.email);
+  const decision = decideCancellation({ detailer, classification, hasActivePricingRow: pricingRow });
+  const oldPlan = normalizePlan(detailer.plan);
+
+  console.log('[shopify-webhook] subscription-cancel', JSON.stringify({
+    detailer_id: detailer.id,
+    email: detailer.email,
+    plan: oldPlan,
+    decision,
+    classification,
+    shopify_order_id: String(payload?.id || payload?.order_id || payload?.origin_order_id || ''),
+  }));
+
+  if (decision === 'ignore_unresolved') {
+    await logGrant(supabase, 'subscription_cancel_unresolved', {
+      email: detailer.email,
+      detailer_id: detailer.id,
+      subscription_id: payload?.id || payload?.admin_graphql_api_id || null,
+      note: 'Could not tell which product was cancelled and the customer has an active Pricing Tool subscription; CRM plan left unchanged for manual review.',
+    });
+    return;
+  }
+  if (decision.startsWith('ignore')) return;
+
+  if (decision === 'keep_until_expiry') {
+    // Paid through plan_expires_at — plan-expirations cron downgrades later.
+    await updateDetailerRow(supabase, detailer.id, {
+      subscription_status: 'cancelled',
+      plan_updated_at: new Date().toISOString(),
+    });
     return;
   }
 
-  const oldPlan = detailer.plan || 'free';
-  await supabase.from('detailers').update({
+  // downgrade_now (legacy open-ended subscription)
+  await updateDetailerRow(supabase, detailer.id, {
     plan: 'free',
     subscription_status: 'cancelled',
     subscription_source: 'shopify',
     plan_updated_at: new Date().toISOString(),
-  }).eq('id', detailer.id);
+  });
 
-  console.log('[shopify-webhook] plan-change', JSON.stringify({
-    detailer_id: detailer.id,
-    email: detailer.email,
-    old_plan: oldPlan,
-    new_plan: 'free',
-    subscription_status: 'cancelled',
-    subscription_source: 'shopify',
-    shopify_order_id: String(payload?.id || payload?.order_id || ''),
-    topic: 'subscription/cancelled',
-    changed: oldPlan !== 'free',
-  }));
-
-  if (oldPlan !== 'free') {
-    try { await planChangeEmail(detailer.email, oldPlan, 'free'); } catch {}
-  }
+  try { await planChangeEmail(detailer.email, oldPlan, 'free'); } catch {}
 
   const adminPhone = process.env.ADMIN_PHONE;
   if (adminPhone) {
@@ -1111,16 +1346,27 @@ async function handleBillingFailure(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   if (!detailer) return;
 
-  await supabase.from('detailers').update({ status: 'suspended' }).eq('id', detailer.id);
+  const classification = await classifySubscriptionEvent(supabase, payload);
+  const pricingRow = await hasActivePricingRow(supabase, detailer.email);
+  if (!billingAffectsCrm({ classification, hasActivePricingRow: pricingRow })) {
+    console.log(`[shopify-webhook] billing failure not for CRM subscription (${detailer.email}) — CRM account untouched`);
+    return;
+  }
+  if (isCompedDetailer(detailer)) {
+    console.log(`[shopify-webhook] billing failure ignored for comped account ${detailer.email}`);
+    return;
+  }
+
+  await updateDetailerRow(supabase, detailer.id, { status: 'suspended' });
 
   await sendEmail(
     detailer.email,
     'Payment failed — Shiny Jets CRM account paused',
     `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
       <h2 style="color:#333;">Payment Failed</h2>
-      <p>We were unable to process your subscription payment. Your account has been paused.</p>
+      <p>We were unable to process your Shiny Jets CRM subscription payment. Your account has been paused.</p>
       <p>Please update your payment method to restore access.</p>
-      <p><a href="https://shinyjets.com" style="color:#007CB1;">Update payment method →</a></p>
+      <p><a href="https://shinyjets.com/account" style="color:#007CB1;">Update payment method →</a></p>
       <p style="color:#999;font-size:12px;margin-top:24px;">Shiny Jets CRM</p>
     </body></html>`,
   );
@@ -1136,7 +1382,11 @@ async function handleBillingSuccess(supabase, payload) {
   const detailer = await findDetailer(supabase, payload);
   if (!detailer || detailer.status !== 'suspended') return;
 
-  await supabase.from('detailers').update({ status: 'active' }).eq('id', detailer.id);
+  const classification = await classifySubscriptionEvent(supabase, payload);
+  const pricingRow = await hasActivePricingRow(supabase, detailer.email);
+  if (!billingAffectsCrm({ classification, hasActivePricingRow: pricingRow })) return;
+
+  await updateDetailerRow(supabase, detailer.id, { status: 'active' });
 
   await sendEmail(
     detailer.email,

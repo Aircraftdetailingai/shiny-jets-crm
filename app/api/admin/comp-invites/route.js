@@ -13,7 +13,7 @@ function getSupabase() {
   );
 }
 
-const VALID_PLANS = new Set(['pro', 'business', 'enterprise']);
+const VALID_PLANS = new Set(['lite', 'business', 'pro', 'enterprise']); // pro/enterprise = legacy aliases
 const VALID_STATUSES = new Set(['complimentary', 'trial']);
 const NO_STORE = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, max-age=0' };
 
