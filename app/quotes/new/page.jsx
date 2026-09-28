@@ -14,6 +14,7 @@ import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonA
 import { resolveValidityDays } from '../../../lib/quote-validity';
 import { resolveFeeRate } from '@/lib/pricing-tiers';
 import { normalizePlan } from '@/lib/plans';
+import { humanizeAircraftCategory } from '@/lib/aircraft-labels';
 
 const categoryOrder = ['piston', 'turboprop', 'light_jet', 'midsize_jet', 'super_midsize_jet', 'large_jet', 'helicopter'];
 
@@ -1786,7 +1787,7 @@ function NewQuoteContent() {
                     onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
                     className={`px-3 py-1.5 text-xs tracking-wider uppercase transition-colors min-h-[32px] border ${selectedCategory === cat ? 'border-v-gold text-v-gold' : 'border-transparent text-gray-400 hover:text-gray-300'}`}
                   >
-                    {categoryLabels[cat] || cat}
+                    {categoryLabels[cat] || humanizeAircraftCategory(cat)}
                   </button>
                 ))}
               </div>
@@ -1797,7 +1798,7 @@ function NewQuoteContent() {
               <div className="max-h-64 overflow-y-auto space-y-3">
                 {sortedCategories.map(cat => (
                   <div key={cat}>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{categoryLabels[cat] || cat}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{categoryLabels[cat] || humanizeAircraftCategory(cat)}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {groupedModels[cat].map(aircraft => (
                         <button

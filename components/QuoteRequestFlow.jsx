@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { normalizePlan } from '@/lib/plans';
+import { humanizeAircraftCategory } from '@/lib/aircraft-labels';
 
 // Default question IDs already handled by hardcoded steps. Legacy flat
 // questions use underscores; the visual flow builder (lib/default-flow.js)
@@ -322,7 +323,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
                           data.model === m.model ? 'bg-[#007CB1]/20 text-white' : 'text-white/80 hover:bg-[#007CB1]/10'
                         }`}>
                         {m.model}
-                        {m.category && <span className="text-white/30 text-xs ml-2">{m.category}</span>}
+                        {m.category && <span className="text-white/30 text-xs ml-2">{humanizeAircraftCategory(m.category)}</span>}
                       </button>
                     ))}
                     {models.length === 0 && <p className="text-white/30 text-sm text-center py-6">No models found</p>}

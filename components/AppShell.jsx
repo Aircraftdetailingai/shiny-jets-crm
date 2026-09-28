@@ -25,7 +25,7 @@ export default function AppShell({ children, title }) {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <GlobalSearch />
+            <GlobalSearch listenShortcut={false} />
             <PointsBadge />
             <NotificationBell />
           </div>

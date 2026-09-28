@@ -30,19 +30,38 @@ function saveRecent(term) {
   localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
 }
 
-export default function GlobalSearch() {
+// Mounted twice: once app-wide in Providers (keyboard shortcut only, no
+// visible trigger) and once in the AppShell top bar (visible trigger only).
+// The Providers copy used to render its trigger button unstyled at the end
+// of <body>, which showed up as a clipped search box in the bottom-left
+// corner on phones and added scroll height to full-height pages.
+export default function GlobalSearch({ showTrigger = true, listenShortcut = true } = {}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const [recentSearches, setRecentSearches] = useState([]);
+  // Shortcut hint: ⌘K on Apple devices, Ctrl K elsewhere. Detected after
+  // mount so server and client markup match.
+  const [shortcutLabel, setShortcutLabel] = useState('Ctrl K');
+  useEffect(() => {
+    try {
+      const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
+      if (/mac|iphone|ipad|ipod/i.test(platform)) setShortcutLabel('⌘K');
+    } catch {}
+  }, []);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
   const debounceRef = useRef(null);
 
   // Cmd+K / Ctrl+K to open
   useEffect(() => {
+    if (!listenShortcut) {
+      const escOnly = (e) => { if (e.key === 'Escape') setOpen(false); };
+      document.addEventListener('keydown', escOnly);
+      return () => document.removeEventListener('keydown', escOnly);
+    }
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
@@ -145,6 +164,7 @@ export default function GlobalSearch() {
   }, [open]);
 
   if (!open) {
+    if (!showTrigger) return null;
     return (
       <button
         onClick={() => setOpen(true)}
@@ -154,7 +174,7 @@ export default function GlobalSearch() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <span className="hidden sm:inline">{'Search'}</span>
-        <kbd className="hidden sm:inline text-[10px] bg-v-surface-light px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+        <kbd className="hidden sm:inline text-[10px] bg-v-surface-light px-1.5 py-0.5 rounded font-mono">{shortcutLabel}</kbd>
       </button>
     );
   }

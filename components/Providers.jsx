@@ -16,7 +16,7 @@ export default function Providers({ children }) {
           <OfflineBanner />
           {children}
           <KeyboardShortcuts />
-          <GlobalSearch />
+          <GlobalSearch showTrigger={false} />
         </ToastProvider>
       </I18nProvider>
     </ErrorBoundary>

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import NotificationBell from './NotificationBell.jsx';
 import PointsBadge from './PointsBadge.jsx';
 import { applyFullTheme } from '@/lib/theme';
@@ -9,7 +9,8 @@ import { normalizePlan, hasFeature, requiredPlanFor } from '@/lib/plans';
 
 const NAV_GROUPS = [
   {
-    label: 'Home',
+    // No heading for the single Dashboard link — saves a row of height.
+    label: null,
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
     ],
@@ -55,6 +56,59 @@ const NAV_GROUPS = [
     ],
   },
 ];
+
+// Row height shrinks on short viewports so every item fits at ~740px tall
+// (e.g. a 1366×768 laptop) without scrolling; the mobile drawer keeps
+// comfortable 44px tap targets.
+const NAV_ROW = 'h-11 [@media(min-width:768px)_and_(min-height:861px)]:h-9 [@media(min-width:768px)_and_(max-height:860px)]:h-7';
+const COLLAPSE_KEY = 'sidebar_collapsed_groups';
+
+// Scroll container that shows a fade + "More" hint whenever items are
+// hidden below the fold, so nothing looks missing.
+function ScrollableNav({ children }) {
+  const ref = useRef(null);
+  const [more, setMore] = useState(false);
+  const check = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  }, []);
+  useEffect(() => {
+    check();
+    const el = ref.current;
+    if (!el) return undefined;
+    el.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(check);
+      ro.observe(el);
+      if (el.firstElementChild) ro.observe(el.firstElementChild);
+    }
+    return () => {
+      el.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+      ro?.disconnect();
+    };
+  }, [check]);
+  return (
+    <div className="relative flex-1 min-h-0">
+      <nav ref={ref} className="h-full overflow-y-auto overscroll-contain pb-1 [scrollbar-width:thin]" aria-label="Main">
+        <div>{children}</div>
+      </nav>
+      {more && (
+        <button
+          type="button"
+          onClick={() => ref.current?.scrollBy({ top: ref.current.clientHeight * 0.6, behavior: 'smooth' })}
+          className="absolute bottom-0 left-0 right-0 h-10 flex items-end justify-center pb-1 bg-gradient-to-t from-v-sidebar via-v-sidebar/90 to-transparent text-[9px] uppercase tracking-[0.2em] text-v-text-secondary hover:text-v-gold"
+          aria-label="Scroll for more menu items"
+        >
+          More <span aria-hidden="true" className="ml-1">&#8595;</span>
+        </button>
+      )}
+    </div>
+  );
+}
 
 function DashboardIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path d="M9 22V12h6v10" /></svg>;
@@ -120,6 +174,18 @@ export default function Sidebar() {
   const [user, setUser] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const [collapsed, setCollapsed] = useState({});
+
+  useEffect(() => {
+    try { setCollapsed(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}') || {}); } catch {}
+  }, []);
+  const toggleGroup = (label) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     try {
@@ -227,68 +293,84 @@ export default function Sidebar() {
   const navContent = (
     <>
       {/* Logo */}
-      <div className="h-[72px] flex items-center px-7">
+      <div className="h-14 [@media(min-width:768px)_and_(max-height:860px)]:h-12 shrink-0 flex items-center px-7">
         {user?.theme_logo_url ? (
           <img src={user.theme_logo_url} alt={user.company || 'Logo'} className="h-8 max-w-[160px] object-contain" />
         ) : (
-          <img src="/logos/shiny-jets-dark.png" alt="Shiny Jets CRM" className="h-10 max-w-[180px] object-contain" />
+          <img src="/logos/shiny-jets-dark.png" alt="Shiny Jets CRM" className="h-9 max-w-[180px] object-contain" />
         )}
       </div>
 
-      {/* Nav Groups */}
-      <nav className="flex-1 overflow-y-auto px-0">
-        {NAV_GROUPS.map((group, gi) => (
-          <div key={gi}>
-            {gi > 0 && <div className="mx-5 mt-3 mb-1 border-t border-v-border-subtle" />}
-            {group.label && (
-              <p className="px-7 pt-2 pb-1 text-[9px] uppercase text-v-text-secondary/50 font-medium" style={{ letterSpacing: '0.2em' }}>
-                {group.label}
-              </p>
-            )}
-            {group.items.map((item) => {
-              const active = isActive(item.href);
-              const Icon = item.icon;
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`sidebar-nav-item flex items-center gap-3 h-12 px-7 text-xs uppercase transition-colors relative ${
-                    active
-                      ? 'text-v-gold bg-v-surface-light/30'
-                      : 'text-v-text-secondary hover:text-v-text-primary'
-                  }`}
-                  style={{ letterSpacing: '0.15em' }}
+      {/* Nav Groups — collapsible headings, remembered per browser */}
+      <ScrollableNav>
+        {NAV_GROUPS.map((group, gi) => {
+          const hasActive = group.items.some((it) => isActive(it.href));
+          const isCollapsed = !!(group.label && collapsed[group.label] && !hasActive);
+          const groupId = `nav-group-${gi}`;
+          return (
+            <div key={gi}>
+              {group.label && (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={groupId}
+                  className="w-full flex items-center justify-between px-7 pt-3 pb-1 md:pt-2.5 md:pb-0.5 [@media(min-width:768px)_and_(max-height:860px)]:pt-1.5 text-[9px] leading-3 uppercase text-v-text-secondary/60 hover:text-v-text-secondary font-medium"
+                  style={{ letterSpacing: '0.2em' }}
                 >
-                  {active && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
-                  <Icon />
-                  <span>{item.label}</span>
-                  {item.feature && user && !user.is_admin && !hasFeature(user.plan, item.feature) && (
-                    <span className="ml-auto text-[8px] font-semibold tracking-wider px-1.5 py-0.5 rounded border border-v-gold/40 text-v-gold/80" title="Upgrade to unlock">
-                      {requiredPlanFor(item.feature) === 'business' ? 'BUSINESS' : 'LITE'}
-                    </span>
-                  )}
-                  {item.badge && requestCount > 0 && (
-                    <span className="ml-auto bg-v-gold text-v-charcoal text-[9px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{requestCount}</span>
-                  )}
-                </a>
-              );
-            })}
-          </div>
-        ))}
-      </nav>
+                  <span>{group.label}{isCollapsed ? ` · ${group.items.length}` : ''}</span>
+                  <svg className={`w-3 h-3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+              )}
+              <div id={groupId} hidden={isCollapsed}>
+                {group.items.map((item) => {
+                  const active = isActive(item.href);
+                  const Icon = item.icon;
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`sidebar-nav-item flex items-center gap-3 ${NAV_ROW} px-7 text-xs uppercase transition-colors relative ${
+                        active
+                          ? 'text-v-gold bg-v-surface-light/30'
+                          : 'text-v-text-secondary hover:text-v-text-primary'
+                      }`}
+                      style={{ letterSpacing: '0.15em' }}
+                      aria-current={active ? 'page' : undefined}
+                    >
+                      {active && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
+                      <Icon />
+                      <span className="truncate">{item.label}</span>
+                      {item.feature && user && !user.is_admin && !hasFeature(user.plan, item.feature) && (
+                        <span className="ml-auto text-[8px] font-semibold tracking-wider px-1.5 py-0.5 rounded border border-v-gold/40 text-v-gold/80" title="Upgrade to unlock">
+                          {requiredPlanFor(item.feature) === 'business' ? 'BUSINESS' : 'LITE'}
+                        </span>
+                      )}
+                      {item.badge && requestCount > 0 && (
+                        <span className="ml-auto bg-v-gold text-v-charcoal text-[9px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{requestCount}</span>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </ScrollableNav>
 
       {/* Settings (bottom-anchored, above user area) */}
-      <div className="border-t border-v-border-subtle">
+      <div className="border-t border-v-border-subtle shrink-0">
         <a
           href="/settings"
           onClick={() => setMobileOpen(false)}
-          className={`sidebar-nav-item flex items-center gap-3 h-12 px-7 text-xs uppercase transition-colors relative ${
+          className={`sidebar-nav-item flex items-center gap-3 ${NAV_ROW} px-7 text-xs uppercase transition-colors relative ${
             isActive('/settings')
               ? 'text-v-gold bg-v-surface-light/30'
               : 'text-v-text-secondary hover:text-v-text-primary'
           }`}
           style={{ letterSpacing: '0.15em' }}
+          aria-current={isActive('/settings') ? 'page' : undefined}
         >
           {isActive('/settings') && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
           <SettingsIcon />
@@ -297,7 +379,7 @@ export default function Sidebar() {
       </div>
 
       {/* Bottom user area */}
-      <div className="border-t border-v-border-subtle px-5 py-4">
+      <div className="border-t border-v-border-subtle px-5 py-3 md:py-2.5 [@media(min-width:768px)_and_(max-height:860px)]:py-2 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full border border-v-gold/50 flex items-center justify-center text-v-gold text-xs font-light" style={{ letterSpacing: '0.05em' }}>
             {initial}

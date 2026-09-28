@@ -159,9 +159,12 @@ function FlowBuilderInner() {
     if (!token) { router.push('/login'); return; }
     const loadData = async () => {
       try {
-        const [svcRes, pkgRes] = await Promise.all([
+        // All three in parallel — the flow used to wait for services and
+        // packages before it even started loading the flow itself.
+        const [svcRes, pkgRes, flowRes] = await Promise.all([
           fetch('/api/services', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/packages', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/intake-flow', { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         const svcData = svcRes.ok ? await svcRes.json() : { services: [] };
         const svcList = Array.isArray(svcData.services || svcData) ? (svcData.services || svcData) : [];
@@ -171,7 +174,6 @@ function FlowBuilderInner() {
           setPackages(pkgData.packages || []);
         }
 
-        const flowRes = await fetch('/api/intake-flow', { headers: { Authorization: `Bearer ${token}` } });
         const flowData = flowRes.ok ? await flowRes.json() : {};
 
         if (flowData.flow_nodes?.length > 0 && flowData.flow_edges) {
@@ -228,17 +230,7 @@ function FlowBuilderInner() {
   // ─── Drag from toolbar ───
   const onDragOver = useCallback((e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }, []);
 
-  const onDrop = useCallback((e) => {
-    e.preventDefault();
-    const type = e.dataTransfer.getData('application/reactflow');
-    if (!type || !reactFlowInstance) return;
-
-    const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-    const position = reactFlowInstance.screenToFlowPosition({
-      x: e.clientX - (bounds?.left || 0),
-      y: e.clientY - (bounds?.top || 0),
-    });
-
+  const addNodeAt = useCallback((type, position) => {
     const id = `${type}-${Date.now()}`;
     const nodeConfig = {
       question: { label: 'New question', answerType: 'text' },
@@ -250,7 +242,32 @@ function FlowBuilderInner() {
     const newNode = { id, type, position, data: nodeConfig[type] || {} };
     setNodes(nds => [...nds, newNode]);
     if (type !== 'end') setEditingNode(newNode);
-  }, [reactFlowInstance, services]);
+  }, [services]);
+
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('application/reactflow');
+    if (!type || !reactFlowInstance) return;
+
+    const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: e.clientX - (bounds?.left || 0),
+      y: e.clientY - (bounds?.top || 0),
+    });
+    addNodeAt(type, position);
+  }, [reactFlowInstance, addNodeAt]);
+
+  // Tap-to-add (touch screens can't drag onto the canvas): drop the node
+  // in the middle of the visible canvas.
+  const addNodeAtCenter = useCallback((type) => {
+    if (!reactFlowInstance) return;
+    const b = reactFlowWrapper.current?.getBoundingClientRect();
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: (b?.left || 0) + (b?.width || 400) / 2,
+      y: (b?.top || 0) + (b?.height || 400) / 2,
+    });
+    addNodeAt(type, position);
+  }, [reactFlowInstance, addNodeAt]);
 
   // ─── Attach callbacks to nodes ───
   // Do NOT include editingNode in deps — changing editingNode must not re-create node objects
@@ -377,7 +394,16 @@ function FlowBuilderInner() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-v-charcoal flex items-center justify-center text-white">Loading...</div>;
+    return (
+      <div className="h-screen bg-v-charcoal flex overflow-hidden animate-pulse" aria-busy="true" aria-label="Loading intake flow">
+        <div className="hidden md:block w-56 border-r border-v-border p-4 space-y-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-10 bg-v-surface rounded" />)}
+        </div>
+        <div className="flex-1 flex flex-col items-center pt-16 gap-6">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-20 w-64 bg-v-surface border border-v-border rounded-lg" />)}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -385,7 +411,7 @@ function FlowBuilderInner() {
       {toast && <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50 text-sm">{toast}</div>}
 
       {/* ─── Left Sidebar Toolbar ─── */}
-      <div className="w-56 flex-shrink-0 border-r border-v-border bg-v-surface/50 flex flex-col">
+      <div className="w-36 sm:w-56 flex-shrink-0 border-r border-v-border bg-v-surface/50 flex flex-col">
         {/* Header */}
         <div className="px-4 py-3 border-b border-v-border">
           <div className="flex items-center gap-2 mb-1">
@@ -396,12 +422,16 @@ function FlowBuilderInner() {
 
         {/* Draggable node cards */}
         <div className="flex-1 overflow-y-auto px-3 py-3">
-          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3 px-1">Drag nodes onto canvas</p>
+          <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3 px-1">Drag onto canvas or tap to add</p>
           <div className="space-y-2">
             {NODE_PALETTE.map(item => (
               <div
                 key={item.type}
                 draggable
+                role="button"
+                tabIndex={0}
+                onClick={() => addNodeAtCenter(item.type)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addNodeAtCenter(item.type); } }}
                 onDragStart={(e) => {
                   e.dataTransfer.setData('application/reactflow', item.type);
                   e.dataTransfer.effectAllowed = 'move';
