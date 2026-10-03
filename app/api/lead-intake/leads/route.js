@@ -54,6 +54,9 @@ export async function GET(request) {
     if (id) {
       query = query.eq('id', id);
     }
+    // AI chat handoffs live in their own AI Leads section (/ai-leads), not in
+    // Requests. NULL-safe: rows with no source stay in Requests.
+    query = query.or('source.is.null,source.neq.ai_chat');
     if (status) {
       query = query.eq('status', status);
     }

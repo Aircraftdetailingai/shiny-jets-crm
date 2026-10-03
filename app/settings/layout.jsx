@@ -25,6 +25,9 @@ function PlugIcon() {
 function UsersIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 }
+function ChatIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>;
+}
 function QrIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h3v-3" /></svg>;
 }
@@ -37,6 +40,7 @@ const BUCKETS = [
   { href: '/settings/payments', label: 'Payments & Billing', Icon: CreditCardIcon },
   { href: '/settings/services', label: 'Services & Pricing', Icon: WrenchIcon },
   { href: '/settings/intake-flow', label: 'Intake Flow', Icon: GitBranchIcon },
+  { href: '/settings/ai-chat', label: 'AI Chat & FAQs', Icon: ChatIcon },
   { href: '/settings/automations', label: 'Automations', Icon: ZapIcon },
   { href: '/settings/connections', label: 'Connections', Icon: PlugIcon },
   { href: '/settings/team-access', label: 'Team & Access', Icon: UsersIcon },

@@ -18,6 +18,14 @@ export async function POST(request) {
 
   const supabase = getSupabase();
 
+  // notification_settings.ai_chat (AI chat bubble settings) is owned by
+  // /api/ai-chat/settings: always keep the stored value (a client copy may be stale).
+  delete notifSettings.ai_chat;
+  try {
+    const { data: cur } = await supabase.from('detailers').select('notification_settings').eq('id', user.id).maybeSingle();
+    if (cur?.notification_settings?.ai_chat) notifSettings.ai_chat = cur.notification_settings.ai_chat;
+  } catch {}
+
   const updateData = { notification_settings: notifSettings };
   if (notifyQuoteViewed !== undefined) {
     updateData.notify_quote_viewed = !!notifyQuoteViewed;
