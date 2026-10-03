@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { normalizePlan } from '@/lib/plans';
+import { intakeRedirectTarget, INTAKE_REDIRECT_SECONDS } from '@/lib/website-url';
 
 export default function FlowRequestPage() {
   const { slug } = useParams();
@@ -333,6 +334,9 @@ export default function FlowRequestPage() {
 
   // ─── UI helpers ───
   const isEnterprise = normalizePlan(detailer?.plan) === 'business'; // white-label
+  // After submitting, send the customer back to the detailer's own website
+  // (validated http(s) homepage) unless the form is embedded in their site.
+  const redirectTarget = intakeRedirectTarget(detailer, { embedded: isEmbed });
   const currentNode = flowNodes.find(n => n.id === currentNodeId);
 
   // ?embed=1 strips the page chrome (logo, "Powered by" footer) so the
@@ -386,6 +390,7 @@ export default function FlowRequestPage() {
         </div>
         <h2 className="text-2xl font-light text-white mb-3">Request Submitted!</h2>
         <p className="text-white/60 text-sm mb-8">We&apos;ll have your quote ready shortly.</p>
+        {redirectTarget && <RedirectCountdown target={redirectTarget} />}
       </div>
     </div>
   );
@@ -798,6 +803,56 @@ function ContactStep({ onSubmit }) {
         <button onClick={handleSubmit} disabled={!canSubmit}
           className="w-full py-4 rounded-lg text-sm font-semibold uppercase tracking-wider bg-[#007CB1] text-white hover:bg-[#006a9e] min-h-[48px] disabled:opacity-40 transition-all">
           Submit Request
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Thank-you page countdown back to the detailer's website. The customer can
+// go now or stay (WCAG 2.2.1 Timing Adjustable: the time limit can be turned
+// off). Screen readers get one announcement, not one per second.
+function RedirectCountdown({ target }) {
+  const [seconds, setSeconds] = useState(INTAKE_REDIRECT_SECONDS);
+  const [stayed, setStayed] = useState(false);
+
+  useEffect(() => {
+    if (stayed) return undefined;
+    if (seconds <= 0) {
+      window.location.assign(target.href);
+      return undefined;
+    }
+    const t = setTimeout(() => setSeconds(n => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [seconds, stayed, target.href]);
+
+  if (stayed) {
+    return (
+      <div className="flex flex-col items-center gap-2" data-testid="intake-redirect">
+        <p role="status" className="text-white/70 text-sm">OK, you&apos;ll stay on this page.</p>
+        <a href={target.href} className="text-[#4FB3E0] underline underline-offset-2 text-sm min-h-[44px] inline-flex items-center">
+          Go to {target.label}
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 w-full max-w-xs" data-testid="intake-redirect">
+      <p role="status" className="sr-only">
+        {`Taking you back to ${target.label} in ${INTAKE_REDIRECT_SECONDS} seconds. Choose Stay on this page to cancel.`}
+      </p>
+      <p className="text-white/80 text-sm" aria-hidden="true">
+        Taking you back to <span className="font-medium text-white">{target.label}</span> in <span className="tabular-nums">{Math.max(seconds, 0)}</span>…
+      </p>
+      <div className="flex gap-3 w-full">
+        <a href={target.href}
+          className="flex-1 min-h-[48px] inline-flex items-center justify-center rounded-lg bg-[#007CB1] text-white text-sm font-semibold hover:bg-[#006a9e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+          Go now
+        </a>
+        <button type="button" onClick={() => setStayed(true)}
+          className="flex-1 min-h-[48px] rounded-lg bg-white/10 text-white text-sm font-semibold border border-white/20 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+          Stay on this page
         </button>
       </div>
     </div>
