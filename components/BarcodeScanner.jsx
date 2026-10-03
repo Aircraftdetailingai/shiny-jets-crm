@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
+import { ZXING_SCAN_FORMATS, nativeFormatsUsable, normalizeScanFormat, isValidManualCode, classifyScan } from '@/lib/scan-code';
 
-// Reusable barcode scanner — works on iOS Safari, Android Chrome, desktop
-// Usage: <BarcodeScanner isOpen={open} onClose={...} onDetected={(upc) => ...} />
+// Reusable product scanner: reads regular barcodes (UPC-A/E, EAN-8/13,
+// Code 128, Code 39, ITF) AND QR / Data Matrix codes. Uses the native
+// BarcodeDetector when the browser has one, zxing otherwise (iOS Safari).
+// Works on iOS Safari, Android Chrome, desktop.
+// Usage: <BarcodeScanner isOpen={open} onClose={...} onDetected={(code, format) => ...} />
 export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
@@ -12,7 +16,7 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
   // render; depending on it would tear down and restart the camera constantly.
   const onDetectedRef = useRef(onDetected);
   const [error, setError] = useState('');
-  const [manualUpc, setManualUpc] = useState('');
+  const [manualCode, setManualCode] = useState('');
   const [starting, setStarting] = useState(false);
   const [detected, setDetected] = useState('');
 
@@ -41,16 +45,6 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
     async function start() {
       setStarting(true);
       try {
-        // Pull both modules up front so the hot decode callback stays sync.
-        const [{ BrowserMultiFormatReader }, lib] = await Promise.all([
-          import('@zxing/browser'),
-          import('@zxing/library'),
-        ]);
-        if (cancelled) return;
-        const BarcodeFormat = lib.BarcodeFormat || {};
-
-        const reader = new BrowserMultiFormatReader();
-
         // Request rear camera (works on iOS Safari)
         try {
           stream = await navigator.mediaDevices.getUserMedia({
@@ -74,6 +68,55 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
           await videoRef.current.play().catch(() => {});
         }
 
+        // 1) Native BarcodeDetector (Chrome/Android, Edge, macOS Safari) when
+        //    it can read QR *and* retail barcodes. Fast and battery friendly.
+        let nativeFormats = null;
+        try {
+          if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+            nativeFormats = nativeFormatsUsable(await window.BarcodeDetector.getSupportedFormats());
+          }
+        } catch { nativeFormats = null; }
+        if (cancelled) return;
+
+        if (nativeFormats) {
+          const detector = new window.BarcodeDetector({ formats: nativeFormats });
+          let timer = null;
+          let stopped = false;
+          const tick = async () => {
+            if (stopped || cancelled || decidedRef.current) return;
+            try {
+              const video = videoRef.current;
+              if (video && video.readyState >= 2) {
+                const codes = await detector.detect(video);
+                const hit = codes && codes.find(c => c && c.rawValue);
+                if (hit && !stopped && !cancelled) {
+                  fire(hit.rawValue, normalizeScanFormat(hit.format));
+                  return;
+                }
+              }
+            } catch {}
+            timer = setTimeout(tick, 120);
+          };
+          controlsRef.current = { stop: () => { stopped = true; clearTimeout(timer); } };
+          tick();
+          setStarting(false);
+          return;
+        }
+
+        // 2) Fallback: zxing multi-format (iOS Safari, Firefox). Restricted to
+        //    the formats products actually carry: QR + Data Matrix and
+        //    UPC/EAN/Code 128/Code 39/ITF.
+        const [{ BrowserMultiFormatReader }, lib] = await Promise.all([
+          import('@zxing/browser'),
+          import('@zxing/library'),
+        ]);
+        if (cancelled) return;
+        const BarcodeFormat = lib.BarcodeFormat || {};
+        const hints = new Map();
+        const formats = ZXING_SCAN_FORMATS.map(k => BarcodeFormat[k]).filter(v => v !== undefined);
+        if (formats.length && lib.DecodeHintType) hints.set(lib.DecodeHintType.POSSIBLE_FORMATS, formats);
+        const reader = new BrowserMultiFormatReader(hints.size ? hints : undefined);
+
         // Continuous decode. Fires repeatedly until a code is read — `fire`
         // dedupes so only the first hit is acted on.
         const controls = await reader.decodeFromStream(stream, videoRef.current, (result) => {
@@ -86,12 +129,13 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
           } catch {}
           fire(text, format);
         });
+        if (cancelled) { try { controls.stop(); } catch {} return; }
         controlsRef.current = controls;
         setStarting(false);
       } catch (e) {
         console.error('[BarcodeScanner] start error:', e);
         if (!cancelled) {
-          setError(e?.message || 'Camera unavailable. Try entering the UPC manually.');
+          setError(e?.message || 'Camera unavailable. Try entering the code manually.');
           setStarting(false);
         }
       }
@@ -112,10 +156,8 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
 
   const submitManual = (e) => {
     e?.preventDefault();
-    const trimmed = manualUpc.replace(/\D/g, '');
-    if (trimmed.length >= 8) {
-      fire(trimmed, '');
-    }
+    if (!isValidManualCode(manualCode)) return;
+    fire(classifyScan(manualCode).code, '');
   };
 
   return (
@@ -123,7 +165,7 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
       <div className="w-full max-w-md bg-[#0f1623] border border-white/10 rounded-2xl shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <h3 className="text-white font-semibold text-base">Scan Barcode</h3>
+          <h3 className="text-white font-semibold text-base">Scan barcode or QR code</h3>
           <button onClick={onClose} className="w-10 h-10 -mr-2 flex items-center justify-center text-white/60 hover:text-white text-2xl leading-none" aria-label="Close">&times;</button>
         </div>
 
@@ -175,27 +217,30 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }) {
           )}
           {!error && !detected && !starting && (
             <div className="absolute bottom-3 left-0 right-0 text-center">
-              <p className="text-white/90 text-xs font-medium drop-shadow">Point the box at one barcode or QR code</p>
+              <p className="text-white/90 text-xs font-medium drop-shadow">Point the box at the product's barcode or QR code</p>
             </div>
           )}
         </div>
 
-        {/* Manual UPC entry */}
+        {/* Manual entry */}
         <form onSubmit={submitManual} className="p-5 border-t border-white/10">
-          <label className="block text-white/60 text-[10px] uppercase tracking-wider mb-1.5">Or enter UPC manually</label>
+          <p className="text-white/50 text-xs mb-3">Scan barcode or QR code. Regular product barcodes (UPC, EAN, Code 128) and QR codes both work.</p>
+          <label htmlFor="scanner-manual-code" className="block text-white/60 text-[10px] uppercase tracking-wider mb-1.5">Or type the barcode or QR code</label>
           <div className="flex gap-2">
             <input
+              id="scanner-manual-code"
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={manualUpc}
-              onChange={e => setManualUpc(e.target.value)}
-              placeholder="012345678901"
-              className="flex-1 bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2 text-sm placeholder-white/40 outline-none focus:border-blue-400"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={manualCode}
+              onChange={e => setManualCode(e.target.value)}
+              placeholder="012345678901 or code"
+              className="flex-1 min-w-0 bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2 text-sm placeholder-white/40 outline-none focus:border-blue-400"
             />
             <button
               type="submit"
-              disabled={manualUpc.replace(/\D/g, '').length < 8}
+              disabled={!isValidManualCode(manualCode)}
               className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 disabled:opacity-40 transition-colors"
             >
               Look up
