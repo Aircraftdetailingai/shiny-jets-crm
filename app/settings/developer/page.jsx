@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { normalizePlan } from '@/lib/plans';
-import { publicRequestUrl, embedCode as buildEmbedCode, stickyQuoteButtonSnippet } from '@/lib/share-snippets';
+import Link from 'next/link';
+import { publicRequestUrl, embedCode as buildEmbedCode, stickyQuoteButtonSnippet, aiChatSnippet } from '@/lib/share-snippets';
 
 // Settings → Share & Embed (route kept at /settings/developer; /settings/embed
 // redirects here). Everything a detailer needs to send customers to their
@@ -31,6 +32,8 @@ export default function DeveloperPage() {
   const [announce, setAnnounce] = useState('');
   const [qr, setQr] = useState({ png: '', svg: '' });
   const [position, setPosition] = useState('right');
+  const [widget, setWidget] = useState('sticky'); // 'sticky' | 'chat'
+  const [chat, setChat] = useState(null); // { eligible, settings, faqs }
 
   useEffect(() => {
     try {
@@ -45,6 +48,10 @@ export default function DeveloperPage() {
         .then(r => r.ok ? r.json() : Promise.reject(new Error('load failed')))
         .then(d => { const det = d?.detailer || d; setMe((m) => ({ ...(m || {}), ...det, is_admin: m?.is_admin ?? det?.is_admin })); })
         .catch(() => setLoadError('Could not refresh your account details. The link below uses your saved account.'));
+      fetch('/api/ai-chat/settings', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setChat(d); })
+        .catch(() => {});
     } catch {
       setAllowed(false);
     }
@@ -54,6 +61,7 @@ export default function DeveloperPage() {
   const publicUrl = me ? publicRequestUrl(appUrl, me) : null;
   const embedCode = me ? buildEmbedCode(appUrl, me) : null;
   const stickyCode = me ? stickyQuoteButtonSnippet(appUrl, me, { position }) : null;
+  const chatCode = me ? aiChatSnippet(appUrl, me, { position }) : null;
   const plan = me?.is_admin ? 'business' : normalizePlan(me?.plan);
 
   // QR code generated in the browser (no third-party QR service).
@@ -111,7 +119,7 @@ export default function DeveloperPage() {
     <div className="space-y-6 sm:space-y-8 max-w-3xl">
       <div>
         <h2 className="text-base font-semibold text-v-text-primary pb-2 border-b border-v-gold/40">Share &amp; Embed · QR code</h2>
-        <p className="text-sm text-v-text-secondary mt-2">Your request-a-quote link, QR code, website embed code and Sticky Request a Quote button. <span className="text-v-text-secondary/80">(This page used to be called Developer.)</span></p>
+        <p className="text-sm text-v-text-secondary mt-2">Your request-a-quote link, QR code, website embed code, Sticky Request a Quote button and AI chat bubble. <span className="text-v-text-secondary/80">(This page used to be called Developer.)</span></p>
         {!ready && <p className="text-xs text-v-text-secondary mt-1" role="status">Loading your account details…</p>}
         {loadError && <p className="text-xs text-amber-300 mt-1">{loadError}</p>}
       </div>
@@ -167,8 +175,26 @@ export default function DeveloperPage() {
         </div>
       </Section>
 
-      {/* 4 — Sticky Request a Quote button */}
-      <Section id="share-sticky" title="4. Sticky Request a Quote button" desc="A floating “Request a Quote” button that stays in the corner of every page of your website and opens your request form. Paste it once, just before </body> (or in your site builder’s site-wide custom code / footer code setting).">
+      {/* 4 — Website button: Sticky Request a Quote button OR AI chat bubble */}
+      <Section id="share-sticky" title="4. Button for your website" desc="Pick one to float in the corner of every page of your website. Paste its code once, just before </body> (or in your site builder’s site-wide custom code / footer code setting).">
+        <fieldset className="mb-4">
+          <legend className="text-xs text-v-text-secondary mb-2">Which button?</legend>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {[
+              ['sticky', 'Sticky Request a Quote button', 'Opens your request-a-quote form.'],
+              ['chat', 'AI chat bubble', 'Answers visitors’ questions from your FAQs, then offers Request a quote or a text back.'],
+            ].map(([v, l, d]) => (
+              <label key={v} className={`flex items-start gap-3 min-h-[44px] p-3 border cursor-pointer ${widget === v ? 'border-v-gold bg-v-gold/10' : 'border-v-border'}`}>
+                <input type="radio" name="site-widget" value={v} checked={widget === v} onChange={() => setWidget(v)} className="mt-0.5 h-5 w-5 accent-[#007CB1]" />
+                <span>
+                  <span className="block text-sm font-semibold text-v-text-primary">{l}</span>
+                  <span className="block text-xs text-v-text-secondary">{d}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
         <fieldset className="mb-3">
           <legend className="text-xs text-v-text-secondary mb-2">Button position</legend>
           <div className="flex gap-2">
@@ -185,19 +211,46 @@ export default function DeveloperPage() {
         <div className="relative h-28 border border-dashed border-v-border bg-white/5 mb-3 overflow-hidden" aria-hidden="true">
           <p className="absolute top-2 left-3 text-[11px] text-v-text-secondary">Preview: your website</p>
           <span className={`absolute bottom-3 ${position === 'left' ? 'left-3' : 'right-3'} inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full bg-[#007CB1] text-white text-sm font-semibold shadow-lg`}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path d="M9 12h6M9 16h6M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /></svg>
-            Request a Quote
+            {widget === 'chat' ? (
+              <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>Questions?</>
+            ) : (
+              <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path d="M9 12h6M9 16h6M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /></svg>Request a Quote</>
+            )}
           </span>
         </div>
 
-        <label htmlFor="share-sticky-code" className="sr-only">Sticky Request a Quote button code</label>
-        <textarea id="share-sticky-code" readOnly rows={6} value={stickyCode || ''} placeholder="Loading…" onFocus={(e) => e.target.select()} className={codeBox} />
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <button type="button" disabled={!stickyCode} onClick={() => copy(stickyCode, 'sticky', 'Sticky Request a Quote button code')} className={btnPrimary}>
-            {copied === 'sticky' ? 'Copied ✓' : 'Copy button code'}
-          </button>
-          <span className="text-[11px] text-v-text-secondary">Plain HTML and CSS, no script. Keyboard and screen-reader friendly.</span>
-        </div>
+        {widget === 'sticky' ? (
+          <>
+            <label htmlFor="share-sticky-code" className="sr-only">Sticky Request a Quote button code</label>
+            <textarea id="share-sticky-code" readOnly rows={6} value={stickyCode || ''} placeholder="Loading…" onFocus={(e) => e.target.select()} className={codeBox} />
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button type="button" disabled={!stickyCode} onClick={() => copy(stickyCode, 'sticky', 'Sticky Request a Quote button code')} className={btnPrimary}>
+                {copied === 'sticky' ? 'Copied ✓' : 'Copy button code'}
+              </button>
+              <span className="text-[11px] text-v-text-secondary">Plain HTML and CSS, no script. Keyboard and screen-reader friendly.</span>
+            </div>
+          </>
+        ) : (
+          <>
+            {chat && !chat.eligible && (
+              <p className="text-xs text-v-text-primary border border-v-gold/40 bg-v-gold/10 p-3 mb-3">The AI chat bubble is included with Business ($89.95/mo or $899/yr). <Link href="/upgrade?plan=business" className="underline font-semibold">Upgrade to Business</Link></p>
+            )}
+            {chat && chat.eligible && !chat.settings?.enabled && (
+              <p className="text-xs text-v-text-primary border border-amber-400/50 bg-amber-400/10 p-3 mb-3">The chat bubble is turned off, so it won’t show on your site yet. Turn it on and review your FAQs in <Link href="/settings/ai-chat" className="underline font-semibold">AI Chat &amp; FAQs</Link>.</p>
+            )}
+            {chat && chat.eligible && chat.settings?.enabled && (
+              <p className="text-xs text-v-text-secondary mb-3">On. It answers from your {chat.faqs?.length || 0} FAQs. <Link href="/settings/ai-chat" className="underline text-v-text-primary">Edit FAQs</Link> · <Link href="/ai-leads" className="underline text-v-text-primary">AI Leads</Link></p>
+            )}
+            <label htmlFor="share-chat-code" className="sr-only">AI chat bubble code</label>
+            <textarea id="share-chat-code" readOnly rows={3} value={chatCode || ''} placeholder="Loading…" onFocus={(e) => e.target.select()} className={codeBox} />
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button type="button" disabled={!chatCode} onClick={() => copy(chatCode, 'chat', 'AI chat bubble code')} className={btnPrimary}>
+                {copied === 'chat' ? 'Copied ✓' : 'Copy chat code'}
+              </button>
+              <span className="text-[11px] text-v-text-secondary">Uses your brand color. Answers only from your FAQs and never makes things up.</span>
+            </div>
+          </>
+        )}
       </Section>
 
       {/* 5 — Custom email sending domain (Business) */}

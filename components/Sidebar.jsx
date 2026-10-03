@@ -19,6 +19,8 @@ const NAV_GROUPS = [
     label: 'Work',
     items: [
       { href: '/requests', label: 'Requests', icon: RequestsIcon, badge: true },
+      // Website AI chat handoffs ("Have someone text you"); separate from Requests.
+      { href: '/ai-leads', label: 'AI Leads', icon: AiLeadsIcon, feature: 'aiChatWidget' },
       // Request-a-quote link, QR code, embed code, Sticky Request a Quote
       // button (Settings → Share & Embed, route /settings/developer).
       { href: '/settings/developer', label: 'Share & Embed', icon: ShareEmbedIcon },
@@ -160,6 +162,9 @@ function RequestsIcon() {
 }
 function EquipmentIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M11.42 15.17l-5.6 5.6a2.12 2.12 0 01-3-3l5.6-5.6m2.83 2.83l3.18-3.18a2.12 2.12 0 000-3L14.3 5.7a2.12 2.12 0 00-3 0L8.12 8.88m3.3 6.29l-3.3-3.3" /><path d="M19.07 4.93a2 2 0 010 2.83l-1.42 1.42" /></svg>;
+}
+function AiLeadsIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /><path d="M8.5 12h.01M12 12h.01M15.5 12h.01" strokeLinecap="round" strokeWidth={2.2} /></svg>;
 }
 function ShareEmbedIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h3v-3" /></svg>;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { requestIdentifier, publicRequestUrl, embedCode, stickyQuoteButtonSnippet } from '../lib/share-snippets.js';
+import { requestIdentifier, publicRequestUrl, embedCode, stickyQuoteButtonSnippet, aiChatSnippet } from '../lib/share-snippets.js';
 let n = 0; const t = (name, fn) => { fn(); n++; };
 const d = { id: '11111111-2222-3333-4444-555555555555', slug: 'shiny-jets', company: 'Shiny Jets' };
 t('slug preferred', () => assert.equal(requestIdentifier(d), 'shiny-jets'));
@@ -26,4 +26,10 @@ t('sticky button links to form', () => {
 });
 t('sticky left', () => assert.match(stickyQuoteButtonSnippet('https://a.com', d, { position: 'left' }), /left:max\(16px,env\(safe-area-inset-left\)\)/));
 t('sticky label escaped', () => assert.match(stickyQuoteButtonSnippet('https://a.com', d, { label: '<b>Hi</b>' }), /<span>&lt;b&gt;Hi&lt;\/b&gt;<\/span>/));
+t('ai chat snippet', () => {
+  const s = aiChatSnippet('https://crm.shinyjets.com', d);
+  assert.match(s, /<script src="https:\/\/crm\.shinyjets\.com\/ai-chat\.js" data-account="shiny-jets" async><\/script>/);
+  assert.match(aiChatSnippet('https://a.com', d, { position: 'left' }), /data-position="left"/);
+  assert.equal(aiChatSnippet('https://a.com', {}), null);
+});
 console.log(`share-snippets: ${n} checks passed`);
