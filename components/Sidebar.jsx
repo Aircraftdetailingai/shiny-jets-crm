@@ -19,6 +19,9 @@ const NAV_GROUPS = [
     label: 'Work',
     items: [
       { href: '/requests', label: 'Requests', icon: RequestsIcon, badge: true },
+      // Request-a-quote link, QR code, embed code, Sticky Request a Quote
+      // button (Settings → Share & Embed, route /settings/developer).
+      { href: '/settings/developer', label: 'Share & Embed', icon: ShareEmbedIcon },
       { href: '/quotes', label: 'Quotes', icon: QuotesIcon },
       { href: '/customers', label: 'Customers', icon: CustomersIcon },
       { href: '/aircraft', label: 'Aircraft', icon: AircraftIcon },
@@ -157,6 +160,9 @@ function RequestsIcon() {
 }
 function EquipmentIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M11.42 15.17l-5.6 5.6a2.12 2.12 0 01-3-3l5.6-5.6m2.83 2.83l3.18-3.18a2.12 2.12 0 000-3L14.3 5.7a2.12 2.12 0 00-3 0L8.12 8.88m3.3 6.29l-3.3-3.3" /><path d="M19.07 4.93a2 2 0 010 2.83l-1.42 1.42" /></svg>;
+}
+function ShareEmbedIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h3v-3" /></svg>;
 }
 function ServicesIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" /></svg>;

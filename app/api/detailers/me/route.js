@@ -55,6 +55,8 @@ export async function GET(request) {
       id: row.id,
       name: row.name,
       email: row.email,
+      company: row.company,
+      slug: row.slug,
       plan: row.plan,
       calibration_anchor_a: row.calibration_anchor_a,
       calibration_anchor_b: row.calibration_anchor_b,

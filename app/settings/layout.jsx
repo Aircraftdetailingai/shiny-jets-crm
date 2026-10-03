@@ -25,14 +25,15 @@ function PlugIcon() {
 function UsersIcon() {
   return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 }
-function TerminalIcon() {
-  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" /></svg>;
+function QrIcon() {
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h3v-3" /></svg>;
 }
 
 const BUCKETS = [
   { href: '/settings/business', label: 'Business Info', Icon: BuildingIcon },
-  // Near top so QR/embed is never clipped below the fold on short viewports
-  { href: '/settings/developer', label: 'Developer · QR & Embed', Icon: TerminalIcon },
+  // Near top so QR/embed is never clipped below the fold on short viewports.
+  // Route stays /settings/developer so old links keep working.
+  { href: '/settings/developer', label: 'Share & Embed · QR', Icon: QrIcon },
   { href: '/settings/payments', label: 'Payments & Billing', Icon: CreditCardIcon },
   { href: '/settings/services', label: 'Services & Pricing', Icon: WrenchIcon },
   { href: '/settings/intake-flow', label: 'Intake Flow', Icon: GitBranchIcon },
@@ -43,7 +44,7 @@ const BUCKETS = [
 
 function isBucketActive(pathname, bucket) {
   if (pathname === bucket.href || pathname.startsWith(bucket.href + '/')) return true;
-  // Old /settings/embed bookmarks map to Developer
+  // Old /settings/embed bookmarks map to Share & Embed
   if (bucket.href === '/settings/developer' && pathname.startsWith('/settings/embed')) return true;
   return false;
 }
@@ -76,7 +77,9 @@ export default function SettingsLayout({ children }) {
 
       {/* Mobile dropdown — visible below md */}
       <div className="md:hidden px-4 pb-3">
+        <label htmlFor="settings-section" className="sr-only">Settings section</label>
         <select
+          id="settings-section"
           value={activeBucket.href}
           onChange={(e) => router.push(e.target.value)}
           className="w-full bg-v-surface border border-v-border text-v-text-primary rounded-lg px-3 py-2 text-sm"
