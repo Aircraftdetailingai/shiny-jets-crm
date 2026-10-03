@@ -3,6 +3,8 @@
 // phone number for chat handoffs, and the FAQ list the chat answers from.
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { FaqImportPanel, LinkedFaqPages } from './FaqImport';
+import { shortUrl } from '@/lib/faq-import';
 
 const btnPrimary = 'inline-flex items-center justify-center min-h-[44px] px-4 py-2 bg-v-gold text-white text-xs font-semibold uppercase tracking-wider hover:bg-v-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 const btnSecondary = 'inline-flex items-center justify-center min-h-[44px] px-3 py-2 border border-v-border text-v-text-primary text-xs font-semibold uppercase tracking-wider hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
@@ -25,6 +27,7 @@ export default function AiChatSettingsPage() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [slug, setSlug] = useState('');
+  const [sources, setSources] = useState([]);
   const listRef = useRef(null);
 
   const apply = (d) => {
@@ -32,6 +35,7 @@ export default function AiChatSettingsPage() {
     setEnabled(!!d.settings?.enabled);
     setPhone(d.settings?.handoff_phone || '');
     setGreeting(d.settings?.greeting || '');
+    setSources(d.sources || []);
     if (!d.hasSavedFaqs || !d.faqs?.length) { setFaqs((d.starter || []).map((f) => ({ ...f }))); setUsingStarters(true); }
     else { setFaqs(d.faqs); setUsingStarters(false); }
   };
@@ -62,33 +66,44 @@ export default function AiChatSettingsPage() {
     setStatus(extra.length ? `${extra.length} starter FAQ${extra.length === 1 ? '' : 's'} added. Edit them, then save.` : 'All starter FAQs are already in your list.');
   };
 
-  const save = async () => {
+  // Save everything. `overrideFaqs` / `extra` are used by the import review
+  // and the sync change review so their result is saved right away.
+  const save = async (overrideFaqs, extra = {}, okMessage = 'Saved.') => {
     setSaving(true); setError(''); setStatus('');
-    const clean = faqs.map((f) => ({ question: f.question.trim(), answer: f.answer.trim() }));
+    const list = Array.isArray(overrideFaqs) ? overrideFaqs : faqs;
+    const clean = list.map((f) => ({ question: (f.question || '').trim(), answer: (f.answer || '').trim(), ...(f.source_url ? { source_url: f.source_url } : {}) }));
     const incomplete = clean.findIndex((f) => (f.question && !f.answer) || (!f.question && f.answer));
     if (incomplete >= 0) {
       setSaving(false);
       setError(`FAQ ${incomplete + 1} needs both a question and an answer.`);
       document.getElementById(`faq-${incomplete}-${clean[incomplete].question ? 'a' : 'q'}`)?.focus();
-      return;
+      return false;
     }
     try {
-      const body = { faqs: clean.filter((f) => f.question && f.answer), settings: { handoff_phone: phone, greeting } };
+      const body = { faqs: clean.filter((f) => f.question && f.answer), settings: { handoff_phone: phone, greeting }, ...extra };
       if (data?.eligible) body.settings.enabled = enabled;
       const res = await fetch('/api/ai-chat/settings', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(body) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(d.error || 'Could not save.');
         if (d.field === 'handoff_phone') document.getElementById('handoff-phone')?.focus();
-        return;
+        return false;
       }
       apply(d);
-      setStatus('Saved.');
+      setStatus(okMessage);
+      return true;
     } catch {
       setError('Could not save. Check your connection and try again.');
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const addImported = async (pairs, sourcesAdd) => {
+    const next = [...(usingStarters ? [] : faqs), ...pairs];
+    const ok = await save(next, sourcesAdd.length ? { sources_add: sourcesAdd } : {}, `${pairs.length} imported FAQ${pairs.length === 1 ? '' : 's'} added and saved.`);
+    return ok;
   };
 
   if (loadError) return <p className="text-sm text-amber-300" role="alert">{loadError}</p>;
@@ -141,9 +156,12 @@ export default function AiChatSettingsPage() {
         </div>
       </section>
 
+      <FaqImportPanel eligible={eligible} faqCount={faqs.length} usingStarters={usingStarters} onAdd={addImported} />
+      <LinkedFaqPages sources={sources} eligible={eligible} faqs={usingStarters ? [] : faqs} onSources={setSources} saveFaqs={(next) => save(next, {}, 'FAQs saved.')} />
+
       <section aria-labelledby="faqs" className="border border-v-border p-4 sm:p-5 bg-v-surface">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <h3 id="faqs" className="text-sm font-semibold text-v-text-primary">FAQs <span className="text-v-text-secondary font-normal">({faqs.length})</span></h3>
+          <h3 id="faqs" tabIndex={-1} className="text-sm font-semibold text-v-text-primary focus:outline-none">FAQs <span className="text-v-text-secondary font-normal">({faqs.length})</span></h3>
           <button type="button" onClick={addStarters} className={btnSecondary}>Add starter FAQs</button>
         </div>
         {usingStarters && (
@@ -164,6 +182,9 @@ export default function AiChatSettingsPage() {
               <input id={`faq-${i}-q`} data-faq-q className={input} maxLength={300} value={f.question} onChange={(e) => update(i, 'question', e.target.value)} />
               <label htmlFor={`faq-${i}-a`} className="block text-xs text-v-text-secondary mt-2 mb-1">Answer</label>
               <textarea id={`faq-${i}-a`} rows={3} className={`${input} resize-y`} maxLength={1500} value={f.answer} onChange={(e) => update(i, 'answer', e.target.value)} />
+              {f.source_url && (
+                <p className="text-xs text-v-text-secondary mt-1">Imported from <a href={f.source_url} target="_blank" rel="noreferrer noopener" className="underline break-all">{shortUrl(f.source_url)}<span className="sr-only"> (opens in a new tab)</span></a></p>
+              )}
             </li>
           ))}
         </ol>
@@ -172,7 +193,7 @@ export default function AiChatSettingsPage() {
       </section>
 
       <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-v-charcoal/95 border-t border-v-border flex flex-wrap items-center gap-3">
-        <button type="button" onClick={save} disabled={saving} className={btnPrimary}>{saving ? 'Saving…' : 'Save chat settings'}</button>
+        <button type="button" onClick={() => save()} disabled={saving} className={btnPrimary}>{saving ? 'Saving…' : 'Save chat settings'}</button>
         <p role="status" aria-live="polite" className="text-xs text-v-text-secondary">{status}</p>
         {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
       </div>
