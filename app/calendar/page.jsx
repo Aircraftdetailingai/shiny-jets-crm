@@ -4,18 +4,59 @@ import { useRouter } from 'next/navigation';
 import { formatPrice } from '@/lib/formatPrice';
 import AppShell from '@/components/AppShell';
 
+// Chip backgrounds are dark enough for white text (WCAG AA 4.5:1);
+// dots use the brighter shade so they stand out on the dark surface.
 const statusColors = {
-  scheduled: 'bg-blue-500',
+  scheduled: 'bg-blue-600',
   in_progress: 'bg-v-gold',
-  paid: 'bg-green-500',
-  completed: 'bg-purple-500',
+  paid: 'bg-green-700',
+  completed: 'bg-purple-600',
+};
+const statusDots = {
+  scheduled: 'bg-blue-400',
+  in_progress: 'bg-sky-400',
+  paid: 'bg-green-400',
+  completed: 'bg-purple-400',
 };
 
+// White or near-black text, whichever reads better on a custom hex color.
+function textOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return '#ffffff';
+  const n = parseInt(m[1], 16);
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return (1.05 / (L + 0.05)) >= 4.5 ? '#ffffff' : '#0F1117';
+}
+
+const STATUS_LABELS = {
+  scheduled: 'Scheduled',
+  in_progress: 'In progress',
+  paid: 'Paid',
+  completed: 'Completed',
+};
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Phones get a compact month grid (dots + tap a day) and a list-style week.
+function useIsMobile(query = '(max-width: 767px)') {
+  const [match, setMatch] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia(query);
+    const update = () => setMatch(mq.matches);
+    update();
+    mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update);
+    return () => { mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update); };
+  }, [query]);
+  return match;
+}
+
 const EVENT_TYPES = {
-  job: { label: 'Jobs', color: 'bg-blue-500' },
-  google: { label: 'Google Calendar', color: 'bg-indigo-400' },
-  blocked: { label: 'Blocked', color: 'bg-red-500/40' },
-  team: { label: 'Team', color: 'bg-teal-500' },
+  job: { label: 'Jobs', color: 'bg-blue-400' },
+  google: { label: 'Google Calendar', color: 'bg-indigo-300' },
+  blocked: { label: 'Blocked', color: 'bg-red-400' },
+  team: { label: 'Team', color: 'bg-teal-400' },
 };
 
 export default function CalendarPage() {
@@ -24,6 +65,8 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month');
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const isMobile = useIsMobile();
   const [selectedJob, setSelectedJob] = useState(null);
   const [scheduleModal, setScheduleModal] = useState(null);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -177,15 +220,24 @@ export default function CalendarPage() {
   const getUnscheduledJobs = () => jobs.filter(job => !job.scheduled_date && job.status === 'paid');
 
   const navigateMonth = (dir) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + dir);
+    // Day 1 avoids month overflow (Jan 31 + 1 month = Mar 3).
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + dir, 1);
     setCurrentDate(newDate);
+    const now = new Date();
+    setSelectedDate(newDate.getFullYear() === now.getFullYear() && newDate.getMonth() === now.getMonth() ? now : newDate);
   };
 
   const navigateWeek = (dir) => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + (dir * 7));
     setCurrentDate(newDate);
+    setSelectedDate(newDate);
+  };
+
+  const goToday = () => {
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDate(now);
   };
 
   const handleScheduleJob = async () => {
@@ -214,7 +266,6 @@ export default function CalendarPage() {
   };
 
   const days = getDaysInMonth(currentDate);
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
   const today = new Date();
   const unscheduledJobs = getUnscheduledJobs();
@@ -233,64 +284,136 @@ export default function CalendarPage() {
   const getCellEvents = (date) => {
     const events = [];
     if (filters.job) {
-      getJobsForDate(date).forEach(j => events.push({ type: 'job', data: j, label: `${formatTime(j.scheduled_date)} ${j.client_name || j.aircraft_model}`, color: statusColors[j.status] || 'bg-blue-500' }));
+      getJobsForDate(date).forEach(j => events.push({ type: 'job', data: j, label: `${formatTime(j.scheduled_date)} ${j.client_name || j.aircraft_model}`, color: statusColors[j.status] || 'bg-blue-600', dot: statusDots[j.status] || 'bg-blue-400' }));
     }
     if (filters.google) {
-      getGoogleEventsForDate(date).forEach(e => events.push({ type: 'google', data: e, label: e.summary || '(Busy)', color: 'bg-indigo-400' }));
+      getGoogleEventsForDate(date).forEach(e => events.push({ type: 'google', data: e, label: e.summary || '(Busy)', color: 'bg-indigo-600', dot: 'bg-indigo-300' }));
     }
     if (filters.team) {
-      getTeamForDate(date).forEach(s => events.push({ type: 'team', data: s, label: s.member_name, color: 'bg-teal-500', customColor: s.color }));
+      getTeamForDate(date).forEach(s => events.push({ type: 'team', data: s, label: s.member_name, color: 'bg-teal-700', dot: 'bg-teal-400', customColor: s.color }));
     }
     return events;
   };
 
+  const isSameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const weekRange = getWeekDays();
+  const headerLabel = view === 'month'
+    ? monthName
+    : `${weekRange[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekRange[6].toLocaleDateString('en-US', { month: weekRange[0].getMonth() === weekRange[6].getMonth() ? undefined : 'short', day: 'numeric', year: 'numeric' })}`;
+  const selectedEvents = getCellEvents(selectedDate);
+  const selectedBlocked = filters.blocked && isBlockedDate(selectedDate);
+  const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  const longDate = (d) => d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const eventTypeLabel = (evt) => evt.type === 'job'
+    ? (STATUS_LABELS[evt.data?.status] || 'Job')
+    : evt.type === 'google' ? 'Google Calendar' : evt.type === 'team' ? 'On duty' : '';
+
+  // A readable list row for one event (day agenda on all sizes, week view on phones).
+  const agendaRow = (evt, key) => {
+    const job = evt.type === 'job' ? evt.data : null;
+    const inner = (
+      <>
+        <span aria-hidden="true" className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${evt.customColor ? '' : evt.dot}`} style={evt.customColor ? { backgroundColor: evt.customColor } : undefined} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2 flex-wrap">
+            {job && <span className="text-xs text-v-text-secondary tabular-nums">{formatTime(job.scheduled_date)}</span>}
+            <span className="text-sm font-medium text-v-text-primary break-words">
+              {job ? (job.client_name || job.aircraft_model || 'Job') : evt.label}
+            </span>
+            {job?.schedule_override && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 rounded">After Hours</span>
+            )}
+          </span>
+          {job && (job.aircraft_model || job.aircraft_type || job.tail_number) && (
+            <span className="block text-xs text-v-text-secondary break-words">
+              {[job.aircraft_model || job.aircraft_type, job.tail_number].filter(Boolean).join(' · ')}
+            </span>
+          )}
+        </span>
+        <span className="text-[11px] text-v-text-secondary shrink-0 mt-0.5">{eventTypeLabel(evt)}</span>
+      </>
+    );
+    return job ? (
+      <li key={key}>
+        <button type="button" onClick={() => setSelectedJob(job)}
+          className="w-full text-left flex items-start gap-3 px-3 py-2.5 min-h-[44px] rounded-lg hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-v-gold"
+          aria-label={`${job.client_name || 'Job'}, ${job.aircraft_model || job.aircraft_type || ''} at ${formatTime(job.scheduled_date)}, ${STATUS_LABELS[job.status] || job.status}. Open job details`}>
+          {inner}
+        </button>
+      </li>
+    ) : (
+      <li key={key} className="flex items-start gap-3 px-3 py-2.5">{inner}</li>
+    );
+  };
+
+  const legend = (className = '') => (
+    <section aria-labelledby="cal-legend" className={`bg-v-surface rounded-lg shadow p-4 ${className}`}>
+      <h3 id="cal-legend" className="font-semibold text-v-text-primary mb-2 text-sm">Legend</h3>
+      <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+        {[...Object.entries(statusDots).map(([s, c]) => [STATUS_LABELS[s] || s, c]), ['Google Calendar', 'bg-indigo-300'], ['Blocked', 'bg-red-400'], ['Team member', 'bg-teal-400']].map(([label, color]) => (
+          <li key={label} className="inline-flex items-center gap-1.5 text-xs text-v-text-secondary">
+            <span aria-hidden="true" className={`w-2.5 h-2.5 rounded-full ${color}`} />
+            {label}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+
   return (
     <AppShell title="Calendar">
-    <div className="px-6 md:px-10 py-8 pb-40">
+    <div className="px-4 sm:px-6 md:px-10 py-6 md:py-8 pb-40">
       {savedFlash && (
-        <div className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
+        <div role="status" className="fixed top-4 right-4 z-[100] bg-emerald-500/10 border border-emerald-500/30 text-green-400 text-xs px-3 py-2 rounded shadow-lg">{`✓ ${savedFlash}`}</div>
       )}
       {/* Header */}
-      <header className="flex justify-between items-center mb-4 text-white">
-        <h1 className="font-heading text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>CALENDAR</h1>
-        <div className="flex items-center gap-2">
-          {/* View Toggle */}
-          <div className="flex bg-v-surface rounded overflow-hidden border border-v-border">
-            {['month', 'week'].map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-xs font-medium capitalize ${view === v ? 'bg-v-gold text-white' : 'text-v-text-secondary hover:bg-white/5'}`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
+      <header className="flex justify-between items-center gap-3 mb-4 text-white">
+        <h1 className="font-heading text-[1.6rem] sm:text-[2rem] font-light text-v-text-primary" style={{ letterSpacing: '0.15em' }}>CALENDAR</h1>
+        <div className="flex bg-v-surface rounded overflow-hidden border border-v-border" role="group" aria-label="Calendar view">
+          {['month', 'week'].map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={`px-3 py-2 min-h-[40px] text-xs font-medium capitalize ${view === v ? 'bg-v-gold text-white' : 'text-v-text-secondary hover:bg-white/5'}`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </header>
 
-      <div className="flex gap-4">
+      {/* Phones/tablets: calendar first (full width), panels stacked below.
+          Desktop (lg+): large calendar with a narrower sidebar beside it. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem] gap-4 items-start">
+        <div className="min-w-0 space-y-4">
         {/* Main Calendar */}
-        <div className="flex-1 bg-v-surface rounded-lg shadow overflow-hidden">
+        <section aria-label="Calendar" className="bg-v-surface rounded-lg shadow overflow-hidden">
           {/* Calendar Header */}
-          <div className="flex items-center justify-between p-4 border-b border-v-border">
-            <div className="flex items-center space-x-4">
-              <button onClick={() => view === 'month' ? navigateMonth(-1) : navigateWeek(-1)} className="p-2 hover:bg-white/5 rounded text-v-text-secondary">&larr;</button>
-              <h2 className="text-xl font-semibold text-v-text-primary">{monthName}</h2>
-              <button onClick={() => view === 'month' ? navigateMonth(1) : navigateWeek(1)} className="p-2 hover:bg-white/5 rounded text-v-text-secondary">&rarr;</button>
+          <div className="flex items-center justify-between gap-2 p-2 sm:p-4 border-b border-v-border">
+            <div className="flex items-center gap-1 sm:gap-3 min-w-0">
+              <button type="button" onClick={() => view === 'month' ? navigateMonth(-1) : navigateWeek(-1)}
+                aria-label={view === 'month' ? 'Previous month' : 'Previous week'}
+                className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded text-v-text-secondary shrink-0">&larr;</button>
+              <h2 className="text-base sm:text-xl font-semibold text-v-text-primary truncate" aria-live="polite">{headerLabel}</h2>
+              <button type="button" onClick={() => view === 'month' ? navigateMonth(1) : navigateWeek(1)}
+                aria-label={view === 'month' ? 'Next month' : 'Next week'}
+                className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded text-v-text-secondary shrink-0">&rarr;</button>
             </div>
-            <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 text-sm border border-v-border rounded hover:bg-white/5 text-v-text-secondary">
+            <button type="button" onClick={goToday} className="px-3 py-2 min-h-[40px] text-sm border border-v-border rounded hover:bg-white/5 text-v-text-secondary shrink-0">
               Today
             </button>
           </div>
 
           {view === 'month' ? (
-            <>
-              {/* Week Days Header */}
-              <div className="grid grid-cols-7 border-b border-v-border">
-                {weekDays.map((day) => (
-                  <div key={day} className="p-2 text-center text-sm font-medium text-v-text-secondary border-r border-v-border last:border-r-0">
-                    {day}
+            <div role="grid" aria-label={monthName}>
+              {/* Week Days Header — single letters on phones */}
+              <div role="row" className="grid grid-cols-7 border-b border-v-border">
+                {WEEKDAY_NAMES.map((day) => (
+                  <div role="columnheader" key={day} aria-label={day} className="py-2 text-center text-xs sm:text-sm font-medium text-v-text-secondary md:border-r border-v-border last:border-r-0">
+                    <span className="md:hidden" aria-hidden="true">{day[0]}</span>
+                    <span className="hidden md:inline" aria-hidden="true">{day.slice(0, 3)}</span>
                   </div>
                 ))}
               </div>
@@ -300,84 +423,179 @@ export default function CalendarPage() {
                 {days.map((day, idx) => {
                   const cellEvents = getCellEvents(day.date);
                   const blocked = filters.blocked && isBlockedDate(day.date);
-                  const isToday = day.date.getDate() === today.getDate() && day.date.getMonth() === today.getMonth() && day.date.getFullYear() === today.getFullYear();
+                  const isToday = isSameDay(day.date, today);
+                  const isSelected = isSameDay(day.date, selectedDate);
+                  const jobCount = cellEvents.filter(e => e.type === 'job').length;
+                  const dotEvents = cellEvents.filter(e => e.type !== 'team');
+                  const cellLabel = `${longDate(day.date)}${blocked ? ', blocked' : ''}, ${jobCount} job${jobCount === 1 ? '' : 's'}${dotEvents.length > jobCount ? `, ${dotEvents.length - jobCount} other event${dotEvents.length - jobCount === 1 ? '' : 's'}` : ''}`;
+
+                  if (isMobile) {
+                    // Compact cell: date + colored dots; tap to see that day's list below.
+                    return (
+                      <button
+                        type="button"
+                        key={idx}
+                        role="gridcell"
+                        onClick={() => setSelectedDate(day.date)}
+                        aria-selected={isSelected}
+                        aria-label={cellLabel}
+                        className={`h-14 flex flex-col items-center justify-start pt-1.5 gap-1 border-b border-v-border/60 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-v-gold ${
+                          isSelected ? 'bg-v-gold/20' : blocked ? 'bg-red-900/20' : day.isCurrentMonth ? 'bg-v-surface' : 'bg-v-charcoal'
+                        }`}
+                      >
+                        <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${
+                          isToday ? 'bg-v-gold text-white' : isSelected ? 'text-white' : day.isCurrentMonth ? 'text-v-text-primary' : 'text-v-text-secondary/50'
+                        }`}>
+                          {day.date.getDate()}
+                        </span>
+                        <span className="flex items-center gap-0.5 h-1.5" aria-hidden="true">
+                          {blocked && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                          {dotEvents.slice(0, 3).map((evt, i) => (
+                            <span key={i} className={`w-1.5 h-1.5 rounded-full ${evt.dot}`} />
+                          ))}
+                          {dotEvents.length > 3 && <span className="text-[9px] leading-none text-v-text-secondary">+</span>}
+                        </span>
+                      </button>
+                    );
+                  }
 
                   return (
                     <div
                       key={idx}
-                      className={`min-h-[100px] p-1 border-r border-b border-v-border last:border-r-0 ${
-                        blocked ? 'bg-red-900/10' : day.isCurrentMonth ? 'bg-v-surface' : 'bg-v-charcoal'
-                      }`}
+                      role="gridcell"
+                      aria-selected={isSelected}
+                      className={`min-h-[110px] p-1.5 border-r border-b border-v-border [&:nth-child(7n)]:border-r-0 ${
+                        isSelected ? 'ring-1 ring-inset ring-v-gold/60' : ''
+                      } ${blocked ? 'bg-red-900/10' : day.isCurrentMonth ? 'bg-v-surface' : 'bg-v-charcoal'}`}
                     >
-                      <div className={`text-sm font-medium mb-1 ${
-                        isToday ? 'bg-v-gold text-white w-6 h-6 rounded-full flex items-center justify-center'
-                          : day.isCurrentMonth ? 'text-v-text-primary' : 'text-v-text-secondary/40'
-                      }`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDate(day.date)}
+                        aria-label={`${cellLabel}. Show day list`}
+                        className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 ${
+                          isToday ? 'bg-v-gold text-white hover:bg-v-gold' : day.isCurrentMonth ? 'text-v-text-primary' : 'text-v-text-secondary/50'
+                        }`}
+                      >
                         {day.date.getDate()}
-                      </div>
-                      {blocked && <div className="text-[10px] text-red-400 mb-0.5">Blocked</div>}
+                      </button>
+                      {blocked && <div className="text-[11px] text-red-300 mb-0.5">Blocked</div>}
                       <div className="space-y-0.5">
-                        {cellEvents.slice(0, 3).map((evt, i) => (
-                          <div
-                            key={i}
-                            onClick={() => evt.type === 'job' ? setSelectedJob(evt.data) : null}
-                            className={`text-[10px] px-1 py-0.5 rounded text-white truncate ${evt.customColor ? '' : evt.color} ${evt.type === 'job' ? 'cursor-pointer' : ''}`}
-                            style={evt.customColor ? { backgroundColor: evt.customColor } : undefined}
-                            title={evt.label}
-                          >
-                            {evt.type === 'job' && evt.data?.schedule_override && (
-                              <span className="inline-block text-[8px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 mr-1 rounded">AH</span>
-                            )}
-                            {evt.label}
-                          </div>
-                        ))}
-                        {cellEvents.length > 3 && (
-                          <div className="text-[10px] text-v-text-secondary">+{cellEvents.length - 3} more</div>
+                        {dotEvents.slice(0, 3).map((evt, i) => {
+                          const cls = `block w-full text-left text-[11px] leading-tight px-1.5 py-0.5 rounded text-white ${evt.customColor ? '' : evt.color}`;
+                          const style = evt.customColor ? { backgroundColor: evt.customColor, color: textOn(evt.customColor) } : undefined;
+                          const job = evt.type === 'job' ? evt.data : null;
+                          const content = job ? (
+                            <>
+                              <span className="flex items-center gap-1 opacity-90 tabular-nums">
+                                {job.schedule_override && (
+                                  <span className="inline-block text-[8px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 rounded">AH</span>
+                                )}
+                                {formatTime(job.scheduled_date)}
+                              </span>
+                              <span className="block font-medium line-clamp-2 break-words">{job.client_name || job.aircraft_model || 'Job'}</span>
+                            </>
+                          ) : (
+                            <span className="block truncate">{evt.label}</span>
+                          );
+                          return evt.type === 'job' ? (
+                            <button type="button" key={i} onClick={() => setSelectedJob(evt.data)} className={`${cls} hover:brightness-110`} style={style} title={evt.label}>{content}</button>
+                          ) : (
+                            <div key={i} className={cls} style={style} title={evt.label}>{content}</div>
+                          );
+                        })}
+                        {dotEvents.length > 3 && (
+                          <button type="button" onClick={() => setSelectedDate(day.date)} className="text-[11px] text-v-text-secondary hover:text-v-text-primary">
+                            +{dotEvents.length - 3} more
+                          </button>
                         )}
                       </div>
+                      {/* Team on duty as compact initials so job names keep the room */}
+                      {cellEvents.some(e => e.type === 'team') && (
+                        <div className="flex flex-wrap gap-0.5 mt-1" aria-label={`On duty: ${cellEvents.filter(e => e.type === 'team').map(e => e.label).join(', ')}`} role="note">
+                          {cellEvents.filter(e => e.type === 'team').map((evt, i) => (
+                            <span key={i} title={evt.label} aria-hidden="true"
+                              className={`text-[10px] leading-none font-semibold text-white px-1 py-0.5 rounded ${evt.customColor ? '' : evt.color}`}
+                              style={evt.customColor ? { backgroundColor: evt.customColor, color: textOn(evt.customColor) } : undefined}>
+                              {initials(evt.label)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
-            </>
+            </div>
+          ) : isMobile ? (
+            /* Week View on phones: one readable list per day */
+            <ol className="divide-y divide-v-border">
+              {weekRange.map((d, i) => {
+                const cellEvents = getCellEvents(d);
+                const blocked = filters.blocked && isBlockedDate(d);
+                const isToday = isSameDay(d, today);
+                const visible = cellEvents.filter(e => e.type !== 'team');
+                const onDuty = cellEvents.filter(e => e.type === 'team');
+                return (
+                  <li key={i} className={`py-2 ${blocked ? 'bg-red-900/10' : ''}`}>
+                    <h3 className={`px-3 text-sm font-semibold ${isToday ? 'text-v-gold' : 'text-v-text-primary'}`}>
+                      {d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {isToday && <span className="ml-2 text-[11px] font-normal">Today</span>}
+                      {blocked && <span className="ml-2 text-[11px] font-normal text-red-300">Blocked</span>}
+                    </h3>
+                    {visible.length === 0 ? (
+                      <p className="px-3 py-1 text-xs text-v-text-secondary">No jobs</p>
+                    ) : (
+                      <ul>{visible.map((evt, j) => agendaRow(evt, j))}</ul>
+                    )}
+                    {onDuty.length > 0 && (
+                      <p className="px-3 text-[11px] text-v-text-secondary">On duty: {onDuty.map(e => e.label).join(', ')}</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
           ) : (
-            /* Week View */
+            /* Week View (desktop) */
             <>
               <div className="grid grid-cols-7 border-b border-v-border">
-                {getWeekDays().map((d, i) => {
-                  const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+                {weekRange.map((d, i) => {
+                  const isToday = isSameDay(d, today);
                   return (
                     <div key={i} className="p-2 text-center border-r border-v-border last:border-r-0">
-                      <div className="text-xs text-v-text-secondary">{weekDays[i]}</div>
+                      <div className="text-xs text-v-text-secondary">{WEEKDAY_NAMES[i].slice(0, 3)}</div>
                       <div className={`text-lg font-medium ${isToday ? 'text-v-gold' : 'text-v-text-primary'}`}>{d.getDate()}</div>
                     </div>
                   );
                 })}
               </div>
               <div className="grid grid-cols-7 min-h-[500px]">
-                {getWeekDays().map((d, i) => {
+                {weekRange.map((d, i) => {
                   const cellEvents = getCellEvents(d);
                   const blocked = filters.blocked && isBlockedDate(d);
                   return (
-                    <div key={i} className={`p-2 border-r border-v-border last:border-r-0 ${blocked ? 'bg-red-900/10' : ''}`}>
-                      {blocked && <div className="text-[10px] text-red-400 mb-1">Blocked</div>}
+                    <div key={i} className={`p-2 border-r border-v-border last:border-r-0 min-w-0 ${blocked ? 'bg-red-900/10' : ''}`}>
+                      {blocked && <div className="text-[11px] text-red-300 mb-1">Blocked</div>}
                       <div className="space-y-1">
-                        {cellEvents.map((evt, j) => (
-                          <div
-                            key={j}
-                            onClick={() => evt.type === 'job' ? setSelectedJob(evt.data) : null}
-                            className={`text-xs p-1.5 rounded text-white ${evt.customColor ? '' : evt.color} ${evt.type === 'job' ? 'cursor-pointer' : ''}`}
-                            style={evt.customColor ? { backgroundColor: evt.customColor } : undefined}
-                          >
-                            <div className="font-medium truncate flex items-center gap-1">
-                              {evt.type === 'job' && evt.data?.schedule_override && (
-                                <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 rounded shrink-0">After Hours</span>
-                              )}
-                              <span className="truncate">{evt.label}</span>
-                            </div>
-                            {evt.type === 'job' && <div className="text-[10px] opacity-80">{evt.data.aircraft_model || evt.data.aircraft_type}</div>}
-                          </div>
-                        ))}
+                        {cellEvents.map((evt, j) => {
+                          const cls = `block w-full text-left text-xs p-1.5 rounded text-white ${evt.customColor ? '' : evt.color}`;
+                          const style = evt.customColor ? { backgroundColor: evt.customColor, color: textOn(evt.customColor) } : undefined;
+                          const content = (
+                            <>
+                              <span className="font-medium flex items-center gap-1 min-w-0">
+                                {evt.type === 'job' && evt.data?.schedule_override && (
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-300 bg-amber-900/40 border border-amber-400/40 px-1 rounded shrink-0">After Hours</span>
+                                )}
+                                <span className="truncate">{evt.label}</span>
+                              </span>
+                              {evt.type === 'job' && <span className="block text-[11px] opacity-90 truncate">{evt.data.aircraft_model || evt.data.aircraft_type}</span>}
+                            </>
+                          );
+                          return evt.type === 'job' ? (
+                            <button type="button" key={j} onClick={() => setSelectedJob(evt.data)} className={`${cls} hover:brightness-110`} style={style} title={evt.label}>{content}</button>
+                          ) : (
+                            <div key={j} className={cls} style={style} title={evt.label}>{content}</div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -385,46 +603,70 @@ export default function CalendarPage() {
               </div>
             </>
           )}
+        </section>
+
+        {/* Selected day: readable list of that day's jobs (month view) */}
+        {view === 'month' && (
+          <section aria-labelledby="cal-day-heading" className="bg-v-surface rounded-lg shadow p-3 sm:p-4">
+            <h3 id="cal-day-heading" className="text-sm font-semibold text-v-text-primary px-1 mb-1" aria-live="polite">
+              {longDate(selectedDate)}
+              {selectedBlocked && <span className="ml-2 text-xs font-normal text-red-300">Blocked</span>}
+            </h3>
+            {selectedEvents.filter(e => e.type !== 'team').length === 0 ? (
+              <p className="px-1 py-2 text-sm text-v-text-secondary">No jobs scheduled this day.</p>
+            ) : (
+              <ul className="-mx-1">{selectedEvents.filter(e => e.type !== 'team').map((evt, i) => agendaRow(evt, i))}</ul>
+            )}
+            {selectedEvents.some(e => e.type === 'team') && (
+              <p className="px-1 pt-1 text-xs text-v-text-secondary">On duty: {selectedEvents.filter(e => e.type === 'team').map(e => e.label).join(', ')}</p>
+            )}
+          </section>
+        )}
         </div>
 
-        {/* Sidebar */}
-        <div className="w-72 space-y-4">
+        {/* Side panels — below the calendar on phones, beside it on desktop */}
+        <aside aria-label="Calendar filters and details" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
           {/* Filters */}
-          <div className="bg-v-surface rounded-lg shadow p-4">
-            <h3 className="font-semibold text-v-text-primary mb-3 text-sm">Filters</h3>
-            <div className="space-y-2">
+          <fieldset className="bg-v-surface rounded-lg shadow p-4">
+            <legend className="sr-only">Filters</legend>
+            <h3 aria-hidden="true" className="font-semibold text-v-text-primary mb-3 text-sm">Filters</h3>
+            <div className="flex flex-wrap lg:flex-col gap-2">
               {Object.entries(EVENT_TYPES).map(([key, { label, color }]) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                <label key={key} className="inline-flex items-center gap-2 cursor-pointer min-h-[36px] px-2.5 lg:px-0 rounded-full lg:rounded-none border border-v-border lg:border-0">
                   <input
                     type="checkbox"
                     checked={filters[key]}
                     onChange={() => setFilters(f => ({ ...f, [key]: !f[key] }))}
-                    className="rounded border-v-border"
+                    className="w-4 h-4 rounded border-v-border accent-v-gold"
                   />
-                  <div className={`w-3 h-3 rounded ${color}`} />
+                  <span aria-hidden="true" className={`w-3 h-3 rounded ${color}`} />
                   <span className="text-sm text-v-text-secondary">{label}</span>
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Unscheduled Jobs */}
-          <div className="bg-v-surface rounded-lg shadow p-4">
-            <h3 className="font-semibold text-v-text-primary mb-2 text-sm">Unscheduled Jobs ({unscheduledJobs.length})</h3>
+          <section aria-labelledby="cal-unscheduled" className="bg-v-surface rounded-lg shadow p-4">
+            <h3 id="cal-unscheduled" className="font-semibold text-v-text-primary mb-2 text-sm">Unscheduled Jobs ({unscheduledJobs.length})</h3>
             {unscheduledJobs.length === 0 ? (
               <p className="text-v-text-secondary text-xs">No unscheduled jobs</p>
             ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <ul className="space-y-2 max-h-[300px] overflow-y-auto">
                 {unscheduledJobs.map((job) => (
-                  <div key={job.id} onClick={() => { setScheduleModal(job); setScheduleDate(''); }} className="p-2 border border-v-border rounded cursor-pointer hover:bg-white/5">
-                    <div className="font-medium text-xs text-v-text-primary">{job.client_name || 'No name'}</div>
-                    <div className="text-[10px] text-v-text-secondary">{job.aircraft_model || job.aircraft_type}</div>
-                    <div className="text-[10px] text-green-400 font-medium">${formatPrice(job.total_price)}</div>
-                  </div>
+                  <li key={job.id}>
+                    <button type="button" onClick={() => { setScheduleModal(job); setScheduleDate(''); }}
+                      aria-label={`Schedule ${job.client_name || 'job'}`}
+                      className="w-full text-left p-2 border border-v-border rounded hover:bg-white/5">
+                      <span className="block font-medium text-sm text-v-text-primary">{job.client_name || 'No name'}</span>
+                      <span className="block text-xs text-v-text-secondary">{job.aircraft_model || job.aircraft_type}</span>
+                      <span className="block text-xs text-green-400 font-medium">${formatPrice(job.total_price)}</span>
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
+          </section>
 
           {/* Team On Duty (if any team schedules) */}
           {teamSchedules.length > 0 && (
@@ -433,9 +675,9 @@ export default function CalendarPage() {
               <div className="space-y-1">
                 {teamSchedules.map(s => (
                   <div key={s.member_id} className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span className="text-xs text-v-text-secondary">{s.member_name}</span>
-                    <span className="text-[10px] text-v-text-secondary/60 capitalize">{s.role}</span>
+                    <div aria-hidden="true" className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                    <span className="text-sm text-v-text-secondary">{s.member_name}</span>
+                    <span className="text-xs text-v-text-secondary/80 capitalize">{s.role}</span>
                   </div>
                 ))}
               </div>
@@ -506,47 +748,25 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* Legend */}
-          <div className="bg-v-surface rounded-lg shadow p-4">
-            <h3 className="font-semibold text-v-text-primary mb-2 text-sm">Legend</h3>
-            <div className="space-y-1">
-              {Object.entries(statusColors).map(([status, color]) => (
-                <div key={status} className="flex items-center text-xs gap-2">
-                  <div className={`w-3 h-3 rounded ${color}`} />
-                  <span className="capitalize text-v-text-secondary">{status.replace('_', ' ')}</span>
-                </div>
-              ))}
-              <div className="flex items-center text-xs gap-2">
-                <div className="w-3 h-3 rounded bg-indigo-400" />
-                <span className="text-v-text-secondary">Google Calendar</span>
-              </div>
-              <div className="flex items-center text-xs gap-2">
-                <div className="w-3 h-3 rounded bg-red-500/40" />
-                <span className="text-v-text-secondary">Blocked</span>
-              </div>
-              <div className="flex items-center text-xs gap-2">
-                <div className="w-3 h-3 rounded bg-teal-500" />
-                <span className="text-v-text-secondary">Team Member</span>
-              </div>
-            </div>
-          </div>
-        </div>
+          {/* Legend — compact chips, last panel */}
+          {legend('sm:col-span-2 lg:col-span-1')}
+        </aside>
       </div>
 
       {/* Job Detail Modal */}
       {selectedJob && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={() => setSelectedJob(null)}>
-          <div className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="cal-job-title" className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold text-v-text-primary">Job Details</h3>
-              <button onClick={() => setSelectedJob(null)} className="text-v-text-secondary hover:text-v-text-primary text-xl">&times;</button>
+              <h3 id="cal-job-title" className="text-lg font-semibold text-v-text-primary">Job Details</h3>
+              <button type="button" onClick={() => setSelectedJob(null)} aria-label="Close job details" className="w-10 h-10 -mr-2 -mt-2 flex items-center justify-center text-v-text-secondary hover:text-v-text-primary text-2xl">&times;</button>
             </div>
             <div className="space-y-3">
               <div><p className="text-xs text-v-text-secondary">Customer</p><p className="font-medium text-v-text-primary">{selectedJob.client_name || 'No name'}</p></div>
               <div><p className="text-xs text-v-text-secondary">Aircraft</p><p className="font-medium text-v-text-primary">{selectedJob.aircraft_model || selectedJob.aircraft_type}</p></div>
               {selectedJob.tail_number && <div><p className="text-xs text-v-text-secondary">Tail Number</p><p className="font-medium text-v-text-primary">{selectedJob.tail_number}</p></div>}
               <div><p className="text-xs text-v-text-secondary">Scheduled</p><p className="font-medium text-v-text-primary">{selectedJob.scheduled_date ? new Date(selectedJob.scheduled_date).toLocaleString() : 'Not scheduled'}</p></div>
-              <div><p className="text-xs text-v-text-secondary">Status</p><span className={`inline-block px-2 py-1 rounded text-xs text-white ${statusColors[selectedJob.status] || 'bg-gray-500'}`}>{selectedJob.status}</span></div>
+              <div><p className="text-xs text-v-text-secondary">Status</p><span className={`inline-block px-2 py-1 rounded text-xs text-white ${statusColors[selectedJob.status] || 'bg-gray-600'}`}>{STATUS_LABELS[selectedJob.status] || selectedJob.status}</span></div>
               <div><p className="text-xs text-v-text-secondary">Total</p><p className="font-semibold text-lg text-green-400">${formatPrice(selectedJob.total_price)}</p></div>
             </div>
             <div className="flex gap-2 mt-6">
@@ -568,20 +788,20 @@ export default function CalendarPage() {
       {/* Schedule Modal */}
       {scheduleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 sm:p-4" onClick={() => setScheduleModal(null)}>
-          <div className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-v-text-primary mb-4">Schedule Job</h3>
+          <div role="dialog" aria-modal="true" aria-labelledby="cal-schedule-title" className="bg-v-surface rounded-t-2xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md max-h-[90dvh] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 id="cal-schedule-title" className="text-lg font-semibold text-v-text-primary mb-4">Schedule Job</h3>
             <div className="mb-4">
               <p className="font-medium text-v-text-primary">{scheduleModal.client_name || 'No name'}</p>
               <p className="text-sm text-v-text-secondary">{scheduleModal.aircraft_model || scheduleModal.aircraft_type}</p>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-v-text-secondary mb-1">Date</label>
-                <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded px-3 py-2" />
+                <label htmlFor="cal-schedule-date" className="block text-sm font-medium text-v-text-secondary mb-1">Date</label>
+                <input id="cal-schedule-date" type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded px-3 py-2" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-v-text-secondary mb-1">Time</label>
-                <input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded px-3 py-2" />
+                <label htmlFor="cal-schedule-time" className="block text-sm font-medium text-v-text-secondary mb-1">Time</label>
+                <input id="cal-schedule-time" type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} className="w-full border border-v-border bg-v-charcoal text-v-text-primary rounded px-3 py-2" />
               </div>
             </div>
             <div className="flex gap-2 mt-6">

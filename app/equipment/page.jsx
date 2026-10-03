@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPriceWhole, currencySymbol } from '@/lib/formatPrice';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -37,6 +37,9 @@ export default function EquipmentPage() {
   const [scrapeError, setScrapeError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [toast, setToast] = useState('');
+  const [undoUse, setUndoUse] = useState(null); // { item, message } after "Log use"
+  const [loggingUseId, setLoggingUseId] = useState(null);
+  const undoTimerRef = useRef(null);
 
   // Location state
   const [locations, setLocations] = useState([]);
@@ -298,8 +301,11 @@ export default function EquipmentPage() {
     }
   };
 
-  const handleIncrementJobs = async (id) => {
+  // "Log use": bumps the tool's jobs-used count (equipment.jobs_completed), which
+  // drives cost per job = purchase price / jobs used. Offers a short Undo.
+  const handleIncrementJobs = async (item, step = 1) => {
     const token = localStorage.getItem('vector_token');
+    setLoggingUseId(item.id);
     try {
       const res = await fetch('/api/equipment', {
         method: 'PATCH',
@@ -307,13 +313,27 @@ export default function EquipmentPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ id, increment: 1 }),
+        body: JSON.stringify({ id: item.id, increment: step }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const count = data?.equipment?.jobs_completed ?? Math.max(0, (item.jobs_completed || 0) + step);
+        const name = shortProductName(item.name);
+        clearTimeout(undoTimerRef.current);
+        if (step > 0) {
+          setUndoUse({ item, message: `Logged a use for ${name}. Used on ${count} ${count === 1 ? 'job' : 'jobs'}.` });
+          undoTimerRef.current = setTimeout(() => setUndoUse(null), 6000);
+        } else {
+          setUndoUse(null);
+          setToast(`Undone. ${name} is used on ${count} ${count === 1 ? 'job' : 'jobs'}.`);
+          setTimeout(() => setToast(''), 3000);
+        }
         fetchEquipment();
       }
     } catch (err) {
-      console.error('Failed to increment jobs:', err);
+      console.error('Failed to log tool use:', err);
+    } finally {
+      setLoggingUseId(null);
     }
   };
 
@@ -382,14 +402,26 @@ export default function EquipmentPage() {
 
   return (
     <AppShell title="Equipment">
-    <div className="px-6 md:px-10 py-8 pb-40 max-w-[1400px] text-v-text-primary">
+    <div className="px-4 sm:px-6 md:px-10 py-8 pb-40 max-w-[1400px] text-v-text-primary">
       {/* Success Toast */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-[60] bg-green-900/90 border border-green-500/30 text-green-300 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in">
-          <span className="text-green-400">&#10003;</span>
-          <span className="text-sm font-medium">{toast}</span>
-        </div>
-      )}
+      <div aria-live="polite" role="status" className="fixed top-4 right-4 left-4 sm:left-auto z-[60] flex flex-col items-end gap-2 pointer-events-none">
+        {toast && (
+          <div className="pointer-events-auto bg-green-900/95 border border-green-500/30 text-green-200 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in">
+            <span aria-hidden="true" className="text-green-400">&#10003;</span>
+            <span className="text-sm font-medium">{toast}</span>
+          </div>
+        )}
+        {undoUse && (
+          <div className="pointer-events-auto bg-green-900/95 border border-green-500/30 text-green-200 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in max-w-md">
+            <span aria-hidden="true" className="text-green-400">&#10003;</span>
+            <span className="text-sm font-medium">{undoUse.message}</span>
+            <button type="button" onClick={() => handleIncrementJobs(undoUse.item, -1)}
+              className="ml-auto shrink-0 px-3 min-h-[36px] text-sm font-semibold text-white underline underline-offset-2 hover:text-green-100">
+              Undo
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Header */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 text-white">
@@ -418,11 +450,11 @@ export default function EquipmentPage() {
               <p className="text-2xl font-bold text-green-600">{stats.activeCount || 0}</p>
             </div>
             <div className="bg-v-surface rounded-lg p-4 shadow">
-              <p className="text-v-text-secondary text-xs">{'Total Jobs Done'}</p>
+              <p className="text-v-text-secondary text-xs" title="Total times tools were logged as used on a job">{'Tool uses logged'}</p>
               <p className="text-2xl font-bold text-blue-600">{stats.totalJobs}</p>
             </div>
             <div className="bg-v-surface rounded-lg p-4 shadow">
-              <p className="text-v-text-secondary text-xs">{'Avg Cost/Job'}</p>
+              <p className="text-v-text-secondary text-xs">{'Avg cost per use'}</p>
               <p className="text-2xl font-bold text-purple-600">
                 {stats.avgCostPerJob ? `${currencySymbol()}${formatPriceWhole(stats.avgCostPerJob)}` : '-'}
               </p>
@@ -466,7 +498,8 @@ export default function EquipmentPage() {
                       )}
                       <button
                         onClick={() => handleOpenModal(item)}
-                        className="text-xs text-blue-600 hover:underline"
+                        className="text-xs text-sky-400 hover:underline px-1 min-h-[32px]"
+                        aria-label={`Update ${decodeHtmlEntities(item.name)}`}
                       >
                         {'Update'}
                       </button>
@@ -490,12 +523,12 @@ export default function EquipmentPage() {
                     <div>
                       <p className="font-medium text-v-text-primary break-words" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</p>
                       <p className="text-xs text-v-text-secondary">
-                        {item.brand && `${item.brand} `}{item.model && `${item.model} - `}{item.jobs_completed} {'jobs'}
+                        {[[item.brand, item.model].filter(Boolean).join(' '), `used on ${item.jobs_completed} ${item.jobs_completed === 1 ? 'job' : 'jobs'}`].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-emerald-600">{currencySymbol()}{formatPriceWhole(item.cost_per_job)}{'/job'}</p>
+                    <p className="font-bold text-emerald-400">{currencySymbol()}{formatPriceWhole(item.cost_per_job)}{' per job'}</p>
                     <p className="text-xs text-v-text-secondary">{currencySymbol()}{formatPriceWhole(item.purchase_price)} {'invested'}</p>
                   </div>
                 </div>
@@ -578,20 +611,28 @@ export default function EquipmentPage() {
                     const warrantyDays = daysUntil(item.warranty_expiry);
                     return (
                       <div key={item.id} className="p-4 hover:bg-white/5">
-                        <div className="flex items-start justify-between gap-3">
+                        {/* Info on top (full width so names wrap normally), actions in their own row on
+                            phones/tablets; on wide screens the actions sit at the right. */}
+                        <div className="flex flex-col lg:flex-row lg:items-start gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
                           {item.image_url && (
-                            <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-v-charcoal border">
-                              <img src={item.image_url} alt={decodeHtmlEntities(item.name)} className="w-full h-full object-cover" />
+                            <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-v-charcoal border border-v-border">
+                              <img src={item.image_url} alt="" className="w-full h-full object-cover" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            {/* Name + Status row */}
-                            <div className="flex items-center gap-2 flex-wrap">
+                            {/* Name */}
+                            <h4 className="font-semibold text-v-text-primary text-base leading-snug break-words">
                               {item.product_url ? (
-                                <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-v-text-primary hover:text-v-gold underline decoration-v-border hover:decoration-v-gold break-words min-w-0" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</a>
+                                <a href={item.product_url} target="_blank" rel="noopener noreferrer" className="hover:text-v-gold underline decoration-v-border hover:decoration-v-gold" title={decodeHtmlEntities(item.name)}>
+                                  {shortProductName(item.name, 120)}<span className="sr-only"> (opens product page in a new tab)</span>
+                                </a>
                               ) : (
-                                <p className="font-semibold text-v-text-primary break-words min-w-0" title={decodeHtmlEntities(item.name)}>{shortProductName(item.name)}</p>
+                                <span title={decodeHtmlEntities(item.name)}>{shortProductName(item.name, 120)}</span>
                               )}
+                            </h4>
+                            {/* Status + badges */}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[item.status] || 'bg-v-charcoal text-v-text-secondary'}`}>
                                 {STATUS_LABELS[item.status] || item.status}
                               </span>
@@ -601,12 +642,12 @@ export default function EquipmentPage() {
                                 </span>
                               )}
                               {item.maintenance_due && !item.maintenance_overdue && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-v-gold-muted/30 text-v-gold font-medium">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-v-gold-muted/30 text-sky-300 font-medium">
                                   {'Maintenance Soon'}
                                 </span>
                               )}
                               {(item.quantity || 1) > 1 && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 font-medium">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-300 font-medium">
                                   Qty: {item.quantity}
                                 </span>
                               )}
@@ -616,37 +657,40 @@ export default function EquipmentPage() {
                                 </span>
                               )}
                               {getLocationName(item.location_id) && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/30 text-indigo-400 font-medium">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/30 text-indigo-300 font-medium">
                                   {getLocationName(item.location_id)}
                                 </span>
                               )}
                             </div>
 
-                            {/* Brand / Model */}
-                            {(item.brand || item.model) && (
-                              <p className="text-sm text-v-text-secondary mt-0.5">
-                                {item.brand}{item.brand && item.model ? ' ' : ''}{item.model}
-                              </p>
-                            )}
+                            {/* Brand / Model + price */}
+                            <p className="text-sm text-v-text-secondary mt-1 break-words">
+                              {[
+                                [item.brand, item.model].filter(Boolean).join(' '),
+                                item.purchase_price > 0 ? `${currencySymbol()}${formatPriceWhole(item.purchase_price)}` : null,
+                                item.purchase_date ? `Bought ${formatDate(item.purchase_date)}` : null,
+                              ].filter(Boolean).join(' · ')}
+                            </p>
 
-                            {/* Key stats row */}
-                            <div className="flex items-center gap-4 mt-2 text-sm text-v-text-secondary flex-wrap">
-                              {item.purchase_price > 0 && (
-                                <span>{currencySymbol()}{formatPriceWhole(item.purchase_price)}</span>
+                            {/* Usage / cost per job */}
+                            <p className="text-sm mt-1">
+                              {(item.jobs_completed || 0) > 0 ? (
+                                <>
+                                  <span className="text-v-text-primary">Used on {item.jobs_completed} {item.jobs_completed === 1 ? 'job' : 'jobs'}</span>
+                                  {item.cost_per_job != null && (
+                                    <span className="text-emerald-400"> · {currencySymbol()}{formatPriceWhole(item.cost_per_job)} per job</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-v-text-secondary">Not logged on any jobs yet</span>
                               )}
-                              {item.purchase_date && (
-                                <span>{'Bought'} {formatDate(item.purchase_date)}</span>
-                              )}
-                              <span className="font-medium text-blue-600">{item.jobs_completed || 0} {'jobs'}</span>
-                              {item.cost_per_job && (
-                                <span className="text-emerald-600 font-medium">{currencySymbol()}{formatPriceWhole(item.cost_per_job)}{'/job'}</span>
-                              )}
-                            </div>
+                            </p>
 
                             {/* Warranty + Maintenance row */}
-                            <div className="flex items-center gap-4 mt-1 text-xs flex-wrap">
+                            {(item.warranty_expiry || item.next_maintenance) && (
+                            <div className="flex items-center gap-x-4 gap-y-1 mt-1 text-xs flex-wrap">
                               {item.warranty_expiry && (
-                                <span className={warrantyDays > 0 ? 'text-green-600' : 'text-v-text-secondary'}>
+                                <span className={warrantyDays > 0 ? 'text-green-400' : 'text-v-text-secondary'}>
                                   {warrantyDays > 0
                                     ? `${'Warranty:'} ${warrantyDays} ${'days'} ${'left'}`
                                     : 'Warranty expired'}
@@ -654,8 +698,8 @@ export default function EquipmentPage() {
                               )}
                               {item.next_maintenance && (
                                 <span className={
-                                  maintDays < 0 ? 'text-red-600 font-medium' :
-                                  maintDays <= 7 ? 'text-v-gold-dim font-medium' :
+                                  maintDays < 0 ? 'text-red-400 font-medium' :
+                                  maintDays <= 7 ? 'text-sky-300 font-medium' :
                                   'text-v-text-secondary'
                                 }>
                                   {maintDays < 0
@@ -664,39 +708,51 @@ export default function EquipmentPage() {
                                 </span>
                               )}
                             </div>
+                            )}
 
                             {/* Notes */}
                             {item.maintenance_notes && (
-                              <p className="text-xs text-v-text-secondary mt-1 line-clamp-1">{item.maintenance_notes}</p>
+                              <p className="text-xs text-v-text-secondary mt-1 line-clamp-2 break-words">{item.maintenance_notes}</p>
                             )}
                           </div>
+                        </div>
 
-                          {/* Actions */}
-                          <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                          {/* Actions — own row on phones, right side on desktop */}
+                          <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap lg:justify-end lg:shrink-0" role="group" aria-label={`Actions for ${decodeHtmlEntities(item.name)}`}>
                             <button
-                              onClick={() => handleIncrementJobs(item.id)}
-                              className="px-2.5 py-1 text-xs bg-green-900/30 text-green-400 hover:bg-green-200 rounded font-medium"
-                              title={'Log a completed job'}
+                              type="button"
+                              onClick={() => handleIncrementJobs(item)}
+                              disabled={loggingUseId === item.id}
+                              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 min-h-[40px] text-sm bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg font-medium disabled:opacity-60"
+                              title="Record that this tool was used on a job (updates its cost per job)"
+                              aria-label={`Log use: record that ${decodeHtmlEntities(item.name)} was used on a job`}
                             >
-                              {'+1 Job'}
+                              <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
+                              {loggingUseId === item.id ? 'Logging…' : 'Log use'}
                             </button>
                             {locations.length > 0 && (
                               <button
+                                type="button"
                                 onClick={() => { setShowTransferModal(item); setTransferTo(''); }}
-                                className="px-2.5 py-1 text-xs text-indigo-400 hover:bg-indigo-900/20 rounded"
+                                className="px-2.5 sm:px-3 min-h-[40px] text-sm text-indigo-300 border border-v-border hover:bg-indigo-900/20 rounded-lg"
+                                aria-label={`Transfer ${decodeHtmlEntities(item.name)} to another location`}
                               >
                                 Transfer
                               </button>
                             )}
                             <button
+                              type="button"
                               onClick={() => handleOpenModal(item)}
-                              className="px-2.5 py-1 text-xs text-blue-600 hover:bg-blue-900/20 rounded"
+                              className="px-2.5 sm:px-3 min-h-[40px] text-sm text-sky-300 border border-v-border hover:bg-blue-900/20 rounded-lg"
+                              aria-label={`Edit ${decodeHtmlEntities(item.name)}`}
                             >
                               {'Edit'}
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDelete(item.id)}
-                              className="px-2.5 py-1 text-xs text-red-600 hover:bg-red-900/20 rounded"
+                              className="px-2.5 sm:px-3 min-h-[40px] text-sm text-red-400 border border-v-border hover:bg-red-900/20 rounded-lg"
+                              aria-label={`Delete ${decodeHtmlEntities(item.name)}`}
                             >
                               {'Delete'}
                             </button>
