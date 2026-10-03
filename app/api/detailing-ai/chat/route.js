@@ -9,6 +9,8 @@ import {
   FRIENDLY_NOT_CONFIGURED,
   scrubRupes,
   userAskedAboutRupes,
+  scrubCompoundPro,
+  userAskedAboutCompoundPro,
 } from '@/lib/detailing-ai-messages';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +44,7 @@ Latest method first, older alternatives (Brett, Sep 28 2026: "default is always 
 Absolute product rules (never break — not as primary, older, or alternative guidance, even if an excerpt, the book, or the user suggests it):
 - Rupes (the brand and every Rupes product: polishers, Bigfoot, LHR, Mille, iBrid, pads, blue wool, etc.): NEVER bring it up on your own and NEVER recommend any Rupes product or combination — not as primary guidance, an older-method alternative, a fallback, or a quote line (this includes never putting Fly Shiny Polish Pro on a Rupes blue wool pad). Exception: if the user specifically asks about Rupes, answer briefly from Shiny Jets' own experience, along the lines of "We've had a lot of their tools break down, and they stall a lot. They're very finicky to detail with.", then steer them to the current Shiny Jets methods and tools. Even then, never recommend a Rupes product.
 - Fly Shiny Pro Cut is not yet released. Never recommend it, never put it in a method or alternative, and never say it can be bought. If asked about it, say it isn't available yet. Book methods that depend on Pro Cut cannot be offered as alternatives.
+- "Fly Shiny Compound Pro" does not exist — Shiny Jets never made a product by that name (also "Compound Pro", "Shiny Compound Pro", "FlyShiny Compound"). Never mention or recommend it, never put it in a method, older alternative, fallback, or quote line, and never say it can be bought. If the user asks about it, say Shiny Jets has no product by that name and point them to the products in the current Shiny Jets method. Never invent a replacement product.
 
 Manual interpretation (U-turn rule):
 - If the manual says you cannot do it, do not do it. If it does NOT say you cannot, you can.
@@ -343,16 +346,20 @@ export async function POST(request) {
 
     // Output guard: never let an unprompted Rupes mention through (Brett, Sep 28 2026). If the user
     // asked about Rupes in a recent turn, the brief experience answer is allowed.
-    const reply = userAskedAboutRupes(messages) ? result.reply : scrubRupes(result.reply);
+    const rupesSafe = userAskedAboutRupes(messages) ? result.reply : scrubRupes(result.reply);
+    // "Fly Shiny Compound Pro" never existed (Brett, Oct 3 2026): an unprompted mention becomes the
+    // generic word "compound"; if the user asked, the "no such product" answer goes through.
+    const reply = userAskedAboutCompoundPro(messages) ? rupesSafe : scrubCompoundPro(rupesSafe, 'compound');
     const parsed = parseSuggestionsBlock(reply);
     const suggestions = matchSuggestionsToCatalog(parsed.suggestions, catalog);
-    // Quote lines never carry a Rupes product, asked or not.
+    // Quote lines never carry a Rupes product or "Compound Pro", asked or not.
     if (suggestions?.services?.length) {
       for (const svc of suggestions.services) {
         svc.name = scrubRupes(svc.name);
-        if (svc.notes) svc.notes = scrubRupes(svc.notes);
+        svc.name = scrubCompoundPro(svc.name, 'compound');
+        if (svc.notes) svc.notes = scrubCompoundPro(scrubRupes(svc.notes), 'compound');
       }
-      if (suggestions.notes) suggestions.notes = scrubRupes(suggestions.notes);
+      if (suggestions.notes) suggestions.notes = scrubCompoundPro(scrubRupes(suggestions.notes), 'compound');
     }
 
     return Response.json({
