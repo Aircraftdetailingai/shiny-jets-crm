@@ -6,7 +6,9 @@
 // the signed-in account only.
 import { getAuthUser } from '@/lib/auth';
 import { resolveDetailerId } from '@/lib/resolve-detailer';
-import { getServiceSupabase, chatSettingsOf, chatEligible, twilioConfigured } from '@/lib/ai-chat-server';
+import { getServiceSupabase, chatSettingsOf, chatEligible, twilioConfigured, rawChatSettings } from '@/lib/ai-chat-server';
+import { publicSources, normalizeFaqSources, normalizeSnapshot, normalizeImportUrl, MAX_FAQ_SOURCES } from '@/lib/faq-import';
+import { aiExtractAvailable } from '@/lib/faq-import-server';
 import { normalizeFaqs, normalizePhone, STARTER_FAQS } from '@/lib/ai-chat';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +41,8 @@ export async function GET(request) {
     hasSavedFaqs: !!faqRow,
     starter: STARTER_FAQS,
     twilio: twilioConfigured(),
+    sources: publicSources(rawChatSettings(detailer).faq_sources),
+    aiExtract: aiExtractAvailable(),
   }, { headers: NO_STORE });
 }
 
@@ -54,10 +58,29 @@ export async function PUT(request) {
   const { detailer } = await loadOwn(supabase, id);
   if (!detailer) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  if (body.settings) {
-    const s = body.settings;
+  // Linked FAQ pages added from the import review (Business only).
+  let sourcesNext = null;
+  if (Array.isArray(body.sources_add) && body.sources_add.length) {
+    if (!chatEligible(detailer)) return Response.json({ error: 'Importing FAQs from your website is included with Business.', upgrade: '/upgrade?plan=business' }, { status: 403 });
+    const existing = normalizeFaqSources(rawChatSettings(detailer).faq_sources);
+    const now = new Date().toISOString();
+    for (const a of body.sources_add.slice(0, MAX_FAQ_SOURCES)) {
+      const url = normalizeImportUrl(a?.url);
+      if (!url) continue;
+      const snap = normalizeSnapshot(a.snapshot);
+      const i = existing.findIndex((x) => x.url === url);
+      const base = i >= 0 ? existing[i] : { url, added_at: now, pending: [] };
+      const merged = { ...base, keep_in_sync: a.keep_in_sync === true, method: typeof a.method === 'string' ? a.method : base.method, snapshot: snap.length ? snap : base.snapshot, last_checked_at: now, last_status: 'ok', last_error: '', count: snap.length || base.count };
+      if (i >= 0) existing[i] = merged; else existing.push(merged);
+    }
+    sourcesNext = normalizeFaqSources(existing);
+  }
+
+  if (body.settings || sourcesNext) {
+    const s = body.settings || {};
     const current = chatSettingsOf(detailer);
-    const next = { ...current };
+    const next = { ...rawChatSettings(detailer), ...current };
+    if (sourcesNext) next.faq_sources = sourcesNext;
     if (s.enabled !== undefined) {
       if (s.enabled && !chatEligible(detailer)) return Response.json({ error: 'The AI chat bubble is included with Business ($89.95/mo or $899/yr).', upgrade: '/upgrade?plan=business' }, { status: 403 });
       next.enabled = !!s.enabled;
