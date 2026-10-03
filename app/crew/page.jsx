@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import { classifyScan } from '@/lib/scan-code';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useToast } from '@/components/Toast';
 import { useTranslation } from '@/lib/i18n';
@@ -1902,7 +1903,7 @@ export default function CrewDashboard() {
                 <button onClick={() => setShowAddProduct(false)} className="text-white/50 hover:text-white text-2xl leading-none">&times;</button>
               </div>
               <div className="p-5 space-y-3">
-                {/* Scan Barcode */}
+                {/* Scan barcode or QR code */}
                 <button
                   type="button"
                   onClick={() => setShowScanner(true)}
@@ -1912,7 +1913,7 @@ export default function CrewDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/>
                   </svg>
-                  {barcodeLookup ? 'Looking up...' : 'Scan Barcode'}
+                  {barcodeLookup ? 'Looking up...' : 'Scan barcode or QR code'}
                 </button>
 
                 {/* URL + Auto-fill */}
@@ -2072,8 +2073,18 @@ export default function CrewDashboard() {
         <BarcodeScanner
           isOpen={showScanner}
           onClose={() => setShowScanner(false)}
-          onDetected={async (upc) => {
+          onDetected={async (code) => {
             setShowScanner(false);
+            const scan = classifyScan(code);
+            if (!scan) return;
+            // QR code linking to a product page -> keep it as the product URL.
+            if (scan.kind === 'url' && !scan.gtin) {
+              setNewProduct(p => ({ ...p, url: scan.url }));
+              showMsg('QR code scanned — product link added');
+              return;
+            }
+            // Regular barcode (or GS1 QR) -> look up the UPC/EAN/GTIN.
+            const upc = scan.gtin || scan.code;
             setBarcodeLookup(true);
             const safetyTimer = setTimeout(() => setBarcodeLookup(false), 10000);
             try {

@@ -13,6 +13,7 @@ function containerSizeLabel(p) {
   return /^\d+(\.\d+)?$/.test(size) && p?.unit ? `${size} ${p.unit}` : size;
 }
 import BarcodeScanner from '@/components/BarcodeScanner';
+import { classifyScan } from '@/lib/scan-code';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -335,30 +336,48 @@ export default function ProductsPage() {
     }
   };
 
-  // Fired when the scanner (or manual entry) yields a code. Behavior depends
-  // on where the scan was started from (scanMode).
+  // After a scan, fill in product details from the code itself:
+  // UPC/EAN/GTIN (incl. GS1 Digital Link QR) -> barcode database lookup;
+  // other QR links -> scrape the product page like a pasted product link.
+  const enrichFromScan = (scan) => {
+    if (scan.gtin) enrichFromBarcode(scan.gtin);
+    else if (scan.kind === 'url' && scan.url) {
+      setPasteUrl(scan.url);
+      handleScrapeUrl(scan.url);
+    }
+  };
+
+  // Fired when the scanner (or manual entry) yields a code: a regular
+  // barcode (UPC/EAN/Code 128…) or a QR code. Behavior depends on where the
+  // scan was started from (scanMode).
   const handleScanDetected = async (code, format) => {
     setShowScanner(false);
-    const barcode = String(code || '').trim();
-    if (!barcode) return;
+    const scan = classifyScan(code);
+    if (!scan) return;
+    const barcode = scan.code;
     const barcodeType = format || '';
 
-    // Scan started from inside the Add Product form → just stamp the barcode
-    // onto the form and try to enrich the other fields.
+    // Scan started from inside the Add Product form -> stamp the code onto
+    // the form and try to fill in the other fields.
     if (scanMode === 'enrich') {
       setFormData(prev => ({ ...prev, barcode, barcodeType }));
-      enrichFromBarcode(barcode);
+      enrichFromScan(scan);
       return;
     }
 
-    // Top-level scan → match against this detailer's existing inventory first.
+    // Top-level scan -> match against this detailer's existing inventory
+    // first (raw value, then UPC/EAN/GTIN variants of the same item).
     setBarcodeLookup(true);
     try {
       const tk = localStorage.getItem('vector_token');
-      const res = await fetch(`/api/products?barcode=${encodeURIComponent(barcode)}`, {
-        headers: { Authorization: `Bearer ${tk}` },
-      });
-      const existing = res.ok ? ((await res.json()).products || [])[0] : null;
+      let existing = null;
+      for (const c of scan.lookupCodes.slice(0, 5)) {
+        const res = await fetch(`/api/products?barcode=${encodeURIComponent(c)}`, {
+          headers: { Authorization: `Bearer ${tk}` },
+        });
+        existing = res.ok ? ((await res.json()).products || [])[0] : null;
+        if (existing) break;
+      }
       if (existing) {
         if (confirm(`"${existing.name}" already in inventory — increment quantity by 1?`)) {
           await fetch('/api/products', {
@@ -374,11 +393,14 @@ export default function ProductsPage() {
         }
         return;
       }
-      // No match → open Add Product prefilled with the scanned code.
+      // No match -> open Add Product prefilled with the scanned code and
+      // load whatever product details the code points to.
       handleOpenModal(null, { barcode, barcodeType });
+      enrichFromScan(scan);
       setTimeout(() => nameInputRef.current?.focus(), 150);
     } catch (e) {
       handleOpenModal(null, { barcode, barcodeType });
+      enrichFromScan(scan);
       setTimeout(() => nameInputRef.current?.focus(), 150);
     } finally {
       setBarcodeLookup(false);
@@ -618,20 +640,20 @@ export default function ProductsPage() {
               </select>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => { setScanMode('lookup'); setShowScanner(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500/15 border border-blue-500/30 text-blue-400 font-medium rounded-sm hover:bg-blue-500/25"
+              className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-blue-500/15 border border-blue-500/30 text-blue-400 font-medium rounded-sm hover:bg-blue-500/25 whitespace-nowrap"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
               </svg>
-              {barcodeLookup ? 'Looking up...' : 'Scan Barcode'}
+              {barcodeLookup ? 'Looking up...' : 'Scan barcode or QR code'}
             </button>
             <button
               onClick={() => handleOpenModal()}
-              className="px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-sm"
+              className="flex-1 sm:flex-none px-4 py-2 bg-v-gold hover:bg-v-gold-dim text-white font-medium rounded-sm whitespace-nowrap"
             >
               {'+ Add Product'}
             </button>
@@ -846,7 +868,7 @@ export default function ProductsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Scan Barcode */}
+              {/* Scan barcode or QR code */}
               {!editingProduct && (
                 <button
                   type="button"
@@ -857,7 +879,7 @@ export default function ProductsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"/>
                   </svg>
-                  {barcodeLookup ? 'Looking up...' : 'Scan Barcode'}
+                  {barcodeLookup ? 'Looking up...' : 'Scan barcode or QR code'}
                 </button>
               )}
 
@@ -1041,18 +1063,20 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Barcode / QR'}</label>
+                <label className="block text-sm font-medium text-v-text-secondary mb-1">{'Barcode or QR code'}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    placeholder={'Scan or enter UPC/EAN/QR'}
+                    placeholder={'Scan or type a barcode or QR code'}
                     className="flex-1 bg-v-surface border border-v-border rounded-sm px-3 py-2 text-v-text-primary placeholder:text-v-text-secondary/50 focus:border-v-gold focus:ring-0 outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => { setScanMode('enrich'); setShowScanner(true); }}
+                    aria-label="Scan barcode or QR code"
+                    title="Scan barcode or QR code"
                     className="px-3 py-2 bg-blue-500/15 border border-blue-500/30 text-blue-400 text-sm rounded-sm hover:bg-blue-500/25 whitespace-nowrap"
                   >
                     {'Scan'}
