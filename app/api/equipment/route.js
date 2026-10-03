@@ -339,7 +339,8 @@ export async function PATCH(request) {
   const { data: item, error } = await supabase
     .from('equipment')
     .update({
-      jobs_completed: (current.jobs_completed || 0) + increment,
+      // "Log use" (+1) and its Undo (-1); never below zero.
+      jobs_completed: Math.max(0, (current.jobs_completed || 0) + (Number.isFinite(Number(increment)) ? Math.trunc(Number(increment)) : 1)),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

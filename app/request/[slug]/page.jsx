@@ -35,6 +35,7 @@ export default function FlowRequestPage() {
   const [faaResult, setFaaResult] = useState(null);
   const [aircraftDisplay, setAircraftDisplay] = useState('');
   const faaTimer = useRef(null);
+  const latestTailRef = useRef('');
 
   // Photos collected from photo_upload nodes
   const [photos, setPhotos] = useState([]);
@@ -221,6 +222,8 @@ export default function FlowRequestPage() {
   const handleTailChange = (v) => {
     const upper = v.toUpperCase();
     setTailNumber(upper);
+    latestTailRef.current = upper;
+    setFaaResult(null);
     clearTimeout(faaTimer.current);
     const nNum = upper.replace(/^N/, '');
     if (nNum.length >= 2) {
@@ -236,11 +239,13 @@ export default function FlowRequestPage() {
         if (data.found) {
           const badModel = !data.model || data.model === 'Serial Number' || data.model.length < 2;
           if (data.manufacturer && !badModel) {
-            // Store silently for detailer — never shown to customer
-            setFaaResult(data);
-            if (!selectedMfr) setSelectedMfr(data.manufacturer);
-            if (!selectedModel) setSelectedModel(data.model);
-            setAircraftDisplay(`${data.manufacturer} ${data.model}`);
+            // Store silently for detailer — never shown to customer.
+            // The registry returns the FAA type designation (a King Air 350
+            // is "Raytheon B300"), so it must NOT replace the aircraft the
+            // customer picked. It is saved separately as secondary context
+            // (intake_responses._faa_registry) and only used as the aircraft
+            // name when the customer did not pick one.
+            if (latestTailRef.current === t) setFaaResult(data);
           }
         }
       }
@@ -287,19 +292,32 @@ export default function FlowRequestPage() {
           name: `${firstName} ${lastName}`.trim(),
           email, phone,
           company: company || null,
-          aircraft_model: aircraftDisplay || null,
+          // Customer-selected aircraft first; FAA registry only as a fallback.
+          aircraft_model: aircraftDisplay
+            || (faaResult ? `${faaResult.manufacturer} ${faaResult.model}` : '')
+            || null,
           tail_number: tailNumber || null,
           airport: airport || null,
           services_requested: serviceAnswers.join(', ') || null,
           notes: noteAnswers.join('\n') || null,
           photo_urls: photoUrls.length > 0 ? photoUrls : null,
-          intake_responses: Object.fromEntries(
-            Object.entries(answers).map(([nodeId, value]) => {
-              const node = flowNodes.find(n => n.id === nodeId);
-              const label = node?.data?.label || (node?.type === 'serviceSelect' ? 'Selected services' : nodeId);
-              return [label, value];
-            })
-          ),
+          intake_responses: {
+            ...Object.fromEntries(
+              Object.entries(answers).map(([nodeId, value]) => {
+                const node = flowNodes.find(n => n.id === nodeId);
+                const label = node?.data?.label || (node?.type === 'serviceSelect' ? 'Selected services' : nodeId);
+                return [label, value];
+              })
+            ),
+            ...(faaResult ? {
+              _faa_registry: {
+                manufacturer: faaResult.manufacturer || null,
+                model: faaResult.model || null,
+                display: `${faaResult.manufacturer || ''} ${faaResult.model || ''}`.trim(),
+                year: faaResult.year || null,
+              },
+            } : {}),
+          },
           source: 'flow_request_page',
         }),
       });

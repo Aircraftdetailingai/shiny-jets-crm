@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { leadAircraft, isInternalIntakeKey } from '@/lib/lead-aircraft';
 
 // Canonical pipeline — matches the intake_leads CHECK constraint
 // (new, reviewed, quoted, won, lost, archived).
@@ -105,6 +106,10 @@ export default function RequestDetailPage() {
   const style = STATUS_STYLES[lead.status] || STATUS_STYLES.new;
   const notes = (lead.notes || '').split('\n').filter(Boolean);
   const photos = lead.photo_urls || [];
+  // Customer-selected aircraft is the primary value; FAA registry data (which
+  // uses type designations like "Raytheon B300") is secondary context only.
+  const aircraft = leadAircraft(lead);
+  const intakeEntries = Object.entries(lead.intake_responses || {}).filter(([k]) => !isInternalIntakeKey(k));
 
   // Read-only view-state chip for the quote linked to this lead. Nothing shows
   // until a quote exists and has actually been sent; once the customer opens it,
@@ -128,7 +133,7 @@ export default function RequestDetailPage() {
       name: lead.name || '',
       email: lead.email || '',
       phone: lead.phone || '',
-      aircraft: lead.aircraft_model || '',
+      aircraft: aircraft.primary || '',
       tail: lead.tail_number || '',
       airport: lead.airport || '',
       service: lead.services_requested || '',
@@ -181,24 +186,29 @@ export default function RequestDetailPage() {
         {/* Aircraft */}
         <div className="bg-white/[0.03] border border-v-border-subtle rounded-lg p-5 mb-4">
           <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3">Aircraft</p>
-          <div className="space-y-2">
+          <dl className="space-y-2">
             <div className="flex gap-3">
-              <span className="text-v-text-secondary text-xs w-16">Aircraft</span>
-              <span className="text-white text-sm">{lead.aircraft_model || 'Not specified'}</span>
+              <dt className="text-v-text-secondary text-xs w-16 shrink-0 pt-0.5">Aircraft</dt>
+              <dd className="min-w-0">
+                <span className="text-white text-sm break-words">{aircraft.primary || 'Not specified'}</span>
+                {aircraft.registry && (
+                  <span className="block text-v-text-secondary text-xs mt-0.5 break-words">FAA registry: {aircraft.registry}</span>
+                )}
+              </dd>
             </div>
             {lead.tail_number && (
               <div className="flex gap-3">
-                <span className="text-v-text-secondary text-xs w-16">Tail</span>
-                <span className="text-white text-sm">{lead.tail_number}</span>
+                <dt className="text-v-text-secondary text-xs w-16 shrink-0 pt-0.5">Tail</dt>
+                <dd className="text-white text-sm">{lead.tail_number}</dd>
               </div>
             )}
             {lead.airport && (
               <div className="flex gap-3">
-                <span className="text-v-text-secondary text-xs w-16">Airport</span>
-                <span className="text-white text-sm">{lead.airport}</span>
+                <dt className="text-v-text-secondary text-xs w-16 shrink-0 pt-0.5">Airport</dt>
+                <dd className="text-white text-sm">{lead.airport}</dd>
               </div>
             )}
-          </div>
+          </dl>
         </div>
 
         {/* Service Request */}
@@ -233,11 +243,11 @@ export default function RequestDetailPage() {
         )}
 
         {/* Custom Intake Responses */}
-        {lead.intake_responses && Object.keys(lead.intake_responses).length > 0 && (
+        {intakeEntries.length > 0 && (
           <div className="bg-white/[0.03] border border-v-border-subtle rounded-lg p-5 mb-4">
             <p className="text-[10px] uppercase tracking-wider text-v-text-secondary/60 mb-3">Intake Responses</p>
             <div className="space-y-2">
-              {Object.entries(lead.intake_responses).map(([key, val]) => {
+              {intakeEntries.map(([key, val]) => {
                 let label = key;
                 if (/^(question|serviceSelect|condition|svc|q)-/i.test(key)) {
                   if (/^serviceSelect/i.test(key)) label = 'Selected services';

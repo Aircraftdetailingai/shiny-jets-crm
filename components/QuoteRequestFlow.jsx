@@ -66,6 +66,7 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
   // Intake flow (from detailer's settings)
   const [intakeQuestions, setIntakeQuestions] = useState(null);
   const [intakeResponses, setIntakeResponses] = useState({});
+  const [faaRegistry, setFaaRegistry] = useState(null);
 
   // Custom questions = intake questions minus the ones already hardcoded in the UI
   const customQuestions = customIntakeQuestions(intakeQuestions);
@@ -181,13 +182,16 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         detailer_id: detailerId,
         name, email, phone,
         company: data.company || null,
-        aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`,
+        aircraft_model: data.model_full || `${data.manufacturer} ${data.model}`.trim() || null,
         tail_number: data.tail_number,
         airport: data.airport,
         services_requested: data.service_text || serviceType,
         notes: areaNotes || '',
         photo_urls: photoUrls,
-        intake_responses: Object.keys(intakeResponses).length > 0 ? intakeResponses : null,
+        intake_responses: (() => {
+          const merged = { ...intakeResponses, ...(faaRegistry ? { _faa_registry: faaRegistry } : {}) };
+          return Object.keys(merged).length > 0 ? merged : null;
+        })(),
         source: embedded ? 'embed_widget' : 'quote_request_page',
       };
       const res = await fetch('/api/lead-intake/leads', {
@@ -338,8 +342,14 @@ export default function QuoteRequestFlow({ detailerId, detailerName, detailerLog
         {step === 2 && (
           <TailNumberStep
             value={data.tail_number}
-            onChange={v => set('tail_number', v)}
-            onAircraftFound={(mfr, mdl) => { set('manufacturer', mfr); set('model', mdl); set('model_full', `${mfr} ${mdl}`); }}
+            onChange={v => { set('tail_number', v); setFaaRegistry(null); }}
+            onAircraftFound={(mfr, mdl, reg) => {
+              // FAA registry names are type designations ("Raytheon B300" for a
+              // King Air 350). Keep the aircraft the customer already picked and
+              // save the registry result separately as secondary context.
+              setFaaRegistry(reg ? { manufacturer: mfr, model: mdl, display: `${mfr} ${mdl}`, year: reg.year || null } : null);
+              if (!data.model) { set('manufacturer', mfr); set('model', mdl); set('model_full', `${mfr} ${mdl}`); }
+            }}
             onNext={goNext}
           />
         )}
@@ -813,7 +823,7 @@ function TailNumberStep({ value, onChange, onAircraftFound, onNext }) {
   };
 
   const applyFound = () => {
-    if (found?.manufacturer && found?.model) onAircraftFound(found.manufacturer, found.model);
+    if (found?.manufacturer && found?.model) onAircraftFound(found.manufacturer, found.model, found);
     onNext();
   };
 

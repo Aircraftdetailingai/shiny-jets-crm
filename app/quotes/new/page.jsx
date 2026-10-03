@@ -1550,10 +1550,10 @@ function NewQuoteContent() {
                 ))}
               </div>
             )}
-            {leadContext.intakeResponses && Object.keys(leadContext.intakeResponses).length > 0 && (
+            {leadContext.intakeResponses && Object.keys(leadContext.intakeResponses).some(k => !k.startsWith('_')) && (
               <div className="mt-2 pt-2 border-t border-white/10">
                 <p className="text-v-text-secondary/60 text-[10px] uppercase tracking-wider mb-1">Intake Answers</p>
-                {Object.entries(leadContext.intakeResponses).map(([key, val]) => {
+                {Object.entries(leadContext.intakeResponses).filter(([key]) => !key.startsWith('_')).map(([key, val]) => {
                   // Clean up key: if it looks like a node ID (contains - followed by digits), show a generic label
                   let label = key;
                   if (/^(question|serviceSelect|condition|svc|q)-/i.test(key)) {

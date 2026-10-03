@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { logNotification } from '@/lib/notification-log';
+import { leadAircraftName } from '@/lib/lead-aircraft';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,7 @@ export async function POST(request) {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #007CB1;">Photos Received</h2>
-            <p><strong>${lead.name || 'A customer'}</strong> uploaded photos for their ${lead.aircraft_model || 'aircraft'} quote request.</p>
+            <p><strong>${lead.name || 'A customer'}</strong> uploaded photos for their ${leadAircraftName(lead, 'aircraft')} quote request.</p>
             <a href="${appUrl}/requests/${lead_id}" style="display: inline-block; padding: 12px 24px; background: #007CB1; color: white; text-decoration: none; border-radius: 8px; margin-top: 15px;">
               View Photos & Create Quote
             </a>

@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { getAuthUser } from '@/lib/auth';
 import { getBranding } from '@/lib/branding';
 import { sendCustomerEmail } from '@/lib/email';
+import { leadAircraftName } from '@/lib/lead-aircraft';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,7 +88,7 @@ export async function POST(request) {
   const branding = getBranding(detailer);
   const firstName = (lead.name || '').split(' ')[0] || 'there';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.shinyjets.com';
-  const aircraftName = lead.aircraft_model || 'aircraft';
+  const aircraftName = leadAircraftName(lead, 'aircraft');
   const uploadUrl = `${appUrl}/upload-photos/${token}`;
 
   // (1) Persist the upload token FIRST. The emailed link is dead without it,

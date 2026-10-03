@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { leadAircraftName } from '@/lib/lead-aircraft';
 
 // Canonical pipeline — matches the intake_leads CHECK constraint
 // (new, reviewed, quoted, won, lost, archived). Badge shape mirrors
@@ -73,6 +74,7 @@ export default function RequestsPage() {
           || (l.customer_name || '').toLowerCase().includes(q)
           || (l.email || '').toLowerCase().includes(q)
           || (l.aircraft_model || '').toLowerCase().includes(q)
+          || leadAircraftName(l).toLowerCase().includes(q)
           || (l.tail_number || '').toLowerCase().includes(q)
           || (l.airport || '').toLowerCase().includes(q)
         );
@@ -207,7 +209,7 @@ export default function RequestsPage() {
       name: lead.name || lead.customer_name || '',
       email: lead.email || lead.customer_email || '',
       phone: lead.phone || lead.customer_phone || '',
-      aircraft: lead.aircraft_model || '',
+      aircraft: leadAircraftName(lead),
       tail: lead.tail_number || '',
       airport: lead.airport || '',
       service: lead.services_requested || '',
@@ -344,7 +346,7 @@ export default function RequestsPage() {
                           <p className="text-white text-sm font-medium truncate">{lead.name || lead.customer_name || 'Customer'}</p>
                           {lead.email && <p className="text-v-text-secondary/80 text-xs truncate">{lead.email}</p>}
                           <p className="text-v-text-secondary text-xs truncate">
-                            {lead.aircraft_model || 'Aircraft not specified'}
+                            {leadAircraftName(lead, 'Aircraft not specified')}
                             {lead.tail_number ? ` · ${lead.tail_number}` : ''}
                             {lead.airport ? ` · ${lead.airport}` : ''}
                           </p>
@@ -435,7 +437,7 @@ export default function RequestsPage() {
                       {lead.email && <p className="text-v-text-secondary text-xs truncate" title={lead.email}>{lead.email}</p>}
                     </div>
                     <div className="min-w-0 pr-4">
-                      <p className="text-v-text-secondary text-sm truncate" title={lead.aircraft_model || ''}>{lead.aircraft_model || '—'}</p>
+                      <p className="text-v-text-secondary text-sm truncate" title={leadAircraftName(lead)}>{leadAircraftName(lead, '—')}</p>
                       {lead.tail_number && <p className="text-v-text-secondary/60 text-xs truncate">{lead.tail_number}</p>}
                     </div>
                     <div className="min-w-0 pr-4">
