@@ -10,7 +10,7 @@ import { publicRequestUrl, embedCode as buildEmbedCode, stickyQuoteButtonSnippet
 
 const btnPrimary = 'inline-flex items-center justify-center min-h-[44px] px-4 py-2 bg-v-gold text-white text-xs font-semibold uppercase tracking-wider hover:bg-v-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 const btnSecondary = 'inline-flex items-center justify-center min-h-[44px] px-4 py-2 border border-v-border text-v-text-primary text-xs font-semibold uppercase tracking-wider hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
-const codeBox = 'w-full bg-v-charcoal border border-v-border px-3 py-2 text-xs font-mono text-v-text-primary outline-none focus:border-v-gold resize-y';
+const codeBox = '[font-variant-ligatures:none] w-full bg-v-charcoal border border-v-border px-3 py-2 text-xs font-mono text-v-text-primary outline-none focus:border-v-gold resize-y';
 
 function Section({ id, title, desc, children }) {
   return (
@@ -122,7 +122,7 @@ export default function DeveloperPage() {
         <label htmlFor="share-link-input" className="sr-only">Request-a-quote link</label>
         <div className="flex flex-col sm:flex-row gap-2">
           <input id="share-link-input" readOnly value={publicUrl || ''} placeholder="Loading…" onFocus={(e) => e.target.select()}
-            className="flex-1 min-w-0 bg-v-charcoal border border-v-border px-3 py-2 min-h-[44px] text-sm font-mono text-v-text-primary outline-none focus:border-v-gold" />
+            className="[font-variant-ligatures:none] flex-1 min-w-0 bg-v-charcoal border border-v-border px-3 py-2 min-h-[44px] text-sm font-mono text-v-text-primary outline-none focus:border-v-gold" />
           <div className="grid grid-cols-2 sm:flex gap-2">
             <button type="button" disabled={!ready} onClick={() => copy(publicUrl, 'url', 'Request-a-quote link')} className={btnPrimary}>
               {copied === 'url' ? 'Copied ✓' : 'Copy link'}
