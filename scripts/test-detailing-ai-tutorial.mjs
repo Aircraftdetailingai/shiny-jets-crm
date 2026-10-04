@@ -4,20 +4,33 @@
  */
 import fs from 'fs';
 import assert from 'assert/strict';
-import { TUTORIAL_SLIDES, TUTORIAL_STORAGE_KEY, ASK_EXPERT_LABEL } from '../lib/detailing-ai-tutorial.js';
+import { TUTORIAL_SLIDES, TUTORIAL_STORAGE_KEY, ASK_EXPERT_LABEL, PRIVACY_TITLE, PRIVACY_BODY } from '../lib/detailing-ai-tutorial.js';
 import { askExpertSummary, askExpertRawReply, parseEscalateBlock, ESCALATION_SENTENCE, ASK_EXPERT_BUTTON_TEXT } from '../lib/ask-brett.js';
 
 const tests = [];
 const check = (name, fn) => tests.push([name, fn]);
 const all = (s) => [s.title, s.lead, ...s.points].join('\n');
+const byId = (id) => TUTORIAL_SLIDES.find((s) => s.id === id);
 
-check('4-5 slides, each with a title, lead and points', () => {
-  assert.ok(TUTORIAL_SLIDES.length >= 4 && TUTORIAL_SLIDES.length <= 5);
-  for (const s of TUTORIAL_SLIDES) assert.ok(s.id && s.title && s.lead && s.points.length >= 2, s.id);
+check('6 short slides, each with an icon, title and lead (points on all but the privacy slide)', () => {
+  assert.deepEqual(TUTORIAL_SLIDES.map((s) => s.id), ['welcome', 'private', 'ask', 'photos', 'organize', 'stuck']);
+  for (const s of TUTORIAL_SLIDES) assert.ok(s.id && s.icon && s.title && s.lead && Array.isArray(s.points) && (s.id === 'private' || s.points.length >= 2), s.id);
+});
+
+check('privacy slide: exact approved wording, second slide, no "train"', () => {
+  const p = byId('private');
+  assert.equal(TUTORIAL_SLIDES[1], p);
+  assert.equal(p.title, PRIVACY_TITLE);
+  assert.equal(p.lead, PRIVACY_BODY);
+  assert.equal(`${p.title} ${p.lead}`.replace(/\u2019/g, "'"), "Your shop stays private. The AI isn't crowd-sourced. Your questions, prices and customer info stay in your account and are never shared with other shops.");
+  assert.ok(!/train/i.test(all(p)));
+  const c = fs.readFileSync('components/DetailingAiTutorial.jsx', 'utf8');
+  assert.match(c, /\{slide\.points\?\.length > 0 && \(/, 'no empty list for a slide without points');
+  assert.match(c, /\{slide\.icon \|\| /);
 });
 
 check('slide content covers Brett\'s points', () => {
-  const [welcome, ask, photos, organize, stuck] = TUTORIAL_SLIDES.map(all);
+  const [welcome, ask, photos, organize, stuck] = ['welcome', 'ask', 'photos', 'organize', 'stuck'].map((id) => all(byId(id)));
   for (const w of ['skills', 'labor and time', 'great results']) assert.ok(welcome.includes(w), w);
   for (const w of ['Aircraft type', 'leading edge', 'belly', 'brightwork', 'paint', 'bare aluminum', 'chrome', 'What you see', 'tried', 'products, pad, machine', 'goal']) assert.ok(ask.includes(w), w);
   for (const w of ['shade', 'angle', 'swirl light or flashlight', 'white paint', 'close-up', 'wider shot', 'Wipe the area clean']) assert.ok(photos.includes(w), w);

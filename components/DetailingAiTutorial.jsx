@@ -95,18 +95,20 @@ export default function DetailingAiTutorial({ open, onClose, slides = TUTORIAL_S
         >
           <div key={slide.id} className="motion-safe:animate-[fadeIn_200ms_ease-out]">
             <div aria-hidden="true" className="mb-3 h-12 w-12 rounded-2xl bg-v-gold/15 border border-v-gold/40 flex items-center justify-center text-2xl">
-              {['\u2708\uFE0F', '\uD83D\uDCAC', '\uD83D\uDCF7', '\uD83D\uDDC2\uFE0F', '\uD83E\uDDD1\u200D\uD83D\uDD27'][index] || '\u2728'}
+              {slide.icon || '\u2728'}
             </div>
             <h2 id="dai-tutorial-title" className="font-heading text-v-text-primary text-xl font-light uppercase tracking-wider">{slide.title}</h2>
             <p id="dai-tutorial-lead" className="mt-2 text-base text-v-text-primary">{slide.lead}</p>
-            <ul className="mt-3 space-y-2">
-              {slide.points.map((p) => (
-                <li key={p} className="flex gap-2.5 text-sm leading-relaxed text-v-text-primary">
-                  <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-v-gold" />
-                  <span>{p}</span>
-                </li>
-              ))}
-            </ul>
+            {slide.points?.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {slide.points.map((p) => (
+                  <li key={p} className="flex gap-2.5 text-sm leading-relaxed text-v-text-primary">
+                    <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-v-gold" />
+                    <span>{p}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
