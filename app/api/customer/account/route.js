@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
+import { customerCreatePasswordError, customerLoginDecision } from '@/lib/customer-account-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +18,14 @@ export async function POST(request) {
   const emailLower = email.toLowerCase().trim();
 
   if (action === 'create') {
+    const passwordError = customerCreatePasswordError(password);
+    if (passwordError) return Response.json({ error: passwordError }, { status: 400 });
+
     // Check if account exists
     const { data: existing } = await supabase.from('customer_accounts').select('id').eq('email', emailLower).maybeSingle();
     if (existing) return Response.json({ error: 'Account already exists. Please log in.' }, { status: 409 });
 
-    const password_hash = password ? await bcrypt.hash(password, 10) : null;
+    const password_hash = await bcrypt.hash(password, 10);
     const { data: account, error } = await supabase.from('customer_accounts').insert({
       email: emailLower, name: name || '', phone: phone || null, company: company || null, password_hash,
     }).select().single();
@@ -46,12 +50,13 @@ export async function POST(request) {
   }
 
   if (action === 'login') {
-    const { data: account } = await supabase.from('customer_accounts').select('*').eq('email', emailLower).single();
-    if (!account) return Response.json({ error: 'No account found' }, { status: 404 });
-    if (account.password_hash && password) {
-      const valid = await bcrypt.compare(password, account.password_hash);
-      if (!valid) return Response.json({ error: 'Invalid password' }, { status: 401 });
+    const { data: account } = await supabase.from('customer_accounts').select('*').eq('email', emailLower).maybeSingle();
+    let passwordMatches = false;
+    if (account?.password_hash && password) {
+      passwordMatches = await bcrypt.compare(password, account.password_hash);
     }
+    const decision = customerLoginDecision({ account, password, passwordMatches });
+    if (!decision.ok) return Response.json({ error: decision.error }, { status: decision.status });
     const token = await issueToken(account);
     return Response.json({ success: true, token, account: { id: account.id, email: account.email, name: account.name } });
   }
@@ -60,7 +65,8 @@ export async function POST(request) {
 }
 
 async function issueToken(account) {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret');
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not configured');
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   return new SignJWT({ id: account.id, email: account.email, type: 'customer' })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('30d')
