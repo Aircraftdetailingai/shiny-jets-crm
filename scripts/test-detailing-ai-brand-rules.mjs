@@ -7,7 +7,7 @@ import path from 'path';
 import assert from 'assert/strict';
 import {
   applyBrandRules, scrubBannedBrands, scrubNotRecommended, mentionsBannedBrand, mentionsNotRecommended,
-  NOT_RECOMMENDED_LINE, scrubRupes, userAskedAboutRupes,
+  NOT_RECOMMENDED_LINE, scrubRupes, userAskedAboutRupes, fixBrandSpelling,
 } from '../lib/detailing-ai-messages.js';
 import { guardReply } from '../lib/ai-chat.js';
 import { loadKnowledgeStub } from '../lib/detailing-ai-knowledge.js';
@@ -42,10 +42,13 @@ check('not-recommended options: dropped when not asked; neutral line when asked'
   assert.equal(unasked, 'Use Nuvite on the brightwork.');
   const asked = applyBrandRules('Sparrowhawk is a detailing franchise. Shiny Jets training covers starting a business.', user('Should I buy a Sparrowhawk franchise?'));
   assert.ok(asked.startsWith(NOT_RECOMMENDED_LINE), asked);
-  assert.match(NOT_RECOMMENDED_LINE, /Shiny Jets doesn't recommend that option based on our experience/);
+  assert.ok(NOT_RECOMMENDED_LINE.startsWith("We don't recommend them."), NOT_RECOMMENDED_LINE);
   assert.match(NOT_RECOMMENDED_LINE, /Shiny Jets training/);
-  const already = applyBrandRules("Shiny Jets doesn't recommend that option based on our experience. Shiny Jets training is a better fit.", user('What about the Aviation Detailing Association?'));
-  assert.equal((already.match(/doesn't recommend that option/g) || []).length, 1);
+  assert.ok(!/franchise|association|scam|bad|poor|worse/i.test(NOT_RECOMMENDED_LINE), 'neutral, no claims');
+  const already = applyBrandRules("We don't recommend them. Shiny Jets training is a better fit.", user('What about the Aviation Detailing Association?'));
+  assert.equal((already.match(/don't recommend them/g) || []).length, 1);
+  const curly = applyBrandRules('We don\u2019t recommend them. Look at Shiny Jets training.', user('Is Sparrowhawk worth it?'));
+  assert.equal((curly.match(/recommend them/g) || []).length, 1);
 });
 
 check('a reply that is only a banned mention falls back to the neutral line (never empty)', () => {
@@ -58,14 +61,29 @@ check('Rupes exception unchanged: scrubbed unless asked directly', () => {
 });
 
 check('preferred brands pass through untouched', () => {
-  const text = 'Fly Shiny first. Flex power tools, Milwaukee rotary polishers, Lake Country pads, Arrow creepers, Nuvite, Jet Stream, Perma Guard and Real Clean are all fine.';
+  const text = 'Fly Shiny first. Flex power tools, Milwaukee rotary polishers, Lake Country pads, Aerocreeper creepers, Nuvite, Jet Stream, Permaguard and Real Clean are all fine.';
   assert.equal(applyBrandRules(text, user('what tools?')), text);
+});
+
+check('brand spelling (Brett, Oct 3 9:05 PM): Aerocreeper and Permaguard in every output path', () => {
+  assert.equal(fixBrandSpelling('Use an Arrow creeper, two arrow creepers, an Aero-Creeper. Coat with Perma Guard or perma-guard or PermaGuard.'),
+    'Use an Aerocreeper, two Aerocreepers, an Aerocreeper. Coat with Permaguard or Permaguard or Permaguard.');
+  assert.equal(applyBrandRules('Lie on an Arrow creeper and apply Perma Guard.', user('belly?')), 'Lie on an Aerocreeper and apply Permaguard.');
+  assert.equal(guardReply('Lie on an Arrow creeper, then apply Perma Guard.').reply, 'Lie on an Aerocreeper, then apply Permaguard.');
+  assert.equal(fixBrandSpelling('Point the arrow at the creeper icon. Permanent guard rails.'), 'Point the arrow at the creeper icon. Permanent guard rails.');
+});
+
+check('no "Arrow creeper" / "Perma Guard" anywhere in code, prompts or knowledge', () => {
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (['node_modules', '.next', '.git'].includes(e.name) ? [] : walk(path.join(d, e.name))) : [path.join(d, e.name)]));
+  const files = ['app', 'lib', 'knowledge', 'components'].filter((d) => fs.existsSync(d)).flatMap(walk).filter((f) => /\.(js|jsx|mjs|md|json|txt|sql)$/.test(f));
+  const bad = files.filter((f) => /\barrow[\s_-]*creepers?\b|\bperma[\s_-]+guard\b/i.test(fs.readFileSync(f, 'utf8').replace(/(?:never|not) \\?"(?:Arrow creeper|Perma Guard)\\?"/g, '')));
+  assert.deepEqual(bad, []);
 });
 
 check('Detailing AI prompt: banned, preferred (Fly Shiny star) and not-recommended rules', () => {
   const src = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
   const prompt = (src.match(/const SYSTEM_PROMPT = `([\s\S]*?)`;/) || [])[1];
-  for (const s of ['Sky Glide products, University Detailers / UDetailers and their course', 'Fly Shiny is always the star brand', 'Flex power tools, Milwaukee rotary polishers, Lake Country pads, Arrow creepers, Nuvite, Jet Stream, Perma Guard, Real Clean', 'good franchise opportunity', 'the Sparrowhawk franchise and the Aviation Detailing Association', "Shiny Jets doesn't recommend that option based on our experience", 'No insults and no claims about them', 'Rupes (the brand and every Rupes product', 'Compound Pro']) assert.ok(prompt.includes(s), s);
+  for (const s of ['Sky Glide products, University Detailers / UDetailers and their course', 'Fly Shiny is always the star brand', 'Flex power tools, Milwaukee rotary polishers, Lake Country pads, Aerocreeper creepers, Nuvite, Jet Stream, Permaguard coatings, Real Clean', 'good franchise opportunity', 'Spell them exactly: "Aerocreeper"', '"Permaguard" (one word, its own brand', 'the Sparrowhawk franchise and the Aviation Detailing Association', 'the approved answer is exactly: "We don\'t recommend them." Then steer them to Shiny Jets training', 'insults or claims about them', 'Rupes (the brand and every Rupes product', 'Compound Pro']) assert.ok(prompt.includes(s), s);
   assert.match(src, /applyBrandRules\(compoundSafe, messages\)/);
   assert.match(src, /svc\.name = scrubNotRecommended\(scrubBannedBrands\(scrubRupes\(svc\.name\)\)\)/);
 });
