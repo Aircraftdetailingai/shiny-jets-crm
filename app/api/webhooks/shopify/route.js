@@ -25,6 +25,7 @@ import {
 } from '@/lib/pricing-tool-access';
 import { askExpertVariantId, askExpertFromOrder } from '@/lib/ask-expert-payment';
 import { markEscalationPaid } from '@/lib/ask-brett-server';
+import { orderPaidMode } from '@/lib/shopify-webhook-routing';
 
 export const dynamic = 'force-dynamic';
 
@@ -1426,6 +1427,14 @@ async function handleBillingSuccess(supabase, payload) {
   );
 }
 
+// ─── Which registration owns orders/paid? ───
+// Shopify has TWO admin "Order payment" webhooks: the original one -> /api/shopify/webhook (does all
+// provisioning) and a second one -> /api/webhooks/shopify (added for the $4.99 expert question).
+// Both reach this handler, so one paid order arrives twice, almost at the same time. The per-order
+// guards below (crm_plan_granted etc.) are check-then-insert and don't stop two concurrent copies, so
+// only the original path provisions. The canonical path runs just the ask-expert step on orders/paid,
+// which is atomic (conditional status update + unique shopify_order_id) and notifies Brett once.
+// Every other topic is unchanged on both paths. See lib/shopify-webhook-routing.js.
 // ─── Main webhook handler ───
 export async function POST(request) {
   const rawBody = await request.text();
@@ -1459,7 +1468,11 @@ export async function POST(request) {
   try {
     switch (topic) {
       case 'orders/paid':
-        await handleOrderPaid(supabase, payload);
+        if (orderPaidMode(request.url) === 'full') {
+          await handleOrderPaid(supabase, payload);
+        } else {
+          await handleAskExpertPaid(supabase, payload);
+        }
         break;
 
       case 'subscription_contracts/update':
