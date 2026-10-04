@@ -30,6 +30,7 @@ import { splitHistory, unsummarizedOlder, extractiveSummary, contextSections, is
 import { summarizeMessages } from '@/lib/detailing-ai-summary';
 import { askExpertConfig, askExpertPointerText, isAskExpertEnabled } from '@/lib/ask-expert-payment';
 import { getServiceSupabase } from '@/lib/ask-brett-server';
+import { callWithFallback } from '@/lib/ai-provider-fallback';
 import { requireTermsAccepted } from '@/lib/detailing-ai-terms-server';
 import { getCanary, protectionPrompt, classifyInput, guardOutput, looksLikeRefusal, usageLimits, limitMessage, ngramSet, promptLeakSource } from '@/lib/detailing-ai-guard';
 import { TOPICS, logAbuseEvent, logOncePerDay, countRecentFlags, durableUsage, noteUsage, recordSeen, requestMeta, excerptOf } from '@/lib/detailing-ai-abuse-server';
@@ -294,6 +295,7 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-202509
 // Optional override (e.g. a local mock server in tests). Defaults to the real API.
 const ANTHROPIC_BASE_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, '');
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENAI_BASE_URL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com').replace(/\/+$/, '');
 
 async function postProvider(provider, model, url, headers, payload) {
   let response;
@@ -335,7 +337,7 @@ async function callOpenAI({ system, messages, images }) {
   const res = await postProvider(
     'openai',
     OPENAI_MODEL,
-    'https://api.openai.com/v1/chat/completions',
+    `${OPENAI_BASE_URL}/v1/chat/completions`,
     { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     { model: OPENAI_MODEL, max_tokens: LIMITS.maxOutputTokens, messages: [{ role: 'system', content: system }, ...withOpenAIPhotos(messages, images)] },
   );
@@ -497,14 +499,18 @@ export async function POST(request) {
       return Response.json({ reply: FRIENDLY_NOT_CONFIGURED, configured: false, suggestions: null });
     };
 
-    let result;
-    if (process.env.ANTHROPIC_API_KEY) {
-      result = await callAnthropic({ system, messages: recent, images });
-    } else if (process.env.OPENAI_API_KEY) {
-      result = await callOpenAI({ system, messages: recent, images });
-    } else {
-      return notConfigured();
-    }
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return notConfigured();
+    // Anthropic first. If it fails for a reason OpenAI doesn't share (out of credits / billing,
+    // rate limit, overloaded, 5xx, network), the SAME request (same system prompt with the
+    // protection rules and canary, same turns and photos) is retried once on OpenAI when an OpenAI
+    // key is set. Brand rules and the output guard below run on the reply whichever provider answered.
+    const call = await callWithFallback({
+      primary: { name: 'anthropic', call: () => callAnthropic({ system, messages: recent, images }) },
+      fallback: { name: 'openai', call: () => callOpenAI({ system, messages: recent, images }) },
+      fallbackConfigured: !!process.env.OPENAI_API_KEY,
+    });
+    const result = call.result;
+    if (call.fallback === 'used') console.warn('[detailing-ai/chat] answered by the OpenAI fallback:', JSON.stringify({ primary_reason: call.primaryReason }));
 
     if (result.error === 'missing_key') return notConfigured();
     await seenTask;
@@ -527,6 +533,9 @@ export async function POST(request) {
         error: 'provider_error',
         reason: result.info?.reason || 'provider_error',
         provider_status: result.info?.status ?? null,
+        // not_configured = the primary failed and no fallback key is set; failed = both failed.
+        fallback: call.fallback,
+        primary_reason: call.primaryReason,
         suggestions: null,
       }, { status: 502 });
     }
