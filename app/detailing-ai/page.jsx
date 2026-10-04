@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import DetailingAiTutorial from '@/components/DetailingAiTutorial';
+import { TUTORIAL_STORAGE_KEY, ASK_EXPERT_LABEL } from '@/lib/detailing-ai-tutorial';
 
 const STARTERS = [
   'Paint looks chalky on a G550 top — oxidation or clearcoat failure?',
@@ -186,6 +188,9 @@ export default function DetailingAiPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [announce, setAnnounce] = useState('');
   const [loadingChat, setLoadingChat] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const helpButtonRef = useRef(null);
+  const helpButtonDeskRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -337,7 +342,20 @@ export default function DetailingAiPage() {
     loadChats();
     const c = new URLSearchParams(window.location.search).get('c');
     if (c) openChat(c);
+    // First run: show the tutorial once (it can be reopened from the ? button).
+    try { if (!localStorage.getItem(TUTORIAL_STORAGE_KEY)) setTutorialOpen(true); } catch { /* storage blocked */ }
   }, [router, loadChats, openChat]);
+
+  const closeTutorial = useCallback((how) => {
+    setTutorialOpen(false);
+    try { localStorage.setItem(TUTORIAL_STORAGE_KEY, 'done'); } catch { /* storage blocked */ }
+    setAnnounce(how === 'done' ? 'Tips closed. Ask your first question.' : 'Tips skipped. Reopen them anytime with the ? button.');
+    setTimeout(() => {
+      const desk = helpButtonDeskRef.current;
+      const btn = desk && desk.offsetParent !== null ? desk : helpButtonRef.current;
+      if (how === 'done') inputRef.current?.focus(); else btn?.focus();
+    }, 0);
+  }, []);
 
   // Waiting on an expert: check this chat every 30 s while the tab is visible.
   useEffect(() => {
@@ -397,8 +415,8 @@ export default function DetailingAiPage() {
     }
   };
 
-  const send = async (text) => {
-    const typed = (text ?? input).trim();
+  const send = async (text, { askExpert = false } = {}) => {
+    const typed = (text ?? input).trim() || (askExpert ? ASK_EXPERT_LABEL : '');
     const sending = text == null ? photos : [];
     if ((!typed && !sending.length) || loading || preparing) return;
 
@@ -426,6 +444,7 @@ export default function DetailingAiPage() {
           images: sending.map((p) => ({ media_type: p.media_type, data: p.data })),
           conversation_id: activeId || undefined,
           display: typed,
+          ...(askExpert ? { ask_expert: true } : {}),
         }),
       });
 
@@ -595,9 +614,22 @@ export default function DetailingAiPage() {
 
         <div className="flex flex-col flex-1 w-full min-w-0 max-w-3xl mx-auto px-4 md:px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mb-3 md:mb-4 shrink-0 min-w-0">
-            <h2 className="font-heading text-v-text-primary text-lg font-light uppercase tracking-wider md:tracking-widest break-words">
-              Detailing AI
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-v-text-primary text-lg font-light uppercase tracking-wider md:tracking-widest break-words">
+                Detailing AI
+              </h2>
+              <button
+                ref={helpButtonDeskRef}
+                type="button"
+                onClick={() => setTutorialOpen(true)}
+                aria-label="How to use Detailing AI"
+                aria-haspopup="dialog"
+                title="How to use Detailing AI"
+                className="hidden md:flex h-8 w-8 shrink-0 rounded-full border border-v-border-subtle text-v-text-primary items-center justify-center text-sm font-semibold hover:border-v-gold/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-v-gold"
+              >
+                <span aria-hidden="true">?</span>
+              </button>
+            </div>
             <p className="text-sm text-v-text-secondary mt-1 hidden sm:block">
               Aircraft detailing diagnosis for your shop — exterior, interior, brightwork, ceramic.
               Describe the issue or add up to {MAX_PHOTOS} photos. Suggested services can open a draft quote (never auto-sent).
@@ -616,6 +648,16 @@ export default function DetailingAiPage() {
                 Chats{chats.length ? ` (${chats.length})` : ''}
               </button>
               <p className="flex-1 min-w-0 text-sm text-v-text-secondary truncate" aria-live="off"><span className="sr-only">Current chat: </span>{activeTitle}</p>
+              <button
+                ref={helpButtonRef}
+                type="button"
+                onClick={() => setTutorialOpen(true)}
+                aria-label="How to use Detailing AI"
+                aria-haspopup="dialog"
+                className="h-11 w-11 shrink-0 rounded-xl border border-v-border-subtle text-v-text-primary flex items-center justify-center text-base font-semibold"
+              >
+                <span aria-hidden="true">?</span>
+              </button>
               <button
                 type="button"
                 onClick={newChat}
@@ -809,6 +851,20 @@ export default function DetailingAiPage() {
             </ul>
           )}
 
+          {(messages.length > 1 || input.trim() || photos.length > 0) && !loadingChat && (
+            <div className="mt-2 flex items-center justify-end gap-2 shrink-0">
+              <span className="text-xs text-v-text-secondary">Stuck?</span>
+              <button
+                type="button"
+                onClick={() => send(undefined, { askExpert: true })}
+                disabled={loading || preparing}
+                className="min-h-[44px] px-3 rounded-xl border border-emerald-400/50 text-emerald-200 text-xs font-semibold hover:bg-emerald-950/40 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                {ASK_EXPERT_LABEL}
+              </button>
+            </div>
+          )}
+
           <form onSubmit={onSubmit} className="mt-3 flex gap-2 items-end shrink-0 min-w-0">
             <input
               ref={fileRef}
@@ -861,6 +917,8 @@ export default function DetailingAiPage() {
           </form>
         </div>
       </div>
+
+      <DetailingAiTutorial open={tutorialOpen} onClose={closeTutorial} />
 
       {drawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden">

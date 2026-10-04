@@ -21,6 +21,7 @@ import {
   signEscalationTicket,
   limitReachedText,
   replaceEscalationSentence,
+  askExpertRawReply,
 } from '@/lib/ask-brett';
 import { getOwnedConversation, createConversation, saveTurn, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
 
@@ -363,7 +364,9 @@ export async function POST(request) {
     }
 
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    const [knowledge, catalog] = await Promise.all([
+    // "Ask a Shiny Jets expert" button: file the question with Brett directly (no model call).
+    const askExpert = body.ask_expert === true;
+    const [knowledge, catalog] = askExpert ? ['', []] : await Promise.all([
       loadKnowledgeStub(lastUser?.content || ''),
       loadServicesCatalog(user),
     ]);
@@ -375,7 +378,9 @@ export async function POST(request) {
     };
 
     let result;
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (askExpert) {
+      result = { reply: askExpertRawReply(messages) };
+    } else if (process.env.ANTHROPIC_API_KEY) {
       result = await callAnthropic({ system, messages, images });
     } else if (process.env.OPENAI_API_KEY) {
       result = await callOpenAI({ system, messages, images });
