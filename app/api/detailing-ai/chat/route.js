@@ -389,7 +389,8 @@ export async function POST(request) {
     const who = { account_id: accountKey, user_id: String(user.id), email: user.email || null, network: meta.network, geo: meta.geo };
 
     // Max input length (latest message). The page caps the box too; this is the server check.
-    if (lastUserText.length > LIMITS.maxInputChars) {
+    // The page's "[Sent N photos]" marker isn't typed text, so it doesn't count toward the cap.
+    if (lastUserText.replace(/^\[Sent \d+ photos?\]\s*/, '').length > LIMITS.maxInputChars) {
       return Response.json({ error: limitMessage('input', LIMITS), code: 'INPUT_TOO_LONG', max_chars: LIMITS.maxInputChars }, { status: 413 });
     }
 
