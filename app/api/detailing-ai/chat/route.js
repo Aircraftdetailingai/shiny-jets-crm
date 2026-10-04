@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
-import { loadKnowledgeStub } from '@/lib/detailing-ai-knowledge';
+import { loadKnowledgeStub, toMethodsWording } from '@/lib/detailing-ai-knowledge';
+import { createRateLimiter } from '@/lib/ai-chat';
+import { validatePhotos, withAnthropicPhotos, withOpenAIPhotos, PHOTO_PROMPT, MAX_PHOTOS } from '@/lib/detailing-ai-photos';
 import {
   normalizeChatMessages,
   describeProviderError,
@@ -14,6 +16,12 @@ import {
 } from '@/lib/detailing-ai-messages';
 
 export const dynamic = 'force-dynamic';
+
+// Per-account limits (per server instance, same pattern as the website AI chat).
+// Photo turns cost ~3-5x a text turn, so photos get their own tighter budget.
+const accountMessages = createRateLimiter({ limit: 60, windowMs: 60 * 60 * 1000 });
+const accountPhotosHourly = createRateLimiter({ limit: 30, windowMs: 60 * 60 * 1000 });
+const accountPhotosDaily = createRateLimiter({ limit: 100, windowMs: 24 * 60 * 60 * 1000 });
 
 const SYSTEM_PROMPT = `You are Detailing AI — an aircraft detailing diagnostic assistant for professional detailers inside Shiny Jets CRM.
 
@@ -228,6 +236,8 @@ function matchSuggestionsToCatalog(suggestions, catalog) {
 }
 
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+// Optional override (e.g. a local mock server in tests). Defaults to the real API.
+const ANTHROPIC_BASE_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, '');
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 async function postProvider(provider, model, url, headers, payload) {
@@ -249,22 +259,22 @@ async function postProvider(provider, model, url, headers, payload) {
   return { data: await response.json() };
 }
 
-async function callAnthropic({ system, messages }) {
+async function callAnthropic({ system, messages, images }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { error: 'missing_key' };
   const res = await postProvider(
     'anthropic',
     ANTHROPIC_MODEL,
-    'https://api.anthropic.com/v1/messages',
+    `${ANTHROPIC_BASE_URL}/v1/messages`,
     { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    { model: ANTHROPIC_MODEL, max_tokens: 1600, system, messages },
+    { model: ANTHROPIC_MODEL, max_tokens: 1600, system, messages: withAnthropicPhotos(messages, images) },
   );
   if (res.error) return res;
   const text = (res.data?.content || []).filter((b) => b?.type === 'text').map((b) => b.text).join('\n');
   return { reply: text };
 }
 
-async function callOpenAI({ system, messages }) {
+async function callOpenAI({ system, messages, images }) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return { error: 'missing_key' };
   const res = await postProvider(
@@ -272,7 +282,7 @@ async function callOpenAI({ system, messages }) {
     OPENAI_MODEL,
     'https://api.openai.com/v1/chat/completions',
     { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    { model: OPENAI_MODEL, max_tokens: 1600, messages: [{ role: 'system', content: system }, ...messages] },
+    { model: OPENAI_MODEL, max_tokens: 1600, messages: [{ role: 'system', content: system }, ...withOpenAIPhotos(messages, images)] },
   );
   if (res.error) return res;
   return { reply: res.data?.choices?.[0]?.message?.content || '' };
@@ -304,12 +314,34 @@ export async function POST(request) {
       return Response.json({ error: 'messages required' }, { status: 400 });
     }
 
+    // Photos ride on the latest user turn only. Checked here, sent to the provider, never stored.
+    const photoCheck = validatePhotos(body.images);
+    if (!photoCheck.ok) {
+      return Response.json({ error: photoCheck.error, code: 'PHOTO_INVALID', max_photos: MAX_PHOTOS }, { status: photoCheck.status });
+    }
+    const images = photoCheck.images;
+
+    const accountKey = String(user.detailer_id || user.id);
+    const tooMany = (limit) => Response.json({
+      error: limit === 'photos'
+        ? 'You\u2019ve sent a lot of photos in a short time. Try again later, or describe the issue in text.'
+        : 'You\u2019re sending messages too quickly. Please wait a few minutes and try again.',
+      code: 'RATE_LIMITED',
+      rateLimited: true,
+    }, { status: 429 });
+    if (!accountMessages.check(accountKey).ok) return tooMany('messages');
+    if (images.length) {
+      for (let i = 0; i < images.length; i++) {
+        if (!accountPhotosHourly.check(accountKey).ok || !accountPhotosDaily.check(accountKey).ok) return tooMany('photos');
+      }
+    }
+
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     const [knowledge, catalog] = await Promise.all([
       loadKnowledgeStub(lastUser?.content || ''),
       loadServicesCatalog(user),
     ]);
-    const system = SYSTEM_PROMPT + formatCatalogForPrompt(catalog) + knowledge;
+    const system = SYSTEM_PROMPT + (images.length ? PHOTO_PROMPT : '') + formatCatalogForPrompt(catalog) + knowledge;
 
     const notConfigured = () => {
       console.error('[detailing-ai/chat] no AI provider key configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)');
@@ -318,9 +350,9 @@ export async function POST(request) {
 
     let result;
     if (process.env.ANTHROPIC_API_KEY) {
-      result = await callAnthropic({ system, messages });
+      result = await callAnthropic({ system, messages, images });
     } else if (process.env.OPENAI_API_KEY) {
-      result = await callOpenAI({ system, messages });
+      result = await callOpenAI({ system, messages, images });
     } else {
       return notConfigured();
     }
@@ -332,6 +364,8 @@ export async function POST(request) {
         systemChars: system.length,
         turns: messages.length,
         lastUserChars: lastUser?.content?.length || 0,
+        photos: images.length,
+        photoBytes: images.reduce((n, i) => n + i.bytes, 0),
       }));
       // Shop owners only see a friendly message; details (status, error type, request id) are in the server log.
       return Response.json({
@@ -349,7 +383,9 @@ export async function POST(request) {
     const rupesSafe = userAskedAboutRupes(messages) ? result.reply : scrubRupes(result.reply);
     // "Fly Shiny Compound Pro" never existed (Brett, Oct 3 2026): an unprompted mention becomes the
     // generic word "compound"; if the user asked, the "no such product" answer goes through.
-    const reply = userAskedAboutCompoundPro(messages) ? rupesSafe : scrubCompoundPro(rupesSafe, 'compound');
+    const compoundSafe = userAskedAboutCompoundPro(messages) ? rupesSafe : scrubCompoundPro(rupesSafe, 'compound');
+    // Terminology: shop procedures are "methods", never "recipes" (text and photo answers alike).
+    const reply = toMethodsWording(compoundSafe);
     const parsed = parseSuggestionsBlock(reply);
     const suggestions = matchSuggestionsToCatalog(parsed.suggestions, catalog);
     // Quote lines never carry a Rupes product or "Compound Pro", asked or not.
@@ -366,6 +402,7 @@ export async function POST(request) {
       reply: parsed.reply,
       suggestions: suggestions?.services?.length ? suggestions : null,
       configured: true,
+      photos: images.length,
     });
   } catch (err) {
     console.error('[detailing-ai/chat] error:', err);
