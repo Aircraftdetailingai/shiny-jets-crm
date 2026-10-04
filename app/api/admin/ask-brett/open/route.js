@@ -19,14 +19,20 @@ export async function GET(request) {
   const sinceRaw = new URL(request.url).searchParams.get('since');
   const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw)) ? new Date(sinceRaw).toISOString() : null;
 
-  let q = supabase
-    .from('detailing_ai_escalations')
-    .select('id, detailer_id, conversation_id, status, reason, summary, question, photo_paths, created_at')
-    .eq('status', 'open')
-    .order('created_at', { ascending: false })
-    .limit(100);
-  if (since) q = q.gt('created_at', since);
-  const { data, error } = await q;
+  // Only 'open' questions: unpaid "Ask a Shiny Jets expert" questions never show up here.
+  const run = (fields) => {
+    let q = supabase
+      .from('detailing_ai_escalations')
+      .select(fields)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (since) q = q.gt('created_at', since);
+    return q;
+  };
+  const BASE_FIELDS = 'id, detailer_id, conversation_id, status, reason, summary, question, photo_paths, created_at';
+  let { data, error } = await run(`${BASE_FIELDS}, paid_at, shopify_order_id`);
+  if (error) ({ data, error } = await run(BASE_FIELDS));
   if (error) return Response.json({ error: 'Queue unavailable' }, { status: 500 });
 
   const ids = [...new Set((data || []).map((r) => r.detailer_id))];

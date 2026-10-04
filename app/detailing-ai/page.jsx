@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import DetailingAiTutorial from '@/components/DetailingAiTutorial';
 import { TUTORIAL_STORAGE_KEY, ASK_EXPERT_LABEL } from '@/lib/detailing-ai-tutorial';
+import { ASK_EXPERT_PRICE_LABEL, ASK_EXPERT_ONE_QUESTION, ASK_EXPERT_FOLLOW_UP } from '@/lib/ask-expert-payment';
 
 const STARTERS = [
   'Paint looks chalky on a G550 top — oxidation or clearcoat failure?',
@@ -199,6 +200,13 @@ export default function DetailingAiPage() {
   const [carriedSummary, setCarriedSummary] = useState(null);
   const [longChat, setLongChat] = useState(false);
   const [freshBusy, setFreshBusy] = useState(false);
+  // Paid "Ask a Shiny Jets expert" ($4.99 = one question). Disabled ("Coming soon") until configured.
+  const [expertCfg, setExpertCfg] = useState({ enabled: false, loaded: false });
+  const [expertConfirm, setExpertConfirm] = useState(null); // { summary, photoCount }
+  const [expertBusy, setExpertBusy] = useState(false);
+  const [expertError, setExpertError] = useState('');
+  const expertButtonRef = useRef(null);
+  const expertDialogRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -326,10 +334,15 @@ export default function DetailingAiPage() {
       const prevOpen = escalationsRef.current.filter((e) => e.status === 'open').map((e) => e.id);
       const nextEsc = Array.isArray(data.escalations) ? data.escalations : [];
       const newlyAnswered = nextEsc.filter((e) => e.status === 'answered' && prevOpen.includes(e.id));
+      const prevUnpaid = escalationsRef.current.filter((e) => e.status === 'awaiting_payment').map((e) => e.id);
+      const newlyPaid = nextEsc.filter((e) => e.status === 'open' && prevUnpaid.includes(e.id));
+      const changed = nextEsc.length !== escalationsRef.current.length
+        || nextEsc.some((e) => escalationsRef.current.find((p) => p.id === e.id)?.status !== e.status);
       if (quiet) {
-        if (newlyAnswered.length) {
+        if (changed) {
           setEscalations(nextEsc);
-          setAnnounce(`A Shiny Jets expert answered${newlyAnswered[0].summary ? `: ${newlyAnswered[0].summary}` : ''}.`);
+          if (newlyAnswered.length) setAnnounce(`A Shiny Jets expert answered${newlyAnswered[0].summary ? `: ${newlyAnswered[0].summary}` : ''}.`);
+          else if (newlyPaid.length) setAnnounce('Payment received. Your question was sent to a Shiny Jets expert.');
           loadChats();
         }
         return;
@@ -408,6 +421,10 @@ export default function DetailingAiPage() {
     if (!token) { router.push('/login'); return; }
     loadChats();
     loadProjects();
+    fetch('/api/detailing-ai/ask-expert', { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => setExpertCfg({ enabled: d.enabled === true, loaded: true }))
+      .catch(() => setExpertCfg({ enabled: false, loaded: true }));
     const c = new URLSearchParams(window.location.search).get('c');
     if (c) openChat(c);
     // First run: show the tutorial once (it can be reopened from the ? button).
@@ -427,11 +444,14 @@ export default function DetailingAiPage() {
 
   // Waiting on an expert: check this chat every 30 s while the tab is visible.
   useEffect(() => {
-    if (!activeId || !escalations.some((e) => e.status === 'open')) return undefined;
+    if (!activeId || !escalations.some((e) => e.status === 'open' || e.status === 'awaiting_payment')) return undefined;
     const t = setInterval(() => {
       if (document.visibilityState === 'visible') openChat(activeId, { quiet: true });
     }, POLL_MS);
-    return () => clearInterval(t);
+    // Back from the Shopify checkout tab: check right away.
+    const onVisible = () => { if (document.visibilityState === 'visible') openChat(activeId, { quiet: true }); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [activeId, escalations, openChat]);
 
   // Phone drawer: Escape closes, focus moves in, and back to the Chats button on close.
@@ -483,8 +503,8 @@ export default function DetailingAiPage() {
     }
   };
 
-  const send = async (text, { askExpert = false } = {}) => {
-    const typed = (text ?? input).trim() || (askExpert ? ASK_EXPERT_LABEL : '');
+  const send = async (text) => {
+    const typed = (text ?? input).trim();
     const sending = text == null ? photos : [];
     if ((!typed && !sending.length) || loading || preparing) return;
 
@@ -514,7 +534,6 @@ export default function DetailingAiPage() {
           conversation_id: activeId || undefined,
           project_id: !activeId && activeProjectId ? activeProjectId : undefined,
           display: typed,
-          ...(askExpert ? { ask_expert: true } : {}),
         }),
       });
 
@@ -555,6 +574,84 @@ export default function DetailingAiPage() {
       inputRef.current?.focus();
     }
   };
+
+  // ─── Paid "Ask a Shiny Jets expert": confirm ($4.99, one question) -> save -> Shopify checkout ───
+  const expertQuestion = () => {
+    const typed = input.trim();
+    const ctx = modelMessages(buildThread(messages, escalations));
+    const contextMessages = typed ? [...ctx, { role: 'user', content: typed }] : ctx;
+    const lastUser = [...contextMessages].reverse().find((m) => m.role === 'user');
+    const sent = photos.length ? photos : (sessionPhotos.current[activeId || 'new'] || []);
+    return { typed, contextMessages, summary: (lastUser?.content || '').replace(/^\[Sent \d+ photos?\]\s*/, '').trim(), sent };
+  };
+
+  const openExpertConfirm = () => {
+    if (!expertCfg.enabled || loading || preparing) return;
+    const q = expertQuestion();
+    setExpertError('');
+    if (!q.summary && !q.sent.length) {
+      setExpertError('Type your question first, then tap Ask a Shiny Jets expert.');
+      inputRef.current?.focus();
+      return;
+    }
+    setExpertConfirm({ summary: q.summary || 'Photo question', photoCount: q.sent.length });
+  };
+
+  const closeExpertConfirm = useCallback(() => {
+    setExpertConfirm(null);
+    setTimeout(() => expertButtonRef.current?.focus(), 0);
+  }, []);
+
+  const confirmExpert = async () => {
+    if (expertBusy) return;
+    const q = expertQuestion();
+    setExpertBusy(true);
+    setExpertError('');
+    try {
+      const res = await fetch('/api/detailing-ai/ask-expert', {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          messages: q.contextMessages.slice(-12),
+          pending_text: q.typed || undefined,
+          photos: (photos.length ? photos : []).map((p) => ({ media_type: p.media_type, data: p.data })),
+          conversation_id: activeId || undefined,
+          project_id: !activeId && activeProjectId ? activeProjectId : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.checkout_url) {
+        if (data.code === 'COMING_SOON') setExpertCfg({ enabled: false, loaded: true });
+        setExpertError(data.error || "Couldn't start checkout. Try again in a minute.");
+        setExpertBusy(false);
+        return;
+      }
+      if (data.conversation?.id) setUrl(data.conversation.id);
+      setAnnounce('Opening checkout on shinyjets.com.');
+      window.location.assign(data.checkout_url);
+    } catch {
+      setExpertError("Couldn't start checkout. Check your connection and try again.");
+      setExpertBusy(false);
+    }
+  };
+
+  // Confirm dialog: focus in, Escape closes, Tab stays inside.
+  useEffect(() => {
+    if (!expertConfirm) return undefined;
+    const el = expertDialogRef.current;
+    el?.querySelector('[data-autofocus]')?.focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !expertBusy) { e.preventDefault(); closeExpertConfirm(); }
+      if (e.key === 'Tab' && el) {
+        const f = [...el.querySelectorAll('button:not([disabled]), a[href]')];
+        if (!f.length) return;
+        if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [expertConfirm, expertBusy, closeExpertConfirm]);
 
   const startFreshChat = async () => {
     if (!activeId || freshBusy) return;
@@ -642,6 +739,7 @@ export default function DetailingAiPage() {
                   <span className="flex items-center gap-2 text-[11px] text-v-text-secondary">
                     <span>{shortDate(c.updated_at)}</span>
                     {c.expert?.open > 0 && <span className="text-amber-300">Waiting for expert</span>}
+                    {!c.expert?.open && c.expert?.awaiting_payment > 0 && <span className="text-sky-200">Waiting for payment</span>}
                     {!c.expert?.open && c.expert?.answered > 0 && <span className="text-emerald-300">Expert answered</span>}
                   </span>
                 </button>
@@ -899,11 +997,30 @@ export default function DetailingAiPage() {
                 const e = it.e;
                 return (
                   <div key={`e-${e.id}`} className="flex justify-start">
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap border ${e.status === 'answered' ? 'bg-emerald-950/40 border-emerald-500/40' : 'bg-amber-950/30 border-amber-400/40'}`}>
-                      <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${e.status === 'answered' ? 'text-emerald-300' : 'text-amber-300'}`}>
-                        {e.status === 'answered' ? 'Shiny Jets expert · Brett' : 'Sent to a Shiny Jets expert'}
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap border ${e.status === 'answered' ? 'bg-emerald-950/40 border-emerald-500/40' : e.status === 'expired' ? 'bg-v-charcoal border-v-border-subtle' : e.status === 'awaiting_payment' ? 'bg-sky-950/40 border-sky-400/50' : 'bg-amber-950/30 border-amber-400/40'}`}>
+                      <p className={`text-[10px] uppercase tracking-widest mb-1.5 ${e.status === 'answered' ? 'text-emerald-300' : e.status === 'expired' ? 'text-v-text-secondary' : e.status === 'awaiting_payment' ? 'text-sky-200' : 'text-amber-300'}`}>
+                        {e.status === 'answered' ? 'Shiny Jets expert · Brett'
+                          : e.status === 'awaiting_payment' ? `Waiting for payment · ${ASK_EXPERT_PRICE_LABEL}`
+                            : e.status === 'expired' ? 'Not sent · payment not completed'
+                              : `Sent to a Shiny Jets expert${e.paid_at ? ' · Paid' : ''}`}
                       </p>
-                      {e.status === 'answered' ? (
+                      {e.status === 'awaiting_payment' ? (
+                        <>
+                          <p className="text-v-text-primary">{e.summary || 'Your question'}</p>
+                          <p className="mt-1 text-xs text-v-text-primary">{ASK_EXPERT_ONE_QUESTION}. Brett gets it as soon as your payment goes through.</p>
+                          <p className="mt-1 text-xs text-v-text-secondary">Not paid within 24 hours? It&apos;s deleted and never sent.</p>
+                          {e.checkout_url && (
+                            <a href={e.checkout_url} className="mt-2 inline-flex items-center min-h-[44px] px-4 rounded-lg bg-[#00689a] text-white text-sm font-semibold hover:bg-[#005a85] focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                              Pay {ASK_EXPERT_PRICE_LABEL} on shinyjets.com<span className="sr-only"> (opens checkout)</span>
+                            </a>
+                          )}
+                        </>
+                      ) : e.status === 'expired' ? (
+                        <>
+                          <p className="text-v-text-primary">{e.summary || 'Your question'}</p>
+                          <p className="mt-1 text-xs text-v-text-secondary">This wasn&apos;t paid within 24 hours, so it wasn&apos;t sent to Brett. Ask again anytime.</p>
+                        </>
+                      ) : e.status === 'answered' ? (
                         <>
                           {e.summary && <p className="text-xs text-v-text-secondary mb-2">Your question: {e.summary}</p>}
                           <p className="text-v-text-primary">{e.answer}</p>
@@ -1083,16 +1200,33 @@ export default function DetailingAiPage() {
           {(messages.length > 1 || input.trim() || photos.length > 0) && !loadingChat && (
             <div className="mt-2 flex items-center justify-end gap-2 shrink-0">
               <span className="text-xs text-v-text-secondary">Stuck?</span>
-              <button
-                type="button"
-                onClick={() => send(undefined, { askExpert: true })}
-                disabled={loading || preparing}
-                className="min-h-[44px] px-3 rounded-xl border border-emerald-400/50 text-emerald-200 text-xs font-semibold hover:bg-emerald-950/40 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-              >
-                {ASK_EXPERT_LABEL}
-              </button>
+              {expertCfg.enabled ? (
+                <button
+                  ref={expertButtonRef}
+                  type="button"
+                  onClick={openExpertConfirm}
+                  disabled={loading || preparing || expertBusy}
+                  aria-haspopup="dialog"
+                  className="min-h-[44px] px-3 rounded-xl border border-emerald-400/50 text-emerald-200 text-xs font-semibold hover:bg-emerald-950/40 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                >
+                  {ASK_EXPERT_LABEL} · {ASK_EXPERT_PRICE_LABEL}
+                </button>
+              ) : (
+                <button
+                  ref={expertButtonRef}
+                  type="button"
+                  aria-disabled="true"
+                  aria-describedby="ask-expert-soon"
+                  onClick={(ev) => ev.preventDefault()}
+                  className="min-h-[44px] px-3 rounded-xl border border-v-border-subtle text-v-text-secondary text-xs font-semibold cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-v-gold"
+                >
+                  {ASK_EXPERT_LABEL} · Coming soon
+                </button>
+              )}
+              {!expertCfg.enabled && <span id="ask-expert-soon" className="sr-only">Paid expert questions aren&apos;t available yet.</span>}
             </div>
           )}
+          {expertError && <p role="alert" className="mt-1 text-xs text-amber-300 text-right shrink-0">{expertError}</p>}
 
           <form onSubmit={onSubmit} className="mt-3 flex gap-2 items-end shrink-0 min-w-0">
             <input
@@ -1147,6 +1281,45 @@ export default function DetailingAiPage() {
         </div>
       </div>
 
+      {expertConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" aria-hidden="true" onClick={() => { if (!expertBusy) closeExpertConfirm(); }} />
+          <div
+            ref={expertDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ask-expert-title"
+            aria-describedby="ask-expert-price"
+            data-testid="ask-expert-confirm"
+            className="relative w-full md:max-w-md bg-v-charcoal border border-v-border-subtle rounded-t-2xl md:rounded-2xl shadow-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pb-5 max-h-[92dvh] overflow-y-auto"
+          >
+            <h2 id="ask-expert-title" className="font-heading text-v-text-primary text-lg uppercase tracking-wider">Ask a Shiny Jets expert</h2>
+            <p id="ask-expert-price" className="mt-2 text-v-text-primary text-base">
+              <span className="text-2xl font-semibold text-white">{ASK_EXPERT_PRICE_LABEL}</span> for one question answered by a Shiny Jets expert.
+            </p>
+            <div className="mt-3 rounded-xl border border-v-border-subtle p-3 text-sm">
+              <p className="text-[11px] uppercase tracking-widest text-v-text-secondary">Your question</p>
+              <p className="mt-1 text-v-text-primary line-clamp-4 whitespace-pre-wrap">{expertConfirm.summary}</p>
+              {expertConfirm.photoCount > 0 && <p className="mt-1 text-xs text-v-text-secondary">{expertConfirm.photoCount} photo{expertConfirm.photoCount === 1 ? '' : 's'} included.</p>}
+            </div>
+            <ul className="mt-3 space-y-1.5 text-sm text-v-text-primary list-disc pl-5">
+              <li>You pay {ASK_EXPERT_PRICE_LABEL} on shinyjets.com (Shopify checkout).</li>
+              <li>Brett gets your question as soon as the payment goes through. The answer comes back in this chat and by email.</li>
+              <li>{ASK_EXPERT_FOLLOW_UP}</li>
+              <li>Not paid within 24 hours? The question is deleted and never sent.</li>
+            </ul>
+            {expertError && <p role="alert" className="mt-3 text-sm text-amber-300">{expertError}</p>}
+            <div className="mt-4 flex flex-col-reverse md:flex-row gap-2">
+              <button type="button" onClick={closeExpertConfirm} disabled={expertBusy} className="min-h-[44px] px-4 rounded-xl border border-v-border-subtle text-v-text-primary text-sm disabled:opacity-50">
+                Cancel
+              </button>
+              <button type="button" data-autofocus onClick={confirmExpert} disabled={expertBusy} className="min-h-[44px] flex-1 px-4 rounded-xl bg-[#00689a] text-white text-sm font-semibold hover:bg-[#005a85] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                {expertBusy ? 'Opening checkout…' : `Continue to checkout · ${ASK_EXPERT_PRICE_LABEL}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <DetailingAiTutorial open={tutorialOpen} onClose={closeTutorial} />
 
       {drawerOpen && (

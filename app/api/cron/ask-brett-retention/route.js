@@ -1,10 +1,13 @@
 import { ESCALATION_BUCKET } from '@/lib/ask-brett';
-import { getServiceSupabase } from '@/lib/ask-brett-server';
+import { getServiceSupabase, expireUnpaid } from '@/lib/ask-brett-server';
 
 export const dynamic = 'force-dynamic';
 
 // Daily: escalation photos are kept 90 days (photos_expire_at), then deleted from storage.
 // The question/answer text stays so the user's thread and Brett's history still make sense.
+// Also: unpaid "Ask a Shiny Jets expert" questions expire after 24 h (status 'expired', photos
+// removed). The user-facing routes run the same sweep per account, so expiry is on time even
+// though this cron runs daily.
 function verifySecret(request) {
   const authHeader = request.headers.get('authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
@@ -15,6 +18,7 @@ async function run(request) {
   if (!verifySecret(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const supabase = getServiceSupabase();
   if (!supabase) return Response.json({ error: 'Not configured' }, { status: 503 });
+  const unpaid = await expireUnpaid(supabase, { limit: 500 });
   const { data, error } = await supabase
     .from('detailing_ai_escalations')
     .select('id, photo_paths')
@@ -34,7 +38,7 @@ async function run(request) {
     await supabase.from('detailing_ai_escalations').update({ photo_paths: [], photos_deleted_at: new Date().toISOString() }).eq('id', r.id);
     rows += 1;
   }
-  return Response.json({ ok: true, rows, photos_removed: removed });
+  return Response.json({ ok: true, rows, photos_removed: removed, unpaid_expired: unpaid.expired || 0 });
 }
 
 export const GET = run;

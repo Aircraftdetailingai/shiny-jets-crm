@@ -22,7 +22,7 @@ check('slide content covers Brett\'s points', () => {
   for (const w of ['Aircraft type', 'leading edge', 'belly', 'brightwork', 'paint', 'bare aluminum', 'chrome', 'What you see', 'tried', 'products, pad, machine', 'goal']) assert.ok(ask.includes(w), w);
   for (const w of ['shade', 'angle', 'swirl light or flashlight', 'white paint', 'close-up', 'wider shot', 'Wipe the area clean']) assert.ok(photos.includes(w), w);
   for (const w of ['new chat', 'aircraft or problem', 'project', 'notes', 'fresh chat', 'summary']) assert.ok(organize.includes(w), w);
-  assert.ok(stuck.includes(ASK_EXPERT_LABEL) && stuck.includes('Brett answers'));
+  assert.ok(stuck.includes(ASK_EXPERT_LABEL) && stuck.includes('$4.99 for one question answered by a Shiny Jets expert') && stuck.includes('new payment') && stuck.includes('for free'));
 });
 
 check('says "methods", never "recipes"', () => {
@@ -63,10 +63,10 @@ check('ask expert: reply has the exact sentence and parses as a user_asked escal
   assert.deepEqual(parsed.escalate, { reason: 'user_asked', summary: 'Chrome pitting on a King Air prop spinner?' });
 });
 
-check('chat route: ask_expert skips the model and goes through the normal escalation path', () => {
+check('chat route: the old free ask_expert path is gone (button is paid via /api/detailing-ai/ask-expert)', () => {
   const src = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
-  assert.match(src, /const askExpert = body\.ask_expert === true;/);
-  assert.match(src, /if \(askExpert\) \{\s*result = \{ reply: askExpertRawReply\(messages\) \};/);
+  assert.match(src, /if \(body\.ask_expert === true\) \{\s*return Response\.json\(\{[^}]*code: 'ASK_EXPERT_PAID'/);
+  assert.ok(!/askExpertRawReply\(/.test(src));
 });
 
 let failed = 0;

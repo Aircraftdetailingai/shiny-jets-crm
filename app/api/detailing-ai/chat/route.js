@@ -24,11 +24,11 @@ import {
   signEscalationTicket,
   limitReachedText,
   replaceEscalationSentence,
-  askExpertRawReply,
 } from '@/lib/ask-brett';
 import { getOwnedConversation, getOwnedProject, createConversation, saveTurn, saveSummary, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
 import { splitHistory, unsummarizedOlder, extractiveSummary, contextSections, isLongChat, SUMMARIZE_AFTER, CLIENT_HISTORY_MAX } from '@/lib/detailing-ai-context';
 import { summarizeMessages } from '@/lib/detailing-ai-summary';
+import { askExpertConfig, askExpertPointerText, isAskExpertEnabled } from '@/lib/ask-expert-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -387,13 +387,16 @@ export async function POST(request) {
       }
     }
 
-    // "Ask a Shiny Jets expert" button: file the question with Brett directly (no model call).
-    const askExpert = body.ask_expert === true;
+    // The "Ask a Shiny Jets expert" button is paid now ($4.99 for one question) and goes through
+    // /api/detailing-ai/ask-expert. An old page that still sends ask_expert gets no free question.
+    if (body.ask_expert === true) {
+      return Response.json({ error: 'Use the Ask a Shiny Jets expert button ($4.99 for one question).', code: 'ASK_EXPERT_PAID', ...askExpertConfig() }, { status: 409 });
+    }
 
     // Long chats never fail: recent turns under the token budget + rolling summary of older turns.
     const { recent, older } = splitHistory(messages);
     let summaryText = '';
-    if (older.length && !askExpert) {
+    if (older.length) {
       if (conversation && convDb) {
         const pending = unsummarizedOlder(conversation.messages, recent.length, conversation.summary_through_at);
         if (pending.length >= SUMMARIZE_AFTER) {
@@ -411,7 +414,7 @@ export async function POST(request) {
     const longChat = isLongChat(conversation?.messages?.length || 0, older.length);
 
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    const [knowledge, catalog] = askExpert ? ['', []] : await Promise.all([
+    const [knowledge, catalog] = await Promise.all([
       loadKnowledgeStub(lastUser?.content || ''),
       loadServicesCatalog(user),
     ]);
@@ -424,9 +427,7 @@ export async function POST(request) {
     };
 
     let result;
-    if (askExpert) {
-      result = { reply: askExpertRawReply(messages) };
-    } else if (process.env.ANTHROPIC_API_KEY) {
+    if (process.env.ANTHROPIC_API_KEY) {
       result = await callAnthropic({ system, messages: recent, images });
     } else if (process.env.OPENAI_API_KEY) {
       result = await callOpenAI({ system, messages: recent, images });
@@ -478,7 +479,11 @@ export async function POST(request) {
     const esc = parseEscalateBlock(worded);
     let escalate = null;
     let reply = esc.reply;
-    if (esc.escalate) {
+    if (esc.escalate && esc.escalate.reason === 'user_asked') {
+      // "I want a person" is the paid button, never a free escalation. AI-initiated escalations
+      // (the AI couldn't answer) stay free below.
+      reply = replaceEscalationSentence(reply, askExpertPointerText(isAskExpertEnabled()));
+    } else if (esc.escalate) {
       const supabase = getSupabase();
       const allowance = await escalationAllowance(supabase, accountKey);
       if (allowance.ok) {

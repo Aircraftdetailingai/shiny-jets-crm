@@ -23,6 +23,8 @@ import {
   orderAlreadyApplied,
   pricingToolAccessEmail,
 } from '@/lib/pricing-tool-access';
+import { askExpertVariantId, askExpertFromOrder } from '@/lib/ask-expert-payment';
+import { markEscalationPaid } from '@/lib/ask-brett-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -1082,8 +1084,32 @@ async function handleQuarterlyLiteGrant(supabase, payload) {
   return { mode: result.mode, granted };
 }
 
+// ─── Paid "Ask a Shiny Jets expert" question ($4.99 = one question) ───
+// The order carries the escalation id as a line-item property / cart attribute (ask_expert_id).
+// Only now does the question become 'open' and reach Brett (email + admin queue).
+async function handleAskExpertPaid(supabase, payload) {
+  const variantId = askExpertVariantId();
+  if (!variantId) return null;
+  const found = askExpertFromOrder(payload, variantId);
+  if (!found) return null;
+  if (found.error) {
+    console.error(`[shopify-webhook] ask-expert order ${found.orderId}: ${found.error}`);
+    return found;
+  }
+  const res = await markEscalationPaid(supabase, { escalationId: found.escalationId, orderId: found.orderId, orderName: found.orderName });
+  console.log(`[shopify-webhook] ask-expert order ${found.orderId} -> ${found.escalationId}: ${res.reason}`);
+  return res;
+}
+
 // ─── Handle: orders/paid ───
 async function handleOrderPaid(supabase, payload) {
+  // Paid expert question (isolated: never blocks other provisioning).
+  try {
+    await handleAskExpertPaid(supabase, payload);
+  } catch (e) {
+    console.error('[shopify-webhook] ask-expert error:', e?.message || e);
+  }
+
   // Course products → Pricing App access
   await handleCoursePricingAccess(supabase, payload);
 
