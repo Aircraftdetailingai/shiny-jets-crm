@@ -23,7 +23,7 @@ import {
   orderAlreadyApplied,
   pricingToolAccessEmail,
 } from '@/lib/pricing-tool-access';
-import { aiPurchaseFromLineItems, computeAiAccessUntil } from '@/lib/detailing-ai-access';
+import { aiPurchaseFromLineItems, computeAiAccessUntil, isAiLineItem, hasStandaloneAi } from '@/lib/detailing-ai-access';
 import { askExpertVariantId, askExpertFromOrder } from '@/lib/ask-expert-payment';
 import { markEscalationPaid } from '@/lib/ask-brett-server';
 import { orderPaidMode } from '@/lib/shopify-webhook-routing';
@@ -376,6 +376,7 @@ async function fetchProductTags(productId) {
 }
 
 async function isCourseProduct(item) {
+  if (isAiLineItem(item)) return false; // standalone Detailing AI is never a course (no Business grant)
   if (isCourseProductByText(item)) return true;
   const tags = await fetchProductTags(item.product_id);
   return tags.some((t) => COURSE_TAGS.has(t));
@@ -1090,7 +1091,15 @@ async function handleQuarterlyLiteGrant(supabase, payload) {
   return { mode: result.mode, granted };
 }
 
-// ─── Standalone Detailing AI (SJ-AI-STANDALONE / -YEARLY) → detailers.ai_access_until ───
+// Seal renewal orders carry Seal tags / a subscription source; logged for audit only —
+// renewals are granted exactly like first orders (new order id → another term stacks on).
+function isSealRenewal(payload) {
+  const tags = parseShopifyTags(payload?.tags);
+  const src = String(payload?.source_name || '').toLowerCase();
+  return tags.some((t) => /recurring|renewal|seal/.test(t)) || /subscription|seal/.test(src);
+}
+
+// ─── Standalone Detailing AI (variant 67640132174009 / 67640132206777) → detailers.ai_access_until ───
 // Mirrors the CRM SKU + course auto-provisioning: a paid order gives that email
 // Detailing AI. Existing account → stack days onto ai_access_until (plan is never
 // touched). No account → create a Free CRM login (temp password email, like the
@@ -1138,11 +1147,16 @@ async function handleDetailingAiAccess(supabase, payload) {
     email,
     days: purchase.days,
     skus: purchase.skus,
+    variant_ids: purchase.variants,
+    matched_by: purchase.sources,
+    renewal: isSealRenewal(payload),
     mode,
     previous_ai_access_until: detailer.ai_access_until || null,
     ai_access_until: until,
   });
-  if (mode === 'extend') {
+  // Welcome email on the first grant (or after access had lapsed) only — a Seal renewal
+  // that extends live access is silent.
+  if (mode === 'extend' && !hasStandaloneAi(detailer)) {
     try {
       await sendEmail(email, 'Detailing AI is ready on your phone', `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;">
         <h1 style="color:#007CB1;font-size:22px;margin:0 0 12px;">Detailing AI is on</h1>
@@ -1153,7 +1167,7 @@ async function handleDetailingAiAccess(supabase, payload) {
       </body></html>`, { text: `Detailing AI is on through ${new Date(until).toDateString()}. Open https://crm.shinyjets.com/detailing-ai on your phone, log in with ${email}, and add it to your home screen.` });
     } catch {}
   }
-  console.log(`[shopify-webhook] detailing ai ${mode}: ${email} order=${orderId} +${purchase.days}d until ${until}`);
+  console.log(`[shopify-webhook] detailing ai ${mode}: ${email} order=${orderId} +${purchase.days}d (${purchase.sources.join(',')}) until ${until}`);
   return { mode, until };
 }
 

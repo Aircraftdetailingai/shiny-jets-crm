@@ -31,17 +31,46 @@ export function userHasFeature(user, feature) {
   return feature === 'detailingAi' && hasStandaloneAi(user);
 }
 
+// A Free/Lite account may hold standalone Detailing AI (detailers.ai_access_until)
+// that the stored user doesn't show yet (bought after login, or an older session).
+// Ask the server once before showing an upgrade prompt for Detailing AI.
+async function refreshStandaloneAi() {
+  try {
+    const res = await fetch('/api/user/plan-status', { credentials: 'include', cache: 'no-store' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const stored = readStoredUser();
+    if (!stored) return false;
+    const next = data?.ai_access_until || null;
+    if ((stored.ai_access_until || null) !== next) {
+      window.localStorage.setItem('vector_user', JSON.stringify({ ...stored, ai_access_until: next }));
+    }
+    return hasStandaloneAi({ ai_access_until: next });
+  } catch {
+    return false;
+  }
+}
+
 export function usePlanFeature(feature) {
   const [state, setState] = useState({ ready: false, allowed: true, plan: 'free' });
   useEffect(() => {
+    let cancelled = false;
+    let verified = false;
     const check = () => {
       const u = readStoredUser();
-      setState({ ready: true, allowed: userHasFeature(u, feature), plan: normalizePlan(u?.plan) });
+      const allowed = userHasFeature(u, feature);
+      if (!allowed && feature === 'detailingAi' && !verified) {
+        verified = true;
+        refreshStandaloneAi().then(() => { if (!cancelled) check(); });
+        return; // stay "not ready" (blank shell) until the server answers
+      }
+      setState({ ready: true, allowed, plan: normalizePlan(u?.plan) });
     };
     check();
     window.addEventListener('vector-user-updated', check);
     window.addEventListener('storage', check);
     return () => {
+      cancelled = true;
       window.removeEventListener('vector-user-updated', check);
       window.removeEventListener('storage', check);
     };
