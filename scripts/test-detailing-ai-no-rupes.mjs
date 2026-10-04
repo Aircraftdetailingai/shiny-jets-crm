@@ -89,7 +89,7 @@ const guard = (messages, reply) => (userAskedAboutRupes(messages) ? reply : scru
   check('output guard: an old (not recent) Rupes turn does not unlock mentions', !userAskedAboutRupes(old));
 }
 check('route wires the output guard + quote-line scrub',
-  /userAskedAboutRupes\(messages\) \? result\.reply : scrubRupes\(result\.reply\)/.test(route) && /svc\.name = scrubRupes\(svc\.name\)/.test(route));
+  /userAskedAboutRupes\(messages\) \? result\.reply : scrubRupes\(result\.reply\)/.test(route) && /svc\.name = (?:scrubNotRecommended\(scrubBannedBrands\()?scrubRupes\(svc\.name\)/.test(route));
 
 console.log(`\n${total - failed}/${total} passed`);
 process.exit(failed ? 1 : 0);
