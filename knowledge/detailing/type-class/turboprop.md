@@ -10,6 +10,7 @@
 - Pitot, static, AoA, stall vanes, probes — tape/protect for wet wash
 - Avoid high-pressure water into cowling seals, avionics, and gear
 - Acrylic or glass windshields — **verify type** before polish compounds
+- Don't assume cowlings or nacelles are bare aluminum; most are painted. Check the aircraft file (King Air: only the two propeller spinners are bare aluminum; treat everything else as painted)
 
 ### Detailing defaults
 - Mild wash chemistry; degrease soot with aviation-approved products
