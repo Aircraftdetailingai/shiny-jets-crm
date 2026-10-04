@@ -29,11 +29,12 @@ export async function GET(request) {
       .eq('detailer_id', accountId)
       .in('conversation_id', ids);
     for (const e of esc || []) {
-      const b = (byConv[e.conversation_id] ||= { open: 0, answered: 0 });
-      b[e.status === 'answered' ? 'answered' : 'open'] += 1;
+      const b = (byConv[e.conversation_id] ||= { open: 0, answered: 0, awaiting_payment: 0 });
+      // 'expired' (unpaid button questions) never counts; unpaid ones are shown separately.
+      if (e.status === 'answered' || e.status === 'open' || e.status === 'awaiting_payment') b[e.status] += 1;
     }
   }
   return Response.json({
-    conversations: data.map((c) => ({ ...c, title: c.title || 'New chat', expert: byConv[c.id] || { open: 0, answered: 0 } })),
+    conversations: data.map((c) => ({ ...c, title: c.title || 'New chat', expert: byConv[c.id] || { open: 0, answered: 0, awaiting_payment: 0 } })),
   });
 }

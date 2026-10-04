@@ -16,6 +16,8 @@ import {
   storeEscalationPhotos,
   signedPhotoUrls,
   notifyBrett,
+  expireUnpaid,
+  resumeCheckoutUrl,
 } from '@/lib/ask-brett-server';
 import { getOwnedConversation } from '@/lib/detailing-ai-conversations';
 
@@ -23,6 +25,7 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 const PUBLIC_FIELDS = 'id, conversation_id, status, reason, summary, question, photo_paths, answer, answered_at, created_at';
+const PUBLIC_FIELDS_V2 = `${PUBLIC_FIELDS}, payment_expires_at, paid_at`;
 
 async function gate(request) {
   const user = await getAuthUser(request);
@@ -36,6 +39,7 @@ async function gate(request) {
 }
 
 // POST: file an escalation the AI asked for (signed ticket from /api/detailing-ai/chat).
+// These are FREE (the AI couldn't answer). The paid button uses /api/detailing-ai/ask-expert.
 // Body: { ticket, messages: [{role, content}], ai_reply, photos: [{media_type, data}] (<= 3) }
 export async function POST(request) {
   try {
@@ -46,6 +50,8 @@ export async function POST(request) {
 
     const t = verifyEscalationTicket(body.ticket, { detailerId: accountId });
     if (!t.ok) return Response.json({ error: 'This expert request expired. Ask your question again.', code: 'BAD_TICKET' }, { status: 400 });
+    // "I want a person" is the paid button ($4.99 for one question), never a free ticket.
+    if (t.reason === 'user_asked') return Response.json({ error: 'Use the Ask a Shiny Jets expert button for this ($4.99 for one question).', code: 'PAID_QUESTION' }, { status: 402 });
 
     const photoCheck = validatePhotos(body.photos);
     if (!photoCheck.ok) return Response.json({ error: photoCheck.error, code: 'PHOTO_INVALID', max_photos: MAX_PHOTOS }, { status: photoCheck.status });
@@ -116,18 +122,23 @@ export async function GET(request) {
     if (g.error) return g.error;
     const { supabase, accountId } = g;
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase
+    await expireUnpaid(supabase, { detailerId: accountId }).catch(() => {});
+    const run = (fields) => supabase
       .from('detailing_ai_escalations')
-      .select(PUBLIC_FIELDS)
+      .select(fields)
       .eq('detailer_id', accountId)
       .gte('created_at', since)
       .order('created_at', { ascending: true })
       .limit(20);
+    let { data, error } = await run(PUBLIC_FIELDS_V2);
+    if (error && /column|schema cache|42703|PGRST204/i.test(`${error.code || ''} ${error.message || ''}`)) ({ data, error } = await run(PUBLIC_FIELDS));
     if (error) return Response.json({ escalations: [], unavailable: true });
+    const { user } = g;
     const escalations = await Promise.all((data || []).map(async (e) => ({
       ...e,
       photo_paths: undefined,
       photo_urls: await signedPhotoUrls(supabase, e.photo_paths),
+      checkout_url: resumeCheckoutUrl(e, user),
     })));
     return Response.json({ escalations });
   } catch (err) {

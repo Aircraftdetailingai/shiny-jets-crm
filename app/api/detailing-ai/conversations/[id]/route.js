@@ -1,6 +1,6 @@
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
-import { getServiceSupabase, accountIdFor, signedPhotoUrls } from '@/lib/ask-brett-server';
+import { getServiceSupabase, accountIdFor, signedPhotoUrls, expireUnpaid, resumeCheckoutUrl } from '@/lib/ask-brett-server';
 import { getOwnedConversation, getOwnedProject, cleanTitle, isUuid } from '@/lib/detailing-ai-conversations';
 
 export const dynamic = 'force-dynamic';
@@ -25,16 +25,21 @@ export async function GET(request, { params }) {
   if (c.res) return c.res;
   const conv = await getOwnedConversation(c.supabase, { id: c.id, accountId: c.accountId, userId: c.user.id });
   if (!conv) return Response.json({ error: 'Chat not found' }, { status: 404 });
-  const { data: esc } = await c.supabase
+  await expireUnpaid(c.supabase, { detailerId: c.accountId }).catch(() => {});
+  const base = 'id, status, reason, summary, question, photo_paths, answer, answered_at, created_at';
+  const run = (fields) => c.supabase
     .from('detailing_ai_escalations')
-    .select('id, status, reason, summary, question, photo_paths, answer, answered_at, created_at')
+    .select(fields)
     .eq('detailer_id', c.accountId)
     .eq('conversation_id', c.id)
     .order('created_at', { ascending: true });
+  let { data: esc, error: escErr } = await run(`${base}, payment_expires_at, paid_at`);
+  if (escErr) ({ data: esc } = await run(base));
   const escalations = await Promise.all((esc || []).map(async (e) => ({
     ...e,
     photo_paths: undefined,
     photo_urls: await signedPhotoUrls(c.supabase, e.photo_paths),
+    checkout_url: resumeCheckoutUrl(e, c.user),
   })));
   return Response.json({ conversation: { ...conv, title: conv.title || 'New chat' }, escalations });
 }
