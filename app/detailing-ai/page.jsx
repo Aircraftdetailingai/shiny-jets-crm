@@ -1010,7 +1010,7 @@ export default function DetailingAiPage() {
                           <p className="mt-1 text-xs text-v-text-primary">{ASK_EXPERT_ONE_QUESTION}. Brett gets it as soon as your payment goes through.</p>
                           <p className="mt-1 text-xs text-v-text-secondary">Not paid within 24 hours? It&apos;s deleted and never sent.</p>
                           {e.checkout_url && (
-                            <a href={e.checkout_url} className="mt-2 inline-flex items-center min-h-[44px] px-4 rounded-lg bg-v-gold text-v-charcoal text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                            <a href={e.checkout_url} className="mt-2 inline-flex items-center min-h-[44px] px-4 rounded-lg bg-[#00689a] text-white text-sm font-semibold hover:bg-[#005a85] focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
                               Pay {ASK_EXPERT_PRICE_LABEL} on shinyjets.com<span className="sr-only"> (opens checkout)</span>
                             </a>
                           )}
@@ -1313,7 +1313,7 @@ export default function DetailingAiPage() {
               <button type="button" onClick={closeExpertConfirm} disabled={expertBusy} className="min-h-[44px] px-4 rounded-xl border border-v-border-subtle text-v-text-primary text-sm disabled:opacity-50">
                 Cancel
               </button>
-              <button type="button" data-autofocus onClick={confirmExpert} disabled={expertBusy} className="min-h-[44px] flex-1 px-4 rounded-xl bg-v-gold text-v-charcoal text-sm font-semibold disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+              <button type="button" data-autofocus onClick={confirmExpert} disabled={expertBusy} className="min-h-[44px] flex-1 px-4 rounded-xl bg-[#00689a] text-white text-sm font-semibold hover:bg-[#005a85] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
                 {expertBusy ? 'Opening checkout…' : `Continue to checkout · ${ASK_EXPERT_PRICE_LABEL}`}
               </button>
             </div>
