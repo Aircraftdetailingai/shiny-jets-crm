@@ -123,7 +123,7 @@ export default function DetailingAiTutorial({ open, onClose, slides = TUTORIAL_S
                 aria-current={i === index ? 'step' : undefined}
                 className="h-6 w-6 flex items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-v-gold"
               >
-                <span aria-hidden="true" className={`block rounded-full transition-all motion-reduce:transition-none ${i === index ? 'h-2.5 w-2.5 bg-v-gold' : 'h-2 w-2 bg-v-text-secondary/70'}`} />
+                <span aria-hidden="true" className={`block rounded-full transition-all motion-reduce:transition-none ${i === index ? 'h-2.5 w-2.5 bg-v-gold' : 'h-2 w-2 bg-v-text-secondary'}`} />
               </button>
             ))}
           </div>
