@@ -176,6 +176,27 @@ check('always-visible chip (Brett, Oct 3 9:28 PM): low-emphasis, AA, same confir
   assert.ok(!/opacity-|disabled=\{/.test(row), 'no opacity / disabled styling that would drop contrast below 4.5:1');
 });
 
+check('two "Order payment" webhooks (Oct 3 9:45 PM): only /api/shopify/webhook provisions; canonical path = ask-expert only', async () => {
+  const { orderPaidMode, PROVISIONING_PATH } = await import('../lib/shopify-webhook-routing.js');
+  assert.equal(PROVISIONING_PATH, '/api/shopify/webhook');
+  assert.equal(orderPaidMode('https://crm.shinyjets.com/api/shopify/webhook'), 'full');
+  assert.equal(orderPaidMode('https://crm.shinyjets.com/api/shopify/webhook/'), 'full');
+  assert.equal(orderPaidMode('http://127.0.0.1:3314/api/shopify/webhook?x=1'), 'full');
+  assert.equal(orderPaidMode('https://crm.shinyjets.com/api/webhooks/shopify'), 'ask_expert_only');
+  assert.equal(orderPaidMode('not a url'), 'ask_expert_only');
+  const src = read('app/api/webhooks/shopify/route.js');
+  // The switch: full processing only on the provisioning path, ask-expert alone otherwise.
+  assert.match(src, /case 'orders\/paid':\s*if \(orderPaidMode\(request\.url\) === 'full'\) \{\s*await handleOrderPaid\(supabase, payload\);\s*\} else \{\s*await handleAskExpertPaid\(supabase, payload\);/);
+  // Full processing still includes the ask-expert step (so one registration alone is enough).
+  assert.match(src, /async function handleOrderPaid\(supabase, payload\) \{\s*\/\/ Paid expert question[^\n]*\n\s*try \{\s*await handleAskExpertPaid/);
+  // Both paths still verify the Shopify HMAC first (the alias forwards the same request).
+  assert.match(src, /if \(!verifyHmac\(rawBody, signature, secret\)\) \{\s*return new Response\('Invalid signature', \{ status: 401 \}\);/);
+  assert.match(read('app/api/shopify/webhook/route.js'), /import\('@\/app\/api\/webhooks\/shopify\/route'\);\s*return handler\(request\);/);
+  // Paying twice for one question can't notify twice: conditional status update + unique order id.
+  const server = read('lib/ask-brett-server.js');
+  assert.match(server, /\.in\('status', \['awaiting_payment', 'expired'\]\)/);
+});
+
 let failed = 0;
 for (const [n, f] of tests) { try { await f(); console.log(`PASS ${n}`); } catch (e) { failed++; console.log(`FAIL ${n}\n  ${e.message}`); } }
 console.log(`\n${tests.length - failed}/${tests.length} passed`);
