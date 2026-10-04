@@ -124,7 +124,7 @@ Stain Type                pH Indicator             Product                      
 
 Protein (food,            Alkaline 7.5–9+          Wool Perfect pre-spray →                Enzyme action breaks blood, vomit, body                                 extract with Wool Zone                  down protein; do not let dry oil)                                                                                       before extraction
 
-Grease / oil              Near neutral, high       Citrusolve (spot) + Wool                Citrusolve dissolves grease; (chips, cosmetics)        PPM                      Perfect pre-spray                       always follow with extraction
+Grease / oil (chips, cosmetics): UPDATED Oct 3, 2026 (Brett), replaces the older Citrusolve + Wool Perfect pairing. Use Fly Shiny Oil Delete: spray and vacuum three times, then spray a fourth time and extract. Ink or Sharpie: Oil Delete with the towel-press method (Shiny Jets method).
 
 Tannin (coffee,           Slightly acidic 5–       Coffee Stain Remover (pH 4.0–           Acidic formula lifts tannin tea, juice, water         6.5                      4.5)                                    without damaging wool rings)
 
@@ -275,7 +275,7 @@ EncapuClean O2                  ~5.5             Caution on wool         Spot us
 
 T-Rust                          4.0–5.0          Yes                     Rust / iron stain removal
 
-Citrusolve                      Solvent-         Caution                 Grease / oil spot treatment based
+Citrusolve                      Solvent-based    Caution                 Older grease / oil spot option; for oil or grease on wool use Fly Shiny Oil Delete (Oct 3, 2026 method)
 
 Folex                           9.0–10.0         Caution                 Spot treatment; always rinse with Fab Set
 

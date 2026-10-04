@@ -17,6 +17,12 @@ When the user mentions this aircraft (or close synonyms), prefer this file plus 
 
 See type-class `turboprop`. Verify acrylic vs glass windshield in the POH/AMM for this serial. Protect pitot/static, AoA, probes, static wicks, and antennas during wash.
 
+## Bare aluminum (Shiny Jets, Brett-approved Oct 3 2026)
+
+On a Beechcraft King Air, the only bare (polished) aluminum is the two propeller spinners. Nothing else on a King Air is bare aluminum, including the cowlings. Treat everything else as painted.
+
+De-ice boots on a King Air: see `brett-approved/de-ice-boots.md` and `sops/sop-07-de-ice-boots.md`.
+
 ## Detailing-relevant guidance
 
 ## Family notes — Beechcraft King Air (turboprop)

@@ -294,7 +294,7 @@ Headings in the docx were plain text (no Word heading styles); sections were det
 - L1470-1476: BFGoodrich Agemaster
 - L1477-1482: Pbs Boot Sealant
 - L1483-1488: BFGoodrich Shinemaster
-- L1489-1495: BFGoodrich ICEXII
+- L1489-1495: BFGoodrich ICEX II
 - L1496-1501: BFGoodrich Aerospace Protectant
 - L1502-1507: Ice Shield Ice Retarder
 - L1508-1510: BFGoodrich Silver Urethane Boot Polish
@@ -307,7 +307,7 @@ Headings in the docx were plain text (no Word heading styles); sections were det
 - L1551-1556: Removing Sealant Stripper
 - L1557-1564: Applying BFGoodrich Agemaster
 - L1565-1570: Applying BFGoodrich Shinemaster
-- L1571-1575: Applying ICEXII
+- L1571-1575: Applying ICEX II
 - L1576-1581: BFGoodrich Aerospace Protectant
 - L1582-1585: Black De-Ice Boots Re-Cap
 - L1586-1588: Prepping Silver Eurathane De-Ice Boots
