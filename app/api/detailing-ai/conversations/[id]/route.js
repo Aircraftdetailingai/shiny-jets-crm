@@ -1,7 +1,7 @@
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
 import { getServiceSupabase, accountIdFor, signedPhotoUrls } from '@/lib/ask-brett-server';
-import { getOwnedConversation, cleanTitle, isUuid } from '@/lib/detailing-ai-conversations';
+import { getOwnedConversation, getOwnedProject, cleanTitle, isUuid } from '@/lib/detailing-ai-conversations';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -39,21 +39,35 @@ export async function GET(request, { params }) {
   return Response.json({ conversation: { ...conv, title: conv.title || 'New chat' }, escalations });
 }
 
-// PATCH: rename. Body { title }
+// PATCH: rename and/or move to a project. Body { title?, project_id? } (project_id null = Unsorted)
 export async function PATCH(request, { params }) {
   const c = await ctx(request, params);
   if (c.res) return c.res;
   const body = await request.json().catch(() => ({}));
-  const title = cleanTitle(body.title);
-  if (!title) return Response.json({ error: 'Give the chat a name.' }, { status: 400 });
+  const patch = {};
+  if (body.title !== undefined) {
+    const title = cleanTitle(body.title);
+    if (!title) return Response.json({ error: 'Give the chat a name.' }, { status: 400 });
+    patch.title = title;
+  }
+  if (body.project_id !== undefined) {
+    if (body.project_id === null || body.project_id === '') patch.project_id = null;
+    else {
+      const project = await getOwnedProject(c.supabase, { id: body.project_id, accountId: c.accountId, userId: c.user.id });
+      if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
+      patch.project_id = project.id;
+    }
+  }
+  if (!Object.keys(patch).length) return Response.json({ error: 'Nothing to change.' }, { status: 400 });
   const { data, error } = await c.supabase
     .from('detailing_ai_conversations')
-    .update({ title })
+    .update(patch)
     .eq('id', c.id)
     .eq('detailer_id', c.accountId)
     .eq('user_id', String(c.user.id))
-    .select('id, title, updated_at')
+    .select(patch.project_id !== undefined ? 'id, title, project_id, updated_at' : 'id, title, updated_at')
     .maybeSingle();
+  if (error && patch.project_id !== undefined) return Response.json({ error: 'Projects aren\u2019t available right now.' }, { status: 503 });
   if (error || !data) return Response.json({ error: 'Chat not found' }, { status: 404 });
   return Response.json({ conversation: data });
 }

@@ -25,7 +25,9 @@ import {
   limitReachedText,
   replaceEscalationSentence,
 } from '@/lib/ask-brett';
-import { getOwnedConversation, createConversation, saveTurn, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
+import { getOwnedConversation, getOwnedProject, createConversation, saveTurn, saveSummary, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
+import { splitHistory, unsummarizedOlder, extractiveSummary, contextSections, isLongChat, SUMMARIZE_AFTER, CLIENT_HISTORY_MAX } from '@/lib/detailing-ai-context';
+import { summarizeMessages } from '@/lib/detailing-ai-summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -329,7 +331,9 @@ export async function POST(request) {
 
     const body = await request.json().catch(() => ({}));
     // Drops the page's leading assistant greeting, merges same-role turns, removes empty turns.
-    const messages = normalizeChatMessages(body.messages, { maxTurns: 20, maxChars: 8000 });
+    // Long chats: the page sends at most the last CLIENT_HISTORY_MAX messages; the model gets the
+    // recent turns that fit the token budget plus a rolling summary of older turns (see below).
+    const messages = normalizeChatMessages(body.messages, { maxTurns: CLIENT_HISTORY_MAX, maxChars: 8000 });
 
     if (messages.length === 0) {
       return Response.json({ error: 'messages required' }, { status: 400 });
@@ -373,12 +377,42 @@ export async function POST(request) {
       }
     }
 
+    // Project: the chat's own project, or (new chat) the project it was started in.
+    let project = null;
+    if (convDb) {
+      const projectId = conversation ? conversation.project_id : body.project_id;
+      if (isUuid(projectId)) {
+        try { project = await getOwnedProject(convDb, { id: projectId, accountId: accountKey, userId: user.id }); } catch { project = null; }
+      }
+    }
+
+    // Long chats never fail: recent turns under the token budget + rolling summary of older turns.
+    const { recent, older } = splitHistory(messages);
+    let summaryText = '';
+    if (older.length) {
+      if (conversation && convDb) {
+        const pending = unsummarizedOlder(conversation.messages, recent.length, conversation.summary_through_at);
+        if (pending.length >= SUMMARIZE_AFTER) {
+          const r = await summarizeMessages({ previousSummary: conversation.summary || '', messages: pending });
+          summaryText = r.summary;
+          const throughAt = pending[pending.length - 1].created_at;
+          if (r.summary && throughAt) await saveSummary(convDb, { id: conversation.id, accountId: accountKey, userId: user.id, summary: r.summary, throughAt });
+        } else {
+          summaryText = [conversation.summary, pending.length ? extractiveSummary(pending, 1200) : ''].filter(Boolean).join('\n');
+        }
+      } else {
+        summaryText = extractiveSummary(older);
+      }
+    }
+    const longChat = isLongChat(conversation?.messages?.length || 0, older.length);
+
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     const [knowledge, catalog] = await Promise.all([
       loadKnowledgeStub(lastUser?.content || ''),
       loadServicesCatalog(user),
     ]);
-    const system = SYSTEM_PROMPT + (images.length ? PHOTO_PROMPT : '') + ESCALATION_PROMPT + formatCatalogForPrompt(catalog) + knowledge;
+    const system = SYSTEM_PROMPT + (images.length ? PHOTO_PROMPT : '') + ESCALATION_PROMPT + formatCatalogForPrompt(catalog)
+      + contextSections({ project, carriedSummary: conversation?.carried_summary, summary: summaryText }) + knowledge;
 
     const notConfigured = () => {
       console.error('[detailing-ai/chat] no AI provider key configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)');
@@ -387,9 +421,9 @@ export async function POST(request) {
 
     let result;
     if (process.env.ANTHROPIC_API_KEY) {
-      result = await callAnthropic({ system, messages, images });
+      result = await callAnthropic({ system, messages: recent, images });
     } else if (process.env.OPENAI_API_KEY) {
-      result = await callOpenAI({ system, messages, images });
+      result = await callOpenAI({ system, messages: recent, images });
     } else {
       return notConfigured();
     }
@@ -417,7 +451,7 @@ export async function POST(request) {
 
     // First successful turn of a new chat: create it now (escalation tickets carry its id).
     if (!conversation && convDb && !isUuid(body.conversation_id)) {
-      const created = await createConversation(convDb, { accountId: accountKey, userId: user.id }).catch((e) => ({ error: e }));
+      const created = await createConversation(convDb, { accountId: accountKey, userId: user.id, projectId: project?.id || null }).catch((e) => ({ error: e }));
       if (!created.error) conversation = created.data;
     }
 
@@ -487,7 +521,9 @@ export async function POST(request) {
       configured: true,
       photos: images.length,
       escalate,
-      conversation: conversation ? { id: conversation.id, title: saved?.title || conversation.title || null, saved: !!saved?.ok } : null,
+      conversation: conversation ? { id: conversation.id, title: saved?.title || conversation.title || null, saved: !!saved?.ok, project_id: conversation.project_id ?? project?.id ?? null } : null,
+      long_chat: longChat,
+      context: { recent_messages: recent.length, older_messages: older.length, summarized: !!summaryText },
     });
   } catch (err) {
     console.error('[detailing-ai/chat] error:', err);

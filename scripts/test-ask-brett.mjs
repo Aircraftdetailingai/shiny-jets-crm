@@ -243,7 +243,7 @@ check('chats: stored messages carry no photo data; history capped', () => {
 
 check('chat APIs are scoped to account + user', () => {
   const lib = fs.readFileSync('lib/detailing-ai-conversations.js', 'utf8');
-  assert.equal((lib.match(/\.eq\('detailer_id', accountId\)\s*\n\s*\.eq\('user_id', String\(userId\)\)/g) || []).length, 3);
+  assert.equal((lib.match(/\.eq\('detailer_id', accountId\)\s*\n\s*\.eq\('user_id', String\(userId\)\)/g) || []).length, 6, 'list, get, summary, projects list + get, save turn');
   const one = fs.readFileSync('app/api/detailing-ai/conversations/[id]/route.js', 'utf8');
   assert.equal((one.match(/\.eq\('detailer_id', c\.accountId\)\s*\n\s*\.eq\('user_id', String\(c\.user\.id\)\)/g) || []).length, 2, 'rename + delete');
   assert.match(one, /getOwnedConversation\(c\.supabase/);
