@@ -28,6 +28,7 @@
     { "path": "/api/cron/send-crew-briefings", "schedule": "0 1,15 * * *" },
     { "path": "/api/cron/airport-limits", "schedule": "0 17 * * *" },
     { "path": "/api/cron/plan-expirations", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/faq-sync", "schedule": "20 13 * * *" }
+    { "path": "/api/cron/faq-sync", "schedule": "20 13 * * *" },
+    { "path": "/api/cron/ask-brett-retention", "schedule": "40 10 * * *" }
   ]
 }

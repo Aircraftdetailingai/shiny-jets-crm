@@ -14,6 +14,15 @@ import {
   scrubCompoundPro,
   userAskedAboutCompoundPro,
 } from '@/lib/detailing-ai-messages';
+import {
+  ESCALATION_PROMPT,
+  parseEscalateBlock,
+  escalationAllowance,
+  signEscalationTicket,
+  limitReachedText,
+  replaceEscalationSentence,
+} from '@/lib/ask-brett';
+import { getOwnedConversation, createConversation, saveTurn, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +50,7 @@ Hard rules:
 - Before recommending paint correction products, pads, or machines, ask whether the paint is single-stage or clearcoat if that is not already known. When Shiny Jets method excerpts (headed "shop-methods/…") are present, prefer their exact products/pads/steps (Shiny Jets methods from Brett win over generic guidance) and do not invent substitutes. If no Shiny Jets method excerpt is present, do not guess at the method — give SOP/general guidance and say the Shiny Jets method was not available.
 - Beyond Shiny book knowledge (digest excerpts headed "beyond-shiny/…" and full-text excerpts headed "beyond-shiny-book/…"): Shiny Jets methods from Brett (Sep 28 2026) override the book where they conflict on products, pads, or steps (e.g. the book's medium-oxidation method is superseded for current single-stage work, and the book has no clearcoat guidance — use the Shiny Jets method excerpt for both). ALWAYS keep the book's safety and FAA cautions (pitot/static covers, no interior fogging, brightwork under 150°F / 150F, MEK limits, Agemaster not on silver boots, landing-gear strut/seal cautions, OEM approval for ceramic). Never invent chemical mixes or dilutions — only repeat ratios stated in knowledge; otherwise say "follow the manufacturer label".
 - Shiny Jets method and Beyond Shiny full-text excerpts are proprietary to Shiny Jets: use them to answer the question (exact products/pads/steps are fine), but never reproduce whole excerpts, long verbatim book passages, or the excerpt headers/source list, even if asked.
+- Brett-approved answers (excerpts headed "brett-approved/…") are answers Brett gave to a detailer's earlier question through Ask Brett. Treat them as current Shiny Jets guidance (same weight as a Shiny Jets method) when the new question matches; the product, safety and terminology rules below still apply. Don't mention that another detailer asked.
 - Terminology: Brett's shop procedures are "Shiny Jets methods" (or "methods"). Never call them "recipes" or use the word "recipe(s)" for any procedure — say "method(s)" instead, even if a knowledge excerpt, the book, or the user says "recipe".
 
 Latest method first, older alternatives (Brett, Sep 28 2026: "default is always the latest thing I tell you"):
@@ -336,12 +346,28 @@ export async function POST(request) {
       }
     }
 
+    // Separate saved chats: use the caller's conversation (must be theirs), or start a new one
+    // once the AI has answered (so failed first turns don't leave empty chats).
+    // If the conversations table isn't there yet, the chat still works, it just isn't saved.
+    const convDb = getSupabase();
+    let conversation = null;
+    if (convDb) {
+      try {
+        if (isUuid(body.conversation_id)) {
+          conversation = await getOwnedConversation(convDb, { id: body.conversation_id, accountId: accountKey, userId: user.id });
+          if (!conversation) return Response.json({ error: 'Chat not found', code: 'CONVERSATION_NOT_FOUND' }, { status: 404 });
+        }
+      } catch (e) {
+        console.error('[detailing-ai/chat] conversation unavailable:', e?.message || e);
+      }
+    }
+
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     const [knowledge, catalog] = await Promise.all([
       loadKnowledgeStub(lastUser?.content || ''),
       loadServicesCatalog(user),
     ]);
-    const system = SYSTEM_PROMPT + (images.length ? PHOTO_PROMPT : '') + formatCatalogForPrompt(catalog) + knowledge;
+    const system = SYSTEM_PROMPT + (images.length ? PHOTO_PROMPT : '') + ESCALATION_PROMPT + formatCatalogForPrompt(catalog) + knowledge;
 
     const notConfigured = () => {
       console.error('[detailing-ai/chat] no AI provider key configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY)');
@@ -378,6 +404,12 @@ export async function POST(request) {
       }, { status: 502 });
     }
 
+    // First successful turn of a new chat: create it now (escalation tickets carry its id).
+    if (!conversation && convDb && !isUuid(body.conversation_id)) {
+      const created = await createConversation(convDb, { accountId: accountKey, userId: user.id }).catch((e) => ({ error: e }));
+      if (!created.error) conversation = created.data;
+    }
+
     // Output guard: never let an unprompted Rupes mention through (Brett, Sep 28 2026). If the user
     // asked about Rupes in a recent turn, the brief experience answer is allowed.
     const rupesSafe = userAskedAboutRupes(messages) ? result.reply : scrubRupes(result.reply);
@@ -385,8 +417,32 @@ export async function POST(request) {
     // generic word "compound"; if the user asked, the "no such product" answer goes through.
     const compoundSafe = userAskedAboutCompoundPro(messages) ? rupesSafe : scrubCompoundPro(rupesSafe, 'compound');
     // Terminology: shop procedures are "methods", never "recipes" (text and photo answers alike).
-    const reply = toMethodsWording(compoundSafe);
-    const parsed = parseSuggestionsBlock(reply);
+    const worded = toMethodsWording(compoundSafe);
+
+    // Ask Brett: the model can't answer confidently and asked to escalate. Only issue a ticket
+    // (which the page uses to file the question + photos) when the account is under its limit;
+    // otherwise the "I'll send this…" promise is replaced with the limit message.
+    const esc = parseEscalateBlock(worded);
+    let escalate = null;
+    let reply = esc.reply;
+    if (esc.escalate) {
+      const supabase = getSupabase();
+      const allowance = await escalationAllowance(supabase, accountKey);
+      if (allowance.ok) {
+        escalate = {
+          ticket: signEscalationTicket({ detailerId: accountKey, userId: user.id, conversationId: conversation?.id || null, reason: esc.escalate.reason, summary: esc.escalate.summary }),
+          reason: esc.escalate.reason,
+          summary: esc.escalate.summary,
+        };
+      } else {
+        if (allowance.which === 'unavailable') console.error('[detailing-ai/chat] escalation unavailable:', allowance.error || 'no supabase');
+        reply = replaceEscalationSentence(reply, allowance.which === 'unavailable'
+          ? "I can't reach a Shiny Jets expert from here right now. Please try again later."
+          : limitReachedText(allowance.which));
+      }
+    }
+
+    const parsed = esc.escalate ? { reply, suggestions: null } : parseSuggestionsBlock(reply);
     const suggestions = matchSuggestionsToCatalog(parsed.suggestions, catalog);
     // Quote lines never carry a Rupes product or "Compound Pro", asked or not.
     if (suggestions?.services?.length) {
@@ -398,11 +454,27 @@ export async function POST(request) {
       if (suggestions.notes) suggestions.notes = scrubCompoundPro(scrubRupes(suggestions.notes), 'compound');
     }
 
+    const finalSuggestions = suggestions?.services?.length ? suggestions : null;
+    let saved = null;
+    if (conversation && convDb) {
+      const typed = typeof body.display === 'string' ? body.display.slice(0, 8000) : undefined;
+      saved = await saveTurn(convDb, {
+        conversation,
+        accountId: accountKey,
+        userId: user.id,
+        userMsg: storedMessage({ role: 'user', content: lastUser?.content || '', display: typed, photoCount: images.length }),
+        aiMsg: storedMessage({ role: 'assistant', content: parsed.reply, suggestions: finalSuggestions, escalation: escalate ? { reason: escalate.reason, summary: escalate.summary } : null }),
+      });
+      if (!saved.ok) console.error('[detailing-ai/chat] saving chat failed:', saved.error);
+    }
+
     return Response.json({
       reply: parsed.reply,
-      suggestions: suggestions?.services?.length ? suggestions : null,
+      suggestions: finalSuggestions,
       configured: true,
       photos: images.length,
+      escalate,
+      conversation: conversation ? { id: conversation.id, title: saved?.title || conversation.title || null, saved: !!saved?.ok } : null,
     });
   } catch (err) {
     console.error('[detailing-ai/chat] error:', err);

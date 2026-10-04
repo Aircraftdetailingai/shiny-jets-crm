@@ -5,6 +5,7 @@ import { formatPriceWhole } from '@/lib/formatPrice';
 
 const ADMIN_NAV = [
   { label: 'Dashboard', href: '/admin' },
+  { label: 'Ask Brett', href: '/admin/ask-brett' },
   { label: 'Analytics', href: '/admin/analytics' },
   { label: 'Airport Analytics', href: '/admin/airport-analytics' },
   { label: 'Inventory', href: '/admin/inventory' },
