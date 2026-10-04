@@ -70,7 +70,6 @@ const PRODUCTS = [
 <li>Invoices + Stripe payments, deposits and Book Now, Pay Later</li>
 <li>Jobs with photos + completion and delivery reports</li>
 <li>Customer portal + live aircraft progress portal</li>
-<li>Detailing AI + AI quote drafts</li>
 <li>Review and feedback requests</li>
 <li>Your own logo on quotes (with "Powered by Shiny Jets")</li>
 <li>1 user</li>
@@ -101,6 +100,7 @@ function BUSINESS_HTML(priceLabel, termNote) {
   return `<p>For detailing operations running a crew — ${priceLabel}.</p>
 <p><strong>Everything in Lite, plus:</strong></p>
 <ul>
+<li>Detailing AI + AI quote drafts</li>
 <li>Pricing Tool access included</li>
 <li>Up to 3 users (you + 2 team members) with roles &amp; permissions</li>
 <li>Crew app, PIN time clock and payroll</li>

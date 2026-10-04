@@ -73,7 +73,8 @@ export function usePlanGuard() {
         const planChanged = previousPlan !== nextPlan || stored.plan !== nextPlan;
         const stampChanged = previousStamp !== nextStamp;
         const statusChanged = stored.subscription_status !== data.subscription_status;
-        const aiChanged = (stored.ai_access_until || null) !== (data.ai_access_until || null);
+        const aiChanged = (stored.ai_access_until || null) !== (data.ai_access_until || null)
+          || (stored.detailing_ai_grandfathered ?? null) !== (data.detailing_ai_grandfathered ?? null);
 
         if (!planChanged && !stampChanged && !statusChanged && !aiChanged) return; // hot path: no re-render
 
@@ -86,6 +87,7 @@ export function usePlanGuard() {
           subscription_source: data.subscription_source,
           plan_updated_at: nextStamp,
           ai_access_until: data.ai_access_until || null,
+          detailing_ai_grandfathered: data.detailing_ai_grandfathered ?? null,
         };
         writeStoredUser(merged);
 

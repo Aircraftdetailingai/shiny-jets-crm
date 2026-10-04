@@ -87,7 +87,7 @@ export async function POST(request) {
   <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
     <h2 style="color:#007CB1;margin:0 0 16px;font-size:22px;">Hi ${escapeHtml(firstName)},</h2>
     <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">Your Shiny Jets CRM plan term has ended, so your account has moved to the Free plan. Your data is safe and still here — upgrade anytime to pick up where you left off.</p>
-    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">Lite ($39.95/mo) brings back unlimited quotes, invoices and payments, jobs, the customer portal and Detailing AI. Business ($89.95/mo or $899/yr) adds your team, dispatch, reports and full white-label.</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">Lite ($39.95/mo) brings back unlimited quotes, invoices and payments, jobs and the customer portal. Business ($89.95/mo or $899/yr) adds Detailing AI, your team, dispatch, reports and full white-label.</p>
     <div style="text-align:center;margin:28px 0;">
       <a href="${PLANS_URL}" style="display:inline-block;padding:14px 28px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">View CRM plans</a>
     </div>

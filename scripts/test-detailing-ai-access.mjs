@@ -3,8 +3,10 @@
  * Run: node scripts/test-detailing-ai-access.mjs
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import fs from 'fs';
 import { join } from 'node:path';
-import { isAiSku, isAiLineItem, aiPurchaseFromLineItems, aiTermForLineItem, computeAiAccessUntil, hasStandaloneAi } from '../lib/detailing-ai-access.js';
+import { isAiSku, isAiLineItem, aiPurchaseFromLineItems, aiTermForLineItem, computeAiAccessUntil, hasStandaloneAi, hasDetailingAiAccess } from '../lib/detailing-ai-access.js';
+import { hasFeature, requiredPlanFor, upgradeMessage, PLAN_MARKETING, STANDALONE_AI } from '../lib/plans.js';
 import { resolveCrmLineItem, crmPurchaseFromLineItems, classifySubscriptionItems, decideCancellation, billingAffectsCrm } from '../lib/crm-plan-grants.js';
 import { pricingPurchaseFromLineItems } from '../lib/pricing-tool-access.js';
 import { requireFeature } from '../lib/plan-gate.js';
@@ -121,18 +123,18 @@ for (const r of ['chat', 'ask-expert']) {
   check(`${r}: #53 terms gate still applies after the plan gate`, gate > -1 && terms > gate);
 }
 const planGate = readFileSync(new URL('../lib/plan-gate.js', import.meta.url), 'utf8');
-check("requireFeature falls back to ai_access_until only for 'detailingAi'", /gate && feature === 'detailingAi' && await loadStandaloneAiAccess/.test(planGate));
+check("requireFeature falls back to ai_access_until / grandfathered Lite only for 'detailingAi'", /gate && feature === 'detailingAi'\) \{[\s\S]*?loadDetailingAiExtras[\s\S]*?hasDetailingAiAccess/.test(planGate));
 const pg = readFileSync(new URL('../components/PlanGate.jsx', import.meta.url), 'utf8');
-check('PlanGate allows detailingAi with active ai_access_until', /feature === 'detailingAi' && hasStandaloneAi\(user\)/.test(pg));
-check('PlanGate asks the server before showing the upgrade prompt', /refreshStandaloneAi\(\)/.test(pg) && /\/api\/user\/plan-status/.test(pg));
+check('PlanGate allows detailingAi via hasDetailingAiAccess (Business, standalone, grandfathered)', /feature === 'detailingAi'\) return hasDetailingAiAccess\(user\)/.test(pg));
+check('PlanGate asks the server before showing the upgrade prompt', /refreshDetailingAiAccess\(\)/.test(pg) && /\/api\/user\/plan-status/.test(pg));
 const layout = readFileSync(new URL('../app/detailing-ai/layout.jsx', import.meta.url), 'utf8');
 check('/detailing-ai layout uses PlanGate feature="detailingAi"', /PlanGate feature="detailingAi"/.test(layout));
 const login = readFileSync(new URL('../app/api/auth/login/route.js', import.meta.url), 'utf8');
 check('login returns ai_access_until (separate, failure-safe read)', /select\('ai_access_until'\)/.test(login) && /user\.ai_access_until =/.test(login));
 const sidebar = readFileSync(new URL('../components/Sidebar.jsx', import.meta.url), 'utf8');
-check('sidebar shows no upgrade badge on Detailing AI for standalone users', /item\.feature === 'detailingAi' && hasStandaloneAi\(user\)/.test(sidebar));
+check('sidebar shows no upgrade badge on Detailing AI for standalone users', /item\.feature === 'detailingAi' \? hasDetailingAiAccess\(user\)/.test(sidebar));
 const status = readFileSync(new URL('../app/api/user/plan-status/route.js', import.meta.url), 'utf8');
-check('plan-status returns ai_access_until', /ai_access_until: aiAccessUntil/.test(status));
+check('plan-status returns ai_access_until', /ai_access_until: aiExtras\.ai_access_until/.test(status));
 
 console.log('Server plan gate (behavior, fake Supabase)');
 function fakeSupabase(row, { aiColumnMissing = false } = {}) {
@@ -151,12 +153,12 @@ function fakeSupabase(row, { aiColumnMissing = false } = {}) {
     },
   };
 }
-const future = new Date(Date.now() + 5 * DAY).toISOString();
-const past = new Date(Date.now() - 1 * DAY).toISOString();
+const futureLive = new Date(Date.now() + 5 * DAY).toISOString();
+const pastLive = new Date(Date.now() - 1 * DAY).toISOString();
 const req = new Request('https://crm.shinyjets.com/api/detailing-ai/chat');
-const freeAi = { id: 'd1', email: 'buyer@example.com', plan: 'free', is_admin: false, ai_access_until: future };
+const freeAi = { id: 'd1', email: 'buyer@example.com', plan: 'free', is_admin: false, ai_access_until: futureLive };
 check('Free + active ai_access_until → detailingAi allowed', (await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase(freeAi) })) === null);
-const expired = await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, ai_access_until: past }) });
+const expired = await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, ai_access_until: pastLive }) });
 check('Free + expired ai_access_until → 403 upgrade', expired?.status === 403);
 const none = await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, ai_access_until: null }) });
 check('Free without standalone → 403 upgrade', none?.status === 403);
@@ -164,7 +166,10 @@ const missing = await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, s
 check('column missing (SQL not applied) → plain 403, no crash', missing?.status === 403);
 const other = await requireFeature(req, 'invoices', { user: { id: 'd1' }, supabase: fakeSupabase(freeAi) });
 check('standalone AI unlocks only Detailing AI (invoices still gated)', other?.status === 403);
-check('Lite plan still has Detailing AI', (await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, plan: 'lite', ai_access_until: null }) })) === null);
+check('grandfathered Lite keeps Detailing AI', (await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, plan: 'lite', ai_access_until: null, detailing_ai_grandfathered_at: '2026-10-03T00:00:00Z' }) })) === null);
+check('new (non-grandfathered) Lite → 403 upgrade', (await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, plan: 'lite', ai_access_until: null }) }))?.status === 403);
+check('Lite + active standalone → allowed', (await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, plan: 'lite' }) })) === null);
+check('Business → allowed', (await requireFeature(req, 'detailingAi', { user: { id: 'd1' }, supabase: fakeSupabase({ ...freeAi, plan: 'business', ai_access_until: null }) })) === null);
 
 console.log('Isolation from CRM plans and Pricing Tool');
 check('no-SKU monthly variant never resolves to a CRM plan', resolveCrmLineItem(live({ variant_id: MONTHLY, price: '59.95' })) === null);
@@ -192,6 +197,31 @@ check('0 days → null', computeAiAccessUntil({ current: null, days: 0, now: NOW
 check('active access → hasStandaloneAi', hasStandaloneAi({ ai_access_until: new Date(NOW.getTime() + DAY).toISOString() }, NOW));
 check('expired access → no AI', !hasStandaloneAi({ ai_access_until: new Date(NOW.getTime() - DAY).toISOString() }, NOW));
 check('missing column/value → no AI', !hasStandaloneAi({}, NOW));
+
+console.log('Business-only Detailing AI (Oct 3 2026) + grandfathered Lite');
+const future = new Date(NOW.getTime() + DAY).toISOString();
+check('detailingAi requires Business', requiredPlanFor('detailingAi') === 'business' && !hasFeature('lite', 'detailingAi') && hasFeature('business', 'detailingAi') && hasFeature('enterprise', 'detailingAi'));
+check('Business → access', hasDetailingAiAccess({ plan: 'business' }, NOW));
+check('legacy enterprise → access', hasDetailingAiAccess({ plan: 'enterprise' }, NOW));
+check('admin on Free → access', hasDetailingAiAccess({ plan: 'free', is_admin: true }, NOW));
+check('grandfathered Lite → access', hasDetailingAiAccess({ plan: 'lite', detailing_ai_grandfathered: true }, NOW));
+check('grandfathered legacy pro → access', hasDetailingAiAccess({ plan: 'pro', detailing_ai_grandfathered: true }, NOW));
+check('new (not grandfathered) Lite → NO access', !hasDetailingAiAccess({ plan: 'lite', detailing_ai_grandfathered: false }, NOW));
+check('Lite, grandfather unknown (migration not run) → access (old rule, nobody cut off early)', hasDetailingAiAccess({ plan: 'lite', detailing_ai_grandfathered: null }, NOW) && hasDetailingAiAccess({ plan: 'lite' }, NOW));
+check('grandfathered account that dropped to Free → NO access', !hasDetailingAiAccess({ plan: 'free', detailing_ai_grandfathered: true }, NOW));
+check('Free, unknown grandfather → NO access', !hasDetailingAiAccess({ plan: 'free' }, NOW));
+check('Free + standalone AI → access', hasDetailingAiAccess({ plan: 'free', ai_access_until: future }, NOW));
+check('new Lite + standalone AI → access', hasDetailingAiAccess({ plan: 'lite', detailing_ai_grandfathered: false, ai_access_until: future }, NOW));
+check('null account → no access', !hasDetailingAiAccess(null, NOW));
+check('upgrade message offers Business and the $59.95 standalone', /Business \(\$89\.95\/mo or \$899\/yr\)/.test(upgradeMessage('detailingAi')) && /\$59\.95\/mo/.test(upgradeMessage('detailingAi')));
+check('standalone link + prices', STANDALONE_AI.url === 'https://aircraftdetailing.ai' && STANDALONE_AI.monthly === 59.95 && STANDALONE_AI.yearly === 599);
+check('marketing: Detailing AI listed under Business, not Lite', PLAN_MARKETING.business.features.some((f) => /Detailing AI/.test(f)) && !PLAN_MARKETING.lite.features.some((f) => /Detailing AI/.test(f)));
+const tr = fs.readFileSync(new URL('../lib/landing-translations.js', import.meta.url), 'utf8').split('\n');
+check('landing (9 languages): Lite rows have no Detailing AI, Business rows do', tr.filter((l) => /\{ name: "Lite"/.test(l)).every((l) => !/Detailing AI/.test(l)) && tr.filter((l) => /\{ name: "Business"/.test(l)).filter((l) => /Detailing AI/.test(l)).length === 9);
+const gate = fs.readFileSync(new URL('../lib/plan-gate.js', import.meta.url), 'utf8');
+check('server gate reads grandfather + standalone columns in separate queries', /select\('ai_access_until'\)/.test(gate) && /select\('detailing_ai_grandfathered_at'\)/.test(gate) && /hasDetailingAiAccess/.test(gate));
+const mig = fs.readFileSync(new URL('../supabase/migrations/20261004_detailing_ai_business_only.sql', import.meta.url), 'utf8');
+check('migration adds column and grandfathers current Lite/pro only', /ADD COLUMN IF NOT EXISTS detailing_ai_grandfathered_at timestamptz/.test(mig) && /IN \('lite', 'pro'\)/.test(mig) && /plan_expires_at IS NULL OR plan_expires_at > now\(\)/.test(mig));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

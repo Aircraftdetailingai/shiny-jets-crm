@@ -36,8 +36,8 @@ check('no unbuilt features advertised', !/SMS|FlightAware|API key|fuel|QuickBook
 
 console.log('Feature gates');
 const liteFeatures = ['unlimitedQuotes', 'quoteFollowups', 'scheduledSend', 'googleCalendar', 'invoices', 'deposits',
-  'bookNowPayLater', 'jobs', 'customerPortal', 'detailingAi', 'reviewRequests', 'customLogo'];
-const businessFeatures = ['team', 'crewApp', 'timeClock', 'payroll', 'dispatch', 'changeOrders', 'reports',
+  'bookNowPayLater', 'jobs', 'customerPortal', 'reviewRequests', 'customLogo'];
+const businessFeatures = ['detailingAi', 'team', 'crewApp', 'timeClock', 'payroll', 'dispatch', 'changeOrders', 'reports',
   'recurring', 'marketing', 'products', 'equipment', 'whiteLabel', 'customEmailDomain', 'directoryPriority', 'pricingTool'];
 for (const f of liteFeatures) {
   check(`${f}: free ✗ / lite ✓ / business ✓`, !hasFeature('free', f) && hasFeature('lite', f) && hasFeature('business', f));

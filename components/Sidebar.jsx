@@ -6,7 +6,7 @@ import NotificationBell from './NotificationBell.jsx';
 import PointsBadge from './PointsBadge.jsx';
 import { applyFullTheme } from '@/lib/theme';
 import { normalizePlan, hasFeature, requiredPlanFor } from '@/lib/plans';
-import { hasStandaloneAi } from '@/lib/detailing-ai-access';
+import { hasDetailingAiAccess } from '@/lib/detailing-ai-access';
 
 const NAV_GROUPS = [
   {
@@ -354,7 +354,7 @@ export default function Sidebar() {
                       {active && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-v-gold" />}
                       <Icon />
                       <span className="truncate">{item.label}</span>
-                      {item.feature && user && !user.is_admin && !hasFeature(user.plan, item.feature) && !(item.feature === 'detailingAi' && hasStandaloneAi(user)) && (
+                      {item.feature && user && !user.is_admin && !(item.feature === 'detailingAi' ? hasDetailingAiAccess(user) : hasFeature(user.plan, item.feature)) && (
                         <span className="ml-auto text-[8px] font-semibold tracking-wider px-1.5 py-0.5 rounded border border-v-gold/40 text-v-gold/80" title="Upgrade to unlock">
                           {requiredPlanFor(item.feature) === 'business' ? 'BUSINESS' : 'LITE'}
                         </span>

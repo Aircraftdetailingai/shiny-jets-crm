@@ -144,8 +144,8 @@ export default function ShopifySetupPage() {
         <div className="space-y-4">
           {[
             { name: 'Shiny Jets CRM Free', price: '$0', sku: 'SJ-CRM-FREE', features: '5 sent quotes/month, customers + aircraft history, quote PDF + share link, request link, 1 user, 5% platform fee' },
-            { name: 'Shiny Jets CRM Lite', price: '$39.95/mo', sku: 'SJ-CRM-LITE', features: 'Unlimited quotes, follow-ups, Google Calendar, invoices + deposits, jobs + photos, customer portal, Detailing AI, your logo, 2% platform fee (30 days per unit)' },
-            { name: 'Shiny Jets CRM Business', price: '$89.95/mo', sku: 'SJ-CRM-BUSINESS', features: 'Everything in Lite + Pricing Tool, up to 3 users, crew app, dispatch, reports, white-label, 0% platform fee (30 days per unit)' },
+            { name: 'Shiny Jets CRM Lite', price: '$39.95/mo', sku: 'SJ-CRM-LITE', features: 'Unlimited quotes, follow-ups, Google Calendar, invoices + deposits, jobs + photos, customer portal, your logo, 2% platform fee (30 days per unit)' },
+            { name: 'Shiny Jets CRM Business', price: '$89.95/mo', sku: 'SJ-CRM-BUSINESS', features: 'Everything in Lite + Detailing AI, Pricing Tool, up to 3 users, crew app, dispatch, reports, white-label, 0% platform fee (30 days per unit)' },
             { name: 'Shiny Jets CRM Business (Annual)', price: '$899/yr', sku: 'SJ-CRM-BUSINESS-YEARLY', features: 'Business billed yearly (365 days per unit)' },
           ].map((product) => (
             <div key={product.sku} className="bg-v-charcoal p-4 rounded border border-v-border">
