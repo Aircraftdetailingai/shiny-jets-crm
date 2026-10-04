@@ -216,7 +216,7 @@ check('route: per-account rate limits incl. separate photo budget; 429 RATE_LIMI
 check('route: output guard runs on every reply (Rupes, Compound Pro, methods wording)', () => {
   assert.match(route, /scrubRupes\(result\.reply\)/);
   assert.match(route, /scrubCompoundPro\(rupesSafe/);
-  assert.match(route, /toMethodsWording\(compoundSafe\)/);
+  assert.match(route, /toMethodsWording\((?:applyBrandRules\()?compoundSafe/);
 });
 
 check('route: photos are never stored (no storage upload / insert of image data)', () => {

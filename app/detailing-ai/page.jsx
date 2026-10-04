@@ -191,6 +191,14 @@ export default function DetailingAiPage() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const helpButtonRef = useRef(null);
   const helpButtonDeskRef = useRef(null);
+  // Projects (chats with no project are "Unsorted") + long-chat handling
+  const [projects, setProjects] = useState([]);
+  const [projectsAvailable, setProjectsAvailable] = useState(false);
+  const [activeProjectId, setActiveProjectId] = useState(null);
+  const [projectForm, setProjectForm] = useState(null); // { id, name, notes, confirmDelete }
+  const [carriedSummary, setCarriedSummary] = useState(null);
+  const [longChat, setLongChat] = useState(false);
+  const [freshBusy, setFreshBusy] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -249,6 +257,58 @@ export default function DetailingAiPage() {
     }
   }, []);
 
+  const loadProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/detailing-ai/projects', { headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.unavailable) { setProjectsAvailable(false); setProjects([]); return; }
+      setProjectsAvailable(true);
+      setProjects(Array.isArray(data.projects) ? data.projects : []);
+    } catch {
+      setProjectsAvailable(false);
+    }
+  }, []);
+
+  const saveProject = async () => {
+    const f = projectForm;
+    if (!f || !f.name.trim()) return;
+    const res = await fetch(f.id ? `/api/detailing-ai/projects/${f.id}` : '/api/detailing-ai/projects', {
+      method: f.id ? 'PATCH' : 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({ name: f.name, notes: f.notes }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.project) { setError(data.error || 'Could not save the project.'); return; }
+    setProjects((prev) => [...prev.filter((x) => x.id !== data.project.id), data.project].sort((a, b) => a.name.localeCompare(b.name)));
+    setProjectForm(null);
+    setAnnounce(f.id ? `Project ${data.project.name} saved.` : `Project ${data.project.name} created. Start a chat in it with the plus button next to its name.`);
+  };
+
+  const deleteProject = async () => {
+    const f = projectForm;
+    if (!f?.id) return;
+    const res = await fetch(`/api/detailing-ai/projects/${f.id}`, { method: 'DELETE', headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(data.error || 'Could not delete the project.'); return; }
+    setProjects((prev) => prev.filter((x) => x.id !== f.id));
+    setChats((prev) => prev.map((c) => (c.project_id === f.id ? { ...c, project_id: null } : c)));
+    if (activeProjectId === f.id) setActiveProjectId(null);
+    setProjectForm(null);
+    setAnnounce('Project deleted. Its chats moved to Unsorted.');
+  };
+
+  const moveChat = async (projectId) => {
+    const pid = projectId || null;
+    const name = pid ? projects.find((x) => x.id === pid)?.name : 'Unsorted';
+    if (!activeId) { setActiveProjectId(pid); setAnnounce(`New chat will be saved in ${name}.`); return; }
+    const res = await fetch(`/api/detailing-ai/conversations/${activeId}`, { method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ project_id: pid }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(data.error || 'Could not move the chat.'); return; }
+    setActiveProjectId(pid);
+    setChats((prev) => prev.map((c) => (c.id === activeId ? { ...c, project_id: pid } : c)));
+    setAnnounce(`Chat moved to ${name}.`);
+  };
+
   const setUrl = (id) => {
     const url = id ? `/detailing-ai?c=${encodeURIComponent(id)}` : '/detailing-ai';
     window.history.replaceState(null, '', url);
@@ -276,6 +336,9 @@ export default function DetailingAiPage() {
       }
       setActiveId(id);
       setActiveTitle(data.conversation?.title || 'New chat');
+      setActiveProjectId(data.conversation?.project_id || null);
+      setCarriedSummary(data.conversation?.carried_summary || null);
+      setLongChat(((data.conversation?.messages || []).length + 2) >= 40);
       setMessages([GREETING, ...(data.conversation?.messages || []).map(fromStored)]);
       setEscalations(nextEsc);
       setPhotos([]);
@@ -289,9 +352,12 @@ export default function DetailingAiPage() {
     }
   }, [loadChats]);
 
-  const newChat = () => {
+  const newChat = (projectId = null) => {
     setActiveId(null);
     setActiveTitle('New chat');
+    setActiveProjectId(typeof projectId === 'string' ? projectId : null);
+    setCarriedSummary(null);
+    setLongChat(false);
     setMessages([GREETING]);
     setEscalations([]);
     setPhotos([]);
@@ -301,7 +367,8 @@ export default function DetailingAiPage() {
     setConfirmDeleteId(null);
     setUrl(null);
     setDrawerOpen(false);
-    setAnnounce('New chat started.');
+    const inProject = typeof projectId === 'string' ? projects.find((x) => x.id === projectId) : null;
+    setAnnounce(inProject ? `New chat started in ${inProject.name}.` : 'New chat started.');
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
@@ -340,11 +407,12 @@ export default function DetailingAiPage() {
     const token = localStorage.getItem('vector_token');
     if (!token) { router.push('/login'); return; }
     loadChats();
+    loadProjects();
     const c = new URLSearchParams(window.location.search).get('c');
     if (c) openChat(c);
     // First run: show the tutorial once (it can be reopened from the ? button).
     try { if (!localStorage.getItem(TUTORIAL_STORAGE_KEY)) setTutorialOpen(true); } catch { /* storage blocked */ }
-  }, [router, loadChats, openChat]);
+  }, [router, loadChats, loadProjects, openChat]);
 
   const closeTutorial = useCallback((how) => {
     setTutorialOpen(false);
@@ -440,9 +508,11 @@ export default function DetailingAiPage() {
         method: 'POST',
         headers: authHeaders(true),
         body: JSON.stringify({
-          messages: contextMessages,
+          // Long chats: only the recent messages are sent; the server keeps a rolling summary.
+          messages: contextMessages.slice(-40),
           images: sending.map((p) => ({ media_type: p.media_type, data: p.data })),
           conversation_id: activeId || undefined,
+          project_id: !activeId && activeProjectId ? activeProjectId : undefined,
           display: typed,
           ...(askExpert ? { ask_expert: true } : {}),
         }),
@@ -468,6 +538,7 @@ export default function DetailingAiPage() {
           if (sessionPhotos.current.new) { sessionPhotos.current[data.conversation.id] = sessionPhotos.current.new; delete sessionPhotos.current.new; }
         }
         if (data.conversation?.title) setActiveTitle(data.conversation.title);
+        if (typeof data.long_chat === 'boolean') setLongChat(data.long_chat);
         if (data.conversation) loadChats();
         if (data.escalate?.ticket) {
           await fileEscalation({ ticket: data.escalate.ticket, convId, aiReply: reply, contextMessages });
@@ -482,6 +553,22 @@ export default function DetailingAiPage() {
     } finally {
       setLoading(false);
       inputRef.current?.focus();
+    }
+  };
+
+  const startFreshChat = async () => {
+    if (!activeId || freshBusy) return;
+    setFreshBusy(true);
+    try {
+      const res = await fetch(`/api/detailing-ai/conversations/${activeId}/fresh`, { method: 'POST', headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.conversation?.id) { setError(data.error || 'Could not start a fresh chat.'); return; }
+      await openChat(data.conversation.id);
+      loadChats();
+      setAnnounce('Fresh chat started. A summary of the earlier chat was carried over.');
+      setTimeout(() => inputRef.current?.focus(), 0);
+    } finally {
+      setFreshBusy(false);
     }
   };
 
@@ -506,28 +593,8 @@ export default function DetailingAiPage() {
 
   const thread = buildThread(messages, escalations);
 
-  const chatList = (where) => (
-    <div className="flex flex-col min-h-0 h-full">
-      <button
-        type="button"
-        onClick={newChat}
-        className="h-11 w-full shrink-0 rounded-xl bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-wider hover:brightness-110 transition flex items-center justify-center gap-2"
-      >
-        <span aria-hidden="true" className="text-base leading-none">+</span> New chat
-      </button>
-      {/* Sidebar: h2 (it comes before the page heading in reading order). Drawer: h3 under the dialog's h2. */}
-      {where === 'side' ? (
-        <h2 id={`chats-heading-${where}`} className="mt-4 mb-2 text-[10px] uppercase tracking-widest text-v-text-secondary">Your chats</h2>
-      ) : (
-        <h3 id={`chats-heading-${where}`} className="mt-4 mb-2 text-[10px] uppercase tracking-widest text-v-text-secondary">Your chats</h3>
-      )}
-      {!chatsAvailable ? (
-        <p className="text-xs text-v-text-secondary">Saved chats aren&apos;t available right now. This chat still works, it just won&apos;t be saved.</p>
-      ) : chats.length === 0 ? (
-        <p className="text-xs text-v-text-secondary">No saved chats yet. Your questions are saved here automatically.</p>
-      ) : (
-        <ul aria-labelledby={`chats-heading-${where}`} className="space-y-1 overflow-y-auto overscroll-contain min-h-0 -mx-1 px-1">
-          {chats.map((c) => {
+  const chatItem = (c, where) => {
+
             const isActive = c.id === activeId;
             if (renamingId === c.id) {
               return (
@@ -596,11 +663,140 @@ export default function DetailingAiPage() {
                 </button>
               </li>
             );
-          })}
-        </ul>
+  };
+
+  const projectFormView = (where) => (
+    <form
+      onSubmit={(e) => { e.preventDefault(); saveProject(); }}
+      className="mt-3 rounded-xl border border-v-gold/40 p-3 space-y-2"
+      aria-labelledby={`project-form-title-${where}`}
+    >
+      <p id={`project-form-title-${where}`} className="text-xs font-semibold text-v-text-primary">{projectForm.id ? 'Edit project' : 'New project'}</p>
+      <div>
+        <label htmlFor={`project-name-${where}`} className="block text-[11px] uppercase tracking-widest text-v-text-secondary mb-1">Project name</label>
+        <input
+          id={`project-name-${where}`}
+          value={projectForm.name}
+          maxLength={60}
+          autoFocus
+          required
+          placeholder="e.g. N123AB King Air"
+          onChange={(e) => setProjectForm((f) => ({ ...f, name: e.target.value }))}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setProjectForm(null); } }}
+          className="w-full rounded-lg bg-v-charcoal border border-v-border-subtle px-3 py-2 text-sm text-v-text-primary placeholder:text-v-text-secondary/70 focus:outline-none focus:border-v-gold/60"
+        />
+      </div>
+      <div>
+        <label htmlFor={`project-notes-${where}`} className="block text-[11px] uppercase tracking-widest text-v-text-secondary mb-1">Notes (optional)</label>
+        <textarea
+          id={`project-notes-${where}`}
+          value={projectForm.notes}
+          maxLength={2000}
+          rows={3}
+          aria-describedby={`project-notes-help-${where}`}
+          placeholder="Aircraft, paint type, products and tools you own…"
+          onChange={(e) => setProjectForm((f) => ({ ...f, notes: e.target.value }))}
+          className="w-full rounded-lg bg-v-charcoal border border-v-border-subtle px-3 py-2 text-sm text-v-text-primary placeholder:text-v-text-secondary/70 focus:outline-none focus:border-v-gold/60"
+        />
+        <p id={`project-notes-help-${where}`} className="mt-1 text-[11px] text-v-text-secondary">Detailing AI reads these notes in every chat in this project.</p>
+      </div>
+      {projectForm.confirmDelete ? (
+        <div role="group" aria-label="Delete project?" className="rounded-lg border border-red-400/50 p-2">
+          <p className="text-xs text-v-text-primary">Delete this project? Its chats move to Unsorted.</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={deleteProject} className="min-h-[44px] px-3 rounded-lg bg-red-500 text-white text-xs font-semibold">Delete project</button>
+            <button type="button" autoFocus onClick={() => setProjectForm((f) => ({ ...f, confirmDelete: false }))} className="min-h-[44px] px-3 rounded-lg border border-v-border-subtle text-v-text-primary text-xs">Keep it</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" className="min-h-[44px] px-4 rounded-lg bg-v-gold text-v-charcoal text-xs font-semibold">Save</button>
+          <button type="button" onClick={() => setProjectForm(null)} className="min-h-[44px] px-3 rounded-lg border border-v-border-subtle text-v-text-primary text-xs">Cancel</button>
+          {projectForm.id && (
+            <button type="button" onClick={() => setProjectForm((f) => ({ ...f, confirmDelete: true }))} className="min-h-[44px] px-3 rounded-lg border border-red-400/50 text-red-200 text-xs ml-auto">Delete</button>
+          )}
+        </div>
       )}
-    </div>
+    </form>
   );
+
+  const chatList = (where) => {
+    const H = where === 'side' ? 'h2' : 'h3';
+    const G = where === 'side' ? 'h3' : 'h4';
+    const groups = [
+      ...projects.map((pr) => ({ id: pr.id, name: pr.name, project: pr, items: chats.filter((c) => c.project_id === pr.id) })),
+      { id: null, name: 'Unsorted', project: null, items: chats.filter((c) => !c.project_id || !projects.some((pr) => pr.id === c.project_id)) },
+    ];
+    return (
+      <div className="flex flex-col min-h-0 h-full">
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => newChat(null)}
+            className="h-11 flex-1 rounded-xl bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-wider hover:brightness-110 transition flex items-center justify-center gap-2"
+          >
+            <span aria-hidden="true" className="text-base leading-none">+</span> New chat
+          </button>
+          {projectsAvailable && (
+            <button
+              type="button"
+              onClick={() => setProjectForm({ id: null, name: '', notes: '' })}
+              className="h-11 px-3 rounded-xl border border-v-border-subtle text-v-text-primary text-xs font-semibold hover:border-v-gold/50"
+            >
+              New project
+            </button>
+          )}
+        </div>
+        {projectForm && projectFormView(where)}
+        <H id={`chats-heading-${where}`} className="mt-4 mb-1 text-[11px] uppercase tracking-widest text-v-text-secondary">Your chats</H>
+        {!chatsAvailable ? (
+          <p className="text-xs text-v-text-secondary">Saved chats aren&apos;t available right now. This chat still works, it just won&apos;t be saved.</p>
+        ) : chats.length === 0 && projects.length === 0 ? (
+          <p className="text-xs text-v-text-secondary">No saved chats yet. Your questions are saved here automatically.</p>
+        ) : (
+          <div className="overflow-y-auto overscroll-contain min-h-0 -mx-1 px-1 space-y-3">
+            {groups.filter((g) => g.project || g.items.length || projects.length === 0).map((g) => (
+              <section key={g.id || 'unsorted'} aria-labelledby={`group-${where}-${g.id || 'unsorted'}`}>
+                <div className="flex items-center gap-1">
+                  <G id={`group-${where}-${g.id || 'unsorted'}`} className="flex-1 min-w-0 truncate text-xs font-semibold text-v-text-primary">
+                    {g.name} <span className="font-normal text-v-text-secondary">({g.items.length})</span>
+                  </G>
+                  {g.project && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => newChat(g.id)}
+                        aria-label={`New chat in ${g.name}`}
+                        className="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center text-v-text-secondary hover:text-v-text-primary"
+                      >
+                        <span aria-hidden="true" className="text-lg leading-none">+</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProjectForm({ id: g.id, name: g.project.name, notes: g.project.notes || '' })}
+                        aria-label={`Edit project: ${g.name}`}
+                        className="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center text-v-text-secondary hover:text-v-text-primary"
+                      >
+                        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M14 6l4 4" /></svg>
+                      </button>
+                    </>
+                  )}
+                </div>
+                {g.project?.notes && <p className="text-[11px] text-v-text-secondary truncate" title={g.project.notes}>Notes: {g.project.notes}</p>}
+                {g.items.length ? (
+                  <ul aria-labelledby={`group-${where}-${g.id || 'unsorted'}`} className="mt-1 space-y-1">
+                    {g.items.map((c) => chatItem(c, where))}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-[11px] text-v-text-secondary">No chats yet.</p>
+                )}
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <AppShell title="Detailing AI">
@@ -668,6 +864,20 @@ export default function DetailingAiPage() {
               </button>
             </div>
             <p className="hidden md:block mt-2 text-sm text-v-text-primary truncate"><span className="sr-only">Current chat: </span>{activeTitle}</p>
+            {projectsAvailable && chatsAvailable && (
+              <div className="mt-2 flex items-center gap-2 min-w-0">
+                <label htmlFor="chat-project" className="text-xs text-v-text-secondary shrink-0">Project</label>
+                <select
+                  id="chat-project"
+                  value={activeProjectId || ''}
+                  onChange={(e) => moveChat(e.target.value || null)}
+                  className="min-h-[44px] md:min-h-[36px] min-w-0 max-w-full flex-1 md:flex-none md:w-64 rounded-lg bg-v-charcoal border border-v-border-subtle px-2 text-sm text-v-text-primary focus:outline-none focus:border-v-gold/60"
+                >
+                  <option value="">Unsorted</option>
+                  {projects.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           <div
@@ -678,6 +888,12 @@ export default function DetailingAiPage() {
             aria-busy={loadingChat ? 'true' : undefined}
           >
             {loadingChat && <p className="text-xs text-v-text-secondary">Opening chat…</p>}
+            {carriedSummary && (
+              <details className="rounded-xl border border-v-border-subtle bg-v-charcoal px-4 py-3 text-sm text-v-text-primary">
+                <summary className="cursor-pointer text-xs font-semibold min-h-[24px]">Summary carried over from your earlier chat</summary>
+                <p className="mt-2 whitespace-pre-wrap text-v-text-primary">{carriedSummary}</p>
+              </details>
+            )}
             {thread.map((it) => {
               if (it.kind === 'expert') {
                 const e = it.e;
@@ -851,6 +1067,19 @@ export default function DetailingAiPage() {
             </ul>
           )}
 
+          {longChat && activeId && !loadingChat && (
+            <div className="mt-3 shrink-0 rounded-xl border border-v-gold/40 bg-v-gold/10 px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-2" role="note" aria-label="Long chat">
+              <p className="text-xs text-v-text-primary flex-1">This chat is getting long. It still works (older messages are summarized), but a fresh chat keeps answers focused.</p>
+              <button
+                type="button"
+                onClick={startFreshChat}
+                disabled={freshBusy || loading}
+                className="min-h-[44px] px-3 rounded-lg bg-v-gold text-v-charcoal text-xs font-semibold disabled:opacity-50"
+              >
+                {freshBusy ? 'Starting…' : 'Start a fresh chat (summary carried over)'}
+              </button>
+            </div>
+          )}
           {(messages.length > 1 || input.trim() || photos.length > 0) && !loadingChat && (
             <div className="mt-2 flex items-center justify-end gap-2 shrink-0">
               <span className="text-xs text-v-text-secondary">Stuck?</span>

@@ -21,7 +21,7 @@ check('slide content covers Brett\'s points', () => {
   for (const w of ['skills', 'labor and time', 'great results']) assert.ok(welcome.includes(w), w);
   for (const w of ['Aircraft type', 'leading edge', 'belly', 'brightwork', 'paint', 'bare aluminum', 'chrome', 'What you see', 'tried', 'products, pad, machine', 'goal']) assert.ok(ask.includes(w), w);
   for (const w of ['shade', 'angle', 'swirl light or flashlight', 'white paint', 'close-up', 'wider shot', 'Wipe the area clean']) assert.ok(photos.includes(w), w);
-  for (const w of ['new chat', 'aircraft or problem']) assert.ok(organize.includes(w), w);
+  for (const w of ['new chat', 'aircraft or problem', 'project', 'notes', 'fresh chat', 'summary']) assert.ok(organize.includes(w), w);
   assert.ok(stuck.includes(ASK_EXPERT_LABEL) && stuck.includes('Brett answers'));
 });
 
