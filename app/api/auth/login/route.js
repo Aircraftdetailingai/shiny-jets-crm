@@ -178,7 +178,15 @@ export async function POST(request) {
       stripe_mode: data.stripe_mode || 'test',
       stripe_account_id: data.stripe_account_id || null,
       stripe_onboarding_complete: !!data.stripe_onboarding_complete,
+      ai_access_until: null,
     };
+    // Standalone Detailing AI access (detailers.ai_access_until). Read separately so a
+    // missing column (migration not applied yet) can never break login.
+    try {
+      const { data: ai, error: aiErr } = await supabase
+        .from('detailers').select('ai_access_until').eq('id', data.id).maybeSingle();
+      if (!aiErr) user.ai_access_until = ai?.ai_access_until || null;
+    } catch {}
     return new Response(
       JSON.stringify({ token, user, must_change_password: data.must_change_password, onboarding_complete: data.onboarding_complete !== false }),
       { status: 200 }
