@@ -29,6 +29,8 @@ import { getOwnedConversation, getOwnedProject, createConversation, saveTurn, sa
 import { splitHistory, unsummarizedOlder, extractiveSummary, contextSections, isLongChat, SUMMARIZE_AFTER, CLIENT_HISTORY_MAX } from '@/lib/detailing-ai-context';
 import { summarizeMessages } from '@/lib/detailing-ai-summary';
 import { askExpertConfig, askExpertPointerText, isAskExpertEnabled } from '@/lib/ask-expert-payment';
+import { getServiceSupabase } from '@/lib/ask-brett-server';
+import { requireTermsAccepted } from '@/lib/detailing-ai-terms-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -329,6 +331,9 @@ export async function POST(request) {
     }
     const planGate = await requireFeature(request, 'detailingAi', { user });
     if (planGate) return planGate;
+    // Aircraft Detailing AI Terms: no chat until this user accepted the current version.
+    const termsGate = await requireTermsAccepted(getServiceSupabase(), user);
+    if (termsGate) return termsGate;
 
     const body = await request.json().catch(() => ({}));
     // Drops the page's leading assistant greeting, merges same-role turns, removes empty turns.

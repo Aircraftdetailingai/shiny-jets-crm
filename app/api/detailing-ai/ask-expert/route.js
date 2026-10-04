@@ -6,6 +6,7 @@ import { escalationAllowance, limitReachedText, shapeContext, questionFromContex
 import { getServiceSupabase, accountIdFor, storeEscalationPhotos, appUrl, expireUnpaid } from '@/lib/ask-brett-server';
 import { getOwnedConversation, getOwnedProject, createConversation, saveTurn, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
 import { askExpertConfig, askExpertVariantId, buildCheckoutUrl, paymentExpiry, storeUrl, STATUS_AWAITING_PAYMENT, ASK_EXPERT_ONE_QUESTION } from '@/lib/ask-expert-payment';
+import { requireTermsAccepted } from '@/lib/detailing-ai-terms-server';
 
 const SAVED_NOTE = `Saved for a Shiny Jets expert: ${ASK_EXPERT_ONE_QUESTION}. Brett gets it as soon as your payment goes through, and the answer comes back here and by email.`;
 
@@ -32,6 +33,8 @@ export async function POST(request) {
     if (user.role === 'crew') return Response.json({ error: 'Owner/staff access required' }, { status: 403 });
     const planGate = await requireFeature(request, 'detailingAi', { user });
     if (planGate) return planGate;
+    const termsGate = await requireTermsAccepted(getServiceSupabase(), user);
+    if (termsGate) return termsGate;
 
     // No product yet -> "Coming soon": never save or send a free question from the button.
     const variantId = askExpertVariantId();
