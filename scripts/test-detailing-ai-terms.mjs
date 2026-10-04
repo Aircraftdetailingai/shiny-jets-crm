@@ -37,12 +37,21 @@ function fakeSupabase({ rows = [], error = null } = {}) {
 }
 const user = { id: 'u-1', detailer_id: '11111111-1111-1111-1111-111111111111', email: 'pilot@example.com' };
 
-check('terms text is Brett\'s approved text, 13 sections, labeled Aircraft Detailing AI', () => {
+check('terms text is Brett\'s approved text (2026-10-04), 17 sections, labeled Aircraft Detailing AI', () => {
   assert.match(TERMS_TEXT, /^AIRCRAFT DETAILING AI TERMS OF SERVICE\n/);
-  assert.equal(TERMS.sections.length, 13);
+  assert.equal(TERMS.sections.length, 17);
+  assert.deepEqual(TERMS.sections.map((s) => Number(s.n)), Array.from({ length: 17 }, (_, i) => i + 1));
   assert.equal(TERMS.sections[0].heading, 'Acceptance');
   assert.match(TERMS.sections[1].body, /\$59\.95 per month or \$599 per year/);
-  assert.match(TERMS.sections[10].body, /ask you to accept them again at login/);
+  assert.match(TERMS.sections[4].body, /ignore the AI's warnings, cautions or advice to test a spot first, the result is solely your responsibility/);
+  assert.match(TERMS.sections[5].body, /ignoring the AI's warnings, cautions or test-spot advice/);
+  assert.deepEqual(TERMS.sections.slice(9, 13).map((s) => s.heading), ['Ownership', 'No copying or competing use', 'No tampering', 'Enforcement']);
+  assert.match(TERMS.sections[12].body, /terminate your account immediately with no refund/);
+  assert.equal(TERMS.sections[14].heading, 'Changes');
+  assert.match(TERMS.sections[14].body, /ask you to accept them again at login/);
+  assert.match(TERMS.sections[14].body, new RegExp(`effective version of these terms is ${TERMS_VERSION}\\.`));
+  assert.equal(TERMS.sections[16].heading, 'Contact');
+  assert.equal(TERMS_VERSION, '2026-10-04');
   assert.equal(TERMS_LABEL, 'Aircraft Detailing AI Terms');
   assert.match(TERMS_VERSION, /^\d{4}-\d{2}-\d{2}$/);
   assert.deepEqual(parseTerms(TERMS_TEXT), TERMS);
@@ -62,8 +71,8 @@ check('status: not accepted -> accepted after recording (stores version, time, u
   assert.equal(sb.calls[0][1].table, TERMS_TABLE);
 });
 
-check('version change: an older acceptance does not count', async () => {
-  const sb = fakeSupabase({ rows: [{ user_id: 'u-1', terms_version: '2020-01-01', accepted_at: '2020-01-01T00:00:00Z' }] });
+check('version change: an older acceptance (incl. 2026-10-03) does not count', async () => {
+  const sb = fakeSupabase({ rows: [{ user_id: 'u-1', terms_version: '2020-01-01', accepted_at: '2020-01-01T00:00:00Z' }, { user_id: 'u-1', terms_version: '2026-10-03', accepted_at: '2026-10-03T20:00:00Z' }] });
   assert.equal((await getTermsStatus(sb, user)).accepted, false);
 });
 
