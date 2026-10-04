@@ -53,7 +53,7 @@ export default function AuthCallbackPage() {
         session = data?.session;
       }
 
-      if (!session?.user?.email) {
+      if (!session?.user?.email || !session?.access_token) {
         fail('No session after authentication');
         return;
       }
@@ -63,10 +63,14 @@ export default function AuthCallbackPage() {
       const email = session.user.email.toLowerCase().trim();
       const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
 
-      // Call our backend to get/create detailer + issue JWT
+      // Call our backend to get/create detailer + issue JWT.
+      // The access token is the proof of identity; the server ignores body email / oauth_id.
       const res = await fetch('/api/auth/oauth-complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           email,
           name,

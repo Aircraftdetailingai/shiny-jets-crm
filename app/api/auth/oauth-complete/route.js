@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createToken } from '@/lib/auth';
 import { redeemCompInviteIfAny } from '@/lib/comp-invites';
 import { normalizePlan } from '@/lib/plans';
+import { identityFromSupabaseUser, readBearerToken } from '@/lib/oauth-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,15 +17,38 @@ const ADMIN_EMAILS = ['brett@vectorav.ai', 'admin@vectorav.ai', 'brett@shinyjets
 
 export async function POST(request) {
   try {
-    const { email, name, provider, oauth_id } = await request.json();
-
-    console.log('[oauth-complete] START:', { email, name, provider });
-
-    if (!email) {
-      return Response.json({ error: 'Email required' }, { status: 400 });
+    // The body used to supply email and oauth_id, and this route minted a CRM
+    // JWT for whatever account that email belonged to. Require the Supabase
+    // access token from the Google OAuth session and use only the user the
+    // Auth server returns for it.
+    const accessToken = readBearerToken(request.headers.get('authorization'));
+    if (!accessToken) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = getSupabase();
+    const { data: verified, error: verifyError } = await supabase.auth.getUser(accessToken);
+    const identity = identityFromSupabaseUser(verified?.user);
+    if (verifyError || !identity) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { email, oauth_id } = identity;
+    const authUser = verified.user;
+
+    let name = '';
+    let provider = authUser.app_metadata?.provider || 'google';
+    try {
+      const body = await request.json();
+      if (body && typeof body === 'object') {
+        if (typeof body.name === 'string') name = body.name;
+        if (typeof body.provider === 'string' && body.provider.trim()) provider = body.provider;
+      }
+    } catch {
+      // Name and provider are display-only. Email and oauth_id stay verified.
+    }
+
+    console.log('[oauth-complete] START:', { email, name, provider });
 
     // Look up existing detailer
     const { data: existing, error: lookupError } = await supabase

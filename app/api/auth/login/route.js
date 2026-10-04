@@ -2,6 +2,18 @@ import { createClient } from '@supabase/supabase-js';
 import { comparePassword, hashPassword, createToken } from '../../../../lib/auth';
 import { cookies } from 'next/headers';
 import { normalizePlan } from '@/lib/plans';
+import {
+  detailerEmailQuery,
+  matchDetailerPassword,
+  noteDuplicateDetailers,
+  preferredDetailer,
+} from '@/lib/auth-detailer-lookup';
+import {
+  LOGIN_RATE_LIMIT_MESSAGE,
+  clientIpFromRequest,
+  loginRateLimit,
+  recordLoginFailure,
+} from '@/lib/login-rate-limit';
 
 const ADMIN_EMAILS = [
   'brett@vectorav.ai',
@@ -26,6 +38,14 @@ export async function POST(request) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const ip = clientIpFromRequest(request);
+    const rate = loginRateLimit(normalizedEmail, ip);
+    if (rate.limited) {
+      return new Response(JSON.stringify({ error: LOGIN_RATE_LIMIT_MESSAGE }), {
+        status: 429,
+        headers: { 'Retry-After': String(rate.retryAfter) },
+      });
+    }
 
     // Look up the detailer — explicit column list sized to exactly the fields
     // the response body writes back to localStorage.vector_user. We deliberately
@@ -42,7 +62,7 @@ export async function POST(request) {
       'subscription_status', 'subscription_source',
       // profile
       'name', 'phone', 'company',
-      'created_at',
+      'created_at', 'updated_at',
       // preferences
       'rates', 'notification_settings', 'price_reminder_months',
       'quote_display_preference', 'quote_display_mode',
@@ -65,27 +85,28 @@ export async function POST(request) {
       // state without a separate /api/stripe/status roundtrip on every page)
       'stripe_mode', 'stripe_account_id', 'stripe_onboarding_complete',
     ].join(', ');
-    const { data, error } = await supabase
-      .from('detailers')
-      .select(LOGIN_SELECT)
-      .eq('email', normalizedEmail)
-      .single();
-    if (error || !data) {
+    const { data: matches, error } = await detailerEmailQuery(
+      supabase.from('detailers').select(LOGIN_SELECT),
+      normalizedEmail,
+    );
+    if (error || !matches?.length) {
+      // A lookup error is not a bad password (don't burn the failure budget).
+      if (!error) recordLoginFailure(normalizedEmail, ip);
       return new Response(JSON.stringify({ error: 'Invalid email or password' }), { status: 401 });
     }
 
-    // Try bcrypt comparison first (passwords hashed by our app)
-    let valid = false;
-    if (data.password_hash) {
-      try {
-        valid = await comparePassword(password, data.password_hash);
-      } catch (e) {
-        // bcrypt comparison failed, will fall through to Supabase Auth
-      }
-    }
+    noteDuplicateDetailers(matches, normalizedEmail);
 
-    // If bcrypt didn't match, try Supabase Auth
+    // Try each candidate's bcrypt hash. A duplicate row must not hide a
+    // valid password stored on the other row.
+    let data = await matchDetailerPassword(matches, password, comparePassword);
+    let valid = !!data;
+
+    // If bcrypt didn't match, try Supabase Auth. The hash is written onto
+    // the preferred row: the only row, or the newest duplicate that already
+    // has a password_hash.
     if (!valid) {
+      data = preferredDetailer(matches);
       try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
@@ -102,6 +123,7 @@ export async function POST(request) {
     }
 
     if (!valid) {
+      recordLoginFailure(normalizedEmail, ip);
       return new Response(JSON.stringify({ error: 'Invalid email or password' }), { status: 401 });
     }
 

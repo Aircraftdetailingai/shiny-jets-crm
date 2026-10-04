@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { SignJWT } from 'jose';
 import { sendEmail as sendLibEmail } from '@/lib/email';
+import { detailerEmailQuery, resolveAuthDetailer } from '@/lib/auth-detailer-lookup';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,14 +60,15 @@ export async function POST(request) {
     const normalizedEmail = email.toLowerCase().trim();
     const supabase = getSupabase();
 
-    // Look up the detailer
-    const { data: detailer } = await supabase
-      .from('detailers')
-      .select('id, email, name')
-      .eq('email', normalizedEmail)
-      .single();
+    // Look up the detailer. Up to 2 rows, case-insensitive. Duplicates log
+    // and use the most recently updated row that has a password_hash.
+    // Always return success when no row matches, to prevent email enumeration.
+    const { data: matches } = await detailerEmailQuery(
+      supabase.from('detailers').select('id, email, name, password_hash, updated_at'),
+      normalizedEmail,
+    );
+    const detailer = resolveAuthDetailer(matches, normalizedEmail);
 
-    // Always return success to prevent email enumeration
     if (!detailer) {
       return new Response(JSON.stringify({ success: true }), { status: 200 });
     }
