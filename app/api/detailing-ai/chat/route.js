@@ -24,6 +24,7 @@ import {
   signEscalationTicket,
   limitReachedText,
   replaceEscalationSentence,
+  askExpertRawReply,
 } from '@/lib/ask-brett';
 import { getOwnedConversation, getOwnedProject, createConversation, saveTurn, saveSummary, storedMessage, isUuid } from '@/lib/detailing-ai-conversations';
 import { splitHistory, unsummarizedOlder, extractiveSummary, contextSections, isLongChat, SUMMARIZE_AFTER, CLIENT_HISTORY_MAX } from '@/lib/detailing-ai-context';
@@ -386,10 +387,13 @@ export async function POST(request) {
       }
     }
 
+    // "Ask a Shiny Jets expert" button: file the question with Brett directly (no model call).
+    const askExpert = body.ask_expert === true;
+
     // Long chats never fail: recent turns under the token budget + rolling summary of older turns.
     const { recent, older } = splitHistory(messages);
     let summaryText = '';
-    if (older.length) {
+    if (older.length && !askExpert) {
       if (conversation && convDb) {
         const pending = unsummarizedOlder(conversation.messages, recent.length, conversation.summary_through_at);
         if (pending.length >= SUMMARIZE_AFTER) {
@@ -407,7 +411,7 @@ export async function POST(request) {
     const longChat = isLongChat(conversation?.messages?.length || 0, older.length);
 
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    const [knowledge, catalog] = await Promise.all([
+    const [knowledge, catalog] = askExpert ? ['', []] : await Promise.all([
       loadKnowledgeStub(lastUser?.content || ''),
       loadServicesCatalog(user),
     ]);
@@ -420,7 +424,9 @@ export async function POST(request) {
     };
 
     let result;
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (askExpert) {
+      result = { reply: askExpertRawReply(messages) };
+    } else if (process.env.ANTHROPIC_API_KEY) {
       result = await callAnthropic({ system, messages: recent, images });
     } else if (process.env.OPENAI_API_KEY) {
       result = await callOpenAI({ system, messages: recent, images });
