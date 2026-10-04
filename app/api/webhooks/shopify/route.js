@@ -24,6 +24,9 @@ import {
   pricingToolAccessEmail,
 } from '@/lib/pricing-tool-access';
 import { aiPurchaseFromLineItems, computeAiAccessUntil } from '@/lib/detailing-ai-access';
+import { askExpertVariantId, askExpertFromOrder } from '@/lib/ask-expert-payment';
+import { markEscalationPaid } from '@/lib/ask-brett-server';
+import { orderPaidMode } from '@/lib/shopify-webhook-routing';
 
 export const dynamic = 'force-dynamic';
 
@@ -1154,8 +1157,32 @@ async function handleDetailingAiAccess(supabase, payload) {
   return { mode, until };
 }
 
+// ─── Paid "Ask a Shiny Jets expert" question ($4.99 = one question) ───
+// The order carries the escalation id as a line-item property / cart attribute (ask_expert_id).
+// Only now does the question become 'open' and reach Brett (email + admin queue).
+async function handleAskExpertPaid(supabase, payload) {
+  const variantId = askExpertVariantId();
+  if (!variantId) return null;
+  const found = askExpertFromOrder(payload, variantId);
+  if (!found) return null;
+  if (found.error) {
+    console.error(`[shopify-webhook] ask-expert order ${found.orderId}: ${found.error}`);
+    return found;
+  }
+  const res = await markEscalationPaid(supabase, { escalationId: found.escalationId, orderId: found.orderId, orderName: found.orderName });
+  console.log(`[shopify-webhook] ask-expert order ${found.orderId} -> ${found.escalationId}: ${res.reason}`);
+  return res;
+}
+
 // ─── Handle: orders/paid ───
 async function handleOrderPaid(supabase, payload) {
+  // Paid expert question (isolated: never blocks other provisioning).
+  try {
+    await handleAskExpertPaid(supabase, payload);
+  } catch (e) {
+    console.error('[shopify-webhook] ask-expert error:', e?.message || e);
+  }
+
   // Course products → Pricing App access
   await handleCoursePricingAccess(supabase, payload);
 
@@ -1479,6 +1506,14 @@ async function handleBillingSuccess(supabase, payload) {
   );
 }
 
+// ─── Which registration owns orders/paid? ───
+// Shopify has TWO admin "Order payment" webhooks: the original one -> /api/shopify/webhook (does all
+// provisioning) and a second one -> /api/webhooks/shopify (added for the $4.99 expert question).
+// Both reach this handler, so one paid order arrives twice, almost at the same time. The per-order
+// guards below (crm_plan_granted etc.) are check-then-insert and don't stop two concurrent copies, so
+// only the original path provisions. The canonical path runs just the ask-expert step on orders/paid,
+// which is atomic (conditional status update + unique shopify_order_id) and notifies Brett once.
+// Every other topic is unchanged on both paths. See lib/shopify-webhook-routing.js.
 // ─── Main webhook handler ───
 export async function POST(request) {
   const rawBody = await request.text();
@@ -1512,7 +1547,11 @@ export async function POST(request) {
   try {
     switch (topic) {
       case 'orders/paid':
-        await handleOrderPaid(supabase, payload);
+        if (orderPaidMode(request.url) === 'full') {
+          await handleOrderPaid(supabase, payload);
+        } else {
+          await handleAskExpertPaid(supabase, payload);
+        }
         break;
 
       case 'subscription_contracts/update':

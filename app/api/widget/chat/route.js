@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { applyBrandRules, scrubRupes, scrubCompoundPro } from '@/lib/detailing-ai-messages';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,7 +127,9 @@ Rules:
     }
 
     const data = await response.json();
-    const reply = data.content?.[0]?.text || '';
+    const rawReply = data.content?.[0]?.text || '';
+    // Brand rules (Brett, Oct 3 2026): no banned brands, no unprompted not-recommended options.
+    const reply = rawReply ? scrubCompoundPro(scrubRupes(applyBrandRules(rawReply, conversationMessages)), 'compound') : rawReply;
 
     // Check if lead is complete
     if (reply.includes('[LEAD_COMPLETE]')) {

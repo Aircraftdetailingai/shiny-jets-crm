@@ -150,15 +150,29 @@ check('token estimate: big phone photo is capped near ~1,600 tokens; small ones 
   assert.equal(MAX_PHOTO_EDGE, 1568);
 });
 
-check('photo prompt: confidence, limits of a photo, better-shot request, non-aircraft refusal, rules still apply', () => {
+check('photo prompt: confidence, limits of a photo, better-shot request, rules still apply', () => {
   assert.match(PHOTO_PROMPT, /confident/);
   assert.match(PHOTO_PROMPT, /cannot prove/);
   assert.match(PHOTO_PROMPT, /single-stage vs clearcoat/);
   assert.match(PHOTO_PROMPT, /closer, well-lit/);
-  assert.match(PHOTO_PROMPT, /isn't of an aircraft/);
   assert.match(PHOTO_PROMPT, /rules above still apply/);
   assert.doesNotMatch(PHOTO_PROMPT, /recipe/i);
   assert.doesNotMatch(PHOTO_PROMPT, /rupes/i);
+});
+
+check('photo prompt: checks each photo is an aircraft FIRST; non-aircraft (car, boat, object) is called out, not diagnosed', () => {
+  const firstRule = PHOTO_PROMPT.split('\n').find((l) => l.startsWith('- '));
+  assert.match(firstRule, /^- FIRST, look at each photo/);
+  assert.match(PHOTO_PROMPT, /NOT an aircraft or aircraft part/);
+  for (const thing of ['car', 'boat', 'random object']) assert.ok(PHOTO_PROMPT.includes(thing), thing);
+  assert.match(PHOTO_PROMPT, /say so plainly/);
+  assert.match(PHOTO_PROMPT, /Do not diagnose it as an aircraft surface/);
+  assert.match(PHOTO_PROMPT, /do not call it a fuselage, wing or any aircraft part even if the detailer's text does/);
+  assert.match(PHOTO_PROMPT, /do not add quote suggestions for it/);
+  assert.match(PHOTO_PROMPT, /Ask for a photo of the aircraft surface/);
+  assert.match(PHOTO_PROMPT, /handle each one/);
+  // The aircraft check comes before any diagnosis instruction.
+  assert.ok(PHOTO_PROMPT.indexOf('NOT an aircraft') < PHOTO_PROMPT.indexOf('Describe what you can actually see'));
 });
 
 check('output guard wording still applies to photo answers ("recipe" -> "method")', () => {
@@ -176,6 +190,23 @@ check('route: validates photos, adds PHOTO_PROMPT only with photos, passes image
   assert.match(route, /withOpenAIPhotos\(messages, images\)/);
 });
 
+check('photo prompt: unclear photo -> thank them, best guess ("it looks like this might be"), ask part / what they see / goal, no full method yet', () => {
+  const rule = PHOTO_PROMPT.split('\n').find((l) => l.includes("can't clearly tell what a photo shows"));
+  assert.ok(rule, 'unclear-photo rule present');
+  assert.match(rule, /thank them/);
+  assert.match(rule, /best guess/);
+  assert.match(rule, /Thanks for the photo, it looks like this might be/);
+  assert.match(rule, /what part of the aircraft it is/);
+  assert.match(rule, /what they're seeing/);
+  assert.match(rule, /what they're trying to do/);
+  assert.match(rule, /Don't jump to a full method or quote suggestions until they answer/);
+  assert.ok(PHOTO_PROMPT.indexOf("can't clearly tell") < PHOTO_PROMPT.indexOf('Describe what you can actually see'), 'comes before diagnosis');
+});
+
+check('route: the photo rules (incl. the aircraft check) are in the system prompt whenever photos are sent', () => {
+  assert.match(route, /SYSTEM_PROMPT \+ \(images\.length \? PHOTO_PROMPT : ''\)/);
+});
+
 check('route: per-account rate limits incl. separate photo budget; 429 RATE_LIMITED', () => {
   assert.match(route, /accountPhotosHourly/);
   assert.match(route, /accountPhotosDaily/);
@@ -185,7 +216,7 @@ check('route: per-account rate limits incl. separate photo budget; 429 RATE_LIMI
 check('route: output guard runs on every reply (Rupes, Compound Pro, methods wording)', () => {
   assert.match(route, /scrubRupes\(result\.reply\)/);
   assert.match(route, /scrubCompoundPro\(rupesSafe/);
-  assert.match(route, /toMethodsWording\(compoundSafe\)/);
+  assert.match(route, /toMethodsWording\((?:applyBrandRules\()?compoundSafe/);
 });
 
 check('route: photos are never stored (no storage upload / insert of image data)', () => {
