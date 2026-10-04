@@ -64,7 +64,8 @@ export default function AuthCallbackPage() {
       const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
 
       // Call our backend to get/create detailer + issue JWT.
-      // The access token is the proof of identity; the server ignores body email / oauth_id.
+      // The access token is the proof of identity. The server validates it
+      // with Supabase and ignores the JSON body.
       const res = await fetch('/api/auth/oauth-complete', {
         method: 'POST',
         headers: {
