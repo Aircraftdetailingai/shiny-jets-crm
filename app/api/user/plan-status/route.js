@@ -3,11 +3,15 @@ import { getAuthUser } from '@/lib/auth';
 import { normalizePlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
+// cache:'no-store': without it Next caches the supabase GET select and this
+// polling endpoint keeps returning the first plan it saw (see lib/supabase-admin.js).
 function getSupabase() {
   return createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY,
+    { global: { fetch: (u, opts) => fetch(u, { ...opts, cache: 'no-store' }) } },
   );
 }
 
