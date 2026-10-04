@@ -1230,6 +1230,7 @@ export default function DetailingAiPage() {
             <textarea
               aria-label="Message Detailing AI"
               ref={inputRef}
+              maxLength={4000}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
