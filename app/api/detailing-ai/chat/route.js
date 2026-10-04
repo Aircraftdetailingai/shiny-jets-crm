@@ -298,7 +298,10 @@ function matchSuggestionsToCatalog(suggestions, catalog) {
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
 // Optional override (e.g. a local mock server in tests). Defaults to the real API.
 const ANTHROPIC_BASE_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, '');
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+// gpt-4o-mini (2024-07-18) still accepts images, but it is not a current model.
+// gpt-5.6-luna is the current cost-sensitive chat model: image input, chat
+// completions, and OPENAI_MODEL still overrides this.
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
 
 async function postProvider(provider, model, url, headers, payload) {
   let response;
@@ -337,12 +340,21 @@ async function callAnthropic({ system, messages, images }) {
 async function callOpenAI({ system, messages, images }) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return { error: 'missing_key' };
+  // max_completion_tokens is the current cap (max_tokens is deprecated). GPT-5.6
+  // reasons at medium by default and can spend that cap before any visible reply;
+  // none keeps this fallback a direct answer. gpt-4* overrides reject reasoning_effort.
+  const payload = {
+    model: OPENAI_MODEL,
+    max_completion_tokens: LIMITS.maxOutputTokens,
+    messages: [{ role: 'system', content: system }, ...withOpenAIPhotos(messages, images)],
+  };
+  if (!/^gpt-4/i.test(OPENAI_MODEL)) payload.reasoning_effort = 'none';
   const res = await postProvider(
     'openai',
     OPENAI_MODEL,
     'https://api.openai.com/v1/chat/completions',
     { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    { model: OPENAI_MODEL, max_tokens: LIMITS.maxOutputTokens, messages: [{ role: 'system', content: system }, ...withOpenAIPhotos(messages, images)] },
+    payload,
   );
   if (res.error) return res;
   return { reply: res.data?.choices?.[0]?.message?.content || '' };

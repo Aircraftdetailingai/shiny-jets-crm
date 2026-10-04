@@ -190,6 +190,9 @@ check('chat route sends the fallback through the same system prompt, brand rules
   assert.ok(brandAt > providerAt && guardAt > brandAt, 'brand rules and guardOutput run after the provider, for either answer');
   assert.match(src, /callAnthropic: \(\) => callAnthropic\(\{ system, messages: recent, images \}\)/);
   assert.match(src, /callOpenAI: \(\) => callOpenAI\(\{ system, messages: recent, images \}\)/);
+  assert.match(src, /OPENAI_MODEL = process\.env\.OPENAI_MODEL \|\| 'gpt-5\.6-luna'/);
+  assert.match(src, /max_completion_tokens: LIMITS\.maxOutputTokens/);
+  assert.match(src, /withOpenAIPhotos\(messages, images\)/);
   assert.match(src, /reply: FRIENDLY_PROVIDER_ERROR/);
   assert.equal(FRIENDLY_PROVIDER_ERROR.includes('API_KEY'), false);
 
