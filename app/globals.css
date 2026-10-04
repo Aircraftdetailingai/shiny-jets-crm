@@ -133,6 +133,21 @@ input:focus, textarea:focus, select:focus {
   outline: none;
 }
 
+/* The rule above removes outlines and sets a low-contrast border. These
+   unlayered rules win so the set-password fields meet WCAG 2.2 AA
+   (1.4.11 non-text contrast, 2.4.7 focus visible). */
+.set-password-form input {
+  background-color: #1E2A40;
+  border: 1px solid #94A3B8;
+  color: #F5F5F5;
+}
+.set-password-form input:focus,
+.set-password-form button:focus-visible {
+  outline: 2px solid #7DD3FC !important;
+  outline-offset: 2px;
+  border-color: #7DD3FC !important;
+}
+
 /* Ensure customer-facing pages (white bg) have dark text inputs */
 .theme-light input,
 .theme-light textarea,

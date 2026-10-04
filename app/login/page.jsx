@@ -9,6 +9,11 @@ import LanguageSelector from '@/components/LanguageSelector';
 import { useTranslation } from '@/lib/i18n';
 
 import { TERMS_VERSION } from '@/lib/terms';
+import {
+  MUST_CHANGE_PASSWORD_STORAGE_KEY,
+  postLoginPath,
+  readTokenPasswordChangeFlag,
+} from '@/lib/password-change';
 
 const LOGIN_NEXT_ALLOWLIST = ['/detailing-ai'];
 
@@ -30,6 +35,13 @@ function LoginContent() {
       const token = localStorage.getItem('vector_token');
       const user = localStorage.getItem('vector_user');
       if (token && user) {
+        if (
+          localStorage.getItem(MUST_CHANGE_PASSWORD_STORAGE_KEY) === '1' ||
+          readTokenPasswordChangeFlag(token)
+        ) {
+          router.push('/set-password');
+          return;
+        }
         const nextParam = new URLSearchParams(window.location.search).get('next');
         router.push(LOGIN_NEXT_ALLOWLIST.includes(nextParam) ? nextParam : '/dashboard');
         return;
@@ -68,11 +80,17 @@ function LoginContent() {
       if (data.token) {
         localStorage.setItem('vector_token', data.token);
         localStorage.setItem('vector_user', JSON.stringify(data.user));
+        if (data.must_change_password === true) {
+          localStorage.setItem(MUST_CHANGE_PASSWORD_STORAGE_KEY, '1');
+        } else {
+          localStorage.removeItem(MUST_CHANGE_PASSWORD_STORAGE_KEY);
+        }
         setUserCurrency(data.user?.currency || 'USD');
 
-        // Claim referral if stored
+        // Claim referral if stored. A temp-password session cannot call other
+        // APIs yet, so leave the code in place until the password is set.
         const refCode = localStorage.getItem('vector_referral_code');
-        if (refCode) {
+        if (refCode && data.must_change_password !== true) {
           try {
             await fetch('/api/referrals/claim', {
               method: 'POST',
@@ -86,9 +104,13 @@ function LoginContent() {
         // ?next= lets aircraftdetailing.ai send phone users straight to Detailing AI (allowlisted paths only).
         const nextParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
         const safeNext = LOGIN_NEXT_ALLOWLIST.includes(nextParam) ? nextParam : null;
-        const redirectTo = (data.must_change_password || data.onboarding_complete === false) ? '/onboarding' : (safeNext || '/dashboard');
-        // Skip terms modal if heading to onboarding — user will agree there
-        const termsOk = redirectTo === '/onboarding' || data.user.terms_accepted_version === TERMS_VERSION || localStorage.getItem('terms_accepted_session') === TERMS_VERSION;
+        const redirectTo = postLoginPath({
+          mustChangePassword: data.must_change_password === true,
+          onboardingComplete: data.onboarding_complete !== false,
+          next: safeNext,
+        });
+        // Skip terms modal if heading to onboarding or the password step — user will agree there
+        const termsOk = redirectTo === '/onboarding' || redirectTo.startsWith('/set-password') || data.user.terms_accepted_version === TERMS_VERSION || localStorage.getItem('terms_accepted_session') === TERMS_VERSION;
         if (!termsOk) {
           setPendingRedirect(redirectTo);
           setShowTermsModal(true);

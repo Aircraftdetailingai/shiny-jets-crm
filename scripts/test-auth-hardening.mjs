@@ -401,7 +401,9 @@ check('course first login still matches the temporary password on that account',
   assert.equal(matched.subscription_source, 'course_bundle');
   const login = read('app/api/auth/login/route.js');
   assert.match(login, /matchDetailerPassword\(matches, password, comparePassword\)/);
-  assert.match(login, /createToken\(\{ id: data\.id, email: data\.email \}\)/);
+  assert.match(login, /createToken\(sessionTokenClaims\(data\)\)/);
+  assert.match(read('lib/password-change.js'), /id: detailer\.id/);
+  assert.match(read('lib/password-change.js'), /email: detailer\.email/);
   assert.match(login, /must_change_password: data\.must_change_password/);
   assert.doesNotMatch(login, /supabase\.auth\.getUser/);
 });

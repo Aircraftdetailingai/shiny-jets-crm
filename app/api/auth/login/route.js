@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { comparePassword, hashPassword, createToken } from '../../../../lib/auth';
+import { sessionTokenClaims } from '@/lib/password-change';
 import { cookies } from 'next/headers';
 import { normalizePlan } from '@/lib/plans';
 import {
@@ -127,7 +128,7 @@ export async function POST(request) {
       return new Response(JSON.stringify({ error: 'Invalid email or password' }), { status: 401 });
     }
 
-    const token = await createToken({ id: data.id, email: data.email });
+    const token = await createToken(sessionTokenClaims(data));
 
     // Set auth cookie for server-side auth
     try {
