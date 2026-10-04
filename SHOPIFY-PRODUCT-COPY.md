@@ -76,11 +76,11 @@ Start quoting aircraft detailing jobs today — free forever. 5 sent quotes a mo
 | **Product Type** | Digital / Subscription |
 | **Vendor** | Shiny Jets |
 | **Meta Title** | Shiny Jets CRM Lite \| Aircraft Detailing CRM \| $39.95/mo |
-| **Meta Description** | Unlimited quotes, follow-ups, Google Calendar sync, invoices and online payments, jobs with photos, customer portal and Detailing AI — for solo aircraft detailers. |
+| **Meta Description** | Unlimited quotes, follow-ups, Google Calendar sync, invoices and online payments, jobs with photos and customer portal — for solo aircraft detailers. |
 
 ## Short Description
 ```
-Everything a solo aircraft detailer needs to quote, book, invoice and get paid: unlimited quotes, follow-ups, Google Calendar sync, invoices with deposits, jobs with photos, customer portal and Detailing AI.
+Everything a solo aircraft detailer needs to quote, book, invoice and get paid: unlimited quotes, follow-ups, Google Calendar sync, invoices with deposits, jobs with photos and customer portal.
 ```
 
 ## Full HTML Product Description
@@ -95,7 +95,6 @@ Everything a solo aircraft detailer needs to quote, book, invoice and get paid: 
   <li>Invoices + Stripe payments, deposits and Book Now, Pay Later</li>
   <li>Jobs with photos + completion and delivery reports</li>
   <li>Customer portal + live aircraft progress portal</li>
-  <li>Detailing AI + AI quote drafts</li>
   <li>Review and feedback requests</li>
   <li>Your own logo on quotes (with "Powered by Shiny Jets")</li>
   <li>1 user</li>
@@ -122,11 +121,11 @@ Everything a solo aircraft detailer needs to quote, book, invoice and get paid: 
 | **SKU** | SJ-CRM-BUSINESS | SJ-CRM-BUSINESS-YEARLY |
 | **Product Type** | Digital / Subscription | Digital / Subscription |
 | **Meta Title** | Shiny Jets CRM Business \| Aircraft Detailing Team Software | same |
-| **Meta Description** | Crew app, PIN time clock, payroll, dispatch, change orders, reports, inventory, full white-label and 0% platform fee — plus Pricing Tool access. | same |
+| **Meta Description** | Detailing AI, crew app, PIN time clock, payroll, dispatch, change orders, reports, inventory, full white-label and 0% platform fee — plus Pricing Tool access. | same |
 
 ## Short Description
 ```
-For detailing operations running a crew: up to 3 users, crew app, PIN time clock and payroll, dispatch, change orders, reports, inventory, full white-label and 0% platform fee. Pricing Tool access included.
+For detailing operations running a crew: Detailing AI, up to 3 users, crew app, PIN time clock and payroll, dispatch, change orders, reports, inventory, full white-label and 0% platform fee. Pricing Tool access included.
 ```
 
 ## Full HTML Product Description
@@ -135,6 +134,7 @@ For detailing operations running a crew: up to 3 users, crew app, PIN time clock
 <p>Shiny Jets CRM Business adds everything you need to run a crew — and includes the Shiny Jets Pricing Tool.</p>
 <h3>Everything in Lite, plus:</h3>
 <ul>
+  <li>Detailing AI + AI quote drafts</li>
   <li>Pricing Tool access included</li>
   <li>Up to 3 users (you + 2 team members) with roles &amp; permissions</li>
   <li>Crew app, PIN time clock and payroll</li>
@@ -190,7 +190,7 @@ Add to the Shopify theme `<head>` or use a schema app. (Do not add review/rating
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Shiny Jets CRM Lite",
-    "description": "Aircraft detailing CRM for solo detailers: unlimited quotes, follow-ups, Google Calendar sync, invoices and online payments, jobs with photos, customer portal and Detailing AI.",
+    "description": "Aircraft detailing CRM for solo detailers: unlimited quotes, follow-ups, Google Calendar sync, invoices and online payments, jobs with photos and customer portal.",
     "url": "https://shinyjets.com/products/aircraft-detailing-crm-pro",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",

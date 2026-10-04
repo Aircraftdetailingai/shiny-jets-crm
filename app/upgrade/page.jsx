@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PLAN_MARKETING, PLAN_NAMES, normalizePlan, planRank } from '@/lib/plans';
+import { PLAN_MARKETING, PLAN_NAMES, normalizePlan, planRank, STANDALONE_AI } from '@/lib/plans';
 import { getShopifyUpgradeUrl, SHOPIFY_MANAGE_URL } from '@/lib/shopify-products';
 
 const ORDER = ['free', 'lite', 'business'];
@@ -39,7 +39,7 @@ function UpgradeContent() {
         <div className="text-center mb-8 sm:mb-12">
           <h1 className="text-2xl sm:text-4xl font-light tracking-wide mb-3">Plans &amp; pricing</h1>
           <p className="text-sm sm:text-base text-v-text-secondary max-w-2xl mx-auto">
-            Start free. Upgrade when you need invoicing, jobs and automation (Lite), or a crew, dispatch and full white-label (Business).
+            Start free. Upgrade when you need invoicing, jobs and automation (Lite), or Detailing AI, a crew, dispatch and full white-label (Business).
           </p>
           {current && (
             <p className="mt-4 text-sm">
@@ -119,7 +119,16 @@ function UpgradeContent() {
           })}
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 text-sm text-v-text-secondary">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm text-v-text-secondary">
+          <div className="rounded-lg border border-v-border p-4">
+            <h3 className="text-v-text-primary font-medium mb-1">Just want Detailing AI?</h3>
+            <p>
+              Detailing AI is included with Business. You can also get it on its own for ${STANDALONE_AI.monthly}/mo or ${STANDALONE_AI.yearly}/yr at{' '}
+              <a href={STANDALONE_AI.url} target="_blank" rel="noopener noreferrer" className="text-v-text-primary underline underline-offset-2 hover:text-v-gold">
+                aircraftdetailing.ai<span className="sr-only"> (opens in a new tab)</span>
+              </a>.
+            </p>
+          </div>
           <div className="rounded-lg border border-v-border p-4">
             <h3 className="text-v-text-primary font-medium mb-1">Pricing Tool subscribers</h3>
             <p>A quarterly Pricing Tool subscription includes CRM Lite at no extra cost. Business includes Pricing Tool access.</p>
