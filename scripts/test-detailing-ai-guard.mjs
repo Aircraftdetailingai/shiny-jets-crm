@@ -188,6 +188,8 @@ check('guard: file names / excerpt headers are hidden', () => {
   assert.equal(g.action, 'trimmed');
   assert.ok(g.reasons.includes('internal_names'));
   assert.equal(redactInternalNames('Use a 3/4 inch pad on the 50/50 mix.'), 'Use a 3/4 inch pad on the 50/50 mix.');
+  assert.equal(redactInternalNames("The manual doesn't forbid it — U-turn rule applies."), "The manual doesn't forbid it — the rule that what the manual doesn't forbid is allowed applies.");
+  assert.equal(redactInternalNames('Manual interpretation (U-turn rule): obey bans.'), 'Manual interpretation: obey bans.');
 });
 
 check('guard: refusal heuristic (logging only)', () => {
