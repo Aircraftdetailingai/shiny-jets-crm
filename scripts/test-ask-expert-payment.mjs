@@ -159,6 +159,23 @@ check("Brett's email says paid vs free; poll item carries paid", () => {
   assert.equal(pollItem({ id: ID }, null, 'https://x').paid, false);
 });
 
+check('always-visible chip (Brett, Oct 3 9:28 PM): low-emphasis, AA, same confirm flow, Coming soon', () => {
+  const page = read('app/detailing-ai/page.jsx');
+  const row = page.slice(page.indexOf('data-testid="ask-expert-chip-row"'), page.indexOf('{expertError && <p role="alert" className="mt-1 text-xs text-amber-300 text-center'));
+  assert.ok(row.length > 100, 'chip row exists');
+  assert.ok(page.indexOf('<form onSubmit={onSubmit}') < page.indexOf('data-testid="ask-expert-chip-row"'), 'chip sits right below the input');
+  assert.ok(!/messages\.length > 1 \|\| input\.trim\(\)/.test(page), 'no longer hidden until a message exists');
+  assert.ok(!/Stuck\?/.test(page), 'one entry point: the chip replaces the old Stuck? button');
+  assert.match(row, /onClick=\{openExpertConfirm\}/);
+  assert.match(row, /aria-haspopup="dialog"/);
+  assert.match(row, /\{ASK_EXPERT_LABEL\} · \{ASK_EXPERT_PRICE_LABEL\}/);
+  assert.match(row, /\{ASK_EXPERT_LABEL\} · Coming soon/);
+  assert.match(row, /aria-disabled="true"/);
+  assert.match(row, /min-h-\[32px\]/, '>= 24 px target');
+  assert.match(row, /text-v-text-secondary/, 'grey, low-emphasis');
+  assert.ok(!/opacity-|disabled=\{/.test(row), 'no opacity / disabled styling that would drop contrast below 4.5:1');
+});
+
 let failed = 0;
 for (const [n, f] of tests) { try { await f(); console.log(`PASS ${n}`); } catch (e) { failed++; console.log(`FAIL ${n}\n  ${e.message}`); } }
 console.log(`\n${tests.length - failed}/${tests.length} passed`);
