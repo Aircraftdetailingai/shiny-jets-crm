@@ -7,7 +7,10 @@ import SocialLoginButtons from '@/components/SocialLoginButtons';
 import BiometricLogin from '@/components/BiometricLogin';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useTranslation } from '@/lib/i18n';
+
 import { TERMS_VERSION } from '@/lib/terms';
+
+const LOGIN_NEXT_ALLOWLIST = ['/detailing-ai'];
 
 function LoginContent() {
   const { t } = useTranslation();
@@ -26,7 +29,11 @@ function LoginContent() {
     if (params.get('logged_out') !== 'true') {
       const token = localStorage.getItem('vector_token');
       const user = localStorage.getItem('vector_user');
-      if (token && user) { router.push('/dashboard'); return; }
+      if (token && user) {
+        const nextParam = new URLSearchParams(window.location.search).get('next');
+        router.push(LOGIN_NEXT_ALLOWLIST.includes(nextParam) ? nextParam : '/dashboard');
+        return;
+      }
     }
 
     const errParam = params.get('error');
@@ -76,7 +83,10 @@ function LoginContent() {
           } catch {}
         }
 
-        const redirectTo = (data.must_change_password || data.onboarding_complete === false) ? '/onboarding' : '/dashboard';
+        // ?next= lets aircraftdetailing.ai send phone users straight to Detailing AI (allowlisted paths only).
+        const nextParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
+        const safeNext = LOGIN_NEXT_ALLOWLIST.includes(nextParam) ? nextParam : null;
+        const redirectTo = (data.must_change_password || data.onboarding_complete === false) ? '/onboarding' : (safeNext || '/dashboard');
         // Skip terms modal if heading to onboarding — user will agree there
         const termsOk = redirectTo === '/onboarding' || data.user.terms_accepted_version === TERMS_VERSION || localStorage.getItem('terms_accepted_session') === TERMS_VERSION;
         if (!termsOk) {

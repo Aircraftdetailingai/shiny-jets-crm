@@ -23,6 +23,7 @@ import {
   orderAlreadyApplied,
   pricingToolAccessEmail,
 } from '@/lib/pricing-tool-access';
+import { aiPurchaseFromLineItems, computeAiAccessUntil } from '@/lib/detailing-ai-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -939,12 +940,16 @@ async function createShopifyAccount(supabase, payload, { email, plan, planExpire
   const mailOpts = hasCourseGrant ? { from: COURSE_FROM, replyTo: COURSE_REPLY_TO } : {};
   const intro = reason === 'pricing_quarterly'
     ? `Your quarterly Pricing Tool subscription includes <strong>Shiny Jets CRM Lite</strong>. Your account is ready. Here are your login details:`
-    : `Your Shiny Jets CRM <strong>${escapeHtml(label)}</strong> account is ready. Here are your login details:`;
+    : reason === 'detailing_ai'
+      ? `Your <strong>Detailing AI</strong> subscription is active. Log in on your phone, open <a href="https://crm.shinyjets.com/detailing-ai" style="color:#007CB1;">crm.shinyjets.com/detailing-ai</a>, and add it to your home screen. Here are your login details:`
+      : `Your Shiny Jets CRM <strong>${escapeHtml(label)}</strong> account is ready. Here are your login details:`;
   await sendEmail(
     email,
     hasCourseGrant
       ? 'Your Shiny Jets CRM Business login (1 year included with your course)'
-      : 'Your Shiny Jets CRM login details',
+      : reason === 'detailing_ai'
+        ? 'Your Detailing AI login details'
+        : 'Your Shiny Jets CRM login details',
     `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#f9f9f9;">
       <span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;color:#f9f9f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">Your login details are inside — username, temporary password, and login link.</span>
       <div style="background:#fff;padding:32px;border-radius:12px;border:1px solid #e5e5e5;">
@@ -1082,6 +1087,73 @@ async function handleQuarterlyLiteGrant(supabase, payload) {
   return { mode: result.mode, granted };
 }
 
+// ─── Standalone Detailing AI (SJ-AI-STANDALONE / -YEARLY) → detailers.ai_access_until ───
+// Mirrors the CRM SKU + course auto-provisioning: a paid order gives that email
+// Detailing AI. Existing account → stack days onto ai_access_until (plan is never
+// touched). No account → create a Free CRM login (temp password email, like the
+// course flow) and stamp ai_access_until. Idempotent per order via webhook_logs.
+async function handleDetailingAiAccess(supabase, payload) {
+  const purchase = aiPurchaseFromLineItems(payload?.line_items || []);
+  if (!purchase) return null;
+  const orderId = String(payload?.id || '');
+  const email = extractEmail(payload);
+  if (!email) {
+    console.error('[shopify-webhook] detailing ai: no email on order', orderId);
+    return null;
+  }
+  if (await alreadyLogged(supabase, 'detailing_ai_access_granted', orderId)) {
+    console.log(`[shopify-webhook] detailing ai: idempotent skip order ${orderId}`);
+    return null;
+  }
+
+  let detailer = await findDetailer(supabase, payload);
+  let mode = 'extend';
+  if (!detailer) {
+    detailer = await createShopifyAccount(supabase, payload, {
+      email, plan: 'free', planExpiresAt: null, hasCourseGrant: false, reason: 'detailing_ai',
+    });
+    mode = detailer ? 'create_account' : 'create_failed';
+    if (!detailer) detailer = await findDetailer(supabase, payload); // race: created meanwhile
+  }
+  if (!detailer) return { mode };
+
+  const until = computeAiAccessUntil({ current: detailer.ai_access_until, days: purchase.days });
+  const update = { ai_access_until: until };
+  const shopifyCustomerId = String(payload?.customer?.id || '');
+  if (shopifyCustomerId && !detailer.shopify_customer_id) update.shopify_customer_id = shopifyCustomerId;
+  if (detailer.status === 'suspended') update.status = 'active';
+  const { error } = await supabase.from('detailers').update(update).eq('id', detailer.id);
+  if (error) {
+    // Most likely the 20261003_detailing_ai_standalone.sql migration is not applied yet.
+    console.error('[shopify-webhook] detailing ai: ai_access_until update failed:', error.message);
+    return { mode: 'update_failed' };
+  }
+
+  await logGrant(supabase, 'detailing_ai_access_granted', {
+    order_id: orderId,
+    order_name: payload?.name || null,
+    email,
+    days: purchase.days,
+    skus: purchase.skus,
+    mode,
+    previous_ai_access_until: detailer.ai_access_until || null,
+    ai_access_until: until,
+  });
+  if (mode === 'extend') {
+    try {
+      await sendEmail(email, 'Detailing AI is ready on your phone', `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;">
+        <h1 style="color:#007CB1;font-size:22px;margin:0 0 12px;">Detailing AI is on</h1>
+        <p style="font-size:15px;line-height:1.6;color:#555;">Your Detailing AI access runs through <strong>${escapeHtml(new Date(until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))}</strong> and renews with your subscription.</p>
+        <p style="font-size:15px;line-height:1.6;color:#555;">Open it on your phone, log in with <strong>${escapeHtml(email)}</strong>, then add it to your home screen (iPhone: Share → Add to Home Screen; Android: menu → Install app).</p>
+        <p style="text-align:center;margin:24px 0;"><a href="https://crm.shinyjets.com/detailing-ai" style="display:inline-block;padding:14px 28px;background:#007CB1;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Open Detailing AI</a></p>
+        <p style="font-size:12px;color:#888;line-height:1.5;">Detailing AI guidance is advisory only and does not replace the aircraft's OEM manuals or an A&amp;P/IA.</p>
+      </body></html>`, { text: `Detailing AI is on through ${new Date(until).toDateString()}. Open https://crm.shinyjets.com/detailing-ai on your phone, log in with ${email}, and add it to your home screen.` });
+    } catch {}
+  }
+  console.log(`[shopify-webhook] detailing ai ${mode}: ${email} order=${orderId} +${purchase.days}d until ${until}`);
+  return { mode, until };
+}
+
 // ─── Handle: orders/paid ───
 async function handleOrderPaid(supabase, payload) {
   // Course products → Pricing App access
@@ -1100,6 +1172,13 @@ async function handleOrderPaid(supabase, payload) {
     await handlePricingToolAccess(supabase, payload, { includesCrmLite: !!quarterly?.granted });
   } catch (e) {
     console.error('[shopify-webhook] pricing tool access error:', e?.message || e);
+  }
+
+  // Standalone Detailing AI (aircraftdetailing.ai) → ai_access_until (isolated).
+  try {
+    await handleDetailingAiAccess(supabase, payload);
+  } catch (e) {
+    console.error('[shopify-webhook] detailing ai access error:', e?.message || e);
   }
 
   const items = payload?.line_items || [];

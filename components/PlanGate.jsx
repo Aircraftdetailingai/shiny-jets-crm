@@ -6,6 +6,7 @@ import {
   hasFeature, normalizePlan, requiredPlanFor, upgradeUrlFor, upgradeMessage,
   PLAN_NAMES, PLAN_MARKETING, FEATURE_LABELS,
 } from '@/lib/plans';
+import { hasStandaloneAi } from '@/lib/detailing-ai-access';
 
 export function readStoredUser() {
   if (typeof window === 'undefined') return null;
@@ -25,7 +26,9 @@ export function userHasFeature(user, feature) {
   // Team members signed into the owner's CRM inherit the owner's plan; the
   // server is authoritative for them.
   if (user.detailer_id && user.id && user.detailer_id !== user.id) return true;
-  return hasFeature(normalizePlan(user.plan), feature);
+  if (hasFeature(normalizePlan(user.plan), feature)) return true;
+  // Standalone Detailing AI (aircraftdetailing.ai) unlocks only Detailing AI.
+  return feature === 'detailingAi' && hasStandaloneAi(user);
 }
 
 export function usePlanFeature(feature) {
