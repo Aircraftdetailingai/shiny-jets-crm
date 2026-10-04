@@ -270,6 +270,7 @@ export default function Sidebar() {
     // Clear all app data from localStorage
     localStorage.removeItem('vector_token');
     localStorage.removeItem('vector_user');
+    localStorage.removeItem('vector_must_change_password');
     localStorage.removeItem('stripe_banner_dismissed');
     localStorage.removeItem('terms_accepted_session');
     // Clear any Supabase auth keys

@@ -5,6 +5,7 @@ import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import BrandedHomescreen from '@/components/BrandedHomescreen'
 import Providers from '@/components/Providers'
 import SessionGuard from '@/components/SessionGuard'
+import PasswordChangeGuard from '@/components/PasswordChangeGuard'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -66,6 +67,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className={`${inter.variable} ${poppins.variable} ${inter.className} bg-v-charcoal text-v-text-primary antialiased`}>
         <SessionGuard />
+        <PasswordChangeGuard />
         <Providers>
           {children}
         </Providers>
