@@ -9,6 +9,7 @@ import {
   describeProviderError,
   FRIENDLY_PROVIDER_ERROR,
   FRIENDLY_NOT_CONFIGURED,
+  resolveDetailingProvider,
   scrubRupes,
   userAskedAboutRupes,
   scrubCompoundPro,
@@ -501,16 +502,31 @@ export async function POST(request) {
       return Response.json({ reply: FRIENDLY_NOT_CONFIGURED, configured: false, suggestions: null });
     };
 
-    let result;
-    if (process.env.ANTHROPIC_API_KEY) {
-      result = await callAnthropic({ system, messages: recent, images });
-    } else if (process.env.OPENAI_API_KEY) {
-      result = await callOpenAI({ system, messages: recent, images });
-    } else {
-      return notConfigured();
+    // Same system string for both providers: brand rules, protection prompt, and canary
+    // are already in `system`. A successful reply (either provider) still runs the brand
+    // scrub and guardOutput below. OpenAI is only a second attempt after the failures
+    // shouldFallbackToOpenAI allows, and only when OPENAI_API_KEY is set.
+    const completion = await resolveDetailingProvider({
+      anthropicConfigured: !!process.env.ANTHROPIC_API_KEY,
+      openaiConfigured: !!process.env.OPENAI_API_KEY,
+      callAnthropic: () => callAnthropic({ system, messages: recent, images }),
+      callOpenAI: () => callOpenAI({ system, messages: recent, images }),
+    });
+    let result = completion.result;
+    if (completion.fallback) {
+      console.error('[detailing-ai/chat] anthropic failed; retried once via openai:', JSON.stringify({
+        reason: completion.anthropicError?.reason || null,
+        status: completion.anthropicError?.status ?? null,
+      }));
+    }
+    if (!result?.error && completion.provider) {
+      console.log('[detailing-ai/chat] provider answered:', JSON.stringify({
+        provider: completion.provider,
+        fallback: completion.fallback,
+      }));
     }
 
-    if (result.error === 'missing_key') return notConfigured();
+    if (!result || result.error === 'missing_key') return notConfigured();
     await seenTask;
     // The provider can return no text (e.g. its own safety refusal). Never let an empty reply fall
     // through to the brand-rule fallback line; answer with a short on-topic refusal instead.
