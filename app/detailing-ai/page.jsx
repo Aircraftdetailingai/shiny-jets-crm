@@ -586,7 +586,8 @@ export default function DetailingAiPage() {
   };
 
   const openExpertConfirm = () => {
-    if (!expertCfg.enabled || loading || preparing) return;
+    if (!expertCfg.enabled) return;
+    if (loading || preparing) { setExpertError('Wait for the current answer to finish, then tap again.'); return; }
     const q = expertQuestion();
     setExpertError('');
     if (!q.summary && !q.sent.length) {
@@ -1197,37 +1198,6 @@ export default function DetailingAiPage() {
               </button>
             </div>
           )}
-          {(messages.length > 1 || input.trim() || photos.length > 0) && !loadingChat && (
-            <div className="mt-2 flex items-center justify-end gap-2 shrink-0">
-              <span className="text-xs text-v-text-secondary">Stuck?</span>
-              {expertCfg.enabled ? (
-                <button
-                  ref={expertButtonRef}
-                  type="button"
-                  onClick={openExpertConfirm}
-                  disabled={loading || preparing || expertBusy}
-                  aria-haspopup="dialog"
-                  className="min-h-[44px] px-3 rounded-xl border border-emerald-400/50 text-emerald-200 text-xs font-semibold hover:bg-emerald-950/40 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  {ASK_EXPERT_LABEL} · {ASK_EXPERT_PRICE_LABEL}
-                </button>
-              ) : (
-                <button
-                  ref={expertButtonRef}
-                  type="button"
-                  aria-disabled="true"
-                  aria-describedby="ask-expert-soon"
-                  onClick={(ev) => ev.preventDefault()}
-                  className="min-h-[44px] px-3 rounded-xl border border-v-border-subtle text-v-text-secondary text-xs font-semibold cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-v-gold"
-                >
-                  {ASK_EXPERT_LABEL} · Coming soon
-                </button>
-              )}
-              {!expertCfg.enabled && <span id="ask-expert-soon" className="sr-only">Paid expert questions aren&apos;t available yet.</span>}
-            </div>
-          )}
-          {expertError && <p role="alert" className="mt-1 text-xs text-amber-300 text-right shrink-0">{expertError}</p>}
-
           <form onSubmit={onSubmit} className="mt-3 flex gap-2 items-end shrink-0 min-w-0">
             <input
               ref={fileRef}
@@ -1278,6 +1248,38 @@ export default function DetailingAiPage() {
               Send
             </button>
           </form>
+
+          {/* Always-visible, low-emphasis chip for the paid expert question ($4.99 = one question).
+              Grey text on the page background is 6.6:1; 32 px tall; same confirm flow as before. */}
+          <div className="mt-1.5 flex justify-center md:justify-start shrink-0" data-testid="ask-expert-chip-row">
+            {expertCfg.enabled ? (
+              <button
+                ref={expertButtonRef}
+                type="button"
+                onClick={openExpertConfirm}
+                aria-haspopup="dialog"
+                data-testid="ask-expert-chip"
+                className="inline-flex items-center gap-1.5 min-h-[32px] px-3 rounded-full border border-v-border-subtle text-xs text-v-text-secondary hover:text-v-text-primary hover:border-v-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-v-gold"
+              >
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
+                {ASK_EXPERT_LABEL} · {ASK_EXPERT_PRICE_LABEL}
+              </button>
+            ) : (
+              <button
+                ref={expertButtonRef}
+                type="button"
+                aria-disabled="true"
+                aria-describedby="ask-expert-soon"
+                onClick={(ev) => ev.preventDefault()}
+                data-testid="ask-expert-chip"
+                className="inline-flex items-center gap-1.5 min-h-[32px] px-3 rounded-full border border-dashed border-v-border-subtle text-xs text-v-text-secondary cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-v-gold"
+              >
+                {ASK_EXPERT_LABEL} · Coming soon
+              </button>
+            )}
+            {!expertCfg.enabled && <span id="ask-expert-soon" className="sr-only">Paid expert questions aren&apos;t available yet.</span>}
+          </div>
+          {expertError && <p role="alert" className="mt-1 text-xs text-amber-300 text-center md:text-left shrink-0">{expertError}</p>}
         </div>
       </div>
 
