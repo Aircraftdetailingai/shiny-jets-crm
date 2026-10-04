@@ -147,22 +147,30 @@ check('escalation photos are kept 90 days, then the cron removes them', () => {
 });
 
 // ─── Shared knowledge ───
-check('knowledge row: Brett-approved, shared, no account data, PII stripped', () => {
-  const row = buildKnowledgeRow({ id: 'abcdef12-3456', summary: 'Haze on white paint after polishing?', question: 'Haze on white G450 paint after polishing, call me 555-123-4567 or ana@acme.example', answer: 'That is polishing haze. Refine with a finishing pad.', answeredAt: '2026-10-04T10:00:00Z' });
+check('knowledge row: only Brett\'s general question + answer, never the detailer\'s words; PII stripped', () => {
+  const detailerText = 'Haze on N123AB white G450 for Acme Jets customer Bob, quoted $4,200';
+  const row = buildKnowledgeRow({ id: 'abcdef12-3456', generalQuestion: 'How do I remove polishing haze on white paint? Ask me at ana@acme.example', answer: 'That is polishing haze. Refine with a finishing pad. Call 555-123-4567.', answeredAt: '2026-10-04T10:00:00Z', question: detailerText, summary: detailerText });
   assert.equal(row.source, 'brett-answers');
   assert.equal(row.section, 'Brett-approved answer');
+  assert.match(row.content, /^Question \(written by Brett\): How do I remove polishing haze on white paint\?/);
   assert.match(row.content, /Brett-approved, 2026-10-04/);
-  assert.ok(!/555-123-4567|ana@acme/.test(row.content));
+  assert.ok(!/Question from a detailer/.test(row.content));
+  for (const w of ['N123AB', 'Acme Jets', 'Bob', '4,200', 'G450']) assert.ok(!JSON.stringify(row).includes(w), w);
+  assert.ok(!/555-123-4567|ana@acme/.test(JSON.stringify(row)));
   assert.ok(!('detailer_id' in row) && !('user_email' in row) && !('photo_paths' in row));
   assert.ok(row.keywords.includes('haze'));
+  assert.throws(() => buildKnowledgeRow({ id: 'x', generalQuestion: '  ', answer: 'a', question: detailerText }), /general question required/);
   assert.equal(stripPii('mail a@b.co'), 'mail [email]');
+  const src = fs.readFileSync('lib/ask-brett.js', 'utf8');
+  const fn = src.slice(src.indexOf('export function buildKnowledgeRow('), src.indexOf('// ─── Email bodies ───'));
+  assert.ok(!/question\b(?!\))|summary/.test(fn.replace(/generalQuestion|general question|Question \(written by Brett\)|\/\*\*[\s\S]*?\*\//g, '')), 'buildKnowledgeRow reads no detailer text');
 });
 
 check('knowledge loader: a Brett-approved answer is picked for a matching question', async () => {
-  const row = buildKnowledgeRow({ id: 'abcdef12', summary: 'Polishing haze on white paint', question: 'Hazy look on white paint after polishing a Citation', answer: 'Refine with a finishing polish on a soft pad.', answeredAt: '2026-10-04T10:00:00Z' });
+  const row = buildKnowledgeRow({ id: 'abcdef12', generalQuestion: 'How do I fix polishing haze on white paint?', answer: 'Refine with a finishing polish on a soft pad.', answeredAt: '2026-10-04T10:00:00Z' });
   const out = await loadKnowledgeStub('I see hazy polishing marks on white paint, what now?', { privateRows: [row] });
   assert.match(out, /brett-approved\/brett-answer-abcdef12/);
-  assert.match(out, /Brett-approved answer to a detailer's question/);
+  assert.match(out, /Brett-approved question and answer/);
 });
 
 check('migration: tables are service-role only, photo bucket private, knowledge source allowed', () => {
@@ -178,7 +186,7 @@ check('migration: tables are service-role only, photo bucket private, knowledge 
 });
 
 // ─── Admin-only + poll + webhook ───
-check('admin routes check admin; poll endpoint lists open newest first; answer route defaults knowledge on', () => {
+check('admin routes check admin; poll endpoint lists open newest first; knowledge OFF unless explicitly true, needs Brett\'s general question', () => {
   const list = fs.readFileSync('app/api/admin/ask-brett/route.js', 'utf8');
   const ans = fs.readFileSync('app/api/admin/ask-brett/[id]/route.js', 'utf8');
   const poll = fs.readFileSync('app/api/admin/ask-brett/open/route.js', 'utf8');
@@ -186,7 +194,19 @@ check('admin routes check admin; poll endpoint lists open newest first; answer r
   assert.match(poll, /hasPollSecret\(request\)/);
   assert.match(poll, /requireAdmin\(await getAuthUser\(request\), supabase\)/);
   assert.match(poll, /\.eq\('status', 'open'\)\s*\n\s*\.order\('created_at', \{ ascending: false \}\)/);
-  assert.match(ans, /body\.add_to_knowledge !== false/);
+  assert.match(ans, /body\.add_to_knowledge === true/);
+  assert.ok(!/add_to_knowledge !== false/.test(ans));
+  assert.match(ans, /addToKnowledge && !generalQuestion\) return Response\.json\([^)]*\{ status: 400 \}/);
+  assert.match(ans, /addAnswerToKnowledge\(supabase, \{ id: updated\.id, generalQuestion, answer: updated\.answer, answeredAt: updated\.answered_at \}\)/);
+  const server0 = fs.readFileSync('lib/ask-brett-server.js', 'utf8');
+  const add = server0.slice(server0.indexOf('export async function addAnswerToKnowledge('), server0.indexOf('export { PHOTO_RETENTION_DAYS }'));
+  assert.ok(!/escalation|summary|\.question/.test(add), 'addAnswerToKnowledge never sees the escalation');
+  const page = fs.readFileSync('app/admin/ask-brett/page.jsx', 'utf8');
+  assert.match(page, /useState\(false\);\s*\n\s*const \[generalQuestion, setGeneralQuestion\] = useState\(''\)/);
+  assert.match(page, /General question for the AI/);
+  assert.ok(!/setGeneralQuestion\((item|a)\./.test(page), 'never prefilled from the detailer');
+  assert.match(page, /add_to_knowledge: addToKnowledge === true/);
+  assert.ok(!/Saves the question and your answer/.test(page));
   assert.match(ans, /notifyUserAnswered/);
   const server = fs.readFileSync('lib/ask-brett-server.js', 'utf8');
   assert.match(server, /ASK_BRETT_WEBHOOK_URL/);
@@ -265,9 +285,11 @@ check('page: New chat, chat list with rename/delete, phone drawer dialog, expert
   assert.match(page, /\?c=\$\{encodeURIComponent\(id\)\}/);
 });
 
-check('admin page: phone-first form, "Add to AI knowledge" on by default, labelled controls', () => {
+check('admin page: phone-first form, "Add to AI knowledge" OFF by default, labelled controls', () => {
   const page = fs.readFileSync('app/admin/ask-brett/page.jsx', 'utf8');
-  assert.match(page, /useState\(true\)/);
+  assert.match(page, /const \[addToKnowledge, setAddToKnowledge\] = useState\(false\)/);
+  assert.match(page, /htmlFor=\{`gq-\$\{item\.id\}`\}/);
+  assert.match(page, /aria-describedby=\{`gq-help-\$\{item\.id\}`\}/);
   assert.match(page, /Add to AI knowledge/);
   assert.match(page, /htmlFor=\{`answer-\$\{item\.id\}`\}/);
   assert.match(page, /htmlFor=\{`kb-\$\{item\.id\}`\}/);

@@ -10,6 +10,9 @@ const REASON_LABELS = {
   other: 'Other',
 };
 
+// Same limit as MAX_GENERAL_QUESTION_CHARS in lib/ask-brett.js (server-only module: it imports crypto).
+const MAX_GENERAL_QUESTION_CHARS = 300;
+
 function when(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -17,7 +20,9 @@ function when(iso) {
 
 function QuestionCard({ item, onAnswered, highlight }) {
   const [answer, setAnswer] = useState('');
-  const [addToKnowledge, setAddToKnowledge] = useState(true);
+  // Off by default: the AI is not crowd-sourced. Only Brett's own general question + answer go in.
+  const [addToKnowledge, setAddToKnowledge] = useState(false);
+  const [generalQuestion, setGeneralQuestion] = useState('');
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState('');
   const ref = useRef(null);
@@ -32,13 +37,18 @@ function QuestionCard({ item, onAnswered, highlight }) {
   const send = async (e) => {
     e.preventDefault();
     if (!answer.trim() || sending) return;
+    if (addToKnowledge && !generalQuestion.trim()) { setErr('Write a general question for the AI, or untick Add to AI knowledge.'); return; }
     setSending(true);
     setErr('');
     try {
       const res = await fetch(`/api/admin/ask-brett/${item.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('vector_token')}` },
-        body: JSON.stringify({ answer: answer.trim(), add_to_knowledge: addToKnowledge }),
+        body: JSON.stringify({
+          answer: answer.trim(),
+          add_to_knowledge: addToKnowledge === true,
+          ...(addToKnowledge ? { general_question: generalQuestion.trim() } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(data.error || 'Could not send the answer.'); setSending(false); return; }
@@ -129,13 +139,33 @@ function QuestionCard({ item, onAnswered, highlight }) {
             />
             <div>
               <label htmlFor={`kb-${item.id}`} className="text-sm text-v-text-primary">Add to AI knowledge</label>
-              <p id={`kb-help-${item.id}`} className="text-[11px] text-v-text-secondary">Saves the question and your answer as Brett-approved knowledge so Detailing AI can answer it next time, for everyone. No account details or photos are saved.</p>
+              <p id={`kb-help-${item.id}`} className="text-xs text-v-text-secondary">Off by default. Saves only the general question you write below and your answer, so Detailing AI can use them for every shop. The detailer&apos;s own words, account details and photos are never saved.</p>
             </div>
           </div>
+          {addToKnowledge && (
+            <div>
+              <label htmlFor={`gq-${item.id}`} className="block text-xs font-semibold text-v-text-primary">
+                General question for the AI <span className="font-normal text-v-text-secondary">(required)</span>
+              </label>
+              <p id={`gq-help-${item.id}`} className="text-xs text-v-text-secondary">Write it in your own words. Don&apos;t copy the detailer&apos;s message, names, tail numbers, prices or customers.</p>
+              <input
+                id={`gq-${item.id}`}
+                type="text"
+                value={generalQuestion}
+                onChange={(e) => setGeneralQuestion(e.target.value)}
+                aria-describedby={`gq-help-${item.id}`}
+                maxLength={MAX_GENERAL_QUESTION_CHARS}
+                required
+                autoComplete="off"
+                placeholder="e.g. How do I remove polishing haze on white paint?"
+                className="mt-1 w-full min-h-[48px] rounded-xl bg-v-charcoal border border-v-border-subtle px-3 text-base md:text-sm text-v-text-primary placeholder:text-v-text-secondary focus:outline-none focus:border-v-gold/60 focus-visible:ring-2 focus-visible:ring-v-gold"
+              />
+            </div>
+          )}
           {err && <p role="alert" className="text-xs text-red-400">{err}</p>}
           <button
             type="submit"
-            disabled={sending || !answer.trim()}
+            disabled={sending || !answer.trim() || (addToKnowledge && !generalQuestion.trim())}
             className="w-full md:w-auto min-h-[48px] px-6 rounded-xl bg-v-gold text-v-charcoal text-sm font-semibold uppercase tracking-wider disabled:opacity-40"
           >
             {sending ? 'Sending…' : 'Send answer'}

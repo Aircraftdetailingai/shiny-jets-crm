@@ -1,5 +1,5 @@
 import { getAuthUser } from '@/lib/auth';
-import { MAX_ANSWER_CHARS } from '@/lib/ask-brett';
+import { MAX_ANSWER_CHARS, MAX_GENERAL_QUESTION_CHARS } from '@/lib/ask-brett';
 import {
   getServiceSupabase,
   requireAdmin,
@@ -11,8 +11,10 @@ export const dynamic = 'force-dynamic';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Admin answers an escalation: saves the answer (shows in the user's chat thread), emails the
-// user, and (add_to_knowledge, default true) saves the Q&A to the shared knowledge as Brett-approved.
+// Admin answers an escalation: saves the answer (shows in the user's chat thread) and emails the
+// user. The AI is not crowd-sourced: only when add_to_knowledge === true (off by default) does it
+// save Brett's own general_question + his answer to the shared knowledge. The detailer's question,
+// summary and chat are never saved there.
 export async function POST(request, { params }) {
   const supabase = getServiceSupabase();
   if (!supabase) return Response.json({ error: 'Not configured' }, { status: 503 });
@@ -26,7 +28,10 @@ export async function POST(request, { params }) {
   const answer = typeof body.answer === 'string' ? body.answer.trim() : '';
   if (!answer) return Response.json({ error: 'Type an answer first.' }, { status: 400 });
   if (answer.length > MAX_ANSWER_CHARS) return Response.json({ error: `Keep the answer under ${MAX_ANSWER_CHARS} characters.` }, { status: 400 });
-  const addToKnowledge = body.add_to_knowledge !== false;
+  const addToKnowledge = body.add_to_knowledge === true;
+  const generalQuestion = typeof body.general_question === 'string' ? body.general_question.replace(/\s+/g, ' ').trim() : '';
+  if (addToKnowledge && !generalQuestion) return Response.json({ error: 'Write a general question for the AI, or untick Add to AI knowledge.' }, { status: 400 });
+  if (addToKnowledge && generalQuestion.length > MAX_GENERAL_QUESTION_CHARS) return Response.json({ error: `Keep the general question under ${MAX_GENERAL_QUESTION_CHARS} characters.` }, { status: 400 });
 
   const { data: current, error: loadErr } = await supabase
     .from('detailing_ai_escalations')
@@ -48,7 +53,7 @@ export async function POST(request, { params }) {
 
   let knowledge = { ok: false, skipped: !addToKnowledge };
   if (addToKnowledge) {
-    knowledge = await addAnswerToKnowledge(supabase, updated);
+    knowledge = await addAnswerToKnowledge(supabase, { id: updated.id, generalQuestion, answer: updated.answer, answeredAt: updated.answered_at });
     if (knowledge.ok) {
       await supabase.from('detailing_ai_escalations').update({ added_to_knowledge: true, knowledge_slug: knowledge.slug }).eq('id', id);
     } else {
