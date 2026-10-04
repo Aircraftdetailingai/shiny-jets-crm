@@ -11,6 +11,62 @@ const STARTERS = [
   'Ceramic from another shop stopped beading after 6 months. Next steps?',
 ];
 
+const MAX_PHOTOS = 3;
+const MAX_EDGE = 1568; // Anthropic's recommended max long edge
+const MAX_PIXELS = 1_150_000; // ~1.15 MP: past this the API downscales anyway (~1,600 tokens per photo)
+const MAX_PHOTO_BYTES = 1_400_000;
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src = url;
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = () => reject(new Error('read'));
+    r.readAsDataURL(blob);
+  });
+}
+
+// Resize + compress on the phone: <= 1568px long edge and <= ~1.15 MP, JPEG ~0.8 (stepping down if still big).
+// Browsers apply EXIF orientation when drawing an <img>, so portrait photos stay upright.
+async function preparePhoto(file) {
+  if (!file || !/^image\//.test(file.type || 'image/')) throw new Error('type');
+  const { img, url } = await loadImage(file);
+  try {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    if (!w || !h) throw new Error('decode');
+    const scale = Math.min(1, MAX_EDGE / Math.max(w, h), Math.sqrt(MAX_PIXELS / (w * h)));
+    const cw = Math.max(1, Math.floor(w * scale));
+    const ch = Math.max(1, Math.floor(h * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; // flatten PNG transparency for JPEG
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, 0, 0, cw, ch);
+    let blob = null;
+    for (const q of [0.8, 0.7, 0.6, 0.5]) {
+      blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', q));
+      if (blob && blob.size <= MAX_PHOTO_BYTES) break;
+    }
+    if (!blob || blob.size > MAX_PHOTO_BYTES) throw new Error('size');
+    const data = await blobToBase64(blob);
+    return { media_type: 'image/jpeg', data, previewUrl: URL.createObjectURL(blob), width: cw, height: ch, bytes: blob.size };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function buildPrefillFromSuggestions(suggestions, diagnosisText) {
   const services = Array.isArray(suggestions?.services) ? suggestions.services : [];
   const matchedIds = services.map((s) => s.service_id).filter(Boolean);
@@ -59,8 +115,48 @@ export default function DetailingAiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [creatingDraft, setCreatingDraft] = useState(null);
+  const [photos, setPhotos] = useState([]); // pending photos for the next message (in memory only)
+  const [photoStatus, setPhotoStatus] = useState('');
+  const [preparing, setPreparing] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const fileRef = useRef(null);
+  const photoButtonRef = useRef(null);
+
+  const addPhotos = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setError('');
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) {
+      setPhotoStatus(`You can add up to ${MAX_PHOTOS} photos per message.`);
+      return;
+    }
+    setPreparing(true);
+    const added = [];
+    let failed = 0;
+    for (const f of files.slice(0, room)) {
+      try {
+        added.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, ...(await preparePhoto(f)) });
+      } catch {
+        failed += 1;
+      }
+    }
+    setPreparing(false);
+    const total = photos.length + added.length;
+    if (added.length) setPhotos((prev) => [...prev, ...added].slice(0, MAX_PHOTOS));
+    const parts = [];
+    if (added.length) parts.push(`${added.length === 1 ? 'Photo' : `${added.length} photos`} added, ${total} of ${MAX_PHOTOS}.`);
+    if (failed) parts.push(`${failed === 1 ? 'One photo' : `${failed} photos`} couldn't be read. Try a JPEG or PNG photo.`);
+    if (files.length > room) parts.push(`Only ${MAX_PHOTOS} photos per message.`);
+    setPhotoStatus(parts.join(' '));
+  };
+
+  const removePhoto = (id, index) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+    setPhotoStatus(`Photo ${index + 1} removed.`);
+    photoButtonRef.current?.focus();
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -72,12 +168,19 @@ export default function DetailingAiPage() {
   }, [messages, loading]);
 
   const send = async (text) => {
-    const content = (text ?? input).trim();
-    if (!content || loading) return;
+    const typed = (text ?? input).trim();
+    const sending = text == null ? photos : [];
+    if ((!typed && !sending.length) || loading || preparing) return;
 
     setError('');
     setInput('');
-    const nextMessages = [...messages, { role: 'user', content }];
+    setPhotos([]);
+    setPhotoStatus('');
+    // The model sees a short marker so later turns know photos were shared; the bubble shows thumbnails.
+    const marker = sending.length ? `[Sent ${sending.length} photo${sending.length === 1 ? '' : 's'}]` : '';
+    const content = [marker, typed].filter(Boolean).join('\n');
+    const userMsg = { role: 'user', content, display: typed, photos: sending.map((p) => ({ url: p.previewUrl })) };
+    const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setLoading(true);
 
@@ -93,6 +196,7 @@ export default function DetailingAiPage() {
           messages: nextMessages
             .filter((m) => m.role === 'user' || m.role === 'assistant')
             .map((m) => ({ role: m.role, content: m.content })),
+          images: sending.map((p) => ({ media_type: p.media_type, data: p.data })),
         }),
       });
 
@@ -156,7 +260,7 @@ export default function DetailingAiPage() {
           </h2>
           <p className="text-sm text-v-text-secondary mt-1">
             Aircraft detailing diagnosis for your shop — exterior, interior, brightwork, ceramic.
-            Suggested services can open a draft quote (never auto-sent).
+            Describe the issue or add up to {MAX_PHOTOS} photos. Suggested services can open a draft quote (never auto-sent).
           </p>
         </div>
 
@@ -176,7 +280,17 @@ export default function DetailingAiPage() {
                 {m.role === 'assistant' && (
                   <p className="text-[10px] uppercase tracking-widest text-v-gold mb-1.5">Detailing AI</p>
                 )}
-                {m.content}
+                {m.photos?.length > 0 && (
+                  <ul className={`flex flex-wrap gap-2 ${m.display ? 'mb-2' : ''}`} aria-label={`${m.photos.length} photo${m.photos.length === 1 ? '' : 's'} you sent`}>
+                    {m.photos.map((p, pi) => (
+                      <li key={pi}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt={`Photo ${pi + 1} you sent`} className="h-24 w-24 md:h-28 md:w-28 rounded-lg object-cover border border-v-gold/30" />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {m.display !== undefined ? m.display : m.content}
 
                 {m.role === 'assistant' && m.suggestions?.services?.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-v-border-subtle space-y-2 whitespace-normal">
@@ -250,11 +364,61 @@ export default function DetailingAiPage() {
         )}
 
         {error && (
-          <p className="mt-2 text-xs text-red-400">{error}</p>
+          <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>
+        )}
+
+        <p role="status" aria-live="polite" className="sr-only">{preparing ? 'Preparing photo…' : photoStatus}</p>
+        {photoStatus && !preparing && /couldn|Only|up to/.test(photoStatus) && (
+          <p className="mt-2 text-xs text-amber-300" aria-hidden="true">{photoStatus}</p>
+        )}
+
+        {photos.length > 0 && (
+          <ul className="mt-3 flex flex-wrap gap-2 shrink-0" aria-label={`Photos to send (${photos.length} of ${MAX_PHOTOS})`}>
+            {photos.map((p, pi) => (
+              <li key={p.id} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.previewUrl} alt={`Photo ${pi + 1} to send`} className="h-16 w-16 rounded-lg object-cover border border-v-border-subtle" />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(p.id, pi)}
+                  aria-label={`Remove photo ${pi + 1}`}
+                  className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-v-charcoal border border-v-border-subtle text-v-text-primary text-sm leading-none flex items-center justify-center hover:border-v-gold/60"
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
         <form onSubmit={onSubmit} className="mt-3 flex gap-2 items-end shrink-0 min-w-0">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+            onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }}
+          />
+          {/* At the 3-photo limit the button is aria-disabled (still focusable) so focus can return here after removing a photo. */}
+          <button
+            ref={photoButtonRef}
+            type="button"
+            onClick={() => {
+              if (photos.length >= MAX_PHOTOS) { setPhotoStatus(`You can add up to ${MAX_PHOTOS} photos per message.`); return; }
+              fileRef.current?.click();
+            }}
+            disabled={loading || preparing}
+            aria-disabled={photos.length >= MAX_PHOTOS ? 'true' : undefined}
+            aria-label={photos.length >= MAX_PHOTOS ? `Add photo (limit of ${MAX_PHOTOS} reached)` : `Add photo (${photos.length} of ${MAX_PHOTOS})`}
+            className="h-11 w-11 shrink-0 rounded-xl border border-v-border-subtle text-v-text-primary flex items-center justify-center hover:border-v-gold/50 disabled:opacity-40 aria-disabled:opacity-40 transition"
+          >
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.5" /></svg>
+          </button>
           <textarea
+            aria-label="Message Detailing AI"
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -265,13 +429,13 @@ export default function DetailingAiPage() {
               }
             }}
             rows={2}
-            placeholder="Describe the aircraft and the issue…"
+            placeholder={photos.length ? "Add a note (optional)…" : "Describe the aircraft and the issue…"}
             className="flex-1 min-w-0 resize-none rounded-xl bg-v-charcoal border border-v-border-subtle px-4 py-3 text-sm text-v-text-primary placeholder:text-v-text-secondary/60 focus:outline-none focus:border-v-gold/50"
             disabled={loading}
           />
           <button
             type="submit"
-            disabled={loading || !input.trim()}
+            disabled={loading || preparing || (!input.trim() && photos.length === 0)}
             className="h-11 px-4 md:px-5 shrink-0 rounded-xl bg-v-gold text-v-charcoal text-xs font-semibold uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition"
           >
             Send
