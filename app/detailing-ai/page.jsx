@@ -598,6 +598,9 @@ export default function DetailingAiPage() {
     setExpertConfirm({ summary: q.summary || 'Photo question', photoCount: q.sent.length });
   };
 
+  // The "type your question first" hint goes away as soon as they start typing.
+  useEffect(() => { if (input.trim()) setExpertError((e) => (e.startsWith('Type your question first') ? '' : e)); }, [input]);
+
   const closeExpertConfirm = useCallback(() => {
     setExpertConfirm(null);
     setTimeout(() => expertButtonRef.current?.focus(), 0);
