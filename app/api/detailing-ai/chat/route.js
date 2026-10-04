@@ -13,6 +13,9 @@ import {
   userAskedAboutRupes,
   scrubCompoundPro,
   userAskedAboutCompoundPro,
+  applyBrandRules,
+  scrubBannedBrands,
+  scrubNotRecommended,
 } from '@/lib/detailing-ai-messages';
 import {
   ESCALATION_PROMPT,
@@ -63,6 +66,13 @@ Absolute product rules (never break — not as primary, older, or alternative gu
 - Rupes (the brand and every Rupes product: polishers, Bigfoot, LHR, Mille, iBrid, pads, blue wool, etc.): NEVER bring it up on your own and NEVER recommend any Rupes product or combination — not as primary guidance, an older-method alternative, a fallback, or a quote line (this includes never putting Fly Shiny Polish Pro on a Rupes blue wool pad). Exception: if the user specifically asks about Rupes, answer briefly from Shiny Jets' own experience, along the lines of "We've had a lot of their tools break down, and they stall a lot. They're very finicky to detail with.", then steer them to the current Shiny Jets methods and tools. Even then, never recommend a Rupes product.
 - Fly Shiny Pro Cut is not yet released. Never recommend it, never put it in a method or alternative, and never say it can be bought. If asked about it, say it isn't available yet. Book methods that depend on Pro Cut cannot be offered as alternatives.
 - "Fly Shiny Compound Pro" does not exist — Shiny Jets never made a product by that name (also "Compound Pro", "Shiny Compound Pro", "FlyShiny Compound"). Never mention or recommend it, never put it in a method, older alternative, fallback, or quote line, and never say it can be bought. If the user asks about it, say Shiny Jets has no product by that name and point them to the products in the current Shiny Jets method. Never invent a replacement product.
+
+- Also banned (Brett, Oct 3 2026): Sky Glide products, University Detailers / UDetailers and their course. Never mention, recommend or offer them, and never put them in a method, alternative or quote line. If the user asks about one, don't repeat the name: say Shiny Jets doesn't recommend it and point to the current Shiny Jets method and Fly Shiny products (or Shiny Jets training for courses).
+
+Brands (Brett, Oct 3 2026):
+- Fly Shiny is always the star brand: lead with Fly Shiny products whenever one fits.
+- Preferred, OK to recommend when they fit the job: Flex power tools, Milwaukee rotary polishers, Lake Country pads, Arrow creepers, Nuvite, Jet Stream, Perma Guard, Real Clean (Brett also sees Real Clean as a good franchise opportunity).
+- Not recommended: the Sparrowhawk franchise and the Aviation Detailing Association. Never bring either up. If the user asks, answer neutrally and factually, e.g. "Shiny Jets doesn't recommend that option based on our experience," and steer them to Shiny Jets training. No insults and no claims about them.
 
 Manual interpretation (U-turn rule):
 - If the manual says you cannot do it, do not do it. If it does NOT say you cannot, you can.
@@ -417,7 +427,9 @@ export async function POST(request) {
     // generic word "compound"; if the user asked, the "no such product" answer goes through.
     const compoundSafe = userAskedAboutCompoundPro(messages) ? rupesSafe : scrubCompoundPro(rupesSafe, 'compound');
     // Terminology: shop procedures are "methods", never "recipes" (text and photo answers alike).
-    const worded = toMethodsWording(compoundSafe);
+    // Brand rules (Brett, Oct 3 2026): banned brands never appear; not-recommended options only
+    // when asked, with the neutral line.
+    const worded = toMethodsWording(applyBrandRules(compoundSafe, messages));
 
     // Ask Brett: the model can't answer confidently and asked to escalate. Only issue a ticket
     // (which the page uses to file the question + photos) when the account is under its limit;
@@ -447,11 +459,11 @@ export async function POST(request) {
     // Quote lines never carry a Rupes product or "Compound Pro", asked or not.
     if (suggestions?.services?.length) {
       for (const svc of suggestions.services) {
-        svc.name = scrubRupes(svc.name);
+        svc.name = scrubNotRecommended(scrubBannedBrands(scrubRupes(svc.name)));
         svc.name = scrubCompoundPro(svc.name, 'compound');
-        if (svc.notes) svc.notes = scrubCompoundPro(scrubRupes(svc.notes), 'compound');
+        if (svc.notes) svc.notes = scrubNotRecommended(scrubBannedBrands(scrubCompoundPro(scrubRupes(svc.notes), 'compound')));
       }
-      if (suggestions.notes) suggestions.notes = scrubCompoundPro(scrubRupes(suggestions.notes), 'compound');
+      if (suggestions.notes) suggestions.notes = scrubNotRecommended(scrubBannedBrands(scrubCompoundPro(scrubRupes(suggestions.notes), 'compound')));
     }
 
     const finalSuggestions = suggestions?.services?.length ? suggestions : null;
