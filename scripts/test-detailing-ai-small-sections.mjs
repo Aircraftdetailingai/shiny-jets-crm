@@ -25,7 +25,7 @@ check('no public copy of the method in the repo', () => {
 
 if (HAS_PRIVATE) check('private method file has the method: 16 x 16 in, 45 s to a minute, wipe/clean pad/reapply, arm speed, stalling DA', () => {
   const t = fs.readFileSync(FILE, 'utf8');
-  for (const s of ['16 x 16 inch', 'microfiber towel', '45 seconds to a minute', 'clean the pad', 'reapply', 'Slow down your arm speed', 'losing rotation', 'adjust the pad angle', 'Current Shiny Jets method, Brett-approved']) assert.ok(t.includes(s), s);
+  for (const s of ['16 x 16 inch', 'microfiber towel', '45 seconds to a minute', 'clean the pad', 'reapply', 'Slow down your arm speed', 'losing rotation', 'adjust the pad angle', 'Current Shiny Jets method, Brett-approved', 'turns black', 'let it dry', 'polish it off with the random orbital', 'coral fleece bonnets', 'cotton velour bonnet']) assert.ok(t.includes(s), s);
   assert.ok(!BRANDS.test(t), 'no brand names');
   assert.ok(!/recipe/i.test(t), 'methods wording');
 });
@@ -34,7 +34,7 @@ check('chat prompt: bring it up when correction results are missing, no brands',
   const src = fs.readFileSync('app/api/detailing-ai/chat/route.js', 'utf8');
   const rule = src.split('\n').find((l) => l.includes('Not getting correction results'));
   assert.ok(rule, 'rule present');
-  for (const s of ['16 x 16 inch', '45 seconds to a minute', 'clean the pad', 'slow down the arm speed', 'losing rotation', "Don't name brands"]) assert.ok(rule.includes(s), s);
+  for (const s of ['16 x 16 inch', '45 seconds to a minute', 'clean the pad', 'slow down the arm speed', 'losing rotation', 'turns black', 'let it dry', 'random orbital', 'coral fleece bonnets', 'cotton velour bonnet', "Don't name brands"]) assert.ok(rule.includes(s), s);
   assert.ok(!BRANDS.test(rule.replace("Don't name brands for this tip.", '')));
 });
 
