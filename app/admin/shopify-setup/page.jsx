@@ -10,6 +10,13 @@ export default function ShopifySetupPage() {
   const [testPlan, setTestPlan] = useState('lite');
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
+  const [provisionOrder, setProvisionOrder] = useState('');
+  const [provisionEmail, setProvisionEmail] = useState('');
+  const [provisionName, setProvisionName] = useState('');
+  const [provisionPhone, setProvisionPhone] = useState('');
+  const [provisionProduct, setProvisionProduct] = useState('');
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionResult, setProvisionResult] = useState(null);
 
   useEffect(() => {
     fetchStatus();
@@ -49,6 +56,33 @@ export default function ShopifySetupPage() {
       setTestResult({ success: false, steps: [{ step: 'request', status: 'error', detail: err.message }] });
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function provisionCourse(e) {
+    e.preventDefault();
+    if (!provisionOrder || !provisionEmail) return;
+    setProvisioning(true);
+    setProvisionResult(null);
+    try {
+      const token = localStorage.getItem('vector_token');
+      const res = await fetch('/api/admin/course-provision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          order: provisionOrder.trim(),
+          email: provisionEmail.trim(),
+          customer_name: provisionName.trim() || undefined,
+          phone: provisionPhone.trim() || undefined,
+          product_title: provisionProduct.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      setProvisionResult(data);
+    } catch (err) {
+      setProvisionResult({ ok: false, error: err.message });
+    } finally {
+      setProvisioning(false);
     }
   }
 
@@ -185,6 +219,77 @@ export default function ShopifySetupPage() {
           <li>Add it as <code className="text-v-text-primary">SHOPIFY_WEBHOOK_SECRET</code> in Vercel env vars</li>
           <li>Add webhooks for <code>orders/paid</code> and <code>subscription_contracts/update</code> pointing to the endpoint above</li>
         </ol>
+      </div>
+
+      {/* Provision a course order that arrived without an email */}
+      <div className="bg-v-surface border border-v-border rounded-lg p-6 mb-6">
+        <h2 className="text-lg font-semibold text-v-text-primary mb-2">Provision a course order</h2>
+        <p className="text-sm text-v-text-secondary mb-4">
+          Phone-only checkouts never got a CRM login. Enter the Shopify order id or number (for example <code>#2068</code>) and the buyer&apos;s email.
+          This runs the same provisioning as the paid-order webhook: Business for one year, a temporary password they must change, the welcome email from sales@shinyjets.com, and Pricing App access.
+          If an account already exists for that email, it is extended instead of duplicated.
+        </p>
+        <form onSubmit={provisionCourse} className="space-y-3">
+          <div className="flex flex-wrap gap-3">
+            <input
+              value={provisionOrder}
+              onChange={(e) => setProvisionOrder(e.target.value)}
+              placeholder="Order id or #number"
+              className="flex-1 min-w-[180px] px-3 py-2 bg-v-charcoal border border-v-border rounded text-v-text-primary placeholder:text-v-text-secondary text-sm"
+            />
+            <input
+              type="email"
+              value={provisionEmail}
+              onChange={(e) => setProvisionEmail(e.target.value)}
+              placeholder="Buyer email"
+              className="flex-1 min-w-[200px] px-3 py-2 bg-v-charcoal border border-v-border rounded text-v-text-primary placeholder:text-v-text-secondary text-sm"
+            />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <input
+              value={provisionName}
+              onChange={(e) => setProvisionName(e.target.value)}
+              placeholder="Customer name (if Shopify can't be read)"
+              className="flex-1 min-w-[180px] px-3 py-2 bg-v-charcoal border border-v-border rounded text-v-text-primary placeholder:text-v-text-secondary text-sm"
+            />
+            <input
+              value={provisionPhone}
+              onChange={(e) => setProvisionPhone(e.target.value)}
+              placeholder="Phone (optional)"
+              className="flex-1 min-w-[140px] px-3 py-2 bg-v-charcoal border border-v-border rounded text-v-text-primary placeholder:text-v-text-secondary text-sm"
+            />
+            <input
+              value={provisionProduct}
+              onChange={(e) => setProvisionProduct(e.target.value)}
+              placeholder="Product title (if Shopify can't be read)"
+              className="flex-1 min-w-[200px] px-3 py-2 bg-v-charcoal border border-v-border rounded text-v-text-primary placeholder:text-v-text-secondary text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={provisioning || !provisionOrder || !provisionEmail}
+            className="px-6 py-2 bg-v-gold text-white text-sm font-medium rounded hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {provisioning ? 'Provisioning...' : 'Provision course order'}
+          </button>
+        </form>
+        {provisionResult && (
+          <div className={`mt-4 p-4 rounded border ${provisionResult.ok ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+            <p className={`text-sm font-semibold mb-2 ${provisionResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+              {provisionResult.ok
+                ? (provisionResult.already_provisioned ? 'Already provisioned' : 'Provisioned')
+                : (provisionResult.error || 'Provisioning failed')}
+            </p>
+            {provisionResult.ok && (
+              <p className="text-sm text-v-text-secondary">
+                Detailer: {provisionResult.detailer?.action || '—'}
+                {provisionResult.detailer?.plan ? ` (${provisionResult.detailer.plan}, ${provisionResult.detailer.subscription_status}, ${provisionResult.detailer.subscription_source})` : ''}
+                . Pricing App: {provisionResult.app_access?.action || '—'}
+                {provisionResult.app_access?.product_type ? ` (${provisionResult.app_access.product_type})` : ''}.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Test Webhook */}

@@ -101,7 +101,7 @@ check('AI-initiated escalations stay FREE: created open and Brett is notified ri
 });
 
 check('Shopify webhook: HMAC first, orders/paid opens the paid question and only then notifies', () => {
-  const src = read('app/api/webhooks/shopify/route.js');
+  const src = read('lib/shopify-webhook-handlers.js');
   const post = src.slice(src.indexOf('export async function POST'));
   assert.ok(post.indexOf('verifyHmac(rawBody, signature, secret)') < post.indexOf('switch (topic)'));
   assert.match(src, /async function handleOrderPaid\(supabase, payload\) \{\s*\/\/ Paid expert question[^\n]*\n\s*try \{\s*await handleAskExpertPaid\(supabase, payload\);/);
@@ -184,7 +184,7 @@ check('two "Order payment" webhooks (Oct 3 9:45 PM): only /api/shopify/webhook p
   assert.equal(orderPaidMode('http://127.0.0.1:3314/api/shopify/webhook?x=1'), 'full');
   assert.equal(orderPaidMode('https://crm.shinyjets.com/api/webhooks/shopify'), 'ask_expert_only');
   assert.equal(orderPaidMode('not a url'), 'ask_expert_only');
-  const src = read('app/api/webhooks/shopify/route.js');
+  const src = read('lib/shopify-webhook-handlers.js');
   // The switch: full processing only on the provisioning path, ask-expert alone otherwise.
   assert.match(src, /case 'orders\/paid':\s*if \(orderPaidMode\(request\.url\) === 'full'\) \{\s*await handleOrderPaid\(supabase, payload\);\s*\} else \{\s*await handleAskExpertPaid\(supabase, payload\);/);
   // Full processing still includes the ask-expert step (so one registration alone is enough).
@@ -192,6 +192,7 @@ check('two "Order payment" webhooks (Oct 3 9:45 PM): only /api/shopify/webhook p
   // Both paths still verify the Shopify HMAC first (the alias forwards the same request).
   assert.match(src, /if \(!verifyHmac\(rawBody, signature, secret\)\) \{\s*return new Response\('Invalid signature', \{ status: 401 \}\);/);
   assert.match(read('app/api/shopify/webhook/route.js'), /import\('@\/app\/api\/webhooks\/shopify\/route'\);\s*return handler\(request\);/);
+  assert.match(read('app/api/webhooks/shopify/route.js'), /shopify-webhook-handlers/);
   // Paying twice for one question can't notify twice: conditional status update + unique order id.
   const server = read('lib/ask-brett-server.js');
   assert.match(server, /\.in\('status', \['awaiting_payment', 'expired'\]\)/);
