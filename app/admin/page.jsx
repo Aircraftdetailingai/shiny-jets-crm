@@ -15,6 +15,7 @@ const ADMIN_NAV = [
   { label: 'Beta Invites', href: '/admin/beta-invites' },
   { label: 'Referrals', href: '/admin/referrals' },
   { label: 'Settings', href: '/admin/settings' },
+  { label: 'Shopify', href: '/admin/shopify-setup' },
 ];
 
 const STATUS_COLORS = {

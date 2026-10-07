@@ -89,7 +89,8 @@ check('monthly renewal (new order id) stacks → +60d from first order', days(af
 check('yearly renewal → +365d onto remaining time', days(computeAiAccessUntil({ current: new Date(NOW.getTime() + 3 * DAY).toISOString(), days: aiPurchaseFromLineItems(yearlyRenewal.line_items).days, now: NOW })) === 368);
 
 console.log('Webhook wiring (source)');
-const hook = readFileSync(new URL('../app/api/webhooks/shopify/route.js', import.meta.url), 'utf8');
+const hook = readFileSync(new URL('../lib/shopify-webhook-handlers.js', import.meta.url), 'utf8');
+const route = readFileSync(new URL('../app/api/webhooks/shopify/route.js', import.meta.url), 'utf8');
 const fwd = readFileSync(new URL('../app/api/shopify/webhook/route.js', import.meta.url), 'utf8');
 const orderPaidBody = hook.slice(hook.indexOf('async function handleOrderPaid'), hook.indexOf('async function handleSubscriptionUpdate'));
 check('handleOrderPaid calls handleDetailingAiAccess (isolated in try/catch)', /try \{\s*await handleDetailingAiAccess\(supabase, payload\);/.test(orderPaidBody));
@@ -97,6 +98,7 @@ const switchBody = hook.slice(hook.indexOf("case 'orders/paid':"), hook.indexOf(
 check("orders/paid: full mode → handleOrderPaid, else ask-expert only (#52 split kept)", /orderPaidMode\(request\.url\) === 'full'[\s\S]*handleOrderPaid[\s\S]*else[\s\S]*handleAskExpertPaid/.test(switchBody) && !/handleDetailingAiAccess/.test(switchBody));
 check('handleDetailingAiAccess is called exactly once in the file', (hook.match(/await handleDetailingAiAccess\(/g) || []).length === 1);
 check('/api/shopify/webhook forwards to the canonical handler', /import\('@\/app\/api\/webhooks\/shopify\/route'\)/.test(fwd));
+check('canonical route runs the shared orders/paid handler', /shopify-webhook-handlers/.test(route));
 check('grant is idempotent per order id', /alreadyLogged\(supabase, 'detailing_ai_access_granted', orderId\)/.test(hook));
 check('AI product is never treated as a course (no Business grant)', /async function isCourseProduct\(item\) \{\s*if \(isAiLineItem\(item\)\) return false;/.test(hook));
 check('no financial/source filter skips renewal orders in the AI grant', !/source_name[^\n]*return null/.test(hook.slice(hook.indexOf('async function handleDetailingAiAccess'), hook.indexOf('async function handleAskExpertPaid'))));
