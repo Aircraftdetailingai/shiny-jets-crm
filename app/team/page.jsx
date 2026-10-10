@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 import AppShell from '@/components/AppShell';
+import OpenShiftsPanel from '@/components/OpenShiftsPanel';
 
 export default function TeamPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function TeamPage() {
   const [resending, setResending] = useState(null);
   const [resendMsg, setResendMsg] = useState('');
   const [liveStatus, setLiveStatus] = useState({});
+  const [report, setReport] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -40,6 +42,7 @@ export default function TeamPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch');
       setMembers(data.members || []);
+      setReport(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -74,8 +77,10 @@ export default function TeamPage() {
   const activeCount = members.filter(m => m.status === 'active').length;
   const employeeCount = members.filter(m => m.type === 'employee').length;
   const contractorCount = members.filter(m => m.type === 'contractor').length;
-  const totalHours = members.reduce((sum, m) => sum + (m.total_hours || 0), 0);
-  const totalPay = members.reduce((sum, m) => sum + (m.total_pay || 0), 0);
+  const totalHours = report?.total_hours ?? members.reduce((sum, m) => sum + (m.total_hours || 0), 0);
+  const totalPay = report?.total_pay ?? members.reduce((sum, m) => sum + (m.total_pay || 0), 0);
+  const openEntries = report?.open_entries || [];
+  const showLaborLink = report?.labor_totals && report.range_kind !== 'labor_window';
 
   return (
     <AppShell title="Team">
@@ -118,8 +123,23 @@ export default function TeamPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      {report?.range_label && (
+        <div className="mb-4">
+          <p className="text-v-text-primary text-sm" data-testid="labor-range-label">{report.range_label}</p>
+          {report.period_note && <p className="text-v-text-secondary text-xs mt-1">{report.period_note}</p>}
+          <p className="text-v-text-secondary text-xs mt-1">{report.open_shift_policy}</p>
+          {showLaborLink && (
+            <p className="text-xs text-v-text-secondary mt-2">
+              <a href="/team/payroll?range=labor_window" className="text-v-gold hover:underline">
+                All recorded labor: {report.labor_totals.total_hours.toFixed(1)}h · {currencySymbol()}{formatPrice(report.labor_totals.total_pay)}
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Stats — hours and pay use the labeled range above, same as Payroll */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <div className="bg-white/10 rounded-lg p-3 text-center">
           <p className="text-white/60 text-xs">{'Active'}</p>
           <p className="text-white text-xl font-bold">{activeCount}</p>
@@ -133,14 +153,29 @@ export default function TeamPage() {
           <p className="text-white text-xl font-bold">{contractorCount}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{'Total Hours'}</p>
+          <p className="text-white/60 text-xs">{'Hours'}</p>
           <p className="text-white text-xl font-bold">{totalHours.toFixed(1)}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{'Total Pay'}</p>
+          <p className="text-white/60 text-xs">{'Pay'}</p>
           <p className="text-white text-xl font-bold">{currencySymbol()}{formatPrice(totalPay)}</p>
         </div>
+        <div className={`rounded-lg p-3 text-center border ${openEntries.length ? 'bg-amber-500/10 border-amber-500/40' : 'bg-white/10 border-transparent'}`}>
+          <p className={`text-xs ${openEntries.length ? 'text-amber-300' : 'text-white/60'}`}>{'Open shifts'}</p>
+          <p className={`text-xl font-bold ${openEntries.length ? 'text-amber-300' : 'text-white'}`}>{openEntries.length}</p>
+        </div>
       </div>
+
+      {!loading && (
+        <OpenShiftsPanel
+          entries={openEntries}
+          policy={report?.open_shift_policy}
+          onClosed={() => {
+            const token = localStorage.getItem('vector_token');
+            if (token) fetchMembers(token);
+          }}
+        />
+      )}
 
       {/* Content */}
       {loading ? (
@@ -166,7 +201,7 @@ export default function TeamPage() {
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Role'}</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">{'Rate'}</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">{'Hours'}</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Total Pay'}</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Pay'}</th>
                 <th className="px-4 py-3 font-medium">{'Status'}</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">{'Invite'}</th>
               </tr>
@@ -198,7 +233,7 @@ export default function TeamPage() {
                     ${parseFloat(member.hourly_pay || 0).toFixed(2)}{'/hr'}
                   </td>
                   <td className="px-4 py-3 text-v-text-secondary hidden md:table-cell">
-                    {(member.total_hours || 0).toFixed(1)}
+                    {(member.total_hours || 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-v-text-secondary hidden sm:table-cell">
                     ${formatPrice(member.total_pay)}
@@ -208,6 +243,11 @@ export default function TeamPage() {
                       <span className="inline-flex items-center gap-1.5 text-xs text-green-400 bg-green-900/20 px-2 py-1 rounded-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                         Clocked In
+                      </span>
+                    ) : member.open_shifts > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 px-2 py-1 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                        Not clocked out
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-2">

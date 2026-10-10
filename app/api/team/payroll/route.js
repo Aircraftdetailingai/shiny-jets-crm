@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature } from '@/lib/plan-gate';
+import { buildLaborReport, entryBelongsToShop, inRange, isoToday, payableHours } from '@/lib/labor-summary';
+import { fetchShopTimeEntries } from '@/lib/shop-time-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,8 +10,10 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY);
 }
 
-// GET - Aggregated payroll for a date range
-// Query params: start_date, end_date (YYYY-MM-DD)
+// GET - Aggregated payroll for a date range.
+// With no dates, the range matches Team: current pay period when it has closed
+// shifts, otherwise the shop's full recorded labor window.
+// Query: start_date, end_date (YYYY-MM-DD) or range=labor_window|pay_period|last_90
 export async function GET(request) {
   const user = await getAuthUser(request);
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,52 +22,51 @@ export async function GET(request) {
   const detailerId = user.detailer_id || user.id;
 
   const { searchParams } = new URL(request.url);
-  const today = new Date().toISOString().split('T')[0];
-  const defaultStart = new Date(Date.now() - 89 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const startDate = searchParams.get('start_date') || defaultStart;
-  const endDate = searchParams.get('end_date') || today;
-
+  const startDate = searchParams.get('start_date') || '';
+  const endDate = searchParams.get('end_date') || '';
+  const range = searchParams.get('range') || '';
+  const today = isoToday();
   const supabase = getSupabase();
 
-  // Fetch time entries for this detailer in range
-  // Try with job_id first, fall back if column missing
-  let entries = [];
-  try {
-    const result = await supabase
-      .from('time_entries')
-      .select('id, team_member_id, date, hours_worked, clock_in, clock_out, job_id, quote_id, approved')
-      .eq('detailer_id', detailerId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .not('clock_out', 'is', null)
-      .order('date', { ascending: true });
-    if (result.error) throw result.error;
-    entries = result.data || [];
-  } catch {
-    const { data } = await supabase
-      .from('time_entries')
-      .select('id, team_member_id, date, hours_worked, clock_in, clock_out, quote_id, approved')
-      .eq('detailer_id', detailerId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .not('clock_out', 'is', null)
-      .order('date', { ascending: true });
-    entries = data || [];
+  const { data: members, error: memberErr } = await supabase
+    .from('team_members')
+    .select('id, name, title, type, hourly_pay, status, pay_period_frequency, pay_period_start, created_at')
+    .eq('detailer_id', detailerId);
+  if (memberErr) {
+    console.error('[payroll] team members error:', memberErr.message);
+    return Response.json({ error: 'Failed to load payroll' }, { status: 500 });
   }
 
-  // Fetch all team members for this detailer
-  const { data: members } = await supabase
-    .from('team_members')
-    .select('id, name, title, type, hourly_pay, status')
-    .eq('detailer_id', detailerId);
-  const membersById = {};
-  for (const m of (members || [])) membersById[m.id] = m;
+  const memberList = members || [];
+  let entries = [];
+  try {
+    entries = await fetchShopTimeEntries(supabase, memberList.map((m) => m.id));
+  } catch (err) {
+    console.error('[payroll] time entries error:', err.message);
+    return Response.json({ error: 'Failed to load payroll' }, { status: 500 });
+  }
 
-  // Bulk-fetch job and quote labels for entries
-  const jobIds = [...new Set(entries.map(e => e.job_id).filter(Boolean))];
-  const quoteIds = [...new Set(entries.map(e => e.quote_id).filter(Boolean))];
+  const report = buildLaborReport({
+    entries,
+    members: memberList,
+    detailerId,
+    today,
+    startDate,
+    endDate,
+    range,
+  });
 
+  const memberIds = new Set(memberList.map((m) => m.id));
+  const payable = entries.filter((e) =>
+    entryBelongsToShop(e, detailerId, memberIds)
+    && inRange(e, report.start_date, report.end_date)
+    && payableHours(e) > 0
+    && (e.job_id || e.quote_id)
+  );
+  const jobIds = [...new Set(payable.map((e) => e.job_id).filter(Boolean))];
+  const quoteIds = [...new Set(payable.map((e) => e.quote_id).filter(Boolean))];
   const jobLabels = {};
+
   if (jobIds.length > 0) {
     const { data: jobs } = await supabase
       .from('jobs')
@@ -84,80 +87,29 @@ export async function GET(request) {
     }
   }
 
-  // Aggregate: per-member totals + per-job breakdown within each member
-  const byMember = {};
-  for (const e of entries) {
-    const memberKey = e.team_member_id;
-    if (!memberKey) continue;
-    const member = membersById[memberKey];
-    if (!member) continue;
-
-    if (!byMember[memberKey]) {
-      byMember[memberKey] = {
-        team_member_id: memberKey,
-        name: member.name,
-        title: member.title,
-        type: member.type,
-        hourly_pay: parseFloat(member.hourly_pay) || 0,
-        total_hours: 0,
-        total_pay: 0,
-        jobs: {},
-      };
-    }
-
-    const hrs = parseFloat(e.hours_worked) || 0;
-    byMember[memberKey].total_hours += hrs;
-
-    const jobKey = e.job_id || e.quote_id || 'unassigned';
-    const label = jobLabels[jobKey] || (jobKey === 'unassigned' ? 'Unassigned time' : 'Unknown');
-    if (!byMember[memberKey].jobs[jobKey]) {
-      byMember[memberKey].jobs[jobKey] = { job_id: jobKey, label, hours: 0 };
-    }
-    byMember[memberKey].jobs[jobKey].hours += hrs;
-  }
-
-  // Finalize pay calculations
-  const payrollMembers = Object.values(byMember).map(m => {
-    m.total_hours = Math.round(m.total_hours * 100) / 100;
-    m.total_pay = Math.round(m.total_hours * m.hourly_pay * 100) / 100;
-    m.jobs = Object.values(m.jobs).map(j => ({
-      ...j,
-      hours: Math.round(j.hours * 100) / 100,
-    })).sort((a, b) => b.hours - a.hours);
-    return m;
-  }).sort((a, b) => b.total_hours - a.total_hours);
-
-  const totalHours = payrollMembers.reduce((sum, m) => sum + m.total_hours, 0);
-  const totalPay = payrollMembers.reduce((sum, m) => sum + m.total_pay, 0);
-
-
-  // If this window is empty, surface the nearest labor window so the UI can warn
-  // instead of looking like nobody worked.
-  let suggested_range = null;
-  if (entries.length === 0) {
-    const { data: anyEntries } = await supabase
-      .from('time_entries')
-      .select('date, hours_worked, clock_out')
-      .eq('detailer_id', detailerId)
-      .order('date', { ascending: true });
-    const dated = (anyEntries || []).filter(e => e.date);
-    if (dated.length) {
-      suggested_range = {
-        start_date: dated[0].date,
-        end_date: dated[dated.length - 1].date,
-        entry_count: dated.length,
-        open_entries: dated.filter(e => !e.clock_out).length,
-      };
+  for (const member of report.members) {
+    for (const job of member.jobs) {
+      if (jobLabels[job.job_id]) job.label = jobLabels[job.job_id];
     }
   }
 
   return Response.json({
-    start_date: startDate,
-    end_date: endDate,
-    total_hours: Math.round(totalHours * 100) / 100,
-    total_pay: Math.round(totalPay * 100) / 100,
-    members: payrollMembers,
-    entry_count: entries.length,
-    suggested_range,
+    start_date: report.start_date,
+    end_date: report.end_date,
+    range_kind: report.range_kind,
+    range_label: report.range_label,
+    fallback_reason: report.fallback_reason,
+    period_note: report.period_note,
+    pay_period: report.pay_period,
+    labor_window: report.labor_window,
+    labor_totals: report.labor_totals,
+    suggested_range: report.suggested_range,
+    total_hours: report.total_hours,
+    total_pay: report.total_pay,
+    members: report.members,
+    entry_count: report.payable_entry_count,
+    open_entries: report.open_entries,
+    open_shift_policy: report.open_shift_policy,
+    includes_open_shifts_in_totals: false,
   });
 }
