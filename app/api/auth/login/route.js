@@ -160,7 +160,11 @@ export async function POST(request) {
       return new Response(JSON.stringify({ error: 'Invalid email or password' }), { status: 401 });
     }
 
-    const token = await createToken(teamMember ? teamTokenClaims(teamMember, data.id) : sessionTokenClaims(data));
+    // Owner logins keep sessionTokenClaims so a course temporary password
+    // still forces a change. Team logins carry the shop id and the member role.
+    const token = teamMember
+      ? await createToken(teamTokenClaims(teamMember, data.id))
+      : await createToken(sessionTokenClaims(data));
 
     // Set auth cookie for server-side auth
     try {
@@ -243,12 +247,14 @@ export async function POST(request) {
       if (!aiErr) user.ai_access_until = ai?.ai_access_until || null;
     } catch {}
     if (teamMember) user = withTeamIdentity(user, teamMember);
+    const sessionFlags = teamMember
+      ? { must_change_password: false, onboarding_complete: true }
+      : { must_change_password: data.must_change_password, onboarding_complete: data.onboarding_complete !== false };
     return new Response(
       JSON.stringify({
         token,
         user,
-        must_change_password: teamMember ? false : data.must_change_password,
-        onboarding_complete: teamMember ? true : data.onboarding_complete !== false,
+        ...sessionFlags,
       }),
       { status: 200 }
     );
