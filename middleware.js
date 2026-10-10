@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { passwordChangeDecision } from '@/lib/password-change';
+import { teamAccessDecision } from '@/lib/team-access';
 
 const ADMIN_EMAILS = [
   'brett@vectorav.ai',
@@ -28,6 +29,9 @@ export async function middleware(request) {
   // back. Other API calls are rejected so the rest of the CRM stays closed.
   const passwordChangeResponse = await enforcePasswordChange(request);
   if (passwordChangeResponse) return passwordChangeResponse;
+
+  const teamAccessResponse = await enforceTeamAccess(request);
+  if (teamAccessResponse) return teamAccessResponse;
 
   // Protect /admin/* routes
   if (pathname.startsWith('/admin')) {
@@ -57,6 +61,40 @@ export async function middleware(request) {
   // API routes have their own auth checks, so this only blocks page navigation
 
   return NextResponse.next();
+}
+
+async function enforceTeamAccess(request) {
+  const cookieToken = request.cookies.get('auth_token')?.value;
+  const header = request.headers.get('authorization') || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const jwt = bearer || cookieToken;
+  if (!jwt) return null;
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(jwt, secret);
+    const decision = teamAccessDecision({
+      pathname: request.nextUrl.pathname,
+      accountKind: payload.account_kind,
+      teamRole: payload.team_role,
+      method: request.method,
+    });
+    if (decision.type === 'redirect') {
+      const url = request.nextUrl.clone();
+      const target = new URL(decision.location, request.url);
+      url.pathname = target.pathname;
+      url.search = target.search;
+      return NextResponse.redirect(url);
+    }
+    if (decision.type === 'forbidden') {
+      return NextResponse.json(
+        { error: 'That part of the CRM is not available for your role.' },
+        { status: 403 },
+      );
+    }
+  } catch {
+    // Unreadable token: page auth handles it.
+  }
+  return null;
 }
 
 async function enforcePasswordChange(request) {

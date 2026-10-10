@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { normalizePlan } from '@/lib/plans';
+import { withTeamIdentity } from '@/lib/team-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,7 +110,7 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const includeRemit = searchParams.get('include_remit') === '1';
+  const includeRemit = searchParams.get('include_remit') === '1' && user.account_kind !== 'team';
 
   // Explicit allowlist — never select password_hash, stripe_secret_key,
   // stripe_publishable_key, or webauthn_challenge. ACH fields are added below
@@ -120,19 +121,32 @@ export async function GET(request) {
     : baseCols;
 
   const supabase = getSupabase();
+  const detailerId = user.detailer_id || user.id;
   const { data, error } = await supabase
     .from('detailers')
     .select(select)
-    .eq('id', user.id)
+    .eq('id', detailerId)
     .single();
 
   if (error || !data) {
     return Response.json({ error: 'User not found' }, { status: 404 });
   }
 
-  const isAdmin = ADMIN_EMAILS.includes(data.email?.toLowerCase());
+  const isAdmin = user.account_kind === 'team'
+    ? false
+    : ADMIN_EMAILS.includes(data.email?.toLowerCase());
+  const built = buildUserResponse(data, isAdmin, { includeRemit });
+  const sessionUser = user.account_kind === 'team'
+    ? withTeamIdentity(built, {
+        id: user.team_member_id,
+        email: user.email,
+        name: user.name,
+        role: user.team_role,
+        detailer_id: detailerId,
+      })
+    : built;
 
   return Response.json({
-    user: buildUserResponse(data, isAdmin, { includeRemit }),
+    user: sessionUser,
   });
 }

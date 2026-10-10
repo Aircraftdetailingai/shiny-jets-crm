@@ -4,6 +4,7 @@ import { logActivity, ACTIVITY } from '@/lib/activity-log';
 import { supersedePendingAssignments } from '@/lib/supersede-assignments';
 import { createHash } from 'crypto';
 import { isAircraftCategory, aircraftDisplayName } from '@/lib/aircraft-labels';
+import { applyJobLearning } from '@/lib/learn-from-job';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,9 +87,9 @@ export async function POST(request) {
 
     // Log per-service hours if provided
     if (service_hours && Array.isArray(service_hours) && service_hours.length > 0) {
+      let aircraftModel = '';
+      let aircraftMake = '';
       try {
-        let aircraftModel = '';
-        let aircraftMake = '';
 
         if (quote.aircraft_id) {
           const { data: aircraft } = await supabase
@@ -197,6 +198,20 @@ export async function POST(request) {
         }
       } catch (e) {
         console.error('Failed to track hours contributions:', e);
+      }
+
+      // Shop learning: actual hours on this model become a ratio for other
+      // models, and a pin on the aircraft that was just worked.
+      try {
+        await applyJobLearning(supabase, {
+          detailerId: user.detailer_id || user.id,
+          aircraftId: quote.aircraft_id || null,
+          make: aircraftMake || quote.aircraft_make || '',
+          model: aircraftModel || quote.aircraft_model || '',
+          serviceHours: service_hours,
+        });
+      } catch (e) {
+        console.error('[jobs/complete] learning failed:', e?.message || e);
       }
     }
 

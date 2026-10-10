@@ -5,6 +5,8 @@ import PhoneInput from '@/components/PhoneInput';
 import SendQuoteModal from '../../../components/SendQuoteModal.jsx';
 import CustomerAutocomplete from '../../../components/CustomerAutocomplete.jsx';
 import { computeCalibratedHours, applyMinimumPrice } from '../../../lib/calibrate-hours.js';
+import { resolveServiceHours } from '../../../lib/resolve-service-hours.js';
+import { pinsForAircraft } from '../../../lib/aircraft-pins.js';
 import LoadingSpinner from '../../../components/LoadingSpinner.jsx';
 import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
@@ -152,8 +154,23 @@ function NewQuoteContent() {
   const [saveDefaultPrompt, setSaveDefaultPrompt] = useState({});
   const [savingDefault, setSavingDefault] = useState({});
   const [aircraftHoursRef, setAircraftHoursRef] = useState(null);
+  const [pinRows, setPinRows] = useState([]);
   const [aircraftOverrides, setAircraftOverrides] = useState({}); // { svcId: hours }
   const [communityHours, setCommunityHours] = useState({});
+
+  // Re-match pins when the catalog row arrives (its id differs from aircraft.id).
+  useEffect(() => {
+    if (!selectedAircraft) {
+      setAircraftOverrides({});
+      return;
+    }
+    setAircraftOverrides(pinsForAircraft(pinRows, {
+      aircraftId: selectedAircraft.custom ? null : selectedAircraft.id,
+      customAircraftId: selectedAircraft.custom ? selectedAircraft.id : null,
+      aircraftHoursId: aircraftHoursRef?.id || null,
+      services: availableServices,
+    }));
+  }, [pinRows, selectedAircraft, aircraftHoursRef, availableServices]);
   const [ccFeeMode, setCcFeeMode] = useState('absorb');
   const [quota, setQuota] = useState(null); // { plan, used, limit, unlimited }
 
@@ -656,25 +673,20 @@ function NewQuoteContent() {
         setCustomHours({});
         setSaveDefaultPrompt({});
         setAircraftHoursRef(null);
+        setPinRows([]);
         setAircraftOverrides({});
         setCommunityHours({});
 
-        // Fetch per-aircraft hour overrides saved by this detailer
+        // Fetch per-aircraft hour overrides saved by this detailer.
+        // Matched below against both the aircraft-table id and the
+        // aircraft_hours id (pins saved from Settings use the latter).
         const ac = data.aircraft;
         try {
           const token = localStorage.getItem('vector_token');
           const ovRes = await fetch('/api/custom-aircraft/overrides', { headers: { Authorization: `Bearer ${token}` } });
           if (ovRes.ok) {
             const ovData = await ovRes.json();
-            const map = {};
-            for (const ov of (ovData.overrides || [])) {
-              const matchesStandard = !ac.custom && ov.aircraft_id === ac.id;
-              const matchesCustom = ac.custom && ov.custom_aircraft_id === ac.id;
-              if (matchesStandard || matchesCustom) {
-                if (ov.service_id) map[ov.service_id] = parseFloat(ov.hours);
-              }
-            }
-            setAircraftOverrides(map);
+            setPinRows(ovData.overrides || []);
           }
         } catch {}
 
@@ -814,51 +826,41 @@ function NewQuoteContent() {
     return 0;
   };
 
-  // Get hours for a service. Priority:
-  //   manual override > per-aircraft override > service_calibrations ratio
-  //   (when a calibration exists AND the baseline column for that
-  //    reference_service_type is populated on the aircraft_hours row) >
-  //   detailer default > community avg > aircraft_hours name-match ref >
-  //   old aircraft table > 1.0 fallback.
-  const getHoursForService = (svc) => {
-    if (customHours[svc.id] !== undefined) return customHours[svc.id];
-    if (aircraftOverrides[svc.id] !== undefined) return aircraftOverrides[svc.id];
+  // Get hours for a service. Priority (lib/resolve-service-hours.js):
+  //   manual > pin > learned calibration > aircraft catalog > shop default
+  //   > community > 1h estimate.
+  const resolveHours = (svc, { includeCustom = true } = {}) => {
     const cal = computeCalibratedHours({ service: svc, aircraftHoursRef, calibrations, services: availableServices });
-    if (cal.source === 'calibrated') return cal.hours;
-    if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
-    const community = getCommunityHours(svc);
-    if (community > 0) return community;
-    const aircraft = getAircraftHours(svc);
-    if (aircraft > 0) return aircraft;
-    return 1.0;
+    return resolveServiceHours({
+      service: svc,
+      hasCustom: includeCustom && customHours[svc.id] !== undefined,
+      customHours: customHours[svc.id],
+      hasPin: aircraftOverrides[svc.id] !== undefined,
+      pinnedHours: aircraftOverrides[svc.id],
+      calibrated: cal,
+      aircraftHours: getAircraftHours(svc),
+      communityHours: getCommunityHours(svc),
+    });
   };
 
-  // Get the source of hours for display
+  const getHoursForService = (svc) => resolveHours(svc).hours;
+
   const getHoursSource = (svc) => {
-    if (customHours[svc.id] !== undefined) return { type: 'manual', label: 'Your override' };
-    if (aircraftOverrides[svc.id] !== undefined) return { type: 'personal', label: `Saved for ${selectedAircraft?.model || 'this aircraft'}` };
-    if (svc.default_hours && parseFloat(svc.default_hours) > 0) return { type: 'personal', label: 'Your default' };
-    const field = svc.hours_field;
-    if (field && communityHours[field] && communityHours[field].sample_count >= 3) {
-      return { type: 'community', label: `Based on ${communityHours[field].sample_count} completions` };
+    const resolved = resolveHours(svc);
+    if (resolved.source === 'manual') return { type: 'manual', label: 'Your override' };
+    if (resolved.source === 'pin') return { type: 'personal', label: `Saved for ${selectedAircraft?.model || 'this aircraft'}` };
+    if (resolved.source === 'calibrated') return { type: 'aircraft', label: 'Adjusted from your logged jobs' };
+    if (resolved.source === 'aircraft') return { type: 'aircraft', label: 'From aircraft hours database' };
+    if (resolved.source === 'default') return { type: 'personal', label: 'Your default' };
+    if (resolved.source === 'community') {
+      const field = svc.hours_field;
+      const sample = field && communityHours[field]?.sample_count;
+      return { type: 'community', label: sample ? `Based on ${sample} completions` : 'Community average' };
     }
-    const refHrs = getRefHours(svc);
-    if (refHrs > 0) return { type: 'aircraft', label: 'From aircraft hours database' };
-    const oldHrs = getOldAircraftHours(svc);
-    if (oldHrs > 0) return { type: 'aircraft', label: 'From aircraft data' };
     return { type: 'platform', label: 'Estimated' };
   };
 
-  // Get the "starting" hours (before manual override) for comparison
-  const getDefaultHours = (svc) => {
-    if (aircraftOverrides[svc.id] !== undefined) return aircraftOverrides[svc.id];
-    if (svc.default_hours && parseFloat(svc.default_hours) > 0) return parseFloat(svc.default_hours);
-    const community = getCommunityHours(svc);
-    if (community > 0) return community;
-    const aircraft = getAircraftHours(svc);
-    if (aircraft > 0) return aircraft;
-    return 1.0;
-  };
+  const getDefaultHours = (svc) => resolveHours(svc, { includeCustom: false }).hours;
 
   const handleHoursChange = (svcId, svcName, newHours) => {
     const val = Math.max(0, parseFloat(newHours) || 0);

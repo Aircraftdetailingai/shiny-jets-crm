@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { prepareImportedService } from '@/lib/service-defaults';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,14 +32,16 @@ export async function POST(request) {
     }
 
     const toInsert = services.map(svc => {
+      const prepared = prepareImportedService(svc);
       const row = {
         detailer_id: user.detailer_id || user.id,
-        name: svc.name,
-        description: svc.description || '',
-        hourly_rate: parseFloat(svc.hourly_rate) || 0,
+        name: prepared.name,
+        description: prepared.description || '',
+        hourly_rate: prepared.hourly_rate || 0,
       };
-      if (svc.hours_field) row.hours_field = svc.hours_field;
-      if (svc.category) row.category = svc.category;
+      if (prepared.hours_field) row.hours_field = prepared.hours_field;
+      if (prepared.category) row.category = prepared.category;
+      if (prepared.default_hours) row.default_hours = prepared.default_hours;
       return row;
     });
 

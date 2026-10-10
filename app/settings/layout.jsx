@@ -57,15 +57,20 @@ export default function SettingsLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hideBilling, setHideBilling] = useState(false);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem('vector_user');
-      if (stored) setIsAdmin(!!JSON.parse(stored).is_admin);
+      if (stored) {
+        const user = JSON.parse(stored);
+        setIsAdmin(!!user.is_admin);
+        setHideBilling(user.account_kind === 'team');
+      }
     } catch {}
   }, []);
 
-  const visibleBuckets = BUCKETS.filter(b => !b.adminOnly || isAdmin);
+  const visibleBuckets = BUCKETS.filter(b => (!b.adminOnly || isAdmin) && !(hideBilling && b.href === '/settings/payments'));
   const activeBucket =
     visibleBuckets.find(b => isBucketActive(pathname, b))
       ?? visibleBuckets[0];

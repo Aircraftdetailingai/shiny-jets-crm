@@ -7,6 +7,7 @@ import PointsBadge from './PointsBadge.jsx';
 import { applyFullTheme } from '@/lib/theme';
 import { normalizePlan, hasFeature, requiredPlanFor } from '@/lib/plans';
 import { hasStandaloneAi } from '@/lib/detailing-ai-access';
+import { navItemVisible, canSeeSettings, canSeeBilling } from '@/lib/team-access';
 
 const NAV_GROUPS = [
   {
@@ -317,7 +318,9 @@ export default function Sidebar() {
       {/* Nav Groups — collapsible headings, remembered per browser */}
       <ScrollableNav>
         {NAV_GROUPS.map((group, gi) => {
-          const hasActive = group.items.some((it) => isActive(it.href));
+          const visibleItems = group.items.filter((it) => navItemVisible(it.href, user));
+          if (visibleItems.length === 0) return null;
+          const hasActive = visibleItems.some((it) => isActive(it.href));
           const isCollapsed = !!(group.label && collapsed[group.label] && !hasActive);
           const groupId = `nav-group-${gi}`;
           return (
@@ -331,12 +334,12 @@ export default function Sidebar() {
                   className="w-full flex items-center justify-between px-7 pt-3 pb-1 md:pt-2.5 md:pb-0.5 [@media(min-width:768px)_and_(max-height:860px)]:pt-1.5 text-[9px] leading-3 uppercase text-v-text-secondary/60 hover:text-v-text-secondary font-medium"
                   style={{ letterSpacing: '0.2em' }}
                 >
-                  <span>{group.label}{isCollapsed ? ` · ${group.items.length}` : ''}</span>
+                  <span>{group.label}{isCollapsed ? ` · ${visibleItems.length}` : ''}</span>
                   <svg className={`w-3 h-3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
               )}
               <div id={groupId} hidden={isCollapsed}>
-                {group.items.map((item) => {
+                {visibleItems.map((item) => {
                   const active = isActive(item.href);
                   const Icon = item.icon;
                   return (
@@ -372,7 +375,8 @@ export default function Sidebar() {
         })}
       </ScrollableNav>
 
-      {/* Settings (bottom-anchored, above user area) */}
+      {/* Settings (bottom-anchored, above user area). Hidden for worker roles. */}
+      {canSeeSettings(user) && (
       <div className="border-t border-v-border-subtle shrink-0">
         <a
           href="/settings"
@@ -390,6 +394,7 @@ export default function Sidebar() {
           <span>Settings</span>
         </a>
       </div>
+      )}
 
       {/* Bottom user area */}
       <div className="border-t border-v-border-subtle px-5 py-3 md:py-2.5 [@media(min-width:768px)_and_(max-height:860px)]:py-2 shrink-0">
@@ -409,7 +414,7 @@ export default function Sidebar() {
                 return (
                   <>
                     <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-300 border border-gray-600/50">Free</span>
-                    <a href="/upgrade" className="text-[9px] text-cyan-400 hover:underline">Upgrade &rarr;</a>
+                    {canSeeBilling(user) && <a href="/upgrade" className="text-[9px] text-cyan-400 hover:underline">Upgrade &rarr;</a>}
                   </>
                 );
               })()}

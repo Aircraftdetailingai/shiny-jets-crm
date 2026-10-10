@@ -11,7 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 
 const ONBOARDING_SERVICES = [
   { name: 'Maintenance Wash', description: 'Routine aircraft exterior wash', hours_field: 'ext_wash_hours', defaultRate: 85 },
-  { name: 'Decon Wash', description: 'Iron removal and clay bar decontamination', hours_field: 'ext_wash_hours', defaultRate: 95 },
+  { name: 'Decon Wash', description: 'Iron removal and clay bar decontamination', hours_field: 'decon_hours', defaultRate: 95 },
   { name: 'One-Step Polish', description: 'Single-stage paint correction polish', hours_field: 'polish_hours', defaultRate: 100 },
   { name: 'Wax', description: 'Full exterior wax protection', hours_field: 'wax_hours', defaultRate: 90 },
   { name: 'Spray Ceramic', description: 'Spray-on ceramic maintenance coating', hours_field: 'spray_ceramic_hours', defaultRate: 95 },

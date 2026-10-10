@@ -10,33 +10,6 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// Map reference service type to the aircraft column and a sensible fallback
-const REFERENCE_MAP = {
-  wash: { column: 'ext_wash_hours', fallback: 2 },
-  polish: { column: 'polish_hours', fallback: 12 },
-  compound: { column: 'polish_hours', fallback: 16 },
-  wax: { column: 'wax_hours', fallback: 6 },
-  ceramic: { column: 'ceramic_hours', fallback: 18 },
-  decon: { column: 'decon_hours', fallback: 3 },
-  spray_ceramic: { column: 'spray_ceramic_hours', fallback: 8 },
-  detail_interior: { column: 'int_detail_hours', fallback: 6 },
-  carpet: { column: 'carpet_hours', fallback: 3 },
-  leather: { column: 'leather_hours', fallback: 4 },
-  brightwork: { column: 'brightwork_hours', fallback: 6 },
-};
-
-function getReferenceInfo(type) {
-  return REFERENCE_MAP[type] || { column: 'ext_wash_hours', fallback: 2 };
-}
-
-function computeReferenceHours(aircraft, type) {
-  const info = getReferenceInfo(type);
-  const raw = aircraft?.[info.column];
-  const num = typeof raw === 'number' ? raw : parseFloat(raw);
-  if (Number.isFinite(num) && num > 0) return num;
-  return info.fallback;
-}
-
 export async function GET(request) {
   try {
     const user = await getAuthUser(request);
@@ -100,59 +73,11 @@ export async function POST(request) {
       return Response.json({ error: calibErr.message }, { status: 500 });
     }
 
-    // 2. Resolve reference — standard type or detailer's own service (svc:uuid)
-    let resolvedRefType = reference_service_type;
-    let svcHoursField = null;
-    if (reference_service_type.startsWith('svc:')) {
-      const refSvcId = reference_service_type.slice(4);
-      const { data: refSvc } = await supabase.from('services').select('hours_field').eq('id', refSvcId).maybeSingle();
-      if (refSvc?.hours_field) svcHoursField = refSvc.hours_field;
-      resolvedRefType = 'wash'; // fallback for standard mapping
-    }
-
-    // 3. Fetch aircraft
-    const { data: aircraft, error: acErr } = await supabase
-      .from('aircraft')
-      .select('*');
-
-    if (acErr) {
-      console.error('aircraft fetch error:', acErr);
-      return Response.json({ error: acErr.message }, { status: 500 });
-    }
-
-    // 4. Compute and build overrides
-    const multiplier = Math.max(0, 1 + adjPct / 100);
-    const overrides = (aircraft || []).map((ac) => {
-      let refHours;
-      if (svcHoursField && ac[svcHoursField] != null) {
-        refHours = parseFloat(ac[svcHoursField]) || 0;
-      } else {
-        refHours = computeReferenceHours(ac, resolvedRefType);
-      }
-      const calibratedHours = Math.round(refHours * multiplier * 100) / 100;
-      return {
-        detailer_id: user.detailer_id || user.id,
-        aircraft_id: ac.id,
-        service_id,
-        service_name,
-        hours: calibratedHours,
-      };
-    });
-
-    let appliedCount = 0;
-    if (overrides.length > 0) {
-      const { error: ovErr } = await supabase
-        .from('detailer_aircraft_overrides')
-        .upsert(overrides, { onConflict: 'detailer_id,aircraft_id,service_id' });
-
-      if (ovErr) {
-        console.error('overrides upsert error:', ovErr);
-        return Response.json({ error: ovErr.message }, { status: 500 });
-      }
-      appliedCount = overrides.length;
-    }
-
-    return Response.json({ success: true, applied_count: appliedCount });
+    // The ratio is applied live in quotes (lib/calibrate-hours.js). Do not
+    // copy it onto detailer_aircraft_overrides — those rows are per-model
+    // pins and must keep winning over the learned number. Writing one row
+    // per aircraft turned every model into a pin and wiped real pins.
+    return Response.json({ success: true, applied_live: true, applied_count: 0 });
   } catch (e) {
     console.error('calibrations POST exception:', e);
     return Response.json({ error: e.message || 'Server error' }, { status: 500 });

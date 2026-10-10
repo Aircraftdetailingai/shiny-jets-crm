@@ -104,7 +104,7 @@ function LoginContent() {
         // ?next= lets aircraftdetailing.ai send phone users straight to Detailing AI (allowlisted paths only).
         const nextParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
         const safeNext = LOGIN_NEXT_ALLOWLIST.includes(nextParam) ? nextParam : null;
-        const redirectTo = postLoginPath({
+        const redirectTo = data.user?.home_path || postLoginPath({
           mustChangePassword: data.must_change_password === true,
           onboardingComplete: data.onboarding_complete !== false,
           next: safeNext,

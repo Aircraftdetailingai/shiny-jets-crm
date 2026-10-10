@@ -1,54 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { resolveHoursField } from '@/lib/service-defaults';
 
 export const dynamic = 'force-dynamic';
-
-// Auto-detect which aircraft hours column to use based on service name
-function autoDetectHoursField(name) {
-  const n = (name || '').toLowerCase();
-  if (n.includes('decon')) return 'decon_hours';
-  if (n.includes('polish') && !n.includes('bright')) return 'polish_hours';
-  if (n.includes('wax')) return 'wax_hours';
-  if (n.includes('leather') || n.includes('seat')) return 'leather_hours';
-  if (n.includes('carpet') || n.includes('extract') || n.includes('upholster')) return 'carpet_hours';
-  if (n.includes('spray ceramic') || n.includes('spray coat')) return 'spray_ceramic_hours';
-  if (n.includes('ceramic') || n.includes('coating')) return 'ceramic_hours';
-  if (n.includes('bright') || n.includes('chrome')) return 'brightwork_hours';
-  if (n.includes('interior') || n.includes('vacuum') || n.includes('wipe') || n.includes('cabin')) return 'int_detail_hours';
-  if (n.includes('wash') || n.includes('exterior') || n.includes('rinse')) return 'ext_wash_hours';
-  return null;
-}
-
-// Category-first hours_field resolution. The category picks the measurement
-// FAMILY; within the paint / interior family the service NAME may only choose
-// WHICH field (wash vs polish vs ceramic, or leather vs carpet). Returns null
-// for categories that carry no family signal (package/other) so the caller
-// falls back to full name detection.
-function categoryToHoursField(category, name) {
-  const n = (name || '').toLowerCase();
-  switch (category) {
-    case 'brightwork':
-      // Leading-edge family — a single field, no name sub-detection.
-      return 'brightwork_hours';
-    case 'interior':
-      if (n.includes('leather') || n.includes('seat')) return 'leather_hours';
-      if (n.includes('carpet') || n.includes('extract') || n.includes('upholster')) return 'carpet_hours';
-      return 'int_detail_hours';
-    case 'exterior':
-    case 'paint_correction':
-    case 'coating': {
-      // Paint-surface family — name only narrows which paint field.
-      if (n.includes('decon')) return 'decon_hours';
-      if (n.includes('spray ceramic') || n.includes('spray coat')) return 'spray_ceramic_hours';
-      if (n.includes('ceramic') || n.includes('coating')) return 'ceramic_hours';
-      if (n.includes('wax')) return 'wax_hours';
-      if (n.includes('polish') && !n.includes('bright')) return 'polish_hours';
-      return 'ext_wash_hours';
-    }
-    default:
-      return null; // package / other / unknown → name detection fallback
-  }
-}
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -205,9 +159,9 @@ export async function POST(request) {
     if (category) {
       row.category = category;
     }
-    // Add hours_field. Priority: explicit value > category (sets the family) >
-    // name detection (fallback only when the category carries no family signal).
-    const resolvedField = hours_field || categoryToHoursField(category, name) || autoDetectHoursField(name);
+    // Explicit hours_field wins, except a generic wash field on a more
+    // specific name (Decon Wash was stored as ext_wash_hours).
+    const resolvedField = resolveHoursField({ name, category, hours_field });
     if (resolvedField) {
       row.hours_field = resolvedField;
     }

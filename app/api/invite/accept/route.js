@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { hashPassword, createToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { hashPassword } from '@/lib/auth';
+import { buildTeamCrmSession } from '@/lib/team-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +79,22 @@ export async function GET(request) {
   });
 }
 
+async function issueTeamSession(supabase, member) {
+  const session = await buildTeamCrmSession(supabase, member);
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete('auth_token');
+    cookieStore.set('auth_token', session.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    });
+  } catch {}
+  return session;
+}
+
 // POST — accept invitation
 export async function POST(request) {
   const { token, password } = await request.json();
@@ -125,32 +143,15 @@ export async function POST(request) {
   }
 
   if (existingDetailer) {
-    // Existing account — just mark as accepted and issue a crew token
+    // Existing account — link the membership and open the owner's CRM.
+    // A crew-only token left them in /crew with no sidebar and none of the shop's data.
     await supabase.from('team_members').update({
       invite_status: 'accepted',
       invite_token: null,
     }).eq('id', member.id);
 
-    // Create a crew login token
-    const jwtPayload = {
-      id: member.id,
-      detailer_id: member.detailer_id,
-      name: member.name,
-      email: member.email,
-      role: 'crew',
-      is_lead_tech: member.is_lead_tech || false,
-      can_see_inventory: member.can_see_inventory || false,
-      can_see_equipment: member.can_see_equipment || false,
-    };
-    const authToken = await createToken(jwtPayload);
-
-    return Response.json({ success: true, token: authToken, user: {
-      id: member.id, detailer_id: member.detailer_id, name: member.name, email: member.email,
-      type: member.type || 'employee', title: member.title, role: 'crew',
-      is_lead_tech: member.is_lead_tech || false,
-      can_see_inventory: member.can_see_inventory || false,
-      can_see_equipment: member.can_see_equipment || false,
-    }});
+    const session = await issueTeamSession(supabase, member);
+    return Response.json({ success: true, ...session });
   }
 
   // New account — password required
@@ -172,24 +173,6 @@ export async function POST(request) {
     return Response.json({ error: 'Failed to create account: ' + updateErr.message }, { status: 500 });
   }
 
-  // Issue JWT for the crew member
-  const jwtPayload = {
-    id: member.id,
-    detailer_id: member.detailer_id,
-    name: member.name,
-    email: member.email,
-    role: 'crew',
-    is_lead_tech: member.is_lead_tech || false,
-    can_see_inventory: member.can_see_inventory || false,
-    can_see_equipment: member.can_see_equipment || false,
-  };
-  const authToken = await createToken(jwtPayload);
-
-  return Response.json({ success: true, token: authToken, user: {
-    id: member.id, detailer_id: member.detailer_id, name: member.name, email: member.email,
-    type: member.type || 'employee', title: member.title, role: 'crew',
-    is_lead_tech: member.is_lead_tech || false,
-    can_see_inventory: member.can_see_inventory || false,
-    can_see_equipment: member.can_see_equipment || false,
-  }});
+  const session = await issueTeamSession(supabase, member);
+  return Response.json({ success: true, ...session });
 }

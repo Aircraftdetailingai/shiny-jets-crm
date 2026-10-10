@@ -3,6 +3,7 @@ import { useState, useEffect, Fragment, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import CalibrationModal from '@/components/CalibrationModal';
 import { isCrossFamily } from '@/lib/calibration-reference';
+import { DEFAULT_SERVICE_CATALOG as DEFAULT_SERVICES } from '@/lib/service-defaults';
 import { currencySymbol } from '@/lib/formatPrice';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonTotal, PERCENT } from '@/lib/addon-fees';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -159,19 +160,6 @@ function PackageSortableList({ packages, setPackages, getToken, getServiceById, 
     </DndContext>
   );
 }
-
-const DEFAULT_SERVICES = [
-  { name: 'Maintenance Wash', description: 'Regular exterior wash', hourly_rate: 120, category: 'exterior' },
-  { name: 'Decon Wash', description: 'Deep clean with iron remover and clay bar', hourly_rate: 130, category: 'exterior' },
-  { name: 'One-Step Polish', description: 'Light polish to remove minor swirls', hourly_rate: 140, category: 'exterior' },
-  { name: 'Wax Application', description: 'Protective wax coating', hourly_rate: 100, category: 'exterior' },
-  { name: 'Spray Ceramic', description: 'Ceramic spray sealant', hourly_rate: 120, category: 'exterior' },
-  { name: 'Ceramic Coating', description: 'Professional ceramic coating, 2+ year protection', hourly_rate: 175, category: 'exterior' },
-  { name: 'Vacuum & Wipe Down', description: 'Interior vacuum and surface wipe', hourly_rate: 100, category: 'interior' },
-  { name: 'Carpet Extraction', description: 'Deep carpet and upholstery cleaning', hourly_rate: 110, category: 'interior' },
-  { name: 'Leather Clean & Condition', description: 'Full leather treatment', hourly_rate: 115, category: 'interior' },
-  { name: 'Polish Brightwork', description: 'Metal and chrome polishing', hourly_rate: 130, category: 'exterior' },
-];
 
 const DEFAULT_ADDON_FEES = [
   { name: 'Hazmat Fee', description: 'Hazardous material handling surcharge', fee_type: 'flat', amount: 250 },

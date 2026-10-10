@@ -22,6 +22,14 @@ export async function POST(request) {
   const detailerId = user.detailer_id || user.id;
 
   const body = await request.json();
+  // Bank details belong to the account owner. A team session can update
+  // business contact fields but must not write ACH.
+  if (user.account_kind === 'team') {
+    delete body.ach_routing_number;
+    delete body.ach_account_number;
+    delete body.ach_account_name;
+    delete body.ach_bank_name;
+  }
   const updates = {};
 
   if (body.name !== undefined) updates.name = body.name;

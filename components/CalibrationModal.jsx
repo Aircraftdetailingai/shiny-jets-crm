@@ -196,7 +196,9 @@ export default function CalibrationModal({
         return;
       }
       const count = data.applied_count ?? data.aircraft_count ?? data.count ?? 0;
-      setSuccessMessage(`Applied to ${count} aircraft`);
+      setSuccessMessage(data.applied_live
+        ? 'Saved. Other aircraft use this ratio unless a model is pinned.'
+        : `Applied to ${count} aircraft`);
       setTimeout(() => {
         setSaving(false);
         onClose?.();

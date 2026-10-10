@@ -64,18 +64,14 @@ export default function AcceptInvitePage() {
       if (!res.ok) throw new Error(data.error || 'Failed to accept invitation');
 
       if (data.token) {
-        // Clear any stale detailer session so onboarding doesn't intercept
-        localStorage.removeItem('vector_token');
-        localStorage.removeItem('vector_user');
-        // Store as crew session
-        localStorage.setItem('crew_token', data.token);
-        if (data.user) {
-          localStorage.setItem('crew_user', JSON.stringify(data.user));
-        }
+        localStorage.removeItem('crew_token');
+        localStorage.removeItem('crew_user');
+        localStorage.setItem('vector_token', data.token);
+        if (data.user) localStorage.setItem('vector_user', JSON.stringify(data.user));
       }
       setDone(true);
-      // Use window.location for hard redirect to avoid client-side routing intercepting
-      setTimeout(() => { window.location.href = '/crew'; }, 1500);
+      const next = data.user?.home_path || '/dashboard';
+      setTimeout(() => { window.location.href = next; }, 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,7 +98,7 @@ export default function AcceptInvitePage() {
           </svg>
         </div>
         <h2 className="text-2xl font-light text-white mb-3">You&apos;re in!</h2>
-        <p className="text-white/60 text-sm">Redirecting to your crew dashboard...</p>
+        <p className="text-white/60 text-sm">Redirecting to the shop...</p>
       </div>
     );
   }

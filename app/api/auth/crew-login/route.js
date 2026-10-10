@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { createToken, comparePassword } from '@/lib/auth';
 import { detailerHasFeature } from '@/lib/plan-gate';
+import { buildTeamCrmSession } from '@/lib/team-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +21,7 @@ export async function POST(request) {
       // Email + password login (from invite acceptance)
       const { data, error } = await supabase
         .from('team_members')
-        .select('id, detailer_id, name, email, type, title, hourly_pay, status, is_lead_tech, can_see_inventory, can_see_equipment, can_see_pricing, can_see_customer_contact, can_see_other_jobs, can_upload_photos, can_log_products, can_mark_complete, can_clock, password_hash')
+        .select('id, detailer_id, name, email, role, type, title, hourly_pay, status, is_lead_tech, can_see_inventory, can_see_equipment, can_see_pricing, can_see_customer_contact, can_see_other_jobs, can_upload_photos, can_log_products, can_mark_complete, can_clock, password_hash')
         .eq('email', email.toLowerCase().trim())
         .eq('status', 'active')
         .single();
@@ -59,6 +61,24 @@ export async function POST(request) {
 
     if (!member) {
       return Response.json({ error: 'Login failed' }, { status: 401 });
+    }
+
+    // Email + password is a CRM login (role-scoped sidebar on the owner's
+    // shop). PIN stays the field crew app.
+    if (email && password) {
+      const session = await buildTeamCrmSession(supabase, member);
+      try {
+        const cookieStore = await cookies();
+        cookieStore.delete('auth_token');
+        cookieStore.set('auth_token', session.token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 30,
+          path: '/',
+        });
+      } catch {}
+      return Response.json({ ...session, app: 'crm' });
     }
 
     // Crew app is a Business feature of the owner's plan.

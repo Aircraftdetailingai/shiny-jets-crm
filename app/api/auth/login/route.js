@@ -3,8 +3,10 @@ import { comparePassword, hashPassword, createToken } from '../../../../lib/auth
 import { sessionTokenClaims } from '@/lib/password-change';
 import { cookies } from 'next/headers';
 import { normalizePlan } from '@/lib/plans';
+import { teamTokenClaims, withTeamIdentity } from '@/lib/team-access';
 import {
   detailerEmailQuery,
+  exactEmailIlike,
   matchDetailerPassword,
   noteDuplicateDetailers,
   preferredDetailer,
@@ -90,23 +92,22 @@ export async function POST(request) {
       supabase.from('detailers').select(LOGIN_SELECT),
       normalizedEmail,
     );
-    if (error || !matches?.length) {
-      // A lookup error is not a bad password (don't burn the failure budget).
-      if (!error) recordLoginFailure(normalizedEmail, ip);
+    if (error) {
       return new Response(JSON.stringify({ error: 'Invalid email or password' }), { status: 401 });
     }
 
     noteDuplicateDetailers(matches, normalizedEmail);
 
     // Try each candidate's bcrypt hash. A duplicate row must not hide a
-    // valid password stored on the other row.
-    let data = await matchDetailerPassword(matches, password, comparePassword);
+    // valid password stored on the other row. No detailer row is normal for
+    // an invited team member — fall through to the team_members check.
+    let data = matches?.length ? await matchDetailerPassword(matches, password, comparePassword) : null;
     let valid = !!data;
 
     // If bcrypt didn't match, try Supabase Auth. The hash is written onto
     // the preferred row: the only row, or the newest duplicate that already
     // has a password_hash.
-    if (!valid) {
+    if (!valid && matches?.length) {
       data = preferredDetailer(matches);
       try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -123,12 +124,43 @@ export async function POST(request) {
       }
     }
 
+    // Team members are not detailer rows. Their password lives on team_members
+    // and the session must carry the owning shop's id and plan, or the CRM
+    // sidebar and every tenant query come up empty.
+    let teamMember = null;
+    if (!valid) {
+      const { data: teamRows, error: teamErr } = await supabase
+        .from('team_members')
+        .select('id, detailer_id, name, email, role, type, status, password_hash')
+        .ilike('email', exactEmailIlike(normalizedEmail))
+        .eq('status', 'active')
+        .limit(5);
+      if (!teamErr && teamRows?.length) {
+        for (const row of teamRows) {
+          if (!row.password_hash || !row.detailer_id) continue;
+          if (await comparePassword(password, row.password_hash)) {
+            const { data: owner, error: ownerErr } = await supabase
+              .from('detailers')
+              .select(LOGIN_SELECT)
+              .eq('id', row.detailer_id)
+              .maybeSingle();
+            if (!ownerErr && owner) {
+              data = owner;
+              teamMember = row;
+              valid = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+
     if (!valid) {
       recordLoginFailure(normalizedEmail, ip);
       return new Response(JSON.stringify({ error: 'Invalid email or password' }), { status: 401 });
     }
 
-    const token = await createToken(sessionTokenClaims(data));
+    const token = await createToken(teamMember ? teamTokenClaims(teamMember, data.id) : sessionTokenClaims(data));
 
     // Set auth cookie for server-side auth
     try {
@@ -147,8 +179,8 @@ export async function POST(request) {
       // Cookie setting can fail in certain contexts, non-critical
     }
 
-    const isAdmin = ADMIN_EMAILS.includes(data.email?.toLowerCase());
-    const user = {
+    const isAdmin = teamMember ? false : ADMIN_EMAILS.includes(data.email?.toLowerCase());
+    let user = {
       id: data.id,
       email: data.email,
       name: data.name,
@@ -210,8 +242,14 @@ export async function POST(request) {
         .from('detailers').select('ai_access_until').eq('id', data.id).maybeSingle();
       if (!aiErr) user.ai_access_until = ai?.ai_access_until || null;
     } catch {}
+    if (teamMember) user = withTeamIdentity(user, teamMember);
     return new Response(
-      JSON.stringify({ token, user, must_change_password: data.must_change_password, onboarding_complete: data.onboarding_complete !== false }),
+      JSON.stringify({
+        token,
+        user,
+        must_change_password: teamMember ? false : data.must_change_password,
+        onboarding_complete: teamMember ? true : data.onboarding_complete !== false,
+      }),
       { status: 200 }
     );
   } catch (err) {
