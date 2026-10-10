@@ -30,15 +30,13 @@ The quote is good through the "Valid until" date shown on it. After that date, a
 
 ## Deposits and when you pay
 
-The quote or invoice states which way you pay.
+The quote or invoice states which way you pay. Those terms control when payment is due.
 
-- Pay in full. Paying the quoted total confirms the booking.
-- Deposit. The deposit amount is shown on the quote. It holds the date and is applied to the final invoice. The rest is due when the work is finished. A deposit paid to reserve a date is not refundable.
-- Book now, pay later. You may accept and schedule without paying now. The detailer sends an invoice. You pay by the due date on that invoice.
+- Pay in full. Paying the quoted total confirms the booking. That payment is due before the work starts.
+- Deposit. The deposit amount is shown on the quote. It holds the date and is applied to the final invoice. The deposit is due before the work starts. The rest is due when the work is finished. A deposit paid to reserve a date is not refundable.
+- Book now, pay later. You may accept and schedule without paying now. The detailer sends an invoice. You pay by the due date on that invoice. If the invoice shows a number of days, that number is counted from the invoice date.
 
-Payment is due by the due date printed on the invoice. If the invoice shows a number of days, that number is counted from the invoice date.
-
-If payment is not received within 48 hours after the invoice is sent, work already underway will pause until payment is received. Money already paid is not refunded once work has started.
+If the agreed terms require a payment before the work starts, or while the work is underway, and that payment is still unpaid 48 hours after it was due, work already underway will pause until it is paid. That 48-hour pause does not apply to Book now, pay later, or to an invoice that is due a set number of days after the invoice date. Money already paid is not refunded once work has started.
 
 ## Card processing fee
 
@@ -61,6 +59,8 @@ Please make sure the detailer can reach the aircraft on the scheduled date. The 
 ## Damage, liability, and condition already on the aircraft
 
 The detailer may photograph the aircraft before, during, and after the work. The photos are a record of the aircraft's condition, including damage that was already there.
+
+The detailer is not responsible for damage, wear, or defects that were already on the aircraft before the service. That includes failing paint, cracked or crazed windows, loose or failed seals, corrosion, and deteriorated de-ice boots. Where possible, the detailer documents that condition with photos. This does not excuse damage the detailer causes by their own negligence.
 
 By sending a quote request, or by accepting a quote, you allow the detailer to take those photos. Shiny Jets may use them only for anonymous research on surface condition. Shiny Jets does not sell the photos, does not post them publicly, and does not attach them to your name. You agree that Shiny Jets is not responsible for how an individual detailing business uses the photos.
 
@@ -88,15 +88,13 @@ The quote is good through the "Valid until" date shown on it. After that date, a
 
 ## Deposits and when you pay
 
-The quote or invoice states which way you pay.
+The quote or invoice states which way you pay. Those terms control when payment is due.
 
-- Pay in full. Paying the quoted total confirms the booking.
-- Deposit. The deposit amount is shown on the quote. It holds the date and is applied to the final invoice. The rest is due when the work is finished. A deposit paid to reserve a date is not refundable.
-- Book now, pay later. You may accept and schedule without paying now. The detailer sends an invoice. You pay by the due date on that invoice.
+- Pay in full. Paying the quoted total confirms the booking. That payment is due before the work starts.
+- Deposit. The deposit amount is shown on the quote. It holds the date and is applied to the final invoice. The deposit is due before the work starts. The rest is due when the work is finished. A deposit paid to reserve a date is not refundable.
+- Book now, pay later. You may accept and schedule without paying now. The detailer sends an invoice. You pay by the due date on that invoice. If the invoice shows a number of days, that number is counted from the invoice date.
 
-Payment is due by the due date printed on the invoice. If the invoice shows a number of days, that number is counted from the invoice date.
-
-If payment is not received within 48 hours after the invoice is sent, work already underway will pause until payment is received. Money already paid is not refunded once work has started.
+If the agreed terms require a payment before the work starts, or while the work is underway, and that payment is still unpaid 48 hours after it was due, work already underway will pause until it is paid. That 48-hour pause does not apply to Book now, pay later, or to an invoice that is due a set number of days after the invoice date. Money already paid is not refunded once work has started.
 
 ## Card processing fee
 
@@ -119,6 +117,8 @@ Please make sure the detailer can reach the aircraft on the scheduled date. The 
 ## Damage, liability, and condition already on the aircraft
 
 The detailer may photograph the aircraft before, during, and after the work. The photos are a record of the aircraft's condition, including damage that was already there.
+
+The detailer is not responsible for damage, wear, or defects that were already on the aircraft before the service. That includes failing paint, cracked or crazed windows, loose or failed seals, corrosion, and deteriorated de-ice boots. Where possible, the detailer documents that condition with photos. This does not excuse damage the detailer causes by their own negligence.
 
 By sending a quote request, or by accepting a quote, you allow the detailer to take those photos. Shiny Jets may use them only for anonymous research on surface condition. Shiny Jets does not sell the photos, does not post them publicly, and does not attach them to your name. You agree that Shiny Jets is not responsible for how an individual detailing business uses the photos.
 

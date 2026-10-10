@@ -2264,7 +2264,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
           <div className="mt-6">
             <label className="block text-sm font-medium text-v-text-secondary mb-2">Short note on the quote</label>
             <p className="text-v-text-secondary/60 text-xs mb-3">
-              Optional. Shown above the service terms on the quote page and in the customer portal. Use it for a short shop note, such as how you photograph the aircraft before work. It does not replace the service terms, and it is not a liability waiver unless your own terms already say that.
+              Optional. Shown above the service terms on the quote page and in the customer portal. Use it for a short shop note, such as how you photograph the aircraft before work. It does not replace the service terms. The service terms already say the shop is not responsible for damage that was on the aircraft before the work, and that this does not cover damage the shop causes.
             </p>
             <textarea
               value={disclaimerText}

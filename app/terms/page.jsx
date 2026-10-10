@@ -317,11 +317,11 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">19. Wyoming law and arbitration</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">19. California law and arbitration in San Diego</h2>
             <p>
-              These terms follow the laws of the State of Wyoming, without regard to conflict-of-law rules. A dispute
+              These terms follow the laws of the State of California, without regard to conflict-of-law rules. A dispute
               under these terms is resolved by binding arbitration with the American Arbitration Association under its
-              Commercial Arbitration Rules. The arbitration is held in Wyoming, or remotely if the arbitrator decides
+              Commercial Arbitration Rules. The arbitration is held in San Diego, California, or remotely if the arbitrator decides
               that. You give up any right to take part in a class action or a class-wide arbitration. Each side pays
               its own costs and attorneys&apos; fees, unless the arbitrator decides otherwise.
             </p>

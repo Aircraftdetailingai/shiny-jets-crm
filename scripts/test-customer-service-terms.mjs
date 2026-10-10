@@ -67,16 +67,23 @@ assert.match(paymentDisputeSentence('Hangar One'), /Hangar One/);
 assert.match(paymentDisputeSentence(''), /the detailing business/);
 assert.equal(PLATFORM_TERMS_VERSION, '2026-10-10');
 
-assert.doesNotMatch(DEFAULT_SHOP_TERMS_MARKDOWN, /not liable for pre-existing/i);
-assert.doesNotMatch(PLATFORM_TERMS_MARKDOWN, /not liable for pre-existing/i);
+assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /not responsible for damage, wear, or defects/);
+assert.match(PLATFORM_TERMS_MARKDOWN, /not responsible for damage, wear, or defects/);
+assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /own negligence/);
+assert.match(PLATFORM_TERMS_MARKDOWN, /own negligence/);
+assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /de-ice boots/);
+assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /failing paint/);
 assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /change order/);
-assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /48 hours/);
+assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /48-hour pause does not apply to Book now, pay later/);
+assert.doesNotMatch(DEFAULT_SHOP_TERMS_MARKDOWN, /unpaid 48 hours after the invoice is sent/);
 assert.match(DEFAULT_SHOP_TERMS_MARKDOWN, /not refundable/);
 
 const tos = read('app/terms/page.jsx');
-assert.match(tos, /Wyoming/);
+assert.match(tos, /State of California/);
+assert.match(tos, /San Diego, California/);
+assert.match(tos, /binding arbitration/);
 assert.match(tos, /American Arbitration Association/);
-assert.doesNotMatch(tos, /San Diego/);
+assert.doesNotMatch(tos, /Wyoming/);
 assert.doesNotMatch(tos, /Chino/);
 assert.match(tos, /\/legal\/quote-terms/);
 
