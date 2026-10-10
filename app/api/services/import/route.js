@@ -42,6 +42,9 @@ export async function POST(request) {
       if (prepared.hours_field) row.hours_field = prepared.hours_field;
       if (prepared.category) row.category = prepared.category;
       if (prepared.default_hours) row.default_hours = prepared.default_hours;
+      row.requires_brightwork = !!prepared.requires_brightwork;
+      row.requires_deice_boots = !!prepared.requires_deice_boots;
+      if (prepared.allowed_categories?.length) row.allowed_categories = prepared.allowed_categories;
       return row;
     });
 

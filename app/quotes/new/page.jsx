@@ -4,9 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import PhoneInput from '@/components/PhoneInput';
 import SendQuoteModal from '../../../components/SendQuoteModal.jsx';
 import CustomerAutocomplete from '../../../components/CustomerAutocomplete.jsx';
-import { computeCalibratedHours, applyMinimumPrice } from '../../../lib/calibrate-hours.js';
+import { computeCalibratedHours } from '../../../lib/calibrate-hours.js';
 import { resolveServiceHours } from '../../../lib/resolve-service-hours.js';
 import { pinsForAircraft } from '../../../lib/aircraft-pins.js';
+import { filterOffers, indexOverrides } from '../../../lib/applicability.js';
+import { resolveOfferPrice } from '../../../lib/offer-price.js';
 import LoadingSpinner from '../../../components/LoadingSpinner.jsx';
 import { useToast } from '../../../components/Toast.jsx';
 import { formatPrice, currencySymbol } from '../../../lib/formatPrice';
@@ -155,6 +157,7 @@ function NewQuoteContent() {
   const [savingDefault, setSavingDefault] = useState({});
   const [aircraftHoursRef, setAircraftHoursRef] = useState(null);
   const [pinRows, setPinRows] = useState([]);
+  const [modelOverrides, setModelOverrides] = useState({ byServiceId: {}, byPackageId: {} });
   const [aircraftOverrides, setAircraftOverrides] = useState({}); // { svcId: hours }
   const [communityHours, setCommunityHours] = useState({});
 
@@ -164,13 +167,19 @@ function NewQuoteContent() {
       setAircraftOverrides({});
       return;
     }
-    setAircraftOverrides(pinsForAircraft(pinRows, {
+    const map = pinsForAircraft(pinRows, {
       aircraftId: selectedAircraft.custom ? null : selectedAircraft.id,
       customAircraftId: selectedAircraft.custom ? selectedAircraft.id : null,
       aircraftHoursId: aircraftHoursRef?.id || null,
       services: availableServices,
-    }));
-  }, [pinRows, selectedAircraft, aircraftHoursRef, availableServices]);
+    });
+    for (const [id, ov] of Object.entries(modelOverrides.byServiceId || {})) {
+      if (ov?.pinned_hours == null || ov.pinned_hours === '') continue;
+      const n = parseFloat(ov.pinned_hours);
+      if (Number.isFinite(n) && n >= 0) map[id] = n;
+    }
+    setAircraftOverrides(map);
+  }, [pinRows, selectedAircraft, aircraftHoursRef, availableServices, modelOverrides]);
   const [ccFeeMode, setCcFeeMode] = useState('absorb');
   const [quota, setQuota] = useState(null); // { plan, used, limit, unlimited }
 
@@ -674,6 +683,7 @@ function NewQuoteContent() {
         setSaveDefaultPrompt({});
         setAircraftHoursRef(null);
         setPinRows([]);
+        setModelOverrides({ byServiceId: {}, byPackageId: {} });
         setAircraftOverrides({});
         setCommunityHours({});
 
@@ -687,6 +697,12 @@ function NewQuoteContent() {
           if (ovRes.ok) {
             const ovData = await ovRes.json();
             setPinRows(ovData.overrides || []);
+          }
+          const q = ac.custom ? `custom_aircraft_id=${ac.id}` : `aircraft_id=${ac.id}`;
+          const moRes = await fetch(`/api/model-offers?${q}`, { headers: { Authorization: `Bearer ${token}` } });
+          if (moRes.ok) {
+            const mo = await moRes.json();
+            setModelOverrides(mo.indexed || indexOverrides(mo.overrides));
           }
         } catch {}
 
@@ -743,7 +759,9 @@ function NewQuoteContent() {
       setSelectedPackage(pkg);
       const newSelected = {};
       const serviceIds = Array.isArray(pkg.service_ids) ? pkg.service_ids : [];
-      serviceIds.forEach(id => { newSelected[id] = true; });
+      serviceIds.forEach(id => {
+        if (visibleServices.some((s) => s.id === id)) newSelected[id] = true;
+      });
       setSelectedServices(newSelected);
     }
   };
@@ -885,17 +903,36 @@ function NewQuoteContent() {
 
       if (selectedAircraft) {
         // Save per-aircraft override (custom or standard)
+        const aircraft_id = selectedAircraft.custom ? null : selectedAircraft.id;
+        const custom_aircraft_id = selectedAircraft.custom ? selectedAircraft.id : null;
         await fetch('/api/custom-aircraft/overrides', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            aircraft_id: selectedAircraft.custom ? null : selectedAircraft.id,
-            custom_aircraft_id: selectedAircraft.custom ? selectedAircraft.id : null,
+            aircraft_id,
+            custom_aircraft_id,
             service_id: svcId,
             service_name: svc?.name || '',
             hours,
           }),
         });
+        await fetch('/api/model-offers', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            aircraft_id,
+            custom_aircraft_id,
+            make: selectedAircraft.manufacturer,
+            model: selectedAircraft.model,
+            service_id: svcId,
+            service_name: svc?.name || '',
+            pinned_hours: hours,
+          }),
+        });
+        setModelOverrides((prev) => ({
+          ...prev,
+          byServiceId: { ...prev.byServiceId, [svcId]: { ...(prev.byServiceId?.[svcId] || {}), service_id: svcId, pinned_hours: hours } },
+        }));
         toastSuccess(`Saved ${hours}h for ${svc?.name} on ${selectedAircraft.model}`);
       } else {
         // Fallback: save as global service default
@@ -918,26 +955,40 @@ function NewQuoteContent() {
     setSaveDefaultPrompt(prev => ({ ...prev, [svcId]: false }));
   };
 
-  const getServicePrice = (svc) => {
-    const hours = getHoursForService(svc);
-    const raw = hours * (parseFloat(svc.hourly_rate) || 0);
-    return applyMinimumPrice(raw, svc.minimum_price).price;
-  };
+  const priceForService = (svc) => resolveOfferPrice({
+    hours: getHoursForService(svc),
+    hourlyRate: svc.hourly_rate,
+    minimumPrice: svc.minimum_price,
+    pinnedPrice: modelOverrides.byServiceId?.[svc.id]?.pinned_price,
+  });
+
+  const getServicePrice = (svc) => priceForService(svc).price;
 
   // Whether the service's minimum_price floor kicked in for the current
-  // hours × rate. Used by the picker to show a small "min applied" badge.
-  const isMinApplied = (svc) => {
-    const hours = getHoursForService(svc);
-    const raw = hours * (parseFloat(svc.hourly_rate) || 0);
-    return applyMinimumPrice(raw, svc.minimum_price).minApplied;
-  };
+  // hours × rate. A pinned price wins, so the badge stays off for a pin.
+  const isMinApplied = (svc) => priceForService(svc).minApplied;
 
-  const getSelectedServicesList = () => availableServices.filter(svc => selectedServices[svc.id]);
+  const offerView = filterOffers({
+    services: availableServices,
+    packages: availablePackages,
+    aircraft: selectedAircraft,
+    overrides: modelOverrides,
+  });
+  const visibleServices = offerView.services;
+  const visiblePackages = offerView.packages;
+
+  const getSelectedServicesList = () => visibleServices.filter(svc => selectedServices[svc.id]);
 
   const selectedServicesList = getSelectedServicesList();
   const totalHours = selectedServicesList.reduce((sum, svc) => sum + getHoursForService(svc), 0);
-  const servicesSubtotal = selectedServicesList.reduce((sum, svc) => sum + getServicePrice(svc), 0);
-  const discountPercent = selectedPackage ? (parseFloat(selectedPackage.discount_percent) || 0) : 0;
+  const packagePinRaw = selectedPackage ? modelOverrides.byPackageId?.[selectedPackage.id]?.pinned_price : null;
+  const packagePin = packagePinRaw != null && packagePinRaw !== '' && Number.isFinite(parseFloat(packagePinRaw))
+    ? parseFloat(packagePinRaw)
+    : null;
+  const servicesSubtotal = packagePin != null
+    ? packagePin
+    : selectedServicesList.reduce((sum, svc) => sum + getServicePrice(svc), 0);
+  const discountPercent = packagePin != null ? 0 : (selectedPackage ? (parseFloat(selectedPackage.discount_percent) || 0) : 0);
   const discountAmount = servicesSubtotal * (discountPercent / 100);
   const afterDiscount = servicesSubtotal - discountAmount;
   const afterDifficulty = afterDiscount * accessDifficulty;
@@ -1946,7 +1997,7 @@ function NewQuoteContent() {
 
               {/* Individual Services */}
               <div className="divide-y divide-v-border/30 mb-4">
-                {availableServices.map(svc => {
+                {visibleServices.map(svc => {
                   const hours = getHoursForService(svc);
                   const price = getServicePrice(svc);
                   const isSelected = !!selectedServices[svc.id];
@@ -2071,17 +2122,20 @@ function NewQuoteContent() {
               </div>
 
               {/* Packages */}
-              {availablePackages.length > 0 && (
+              {visiblePackages.length > 0 && (
                 <div className="pt-4 border-t border-v-border/30">
                   <h4 className="text-xs uppercase tracking-wider text-gray-400 mb-3">Packages</h4>
                   <div className="divide-y divide-v-border/30">
-                    {availablePackages.map(pkg => {
+                    {visiblePackages.map(pkg => {
                       const isSelected = selectedPackage?.id === pkg.id;
-                      const pkgServices = availableServices.filter(s => (pkg.service_ids || []).includes(s.id));
+                      const pkgServices = visibleServices.filter(s => (pkg.service_ids || []).includes(s.id));
                       const pkgHours = pkgServices.reduce((sum, svc) => sum + getHoursForService(svc), 0);
                       const pkgSubtotal = pkgServices.reduce((sum, svc) => sum + getServicePrice(svc), 0);
                       const pkgDiscount = pkgSubtotal * ((parseFloat(pkg.discount_percent) || 0) / 100);
-                      const pkgPrice = pkgSubtotal - pkgDiscount;
+                      const pkgPin = modelOverrides.byPackageId?.[pkg.id]?.pinned_price;
+                      const pkgPrice = pkgPin != null && pkgPin !== '' && Number.isFinite(parseFloat(pkgPin))
+                        ? parseFloat(pkgPin)
+                        : pkgSubtotal - pkgDiscount;
                       return (
                         <button
                           key={pkg.id}

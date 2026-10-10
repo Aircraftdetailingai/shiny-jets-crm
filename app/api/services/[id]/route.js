@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { applicabilityFromBody } from '@/lib/applicability';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,7 @@ export async function PUT(request, { params }) {
     if (sop_summary !== undefined) updates.sop_summary = sop_summary ? String(sop_summary) : null;
     if (sop_file_path !== undefined) updates.sop_file_path = sop_file_path ? String(sop_file_path) : null;
     if (sop_file_name !== undefined) updates.sop_file_name = sop_file_name ? String(sop_file_name) : null;
+    Object.assign(updates, applicabilityFromBody(body));
     updates.updated_at = new Date().toISOString();
 
     let { data: service, error } = await supabase
@@ -66,6 +68,9 @@ export async function PUT(request, { params }) {
       delete retryUpdates.default_hours;
       delete retryUpdates.product_cost_per_hour;
       delete retryUpdates.product_notes;
+      delete retryUpdates.requires_brightwork;
+      delete retryUpdates.requires_deice_boots;
+      delete retryUpdates.allowed_categories;
       const retry = await supabase
         .from('services')
         .update(retryUpdates)

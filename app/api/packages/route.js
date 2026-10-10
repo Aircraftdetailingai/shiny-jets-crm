@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { applicabilityFromBody, defaultApplicability } from '@/lib/applicability';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,10 @@ export async function POST(request) {
 
     // Try with discount_percent; fall back without if column doesn't exist
     row.discount_percent = parseFloat(discount_percent) || 0;
+    const rules = { ...defaultApplicability({ name }), ...applicabilityFromBody(body) };
+    row.requires_brightwork = !!rules.requires_brightwork;
+    row.requires_deice_boots = !!rules.requires_deice_boots;
+    if (rules.allowed_categories?.length) row.allowed_categories = rules.allowed_categories;
 
     let { data: pkg, error } = await supabase
       .from('packages')
@@ -86,8 +91,10 @@ export async function POST(request) {
       .select()
       .single();
 
-    if (error && error.message?.includes('discount_percent')) {
-      delete row.discount_percent;
+    for (let attempt = 0; error && attempt < 6; attempt++) {
+      const colMatch = error.message?.match(/column "([^"]+)"/) || error.message?.match(/Could not find the '([^']+)' column/);
+      if (!colMatch || !(colMatch[1] in row)) break;
+      delete row[colMatch[1]];
       const retry = await supabase.from('packages').insert(row).select().single();
       pkg = retry.data;
       error = retry.error;

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { resolveHoursField } from '@/lib/service-defaults';
+import { applicabilityFromBody, defaultApplicability, publicServiceShape } from '@/lib/applicability';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,14 +22,24 @@ export async function GET(request) {
     if (publicDetailerId) {
       const supabase = getSupabase();
       if (!supabase) return Response.json({ error: 'Database not configured' }, { status: 500 });
-      const { data, error } = await supabase
+      const columns = 'id, name, category, requires_brightwork, requires_deice_boots, allowed_categories';
+      let { data, error } = await supabase
         .from('services')
-        .select('id, name, category')
+        .select(columns)
         .eq('detailer_id', publicDetailerId)
         .order('sort_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true });
+      if (error && /column/i.test(error.message || '')) {
+        const retry = await supabase
+          .from('services')
+          .select('id, name, category')
+          .eq('detailer_id', publicDetailerId)
+          .order('created_at', { ascending: true });
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) return Response.json({ error: error.message }, { status: 500 });
-      return Response.json({ services: data || [] });
+      return Response.json({ services: (data || []).map(publicServiceShape) });
     }
 
     const user = await getAuthUser(request);
@@ -179,6 +190,10 @@ export async function POST(request) {
       const mp = minimum_price === null || minimum_price === '' ? null : parseFloat(minimum_price);
       row.minimum_price = Number.isFinite(mp) && mp > 0 ? mp : null;
     }
+    const rules = { ...defaultApplicability({ name, hours_field: resolvedField }), ...applicabilityFromBody(body) };
+    row.requires_brightwork = !!rules.requires_brightwork;
+    row.requires_deice_boots = !!rules.requires_deice_boots;
+    if (rules.allowed_categories?.length) row.allowed_categories = rules.allowed_categories;
 
     // Set sort_order to end of list
     try {
@@ -191,11 +206,17 @@ export async function POST(request) {
       // sort_order column may not exist yet
     }
 
-    const { data: service, error } = await supabase
-      .from('services')
-      .insert(row)
-      .select()
-      .single();
+    let service = null;
+    let error = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const inserted = await supabase.from('services').insert(row).select().single();
+      service = inserted.data;
+      error = inserted.error;
+      if (!error) break;
+      const colMatch = error.message?.match(/column "([^"]+)"/) || error.message?.match(/Could not find the '([^']+)' column/);
+      if (!colMatch || !(colMatch[1] in row)) break;
+      delete row[colMatch[1]];
+    }
 
     if (error) {
       console.error('Failed to create service:', error);

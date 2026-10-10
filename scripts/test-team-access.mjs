@@ -87,6 +87,9 @@ check('worker reports API forbidden', teamAccessDecision({ pathname: '/api/analy
 check('worker cannot write the shop profile', teamAccessDecision({ pathname: '/api/user/profile', accountKind: 'team', teamRole: 'employee', method: 'PUT' }).type === 'forbidden');
 check('worker can read the shop profile', teamAccessDecision({ pathname: '/api/user/profile', accountKind: 'team', teamRole: 'employee', method: 'GET' }).type === 'allow');
 check('worker can use quotes API', teamAccessDecision({ pathname: '/api/quotes', accountKind: 'team', teamRole: 'employee', method: 'POST' }).type === 'allow');
+check('worker cannot edit make and model pins', teamAccessDecision({ pathname: '/api/model-offers', accountKind: 'team', teamRole: 'employee', method: 'PUT' }).type === 'forbidden');
+check('manager can open makes and models', teamAccessDecision({ pathname: '/models', accountKind: 'team', teamRole: 'manager' }).type === 'allow');
+check('worker makes and models page redirects home', teamAccessDecision({ pathname: '/models', accountKind: 'team', teamRole: 'employee' }).location === '/jobs');
 check('static assets stay open', teamAccessDecision({ pathname: '/_next/static/chunk.js', accountKind: 'team', teamRole: 'employee' }).type === 'allow');
 check('manager cannot change the owner password', teamAccessDecision({ pathname: '/api/auth/set-password', accountKind: 'team', teamRole: 'manager', method: 'POST' }).type === 'forbidden');
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { resolveAircraftAttributes } from '@/lib/applicability';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,21 +30,43 @@ export async function GET(request) {
   const manufacturer = searchParams.get('manufacturer') || searchParams.get('make');
   const category = searchParams.get('category');
 
-  let query = supabase
-    .from('aircraft')
-    .select('id, manufacturer, model, category, seats, surface_area_sqft')
-    .order('model');
+  const columns = 'id, manufacturer, model, category, seats, surface_area_sqft, has_polished_brightwork, has_deice_boots, brightwork_hours';
+  let query = supabase.from('aircraft').select(columns).order('model');
 
   if (manufacturer) query = query.eq('manufacturer', manufacturer);
   if (category) query = query.eq('category', category);
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+  if (error && /column/i.test(error.message || '')) {
+    let fallback = supabase.from('aircraft').select('id, manufacturer, model, category, seats, surface_area_sqft').order('model');
+    if (manufacturer) fallback = fallback.eq('manufacturer', manufacturer);
+    if (category) fallback = fallback.eq('category', category);
+    const retry = await fallback;
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     return new Response(JSON.stringify({ error: 'Failed to fetch models' }), { status: 500 });
   }
 
-  let models = (data || []).map(m => ({ ...m, custom: false }));
+  const toPublic = (m, custom) => {
+    const attributes = resolveAircraftAttributes(m);
+    return {
+      id: m.id,
+      manufacturer: m.manufacturer,
+      model: m.model,
+      category: m.category,
+      seats: m.seats,
+      surface_area_sqft: m.surface_area_sqft,
+      custom,
+      attributes,
+      has_polished_brightwork: attributes.has_polished_brightwork,
+      has_deice_boots: attributes.has_deice_boots,
+    };
+  };
+
+  let models = (data || []).map(m => toPublic(m, false));
 
   // If authenticated, include custom aircraft models
   const user = await getAuthUser(request);
@@ -60,10 +83,7 @@ export async function GET(request) {
     const { data: customData } = await customQuery;
 
     if (customData) {
-      models = [...models, ...customData.map(c => ({
-        id: c.id, manufacturer: c.manufacturer, model: c.model,
-        category: c.category, custom: true,
-      }))];
+      models = [...models, ...customData.map(c => toPublic(c, true))];
     }
   }
 

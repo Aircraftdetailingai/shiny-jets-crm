@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { publicPackageShape } from '@/lib/applicability';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,11 +24,20 @@ export async function GET(request) {
     return Response.json({ error: 'Database not configured' }, { status: 500 });
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('packages')
-    .select('id, name, description, service_ids')
+    .select('id, name, description, service_ids, requires_brightwork, requires_deice_boots, allowed_categories')
     .eq('detailer_id', detailerId)
     .order('created_at', { ascending: true });
+  if (error && /column/i.test(error.message || '')) {
+    const retry = await supabase
+      .from('packages')
+      .select('id, name, description, service_ids')
+      .eq('detailer_id', detailerId)
+      .order('created_at', { ascending: true });
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -44,10 +54,10 @@ export async function GET(request) {
     if (svcs) serviceMap = Object.fromEntries(svcs.map(s => [s.id, s.name]));
   }
 
-  const packages = (data || []).map(p => ({
-    ...p,
-    included_services: (p.service_ids || []).map(id => serviceMap[id]).filter(Boolean),
-  }));
+  const packages = (data || []).map(p => publicPackageShape(
+    p,
+    (p.service_ids || []).map(id => serviceMap[id]).filter(Boolean),
+  ));
 
   return Response.json({ packages });
 }

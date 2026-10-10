@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import CalibrationModal from '@/components/CalibrationModal';
 import { isCrossFamily } from '@/lib/calibration-reference';
 import { DEFAULT_SERVICE_CATALOG as DEFAULT_SERVICES } from '@/lib/service-defaults';
+import ApplicabilityFields from '@/components/ApplicabilityFields';
 import { currencySymbol } from '@/lib/formatPrice';
 import { FEE_TYPES, SUB_ITEM_TYPES, SUB_ITEM_PRESETS, feeTypeMeta, computeAddonTotal, PERCENT } from '@/lib/addon-fees';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -509,6 +510,9 @@ export default function ServicesPage() {
           hourly_rate: parseFloat(newService.hourly_rate) || 0,
           category: newService.category || 'other',
           minimum_price: newService.minimum_price === '' ? null : parseFloat(newService.minimum_price),
+          requires_brightwork: !!newService.requires_brightwork,
+          requires_deice_boots: !!newService.requires_deice_boots,
+          allowed_categories: newService.allowed_categories || [],
         }),
       });
       const data = await res.json();
@@ -559,6 +563,9 @@ export default function ServicesPage() {
           minimum_price: editingService.minimum_price === '' || editingService.minimum_price == null
             ? null
             : parseFloat(editingService.minimum_price),
+          requires_brightwork: !!editingService.requires_brightwork,
+          requires_deice_boots: !!editingService.requires_deice_boots,
+          allowed_categories: editingService.allowed_categories || [],
         }),
       });
       const data = await res.json();
@@ -610,6 +617,9 @@ export default function ServicesPage() {
           name: newPackage.name,
           description: newPackage.description,
           discount_percent: parseFloat(newPackage.discount_percent) || 0,
+          requires_brightwork: !!newPackage.requires_brightwork,
+          requires_deice_boots: !!newPackage.requires_deice_boots,
+          allowed_categories: newPackage.allowed_categories || [],
           service_ids: newPackage.service_ids,
         }),
       });
@@ -1117,6 +1127,9 @@ export default function ServicesPage() {
                     <span className="text-[10px] text-v-text-secondary mt-0.5 block text-center">discount</span>
                   </div>
                 </div>
+                <div className="mb-3">
+                  <ApplicabilityFields value={newPackage} onChange={(next) => setNewPackage({ ...newPackage, ...next })} />
+                </div>
                 <div className="flex justify-end gap-2">
                   <button onClick={() => setShowPackageBuilder(false)} className="px-4 py-2 border rounded">{'Cancel'}</button>
                   <button onClick={addPackage} disabled={saving || !newPackage.name || newPackage.service_ids.length === 0}
@@ -1260,6 +1273,7 @@ export default function ServicesPage() {
               </div>
               <p className="text-xs text-v-text-secondary mt-1">Optional floor. Line item price will be at least this amount.</p>
             </div>
+            <ApplicabilityFields value={newService} onChange={(next) => setNewService({ ...newService, ...next })} />
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setShowServiceModal(false)} className="px-4 py-2 border border-v-border text-v-text-secondary rounded-lg hover:bg-white/5">Cancel</button>
@@ -1327,6 +1341,7 @@ export default function ServicesPage() {
               </div>
               <p className="text-xs text-v-text-secondary mt-1">Optional floor. Line item price will be at least this amount.</p>
             </div>
+            <ApplicabilityFields value={editingService} onChange={(next) => setEditingService({ ...editingService, ...next })} />
             {/* Level 1 SOP — default procedure link + summary. Internal only;
                 never rendered on customer-facing surfaces. Aircraft-specific
                 overrides (Level 2) live on the aircraft detail page. */}

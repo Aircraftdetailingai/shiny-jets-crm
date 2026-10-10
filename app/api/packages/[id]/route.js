@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { applicabilityFromBody } from '@/lib/applicability';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,7 @@ export async function PUT(request, { params }) {
     if (description !== undefined) updates.description = description;
     if (discount_percent !== undefined) updates.discount_percent = parseFloat(discount_percent) || 0;
     if (service_ids !== undefined) updates.service_ids = service_ids;
+    Object.assign(updates, applicabilityFromBody(body));
     updates.updated_at = new Date().toISOString();
 
     let { data: pkg, error } = await supabase
