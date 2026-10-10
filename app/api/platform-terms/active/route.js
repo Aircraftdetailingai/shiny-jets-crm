@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { PLATFORM_TERMS_MARKDOWN, PLATFORM_TERMS_VERSION } from '@/lib/customer-service-terms';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,10 +40,18 @@ export async function GET() {
     return Response.json({ error: 'Failed to fetch platform terms' }, { status: 500 });
   }
   if (!data) {
-    // No active row is a configuration error, not a user error. Return null
-    // payload so callers can treat it as "no platform terms required" and
-    // continue without blocking payment.
-    return Response.json({ terms: null });
+    // No published row yet. Show the code default so customers still see the
+    // same wording as /legal/quote-terms. id is null until a migration (or
+    // an admin) stores a version the acceptance stamp can point at.
+    return Response.json({
+      terms: {
+        id: null,
+        version: PLATFORM_TERMS_VERSION,
+        body_md: PLATFORM_TERMS_MARKDOWN,
+        effective_at: null,
+        source: 'default',
+      },
+    });
   }
   return Response.json({ terms: data });
 }

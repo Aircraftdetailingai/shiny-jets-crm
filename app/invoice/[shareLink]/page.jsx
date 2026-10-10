@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 import { calculateCcFee } from '@/lib/cc-fee';
 import StackedTermsAccept from '@/components/StackedTermsAccept';
+import { invoiceCardFeeSentence, netTermsSentence, paymentDisputeSentence, resolveShopTermsText } from '@/lib/customer-service-terms';
 
 export default function InvoiceViewPage() {
   const params = useParams();
@@ -192,12 +193,13 @@ export default function InvoiceViewPage() {
   const subtotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || parseFloat(item.price) || 0), 0);
   const total = parseFloat(invoice.total) || subtotal;
 
-  // Net terms
+  // Net terms, in a sentence. Prefer the saved day count. If it is missing,
+  // derive the count from the due date so the customer still sees when to pay.
   const getNetTerms = () => {
-    if (invoice.net_terms) return `Net ${invoice.net_terms}`;
+    if (invoice.net_terms) return netTermsSentence(invoice.net_terms);
     if (invoice.due_date && invoice.created_at) {
       const days = Math.round((new Date(invoice.due_date) - new Date(invoice.created_at)) / (1000 * 60 * 60 * 24));
-      if (days > 0) return `Net ${days}`;
+      if (days > 0) return netTermsSentence(days);
     }
     return null;
   };
@@ -253,9 +255,9 @@ export default function InvoiceViewPage() {
             </div>
           )}
           {getNetTerms() && (
-            <div>
-              <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">Terms</p>
-              <p className="text-[var(--brand-text,#F5F5F5)] text-sm">{getNetTerms()}</p>
+            <div className="sm:col-span-1">
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">When payment is due</p>
+              <p className="text-[var(--brand-text,#F5F5F5)] text-sm leading-snug">{getNetTerms()}</p>
             </div>
           )}
         </div>
@@ -523,13 +525,13 @@ export default function InvoiceViewPage() {
               <div className="mt-6">
                 <p className="text-center text-amber-300 text-sm font-medium mb-1">{paymentType === 'deposit' ? `Deposit due: ${sym}${formatPrice(slice)}` : ctaLabel}</p>
                 {ccFee > 0 && (
-                  <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-[11px] text-center mb-3">
-                    Card adds a {sym}{formatPrice(ccFee)} processing fee · ACH has no fee
+                  <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs text-center mb-3">
+                    {invoiceCardFeeSentence(`${sym}${formatPrice(ccFee)}`)}
                   </p>
                 )}
                 <StackedTermsAccept
                   detailerName={detailer?.company || detailer?.name || 'Detailer'}
-                  detailerTermsText={detailer?.terms_text || null}
+                  detailerTermsText={detailer?.terms_pdf_url ? null : resolveShopTermsText(detailer?.terms_text)}
                   detailerTermsPdfUrl={detailer?.terms_pdf_url || null}
                   alreadyAccepted={false}
                   acceptedAt={null}
@@ -551,7 +553,7 @@ export default function InvoiceViewPage() {
             <div className="mt-6 space-y-2">
               <StackedTermsAccept
                 detailerName={detailer?.company || detailer?.name || 'Detailer'}
-                detailerTermsText={detailer?.terms_text || null}
+                detailerTermsText={detailer?.terms_pdf_url ? null : resolveShopTermsText(detailer?.terms_text)}
                 detailerTermsPdfUrl={detailer?.terms_pdf_url || null}
                 alreadyAccepted
                 acceptedAt={acceptedAt}
@@ -569,8 +571,8 @@ export default function InvoiceViewPage() {
                 {paymentLoading ? 'Processing...' : ctaLabel}
               </button>
               {ccFee > 0 && (
-                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-[11px] text-center">
-                  Card payment adds a {sym}{formatPrice(ccFee)} processing fee · ACH has no fee
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs text-center">
+                  {invoiceCardFeeSentence(`${sym}${formatPrice(ccFee)}`)}
                 </p>
               )}
               <button
@@ -586,9 +588,8 @@ export default function InvoiceViewPage() {
 
         {/* Payment disclaimer */}
         {!isPaid && (
-          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[9px] leading-relaxed mt-4 text-center">
-            Payments are processed securely by Stripe. All payment disputes and refund requests
-            should be directed to {detailer?.company || 'your service provider'}.
+          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-xs leading-relaxed mt-4 text-center">
+            {paymentDisputeSentence(detailer?.company)}
           </p>
         )}
 

@@ -2267,7 +2267,8 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-xs text-v-text-secondary mb-1">Net Terms (days)</label>
+                <label className="block text-xs text-v-text-secondary mb-1">Days to pay</label>
+                <p className="text-[11px] text-v-text-secondary/80 mb-1">Counted from the invoice date. Customers see “Payment is due within this many days of the invoice date,” plus the due date. Changing this updates the due date.</p>
                 <input type="number" value={blankForm.net_terms}
                   onChange={e => setBlankForm(f => {
                     const terms = parseInt(e.target.value) || 30;
@@ -2769,7 +2770,8 @@ ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#fffbeb;b
             {/* Terms & notes */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-xs text-v-text-secondary mb-1">Net Terms (days)</label>
+                <label className="block text-xs text-v-text-secondary mb-1">Days to pay</label>
+                <p className="text-[11px] text-v-text-secondary/80 mb-1">Counted from the invoice date. The customer sees a sentence for this number, plus the due date.</p>
                 <input type="number" value={editForm.net_terms} onChange={e => setEditForm(f => ({ ...f, net_terms: e.target.value }))}
                   className="w-full bg-v-charcoal border border-v-border rounded px-3 py-2 text-sm text-white outline-none" />
               </div>

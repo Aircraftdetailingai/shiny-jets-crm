@@ -7,6 +7,8 @@ import { getCurrencySymbol } from '@/lib/currency';
 import { calculateCcFee } from '@/lib/cc-fee';
 import { normalizePlan } from '@/lib/plans';
 import { aircraftDisplayName } from '@/lib/aircraft-labels';
+import ServiceTermsBox, { ServiceTermsAgreeLabel } from '@/components/ServiceTermsBox';
+import { cardFeeSentence, paymentDisputeSentence } from '@/lib/customer-service-terms';
 
 const PAYMENT_ERROR_MESSAGES = {
   card_declined: "Your card was declined. Please try a different card.",
@@ -1172,14 +1174,9 @@ export default function QuoteViewPage() {
         <div className="border-t border-[var(--brand-border-strong,#2A3A50)] pt-8 mb-2 text-center">
           <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Total</p>
           <p className="text-[var(--brand-primary,#007CB1)] text-[2.5rem] font-light">{sym}{formatPrice(displayTotal)}</p>
-          {ccFeeMode === 'pass' && ccFee > 0 && (
+          {(ccFeeMode === 'pass' || ccFeeMode === 'customer_choice') && (
             <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs mt-2">
-              Card payment adds a {sym}{formatPrice(ccFee)} processing fee
-            </p>
-          )}
-          {ccFeeMode === 'customer_choice' && (
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs mt-2">
-              Card payment includes +{sym}{formatPrice(ccFee)} processing fee
+              {cardFeeSentence(ccFeeMode, { amountLabel: ccFee > 0 ? `${sym}${formatPrice(ccFee)}` : '' })}
             </p>
           )}
         </div>
@@ -1201,21 +1198,11 @@ export default function QuoteViewPage() {
           </div>
         )}
 
-        {/* Terms & Conditions */}
-        {(detailer?.terms_text || detailer?.terms_pdf_url) && !isPaid && !isExpired && (
-          <div className="border border-[var(--brand-border,#1A2236)] p-5 mb-4">
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-3">Terms & Conditions</p>
-            {detailer.terms_pdf_url ? (
-              <a href={detailer.terms_pdf_url} target="_blank" rel="noopener noreferrer"
-                className="text-[var(--brand-primary,#007CB1)] text-sm hover:text-[var(--brand-primary,#007CB1)] transition-colors">
-                View Terms & Conditions (PDF)
-              </a>
-            ) : detailer.terms_text ? (
-              <div className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                {detailer.terms_text}
-              </div>
-            ) : null}
-          </div>
+        {/* Service terms. Custom shop text or PDF replaces the default.
+            A blank shop field still shows the default, so agreement is to
+            words the customer can read. */}
+        {!isPaid && !isExpired && (
+          <ServiceTermsBox termsText={detailer?.terms_text} termsPdfUrl={detailer?.terms_pdf_url} />
         )}
 
         {/* Terms checkbox */}
@@ -1234,7 +1221,7 @@ export default function QuoteViewPage() {
               </div>
             </div>
             <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm leading-snug">
-              I agree to the {(detailer?.terms_text || detailer?.terms_pdf_url) ? 'above ' : ''}Terms & Conditions for this service
+              <ServiceTermsAgreeLabel />
             </span>
           </label>
         )}
@@ -1404,21 +1391,21 @@ export default function QuoteViewPage() {
             >
               {invoiceRequesting ? 'Submitting...' : 'Accept & Schedule'}
             </button>
-            <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-[10px] tracking-[0.1em] text-center uppercase">
-              Your detailer will invoice you separately
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs text-center">
+              You can accept and schedule now. The shop will send an invoice. You pay by the due date on that invoice.
             </p>
           </div>
         ) : bookingMode === 'deposit' && stripeConnected ? (
           <div className="space-y-3">
             <div className="border border-[var(--brand-border-strong,#2A3A50)] p-4 text-center">
               <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-1">
-                {depositPct}% Deposit Required
+                {depositPct}% deposit to hold the date
               </p>
               <p className="text-[var(--brand-primary,#007CB1)] text-2xl font-light">
                 {sym}{formatPrice(Math.round((quote.total_price || 0) * depositPct) / 100)}
               </p>
-              <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs mt-1">
-                Remainder of {sym}{formatPrice((quote.total_price || 0) - Math.round((quote.total_price || 0) * depositPct) / 100)} due at completion
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs mt-2 leading-relaxed">
+                This deposit is applied to the final invoice and is not refundable. The remaining {sym}{formatPrice((quote.total_price || 0) - Math.round((quote.total_price || 0) * depositPct) / 100)} is due when the work is finished.
               </p>
             </div>
             <button
@@ -1446,8 +1433,8 @@ export default function QuoteViewPage() {
               >
                 {invoiceRequesting ? 'Submitting...' : 'Request Invoice'}
               </button>
-              <p className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-[10px] tracking-[0.1em] text-center uppercase">
-                Card includes processing fee &middot; Invoice has no additional fees
+              <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs text-center">
+                {cardFeeSentence('customer_choice')}
               </p>
             </div>
           ) : (
@@ -1460,8 +1447,8 @@ export default function QuoteViewPage() {
                 {paymentLoading ? 'Processing...' : 'Accept & Pay'}
               </button>
               {detailer?.cc_fee_mode === 'pass' && (
-                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs text-center">
-                  Card payments are subject to a processing fee.
+                <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs text-center">
+                  {cardFeeSentence('pass')}
                 </p>
               )}
             </div>
@@ -1485,18 +1472,14 @@ export default function QuoteViewPage() {
 
         {/* Payment disclaimer */}
         {stripeConnected && !isPaid && !isExpired && !paymentConfirming && (
-          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[9px] leading-relaxed mt-4 text-center">
-            Payments are processed securely by Stripe. All payment disputes and refund requests
-            should be directed to {detailer?.company || 'your service provider'}.
+          <p className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-xs leading-relaxed mt-4 text-center">
+            {paymentDisputeSentence(detailer?.company)}
           </p>
         )}
 
         {/* Valid until */}
-        <p className="text-[var(--brand-text-secondary,#8A9BB0)]/40 text-[10px] tracking-[0.15em] uppercase text-center mt-6">
-          Valid until {formatDate(quote.valid_until)}
-        </p>
-        <p className="text-[var(--brand-text-secondary,#8A9BB0)]/30 text-[10px] text-center mt-1">
-          Dates subject to availability, confirmed upon payment.
+        <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs text-center mt-6 leading-relaxed">
+          This quote is good through {formatDate(quote.valid_until)}. After that date, ask for a new quote. A date is confirmed when you pay and the shop confirms the schedule.
         </p>
 
         {/* Questions / Contact */}

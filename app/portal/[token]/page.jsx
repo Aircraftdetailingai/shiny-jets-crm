@@ -9,6 +9,8 @@ import { t, detectBrowserLanguage, SUPPORTED_LANGUAGES } from '@/lib/translation
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { normalizePlan } from '@/lib/plans';
+import ServiceTermsBox, { ServiceTermsAgreeLabel } from '@/components/ServiceTermsBox';
+import { cardFeeSentence } from '@/lib/customer-service-terms';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -546,7 +548,7 @@ export default function PortalPage() {
                     <>
                       <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Total</p>
                       <p className="text-[var(--brand-primary,#007CB1)] text-[2.5rem] font-light mb-1">{sym}{formatPrice(basePrice + ccFee)}</p>
-                      {ccFee > 0 && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/60 text-xs mb-1">Includes {sym}{formatPrice(ccFee)} processing fee</p>}
+                      {ccFee > 0 && <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs mb-1">{cardFeeSentence('pass', { amountLabel: `${sym}${formatPrice(ccFee)}`, includedInTotal: true })}</p>}
                     </>
                   );
                 })()}
@@ -558,22 +560,7 @@ export default function PortalPage() {
                   </div>
                 )}
 
-                {/* Terms */}
-                {(detailer?.terms_text || detailer?.terms_pdf_url) && (
-                  <div className="mb-4 border border-[var(--brand-border,#1A2236)] p-4 text-left">
-                    <p className="text-[var(--brand-text-secondary,#8A9BB0)] text-[10px] tracking-[0.3em] uppercase mb-2">Terms & Conditions</p>
-                    {detailer.terms_pdf_url ? (
-                      <a href={detailer.terms_pdf_url} target="_blank" rel="noopener noreferrer"
-                        className="text-[var(--brand-primary,#007CB1)] text-sm hover:text-[#D4B85A] transition-colors">
-                        View Terms & Conditions (PDF)
-                      </a>
-                    ) : (
-                      <div className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                        {detailer.terms_text}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <ServiceTermsBox termsText={detailer?.terms_text} termsPdfUrl={detailer?.terms_pdf_url} className="mb-4" />
 
                 {/* Disclaimer */}
                 {detailer?.disclaimer_text && (
@@ -600,7 +587,7 @@ export default function PortalPage() {
                     </div>
                   </div>
                   <span className="text-[var(--brand-text-secondary,#8A9BB0)] text-sm leading-snug">
-                    I agree to the {(detailer?.terms_text || detailer?.terms_pdf_url) ? 'above ' : ''}Terms & Conditions for this service
+                    <ServiceTermsAgreeLabel />
                   </span>
                 </label>
 
@@ -626,8 +613,8 @@ export default function PortalPage() {
                     >
                       {invoiceRequesting ? 'Submitting...' : 'Request Invoice'}
                     </button>
-                    <p className="text-[var(--brand-text-secondary,#8A9BB0)]/50 text-[10px] tracking-[0.1em] uppercase">
-                      Card includes processing fee &middot; Invoice has no additional fees
+                    <p className="text-[var(--brand-text-secondary,#8A9BB0)]/70 text-xs">
+                      {cardFeeSentence('customer_choice')}
                     </p>
                   </div>
                 ) : (
