@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { requireFeature, requireSeat } from '@/lib/plan-gate';
+import { isoToday, payPeriodWindow, summarizeLabor, OPEN_SHIFT_POLICY } from '@/lib/labor-summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,56 +50,28 @@ export async function GET(request, { params }) {
       console.error('Time entries fetch error:', entriesError);
     }
 
-    const timeEntries = entries || [];
-
-    // Calculate pay period window
-    const freq = member.pay_period_frequency || 'biweekly';
-    const periodStart = member.pay_period_start ? new Date(member.pay_period_start + 'T00:00:00') : new Date(member.created_at);
-    const now = new Date();
-    let windowStart, windowEnd;
-
-    if (freq === 'weekly') {
-      // Find current week window anchored to pay_period_start
-      const diffDays = Math.floor((now - periodStart) / 86400000);
-      const weeksSince = Math.floor(diffDays / 7);
-      windowStart = new Date(periodStart);
-      windowStart.setDate(windowStart.getDate() + weeksSince * 7);
-      windowEnd = new Date(windowStart);
-      windowEnd.setDate(windowEnd.getDate() + 7);
-    } else if (freq === 'biweekly') {
-      const diffDays = Math.floor((now - periodStart) / 86400000);
-      const periodsSince = Math.floor(diffDays / 14);
-      windowStart = new Date(periodStart);
-      windowStart.setDate(windowStart.getDate() + periodsSince * 14);
-      windowEnd = new Date(windowStart);
-      windowEnd.setDate(windowEnd.getDate() + 14);
-    } else if (freq === 'semi_monthly') {
-      const day = now.getDate();
-      if (day <= 15) {
-        windowStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        windowEnd = new Date(now.getFullYear(), now.getMonth(), 16);
-      } else {
-        windowStart = new Date(now.getFullYear(), now.getMonth(), 16);
-        windowEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      }
-    } else {
-      // monthly
-      windowStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      windowEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    }
-
-    const windowStartStr = windowStart.toISOString().split('T')[0];
-    const windowEndStr = windowEnd.toISOString().split('T')[0];
-
-    const periodEntries = timeEntries.filter(e => e.date >= windowStartStr && e.date < windowEndStr);
-    const totalHours = periodEntries.reduce((sum, e) => sum + parseFloat(e.hours_worked || 0), 0);
-    const totalPay = totalHours * parseFloat(member.hourly_pay || 0);
+    const detailerId = user.detailer_id || user.id;
+    const timeEntries = (entries || []).filter(e => !e.detailer_id || e.detailer_id === detailerId);
+    const window = payPeriodWindow(member, isoToday());
+    const summary = summarizeLabor({
+      entries: timeEntries,
+      members: [member],
+      detailerId,
+      startDate: window.start_date,
+      endDate: window.end_date,
+    });
 
     return Response.json({
       member,
       time_entries: timeEntries,
-      stats: { total_hours: totalHours, total_pay: totalPay },
-      pay_period: { start: windowStartStr, end: windowEndStr, frequency: freq },
+      stats: {
+        total_hours: summary.total_hours,
+        total_pay: summary.total_pay,
+        includes_open_shifts: false,
+      },
+      pay_period: { start: window.start_date, end: window.end_date, frequency: window.frequency },
+      open_entries: summary.open_entries,
+      open_shift_policy: OPEN_SHIFT_POLICY,
     });
 
   } catch (err) {

@@ -2,39 +2,46 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import OpenShiftsPanel from '@/components/OpenShiftsPanel';
 import { formatPrice, currencySymbol } from '@/lib/formatPrice';
 
-function defaultDates() {
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  // Default to ~90 days so seasonal / sparse crews are not greeted with $0.
-  const startD = new Date(today.getTime() - 89 * 24 * 60 * 60 * 1000);
-  const start = startD.toISOString().slice(0, 10);
-  return { start, end };
-}
+const PRESETS = [
+  ['labor_window', 'All recorded labor'],
+  ['pay_period', 'Current pay period'],
+  ['last_90', 'Last 90 days'],
+];
 
 export default function PayrollPage() {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const defaults = defaultDates();
-  const [startDate, setStartDate] = useState(defaults.start);
-  const [endDate, setEndDate] = useState(defaults.end);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [rangeKind, setRangeKind] = useState('');
 
-  const fetchPayroll = async () => {
+  const load = async (params = {}) => {
     const token = localStorage.getItem('vector_token');
     if (!token) { router.push('/login'); return; }
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/team/payroll?start_date=${startDate}&end_date=${endDate}`, {
+      const qs = new URLSearchParams();
+      if (params.start_date && params.end_date) {
+        qs.set('start_date', params.start_date);
+        qs.set('end_date', params.end_date);
+      } else if (params.range) {
+        qs.set('range', params.range);
+      }
+      const res = await fetch(`/api/team/payroll${qs.toString() ? `?${qs}` : ''}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed to load payroll');
       setData(d);
-      // keep suggested_range from API if present
+      setStartDate(d.start_date || '');
+      setEndDate(d.end_date || '');
+      setRangeKind(d.range_kind || '');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,13 +50,20 @@ export default function PayrollPage() {
   };
 
   useEffect(() => {
-    fetchPayroll();
+    const qs = new URLSearchParams(window.location.search);
+    const start = qs.get('start_date');
+    const end = qs.get('end_date');
+    const range = qs.get('range');
+    if (start && end) load({ start_date: start, end_date: end });
+    else if (range) load({ range });
+    else load({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate]);
+  }, []);
 
   const handleApply = (e) => {
     e.preventDefault();
-    fetchPayroll();
+    if (!startDate || !endDate) return;
+    load({ start_date: startDate, end_date: endDate });
   };
 
   const downloadCsv = () => {
@@ -93,6 +107,9 @@ export default function PayrollPage() {
   };
 
   const cls = 'bg-v-surface border border-v-border text-v-text-primary rounded-sm px-3 py-2 text-sm outline-none focus:border-v-gold/50';
+  const windowDiffers = data?.labor_window
+    && (data.start_date !== data.labor_window.start_date || data.end_date !== data.labor_window.end_date);
+  const openCount = data?.open_entries?.length || 0;
 
   return (
     <AppShell title="Payroll">
@@ -115,8 +132,24 @@ export default function PayrollPage() {
           )}
         </header>
 
-        {/* Date range picker */}
-        <form onSubmit={handleApply} className="flex flex-wrap items-end gap-3 mb-6">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {PRESETS.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => load({ range: key })}
+              className={`px-3 py-1.5 text-xs uppercase tracking-wider rounded border transition-colors ${
+                rangeKind === key
+                  ? 'text-v-gold border-v-gold/60 bg-v-gold/10'
+                  : 'text-v-text-secondary border-white/15 hover:bg-white/5'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleApply} className="flex flex-wrap items-end gap-3 mb-3">
           <div>
             <label className="block text-[10px] uppercase tracking-wider text-v-text-secondary mb-1">Start date</label>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={cls} />
@@ -130,81 +163,111 @@ export default function PayrollPage() {
           </button>
         </form>
 
+        {data && !loading && (
+          <div className="mb-6">
+            <p className="text-v-text-primary text-sm" data-testid="labor-range-label">{data.range_label}</p>
+            {data.period_note && <p className="text-v-text-secondary text-xs mt-1">{data.period_note}</p>}
+            <p className="text-v-text-secondary text-xs mt-1">{data.open_shift_policy}</p>
+            {windowDiffers && data.labor_totals && (
+              <p className="text-xs text-v-text-secondary mt-2">
+                All recorded labor ({data.labor_window.start_date} – {data.labor_window.end_date}) is {data.labor_totals.total_hours.toFixed(1)}h · {currencySymbol()}{formatPrice(data.labor_totals.total_pay)}.
+                <button type="button" onClick={() => load({ range: 'labor_window' })} className="ml-2 text-v-gold hover:underline">
+                  Show that range
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 text-red-200 mb-4">{error}</div>
         )}
 
-        {/* Summary stats */}
         {data && !loading && (
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-v-surface border border-v-border rounded-lg p-4">
-              <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">Total Hours</p>
+              <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">Hours</p>
               <p className="text-v-text-primary text-2xl font-bold mt-1">{data.total_hours.toFixed(1)}h</p>
             </div>
             <div className="bg-v-surface border border-v-border rounded-lg p-4">
-              <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">Total Pay</p>
+              <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">Pay</p>
               <p className="text-v-text-primary text-2xl font-bold mt-1">{currencySymbol()}{formatPrice(data.total_pay)}</p>
             </div>
             <div className="bg-v-surface border border-v-border rounded-lg p-4">
-              <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">Crew Members</p>
+              <p className="text-v-text-secondary text-[10px] uppercase tracking-wider">With hours</p>
               <p className="text-v-text-primary text-2xl font-bold mt-1">{data.members.length}</p>
+            </div>
+            <div className={`rounded-lg p-4 border ${openCount ? 'bg-amber-500/10 border-amber-500/40' : 'bg-v-surface border-v-border'}`}>
+              <p className={`text-[10px] uppercase tracking-wider ${openCount ? 'text-amber-300' : 'text-v-text-secondary'}`}>Open shifts</p>
+              <p className={`text-2xl font-bold mt-1 ${openCount ? 'text-amber-300' : 'text-v-text-primary'}`}>{openCount}</p>
             </div>
           </div>
         )}
 
-        
-        {!loading && data && (data.members || []).length === 0 && (
+        {!loading && data && data.members.length === 0 && (
           <div className="mb-6 border border-amber-500/30 bg-amber-500/5 rounded-xl p-4 text-sm">
-            <p className="text-amber-300 font-medium mb-1">No time entries in this range</p>
-            {data.suggested_range ? (
+            <p className="text-amber-300 font-medium mb-1">No closed shifts in this range</p>
+            {windowDiffers ? (
               <>
                 <p className="text-v-text-secondary text-xs mb-3">
-                  Labor exists from {data.suggested_range.start_date} to {data.suggested_range.end_date}
-                  ({data.suggested_range.entry_count} entries
-                  {data.suggested_range.open_entries ? `, ${data.suggested_range.open_entries} still open` : ''}).
-                  Contractors at $0/hr are included when they have hours.
+                  Labor on file runs from {data.labor_window.start_date} to {data.labor_window.end_date}
+                  {' '}({data.labor_window.entry_count} entries
+                  {data.labor_window.open_entries ? `, ${data.labor_window.open_entries} still open` : ''}).
+                  Closed shifts and manual hour logs are included. Open shifts are not.
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setStartDate(data.suggested_range.start_date);
-                    setEndDate(data.suggested_range.end_date);
-                  }}
+                  onClick={() => load({ range: 'labor_window' })}
                   className="px-3 py-1.5 text-xs uppercase tracking-wider text-v-gold border border-v-gold/40 rounded hover:bg-v-gold/10"
                 >
-                  Expand to labor window
+                  Show all recorded labor
                 </button>
               </>
             ) : (
-              <p className="text-v-text-secondary text-xs">No closed time entries found for this team yet.</p>
+              <p className="text-v-text-secondary text-xs">
+                {openCount
+                  ? 'Open shifts are listed below and are not included until they are clocked out.'
+                  : 'No time entries for this shop yet.'}
+              </p>
             )}
           </div>
+        )}
+
+        {!loading && data && (
+          <OpenShiftsPanel
+            entries={data.open_entries}
+            policy={data.open_shift_policy}
+            onClosed={() => load(rangeKind && rangeKind !== 'custom' ? { range: rangeKind } : { start_date: startDate, end_date: endDate })}
+          />
         )}
 
         {loading ? (
           <div className="text-white text-center py-12">Loading payroll...</div>
         ) : data && data.members.length === 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-lg p-8 text-center">
-            <p className="text-v-text-secondary text-sm">No time entries in this date range</p>
+            <p className="text-v-text-secondary text-sm">No closed shifts in this date range</p>
           </div>
         ) : data ? (
           <div className="space-y-4">
             {data.members.map(m => (
               <div key={m.team_member_id} className="bg-v-surface border border-v-border rounded-lg overflow-hidden">
-                {/* Member header */}
                 <div className="px-5 py-4 bg-v-charcoal/50 border-b border-v-border flex items-center justify-between">
                   <div>
                     <p className="text-v-text-primary font-semibold">{m.name}</p>
                     <p className="text-v-text-secondary text-xs">
                       {m.title || m.type || 'Team member'} · {currencySymbol()}{m.hourly_pay}/hr
                     </p>
+                    {m.open_shifts > 0 && (
+                      <p className="text-amber-300 text-xs mt-1">
+                        {m.open_shifts === 1 ? '1 open shift' : `${m.open_shifts} open shifts`} not included
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-v-text-primary font-bold text-lg">{m.total_hours.toFixed(2)}h</p>
                     <p className="text-v-gold text-sm font-semibold">{currencySymbol()}{formatPrice(m.total_pay)}</p>
                   </div>
                 </div>
-                {/* Per-job breakdown */}
                 <div className="divide-y divide-v-border/50">
                   {m.jobs.map(j => {
                     const jobPay = Math.round(j.hours * m.hourly_pay * 100) / 100;
