@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { resolveDetailerId } from '@/lib/resolve-detailer';
 import { indexOverrides } from '@/lib/applicability';
+import { invalidUuidInput, schemaNotReady } from '@/lib/model-offers-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ export async function GET(request) {
   ]);
   if (ovErr || useErr) {
     const message = ovErr?.message || useErr?.message || 'Failed to load model offers';
-    if (/relation|column/i.test(message)) {
+    if (schemaNotReady(message) || invalidUuidInput(message)) {
       return Response.json({ overrides: [], usage: [], indexed: indexOverrides([]), pending_migration: true });
     }
     return Response.json({ error: message }, { status: 500 });
@@ -83,7 +84,13 @@ export async function PUT(request) {
     ? existingQuery.eq('service_id', serviceId)
     : existingQuery.eq('package_id', packageId);
   const { data: existing, error: findErr } = await existingQuery.maybeSingle();
-  if (findErr && !/relation|column/i.test(findErr.message || '')) {
+  if (findErr && schemaNotReady(findErr.message)) {
+    return Response.json({ error: 'Model offers are not available until the aircraft applicability migration is applied.', pending_migration: true }, { status: 503 });
+  }
+  if (findErr && invalidUuidInput(findErr.message)) {
+    return Response.json({ error: 'Invalid aircraft id' }, { status: 400 });
+  }
+  if (findErr) {
     return Response.json({ error: findErr.message }, { status: 500 });
   }
 
@@ -112,7 +119,15 @@ export async function PUT(request) {
     saved = result.data;
     error = result.error;
   }
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (schemaNotReady(error.message)) {
+      return Response.json({ error: 'Model offers are not available until the aircraft applicability migration is applied.', pending_migration: true }, { status: 503 });
+    }
+    if (invalidUuidInput(error.message)) {
+      return Response.json({ error: 'Invalid aircraft id' }, { status: 400 });
+    }
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   if (serviceId && body.pinned_hours !== undefined) {
     await syncHoursPin(supabase, {

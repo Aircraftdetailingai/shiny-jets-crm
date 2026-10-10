@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
+import { bankEncryptionConfigured, encryptBankValue } from '@/lib/bank-crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,15 +44,22 @@ export async function POST(request) {
   if (body.mailing_state !== undefined) updates.mailing_state = body.mailing_state || null;
   if (body.mailing_zip !== undefined) updates.mailing_zip = body.mailing_zip || null;
   if (body.mailing_country !== undefined) updates.mailing_country = body.mailing_country || 'US';
-  // ACH bank info — sensitive, stored here but NOT returned by /api/user/me
-  // unless include_remit=1 is passed. Validate shape lightly before accepting.
-  if (body.ach_routing_number !== undefined) {
-    const r = (body.ach_routing_number || '').replace(/\D/g, '');
-    updates.ach_routing_number = r || null;
-  }
-  if (body.ach_account_number !== undefined) {
-    const a = (body.ach_account_number || '').replace(/\D/g, '');
-    updates.ach_account_number = a || null;
+  // ACH routing and account numbers are encrypted at rest. A missing key
+  // refuses the write instead of storing new plaintext. Clearing a field
+  // (empty string) does not need the key.
+  const wantsRouting = body.ach_routing_number !== undefined;
+  const wantsAccount = body.ach_account_number !== undefined;
+  if (wantsRouting || wantsAccount) {
+    const routingDigits = wantsRouting ? String(body.ach_routing_number || '').replace(/\D/g, '') : '';
+    const accountDigits = wantsAccount ? String(body.ach_account_number || '').replace(/\D/g, '') : '';
+    const needsKey = (wantsRouting && routingDigits) || (wantsAccount && accountDigits);
+    if (needsKey && !bankEncryptionConfigured()) {
+      return Response.json({
+        error: 'Bank encryption is not configured. Set BANK_DATA_ENCRYPTION_KEY before saving routing or account numbers.',
+      }, { status: 503 });
+    }
+    if (wantsRouting) updates.ach_routing_number = routingDigits ? encryptBankValue(routingDigits) : null;
+    if (wantsAccount) updates.ach_account_number = accountDigits ? encryptBankValue(accountDigits) : null;
   }
   if (body.ach_account_name !== undefined) updates.ach_account_name = body.ach_account_name || null;
   if (body.ach_bank_name !== undefined) updates.ach_bank_name = body.ach_bank_name || null;

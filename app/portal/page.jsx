@@ -36,11 +36,17 @@ export default function PortalDashboard() {
       })
       .then(d => {
         if (!d) return;
-        if (d.account && !d.account.onboarding_complete) {
+        if (!d.account) return;
+        if (!d.account.onboarding_complete) {
           router.push('/portal/onboarding');
           return;
         }
-        setData(d);
+        setData({
+          ...d,
+          aircraft: Array.isArray(d.aircraft) ? d.aircraft : [],
+          services: Array.isArray(d.services) ? d.services : [],
+          upcoming: Array.isArray(d.upcoming) ? d.upcoming : [],
+        });
         // Show welcome message for directory referrals
         const ref = localStorage.getItem('portal_ref_source');
         if (ref === 'directory' || ref === 'directory_card') {
@@ -56,10 +62,19 @@ export default function PortalDashboard() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#007CB1] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!data?.account) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-[#0D1B2A]">Sign in to view your aircraft and services.</p>
+        <a href="/portal/login" className="text-sm font-medium text-[#007CB1] hover:underline">Go to portal login</a>
       </div>
     );
   }

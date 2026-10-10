@@ -88,7 +88,7 @@ export default function MarketingPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
-    if (!token) { router.push('/login'); return; }
+    if (!token) { router.push('/login'); setLoading(false); return; }
     fetchCampaigns();
   }, [router]);
 

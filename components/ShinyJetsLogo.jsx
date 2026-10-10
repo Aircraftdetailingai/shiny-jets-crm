@@ -37,14 +37,25 @@ export default function ShinyJetsLogo({ size = 'md', mode, className = '' }) {
     );
   }
 
-  // Auto mode: show dark version (app is always dark themed)
+  // Auto mode follows .theme-light. The dark-bg file is shiny-jets-dark.png.
+  const style = { height: dims.height, maxWidth: dims.width, objectFit: 'contain' };
   return (
-    <img
-      src="/logos/shiny-jets-dark.png"
-      alt="Shiny Jets CRM"
-      height={dims.height}
-      style={{ height: dims.height, maxWidth: dims.width, objectFit: 'contain' }}
-      className={className}
-    />
+    <span className={`inline-flex items-center ${className}`}>
+      <img
+        src="/logos/shiny-jets-dark.png"
+        alt="Shiny Jets CRM"
+        height={dims.height}
+        style={style}
+        className="sj-logo-for-dark"
+      />
+      <img
+        src="/logos/shiny-jets-light.png"
+        alt=""
+        aria-hidden="true"
+        height={dims.height}
+        style={style}
+        className="sj-logo-for-light"
+      />
+    </span>
   );
 }

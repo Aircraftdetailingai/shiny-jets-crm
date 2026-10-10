@@ -185,9 +185,10 @@ export async function GET(request) {
 
     const weekPointsTotal = weekPoints.reduce((sum, p) => sum + (p.points || 0), 0);
 
-    // Calculate average job value
-    const avgJobValue = allPaidQuotes.length > 0
-      ? allTimeBooked / allPaidQuotes.length
+    // Dashboard "Avg Job" is labeled This month, so it averages the same
+    // collected set as the Revenue card. All-time booked stays on Jobs.
+    const avgJobValue = monthCollectedRows.length > 0
+      ? monthCollected / monthCollectedRows.length
       : 0;
 
     // Outstanding: prefer real invoices (sent/viewed/overdue), fall back to unpaid quotes

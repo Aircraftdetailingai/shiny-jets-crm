@@ -52,13 +52,13 @@ export default function FleetIndexPage() {
       .sort((a, b) => a[0].localeCompare(b[0]));
   }, [aircraft, query]);
 
-  if (loading) return <AppShell><LoadingSpinner /></AppShell>;
+  if (loading) return <AppShell title="Aircraft"><LoadingSpinner /></AppShell>;
 
   return (
-    <AppShell>
+    <AppShell title="Aircraft">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-light text-white">Fleet</h1>
+          <h1 className="text-2xl font-light text-v-text-primary">Aircraft</h1>
           <p className="text-sm text-v-text-secondary mt-1">
             {new Set(aircraft.map((a) => (a.tail_number || '').toUpperCase().trim() || a.id)).size} aircraft on file across your customers
           </p>

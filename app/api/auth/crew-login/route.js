@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { createToken, comparePassword } from '@/lib/auth';
+import { jsonWithAuthCookie } from '@/lib/auth-cookie';
 import { detailerHasFeature } from '@/lib/plan-gate';
 import { buildTeamCrmSession } from '@/lib/team-session';
 
@@ -67,18 +67,7 @@ export async function POST(request) {
     // shop). PIN stays the field crew app.
     if (email && password) {
       const session = await buildTeamCrmSession(supabase, member);
-      try {
-        const cookieStore = await cookies();
-        cookieStore.delete('auth_token');
-        cookieStore.set('auth_token', session.token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 30,
-          path: '/',
-        });
-      } catch {}
-      return Response.json({ ...session, app: 'crm' });
+      return jsonWithAuthCookie({ ...session, app: 'crm' }, session.token);
     }
 
     // Crew app is a Business feature of the owner's plan.

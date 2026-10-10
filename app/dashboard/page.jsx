@@ -415,11 +415,11 @@ function DashboardContent() {
         <div className="mt-10">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-10 gap-y-8">
             {[
-              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthCollected ?? quickStats?.monthRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Collected this month (paid + completed)', title: 'Paid or completed work this month (quotes and manual jobs). Booked-but-unpaid work is shown on Jobs as Scheduled value.' },
+              { label: 'Revenue', value: `${currencySymbol()}${(quickStats?.monthCollected ?? quickStats?.monthRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'This month', title: 'Paid or completed work this month (quotes and manual jobs). Booked-but-unpaid work is shown on Jobs as Scheduled value.' },
               { label: 'Conversion', value: conversionRate, sub: quoteCount ? `${bookedCount} of ${quoteCount}` : '' },
               { label: 'Outstanding', value: `${quickStats?.outstandingInvoices || 0}`, sub: `${currencySymbol()}${(quickStats?.outstandingTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, danger: true },
-              { label: 'Avg Job', value: `${currencySymbol()}${formatPriceWhole(quickStats?.avgJobValue)}` },
-              { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This Month' },
+              { label: 'Avg Job', value: `${currencySymbol()}${formatPriceWhole(quickStats?.avgJobValue)}`, sub: 'This month', title: 'Average of paid or completed jobs this month.' },
+              { label: 'Completed', value: `${quickStats?.monthJobs || 0}`, sub: 'This month' },
             ].map((kpi) => (
               <div key={kpi.label} className="min-w-0" title={kpi.title}>
                 <p className={`text-2xl sm:text-[2.5rem] leading-none font-extralight font-data tracking-wide ${kpi.danger ? 'text-v-danger' : 'text-v-gold'}`}>
@@ -427,7 +427,7 @@ function DashboardContent() {
                 </p>
                 <div className="w-full h-px bg-v-gold/40 mt-3 mb-2" />
                 <p className="text-[10px] uppercase tracking-[0.2em] text-v-text-secondary">{kpi.label}</p>
-                {kpi.sub && <p className="text-[10px] text-v-text-secondary/60 font-data mt-0.5">{kpi.sub}</p>}
+                {kpi.sub && <p className="text-[10px] text-v-text-secondary font-data mt-0.5">{kpi.sub}</p>}
               </div>
             ))}
           </div>
