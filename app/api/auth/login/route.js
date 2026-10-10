@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { comparePassword, hashPassword, createToken } from '../../../../lib/auth';
+import { jsonWithAuthCookie } from '@/lib/auth-cookie';
 import { sessionTokenClaims } from '@/lib/password-change';
-import { cookies } from 'next/headers';
 import { normalizePlan } from '@/lib/plans';
 import { teamTokenClaims, withTeamIdentity } from '@/lib/team-access';
 import {
@@ -166,23 +166,6 @@ export async function POST(request) {
       ? await createToken(teamTokenClaims(teamMember, data.id))
       : await createToken(sessionTokenClaims(data));
 
-    // Set auth cookie for server-side auth
-    try {
-      const cookieStore = await cookies();
-      // Explicitly delete any stale auth_token cookie before issuing a fresh one
-      // so a prior session can't shadow the new login.
-      cookieStore.delete('auth_token');
-      cookieStore.set('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days // 7 days
-        path: '/',
-      });
-    } catch (e) {
-      // Cookie setting can fail in certain contexts, non-critical
-    }
-
     const isAdmin = teamMember ? false : ADMIN_EMAILS.includes(data.email?.toLowerCase());
     let user = {
       id: data.id,
@@ -250,14 +233,11 @@ export async function POST(request) {
     const sessionFlags = teamMember
       ? { must_change_password: false, onboarding_complete: true }
       : { must_change_password: data.must_change_password, onboarding_complete: data.onboarding_complete !== false };
-    return new Response(
-      JSON.stringify({
-        token,
-        user,
-        ...sessionFlags,
-      }),
-      { status: 200 }
-    );
+    return jsonWithAuthCookie({
+      token,
+      user,
+      ...sessionFlags,
+    }, token);
   } catch (err) {
     console.error('Login error:', err);
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 });

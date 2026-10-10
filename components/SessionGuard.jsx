@@ -1,23 +1,15 @@
 "use client";
 import { useEffect } from 'react';
+import { crmSessionExpired } from '@/lib/session-expiry';
 
 // Global session-expiry guard. The app issues custom 30-day JWTs (lib/auth.js);
-// when one expires, API routes answer 401. Historically ~most authenticated
-// client pages just rendered empty data or stray "not authorized" text on that
-// 401 instead of re-authing. This wraps window.fetch once (mounted from the
-// root layout) and turns any authenticated-session 401 into a clean redirect to
-// the login page, killing that whole class of broken-page states.
+// when one expires, API routes answer 401. This wraps window.fetch once
+// (mounted from the root layout) and turns that 401 into a login redirect.
 //
-// It fires ONLY when every condition holds, so it never touches flows that
-// legitimately 401:
-//   - the response is same-origin AND under /api/*        (our own API only)
-//   - status === 401
-//   - a vector_token exists in localStorage               (an authenticated
-//     detailer session — NOT the crew portal, which uses crew_token, and NOT
-//     public share pages, which carry no token)
-//   - the URL is NOT under /api/auth/                      (login/signup 401 on
-//     bad credentials — that's expected, leave it alone)
-// Anything else passes through completely untouched.
+// It fires only when the request presented the CRM bearer token and the
+// server rejected that token. A 401 from the customer portal, vendor app,
+// crew app, or a cookie-only poll is not a CRM logout — those used to wipe
+// vector_token and bounce people to /login?expired=1 during normal navigation.
 export default function SessionGuard() {
   useEffect(() => {
     // Guard against double-installation (e.g. Strict Mode remounts) so we never
@@ -31,21 +23,26 @@ export default function SessionGuard() {
       const res = await originalFetch.apply(this, args);
       try {
         const input = args[0];
+        const init = args[1] || {};
         const urlStr = typeof input === 'string'
           ? input
           : (input instanceof Request ? input.url : String(input));
         const url = new URL(urlStr, window.location.origin);
+        if (url.origin !== window.location.origin) return res;
 
-        const isSameOriginApi =
-          url.origin === window.location.origin && url.pathname.startsWith('/api/');
-        const isAuthRoute = url.pathname.startsWith('/api/auth/');
+        const headerBag = input instanceof Request ? input.headers : null;
+        const initHeaders = new Headers(init.headers || undefined);
+        const authorization = initHeaders.get('authorization')
+          || headerBag?.get?.('authorization')
+          || '';
+        const crmToken = localStorage.getItem('vector_token') || '';
 
-        if (
-          res.status === 401 &&
-          isSameOriginApi &&
-          !isAuthRoute &&
-          localStorage.getItem('vector_token')
-        ) {
+        if (crmSessionExpired({
+          status: res.status,
+          pathname: url.pathname,
+          authorization,
+          crmToken,
+        })) {
           localStorage.removeItem('vector_token');
           localStorage.removeItem('vector_user');
           // Already on /login: just clear, don't redirect into a loop.

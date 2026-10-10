@@ -118,8 +118,8 @@ export default function DeveloperPage() {
   return (
     <div className="space-y-6 sm:space-y-8 max-w-3xl">
       <div>
-        <h2 className="text-base font-semibold text-v-text-primary pb-2 border-b border-v-gold/40">Share &amp; Embed · QR code</h2>
-        <p className="text-sm text-v-text-secondary mt-2">Your request-a-quote link, QR code, website embed code, Sticky Request a Quote button and AI chat bubble. <span className="text-v-text-secondary/80">(This page used to be called Developer.)</span></p>
+        <h2 className="text-base font-semibold text-v-text-primary pb-2 border-b border-v-gold/40">Share &amp; Embed</h2>
+        <p className="text-sm text-v-text-secondary mt-2">Your request-a-quote link, QR code, website embed code, Sticky Request a Quote button and AI chat bubble.</p>
         {!ready && <p className="text-xs text-v-text-secondary mt-1" role="status">Loading your account details…</p>}
         {loadError && <p className="text-xs text-amber-300 mt-1">{loadError}</p>}
       </div>

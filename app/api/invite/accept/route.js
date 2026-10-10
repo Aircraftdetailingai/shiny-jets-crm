@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { hashPassword } from '@/lib/auth';
+import { jsonWithAuthCookie } from '@/lib/auth-cookie';
 import { buildTeamCrmSession } from '@/lib/team-session';
 
 export const dynamic = 'force-dynamic';
@@ -80,19 +80,7 @@ export async function GET(request) {
 }
 
 async function issueTeamSession(supabase, member) {
-  const session = await buildTeamCrmSession(supabase, member);
-  try {
-    const cookieStore = await cookies();
-    cookieStore.delete('auth_token');
-    cookieStore.set('auth_token', session.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
-  } catch {}
-  return session;
+  return buildTeamCrmSession(supabase, member);
 }
 
 // POST — accept invitation
@@ -151,7 +139,7 @@ export async function POST(request) {
     }).eq('id', member.id);
 
     const session = await issueTeamSession(supabase, member);
-    return Response.json({ success: true, ...session });
+    return jsonWithAuthCookie({ success: true, ...session }, session.token);
   }
 
   // New account — password required
@@ -174,5 +162,5 @@ export async function POST(request) {
   }
 
   const session = await issueTeamSession(supabase, member);
-  return Response.json({ success: true, ...session });
+  return jsonWithAuthCookie({ success: true, ...session }, session.token);
 }

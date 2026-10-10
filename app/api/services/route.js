@@ -2,6 +2,15 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { resolveHoursField } from '@/lib/service-defaults';
 import { applicabilityFromBody, defaultApplicability, publicServiceShape } from '@/lib/applicability';
+import { correctServiceName } from '@/lib/copy-corrections';
+
+function correctedService(row) {
+  if (!row || typeof row !== 'object') return row;
+  const name = correctServiceName(row.name);
+  const description = typeof row.description === 'string' ? correctServiceName(row.description) : row.description;
+  if (name === row.name && description === row.description) return row;
+  return { ...row, name, description };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +48,7 @@ export async function GET(request) {
         error = retry.error;
       }
       if (error) return Response.json({ error: error.message }, { status: 500 });
-      return Response.json({ services: (data || []).map(publicServiceShape) });
+      return Response.json({ services: (data || []).map((row) => correctedService(publicServiceShape(row))) });
     }
 
     const user = await getAuthUser(request);
@@ -72,7 +81,7 @@ export async function GET(request) {
           console.error('Failed to fetch services (fallback):', fallbackErr);
           return Response.json({ error: fallbackErr.message }, { status: 500 });
         }
-        return Response.json({ services: fallback || [] });
+        return Response.json({ services: (fallback || []).map(correctedService) });
       }
       console.error('Failed to fetch services:', error);
       return Response.json({ error: error.message }, { status: 500 });
@@ -132,7 +141,7 @@ export async function GET(request) {
       console.warn('[services GET] sign SOPs failed (non-fatal):', e?.message || e);
     }
 
-    return Response.json({ services: mergedServices });
+    return Response.json({ services: mergedServices.map(correctedService) });
 
   } catch (err) {
     console.error('Services GET error:', err);

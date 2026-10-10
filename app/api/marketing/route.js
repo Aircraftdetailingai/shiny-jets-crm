@@ -30,6 +30,10 @@ export async function GET(request) {
       .order('created_at', { ascending: false });
 
     if (error) {
+      const message = error.message || '';
+      if (/relation|column|schema cache|does not exist|could not find the table/i.test(message)) {
+        return Response.json({ campaigns: [] });
+      }
       console.error('Campaigns fetch error:', error);
       return Response.json({ error: error.message }, { status: 500 });
     }

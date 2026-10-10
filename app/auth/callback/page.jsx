@@ -90,7 +90,6 @@ export default function AuthCallbackPage() {
       // Store auth
       localStorage.setItem('vector_token', result.token);
       localStorage.setItem('vector_user', JSON.stringify(result.user));
-      document.cookie = `auth_token=${result.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
 
       // Wait for storage to persist
       await new Promise(r => setTimeout(r, 150));

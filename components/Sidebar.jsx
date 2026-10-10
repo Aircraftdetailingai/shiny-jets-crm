@@ -8,6 +8,7 @@ import { applyFullTheme } from '@/lib/theme';
 import { normalizePlan, hasFeature, requiredPlanFor } from '@/lib/plans';
 import { hasStandaloneAi } from '@/lib/detailing-ai-access';
 import { navItemVisible, canSeeSettings, canSeeBilling } from '@/lib/team-access';
+import ShinyJetsLogo from './ShinyJetsLogo.jsx';
 
 const NAV_GROUPS = [
   {
@@ -315,7 +316,7 @@ export default function Sidebar() {
         {user?.theme_logo_url ? (
           <img src={user.theme_logo_url} alt={user.company || 'Logo'} className="h-8 max-w-[160px] object-contain" />
         ) : (
-          <img src="/logos/shiny-jets-dark.png" alt="Shiny Jets CRM" className="h-9 max-w-[180px] object-contain" />
+          <ShinyJetsLogo size="sm" className="h-9 max-w-[180px]" />
         )}
       </div>
 
@@ -448,7 +449,7 @@ export default function Sidebar() {
         {user?.theme_logo_url ? (
           <img src={user.theme_logo_url} alt={user.company || 'Logo'} className="h-6 max-w-[120px] object-contain" />
         ) : (
-          <img src="/logos/shiny-jets-dark.png" alt="Shiny Jets CRM" className="h-8 max-w-[140px] object-contain" />
+          <ShinyJetsLogo size="sm" className="h-8 max-w-[140px]" />
         )}
         <div className="flex items-center gap-2">
           <PointsBadge />

@@ -49,9 +49,12 @@ export function usePlanGuard() {
       lastFetchRef.current = now;
 
       try {
+        const token = window.localStorage.getItem('vector_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await fetch('/api/user/plan-status', {
           credentials: 'include',
           cache: 'no-store',
+          headers,
         });
         if (res.status === 401) return; // not authenticated yet — silent skip
         if (!res.ok) {

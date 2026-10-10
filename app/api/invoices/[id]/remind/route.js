@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { Resend } from 'resend';
 import { logNotification } from '@/lib/notification-log';
 import { requireFeature } from '@/lib/plan-gate';
+import { decryptAchFields } from '@/lib/bank-crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,11 +46,12 @@ export async function POST(request, { params }) {
     }
 
     // Fetch detailer info for From block + Remit To block (opt-in per invoice)
-    const { data: detailer } = await supabase
+    const { data: detailerRow } = await supabase
       .from('detailers')
       .select('company, name, email, phone, home_airport, logo_url, logo_light_url, mailing_address_line1, mailing_address_line2, mailing_city, mailing_state, mailing_zip, mailing_country, ach_routing_number, ach_account_number, ach_account_name, ach_bank_name')
       .eq('id', user.id)
       .single();
+    const detailer = decryptAchFields(detailerRow);
 
     const companyName = detailer?.company || detailer?.name || 'Your Service Provider';
     const invoiceLink = `https://crm.shinyjets.com/invoice/${invoice.share_link}`;

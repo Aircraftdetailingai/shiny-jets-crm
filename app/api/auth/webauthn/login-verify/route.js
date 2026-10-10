@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createToken } from '@/lib/auth';
+import { jsonWithAuthCookie } from '@/lib/auth-cookie';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { normalizePlan } from '@/lib/plans';
 
@@ -87,7 +88,7 @@ export async function POST(request) {
       terms_accepted_version: detailer.terms_accepted_version || null,
     };
 
-    return Response.json({ token, user });
+    return jsonWithAuthCookie({ token, user }, token);
   } catch (err) {
     console.error('WebAuthn login verify error:', err);
     return Response.json({ error: err.message }, { status: 500 });
