@@ -796,7 +796,7 @@ function ContactStep({ onSubmit }) {
         <input ref={termsRef} type="checkbox" onChange={checkValid} className="mt-0.5 w-4 h-4 rounded accent-[#007CB1] flex-shrink-0" />
         <span className="text-white/50 text-xs">
           I have read and agree to the{' '}
-          <a href="/legal/quote-terms" target="_blank" rel="noreferrer" className="text-[#007CB1] underline" onClick={e => e.stopPropagation()}>Terms of Service</a>
+          <a href="/legal/quote-terms" target="_blank" rel="noreferrer" className="text-[#007CB1] underline" onClick={e => e.stopPropagation()}>service terms</a>
         </span>
       </label>
       <div className="mt-4">

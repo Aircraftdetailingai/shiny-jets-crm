@@ -63,7 +63,7 @@ export default function StackedTermsAccept({
           <div className="mt-3 space-y-3">
             {platformTerms && (
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-[var(--brand-text-secondary,#8A9BB0)] mb-1">Platform Terms (v{platformTerms.version})</p>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--brand-text-secondary,#8A9BB0)] mb-1">Shiny Jets service terms (v{platformTerms.version})</p>
                 <div className="p-3 bg-[var(--brand-bg,#0A0E17)] border border-[var(--brand-border,#1A2236)] rounded max-h-64 overflow-y-auto text-[var(--brand-text,#F5F5F5)]">
                   <MarkdownLite source={platformTerms.body_md} />
                 </div>
@@ -71,7 +71,7 @@ export default function StackedTermsAccept({
             )}
             {(detailerTermsText || detailerTermsPdfUrl) && (
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-[var(--brand-text-secondary,#8A9BB0)] mb-1">{detailerName || 'Detailer'} Terms</p>
+                <p className="text-[10px] uppercase tracking-wider text-[var(--brand-text-secondary,#8A9BB0)] mb-1">{detailerName || 'Detailer'} service terms</p>
                 {detailerTermsPdfUrl ? (
                   <iframe src={detailerTermsPdfUrl} title="Detailer Terms PDF" className="w-full h-96 border border-[var(--brand-border,#1A2236)] rounded bg-white" />
                 ) : (
@@ -100,7 +100,7 @@ export default function StackedTermsAccept({
             onClick={() => setShowPlatform(v => !v)}
             className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left"
           >
-            <span className="text-sm text-[var(--brand-text,#F5F5F5)]">Shiny Jets Platform Terms <span className="text-[var(--brand-text-secondary,#8A9BB0)]">(v{platformTerms.version})</span></span>
+            <span className="text-sm text-[var(--brand-text,#F5F5F5)]">Shiny Jets service terms <span className="text-[var(--brand-text-secondary,#8A9BB0)]">(v{platformTerms.version})</span></span>
             <span className="text-xs text-[var(--brand-primary,#007CB1)]">{showPlatform ? 'Hide' : 'View'}</span>
           </button>
           {showPlatform && (
@@ -119,7 +119,7 @@ export default function StackedTermsAccept({
             onClick={() => setShowDetailer(v => !v)}
             className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left"
           >
-            <span className="text-sm text-[var(--brand-text,#F5F5F5)]">{detailerName || 'Detailer'} Terms</span>
+            <span className="text-sm text-[var(--brand-text,#F5F5F5)]">{detailerName || 'Detailer'} service terms</span>
             <span className="text-xs text-[var(--brand-primary,#007CB1)]">{showDetailer ? 'Hide' : 'View'}</span>
           </button>
           {showDetailer && (
@@ -155,7 +155,7 @@ export default function StackedTermsAccept({
           className="mt-0.5 w-4 h-4 accent-[var(--brand-primary,#007CB1)]"
         />
         <span>
-          I agree to both the Shiny Jets Platform Terms and {detailerName || 'the detailer'} Terms.
+          I have read both sets of terms above. I agree to the Shiny Jets service terms and the {detailerName || 'detailer'} service terms.
         </span>
       </label>
 

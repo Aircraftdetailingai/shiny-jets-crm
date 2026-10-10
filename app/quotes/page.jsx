@@ -684,8 +684,8 @@ export default function QuotesPage() {
           <div className="px-4 sm:px-6 pt-5 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h1 className="text-[1.75rem] font-light tracking-[0.2em] uppercase text-white" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', serif" }}>Quotes</h1>
             <div className="flex items-center gap-3 flex-wrap">
-              <label className="flex items-center gap-1.5 text-v-text-secondary text-xs uppercase tracking-widest">
-                Quotes valid for
+              <label className="flex items-center gap-1.5 text-v-text-secondary text-xs uppercase tracking-widest" title="How many days a quote stays valid after you send it. Customers see the end date as Valid until.">
+                Valid for
                 <select
                   value={defaultValidityDays}
                   onChange={(e) => saveDefaultValidity(parseInt(e.target.value, 10))}
@@ -696,7 +696,7 @@ export default function QuotesPage() {
                     <option key={d} value={d} className="bg-v-charcoal">{d}</option>
                   ))}
                 </select>
-                days
+                days after send
               </label>
               <ExportGate plan={userPlan}>
                 <button

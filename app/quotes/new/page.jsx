@@ -2329,7 +2329,7 @@ function NewQuoteContent() {
             const resolvedValidity = resolveValidityDays({ quoteValidityDays, detailerDefaultDays: detailerDefaultValidity });
             return (
               <div className="bg-v-surface border border-v-border/40 p-5 mb-5">
-                <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">Quote Validity (days)</label>
+                <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1.5">How many days this quote stays valid</label>
                 <input
                   type="number"
                   min={1}
@@ -2348,7 +2348,7 @@ function NewQuoteContent() {
                     To change expiry, use Extend.
                   </p>
                 ) : (
-                  <p className="text-xs text-v-text-secondary mt-1.5">Valid for {resolvedValidity} days — starts when sent.</p>
+                  <p className="text-xs text-v-text-secondary mt-1.5">Valid for {resolvedValidity} days after you send it. Customers see the end date as &ldquo;Valid until.&rdquo; Leave this blank to use your default of {detailerDefaultValidity} days.</p>
                 )}
               </div>
             );

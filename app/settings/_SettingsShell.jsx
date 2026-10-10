@@ -17,6 +17,7 @@ import { paletteToTheme, checkContrast, suggestAccessibleColor, generatePalettes
 import PhoneInput from '@/components/PhoneInput';
 import { UpgradePrompt } from '@/components/PlanGate';
 import { normalizePlan, hasFeature, platformFeeForPlan, PLAN_MARKETING, PLAN_NAMES } from '@/lib/plans';
+import { DEFAULT_SHOP_TERMS_MARKDOWN, SUGGESTED_DISCLAIMER } from '@/lib/customer-service-terms';
 
 const DEFAULT_ADDON_FEES = [
   { name: 'Hazmat Fee', description: 'Hazardous material handling surcharge', fee_type: 'flat', amount: 250 },
@@ -1164,7 +1165,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
   };
 
   const deleteTerms = async () => {
-    if (!confirm('Remove your terms and conditions?')) return;
+    if (!confirm('Remove your custom terms? Customers will see the default service terms instead.')) return;
     try {
       const res = await fetch('/api/settings/terms', {
         method: 'DELETE',
@@ -2269,17 +2270,17 @@ function SettingsShell({ bucket: activeBucket = null }) {
             )}
           </div>
 
-          {/* Customer Disclaimer / Waiver */}
+          {/* Short note shown above the service terms. Optional. */}
           <div className="mt-6">
-            <label className="block text-sm font-medium text-v-text-secondary mb-2">Customer Disclaimer / Waiver</label>
+            <label className="block text-sm font-medium text-v-text-secondary mb-2">Short note on the quote</label>
             <p className="text-v-text-secondary/60 text-xs mb-3">
-              Optional text displayed on your quote and portal pages. Use for liability waivers, service disclaimers, etc.
+              Optional. Shown above the service terms on the quote page and in the customer portal. Use it for a short shop note, such as how you photograph the aircraft before work. It does not replace the service terms. The service terms already say the shop is not responsible for damage that was on the aircraft before the work, and that this does not cover damage the shop causes.
             </p>
             <textarea
               value={disclaimerText}
               onChange={(e) => { setDisclaimerText(e.target.value); markDirty('branding'); }}
               rows={4}
-              placeholder="e.g. Services are performed at customer's risk. We are not liable for pre-existing damage..."
+              placeholder={SUGGESTED_DISCLAIMER}
               className="w-full bg-v-surface border border-v-border text-v-text-primary px-3 py-2 text-sm focus:border-v-gold focus:outline-none resize-none rounded"
             />
           </div>
@@ -2642,8 +2643,8 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 className="mt-1 mr-3"
               />
               <div>
-                <p className="font-medium text-v-text-primary">Absorb fees</p>
-                <p className="text-sm text-v-text-secondary">You pay the processing fee. Customer sees a clean price with no extra charges.</p>
+                <p className="font-medium text-v-text-primary">You pay the card fee</p>
+                <p className="text-sm text-v-text-secondary">You pay Stripe&apos;s fee (2.9% + $0.30). The customer is not charged extra, and the quote does not mention a card fee.</p>
               </div>
             </label>
             <label
@@ -2659,8 +2660,8 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 className="mt-1 mr-3"
               />
               <div>
-                <p className="font-medium text-v-text-primary">Pass to customer</p>
-                <p className="text-sm text-v-text-secondary">A &quot;Processing Fee&quot; line item (2.9% + $0.30) is added to the customer&apos;s invoice.</p>
+                <p className="font-medium text-v-text-primary">Customer pays the card fee</p>
+                <p className="text-sm text-v-text-secondary">The customer pays Stripe&apos;s fee (2.9% + $0.30) on top of the quote. The amount is shown before they pay. It is not added into the printed total.</p>
               </div>
             </label>
             <label
@@ -2676,8 +2677,8 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 className="mt-1 mr-3"
               />
               <div>
-                <p className="font-medium text-v-text-primary">Customer choice</p>
-                <p className="text-sm text-v-text-secondary">Customer can pay by card (fee included) or request an invoice to pay by check/ACH (no fee).</p>
+                <p className="font-medium text-v-text-primary">Customer chooses</p>
+                <p className="text-sm text-v-text-secondary">The customer can pay by card, which adds the processing fee, or ask for an invoice and pay by check or bank transfer with no card fee.</p>
               </div>
             </label>
           </div>
@@ -2713,7 +2714,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 />
                 <div>
                   <p className="font-medium text-v-text-primary">Pay to Book</p>
-                  <p className="text-sm text-v-text-secondary">Customer pays the full amount to confirm the booking. This is the default behavior.</p>
+                  <p className="text-sm text-v-text-secondary">The customer pays the full quote to confirm the date. This is the default.</p>
                 </div>
               </label>
               <div
@@ -2733,7 +2734,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 )}
                 <div className="flex-1">
                   <p className="font-medium text-v-text-primary">Book Now, Pay Later</p>
-                  <p className="text-sm text-v-text-secondary">Customer accepts and schedules without paying. You send an invoice separately.</p>
+                  <p className="text-sm text-v-text-secondary">The customer accepts and schedules now without paying. You send an invoice. They pay by the due date on that invoice.</p>
                   {!canBookLater && (
                     <a href="/upgrade?plan=lite" className="text-xs text-v-gold hover:underline mt-1 inline-flex items-center min-h-[40px]">Available on Lite ($39.95/mo) — Upgrade</a>
                   )}
@@ -2756,7 +2757,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 )}
                 <div className="flex-1">
                   <p className="font-medium text-v-text-primary">Deposit to Book</p>
-                  <p className="text-sm text-v-text-secondary">Customer pays a percentage upfront to hold their date. You invoice the remainder after completion.</p>
+                  <p className="text-sm text-v-text-secondary">The customer pays a percentage now to hold the date. Under the default service terms that deposit is not refundable and is applied to the invoice. You collect the rest when the work is finished. Set the percentage below.</p>
                   {!canDeposit && (
                     <a href="/upgrade?plan=lite" className="text-xs text-v-gold hover:underline mt-1 inline-flex items-center min-h-[40px]">Available on Lite ($39.95/mo) — Upgrade</a>
                   )}
@@ -2764,7 +2765,8 @@ function SettingsShell({ bucket: activeBucket = null }) {
               </div>
               {bookingMode === 'deposit' && canDeposit && (
                 <div className="ml-8 mt-2">
-                  <label className="block text-sm font-medium text-v-text-secondary mb-1">Deposit Percentage</label>
+                  <label className="block text-sm font-medium text-v-text-secondary mb-1">Deposit percentage</label>
+                  <p className="text-xs text-v-text-secondary mb-2">The share of the quote the customer pays now. The quote shows this percent, the dollar amount, and that the rest is due when the work is finished.</p>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
@@ -3291,7 +3293,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
         {show('terms') && (
         /* Terms & Conditions */
         <div className="pb-6 mb-2">
-          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Terms & Conditions</h3>
+          <h3 className="text-xs font-medium uppercase tracking-widest text-v-gold mb-4 pb-2 border-b border-v-gold/20">Service terms</h3>
 
           {/* Platform-level terms (read-only). Stacked above the detailer's
               own terms on customer-facing share-link pages. Detailers cannot
@@ -3301,7 +3303,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
             <div className="mb-6 p-4 bg-v-charcoal border border-v-border rounded-sm">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div>
-                  <p className="text-sm font-semibold text-v-text-primary">Shiny Jets Platform Terms (auto-included)</p>
+                  <p className="text-sm font-semibold text-v-text-primary">Shiny Jets service terms (always shown)</p>
                   <p className="text-xs text-v-text-secondary mt-0.5">
                     Version {platformTerms.version}{platformTerms.effective_at ? ` · effective ${new Date(platformTerms.effective_at).toLocaleDateString()}` : ''}
                   </p>
@@ -3315,7 +3317,7 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 </button>
               </div>
               <p className="text-xs text-v-text-secondary/80 mb-2">
-                These terms are automatically shown to your customers above your own terms and conditions. You cannot edit them.
+                Customers see these above your shop terms on an invoice, and on the public service-terms page. They cover the quote, payment, cancellation, and San Diego arbitration. You cannot edit them.
               </p>
               {platformTermsExpanded && (
                 <div className="mt-3 p-3 bg-v-surface border border-v-border-subtle rounded-sm max-h-80 overflow-y-auto text-v-text-primary">
@@ -3325,8 +3327,11 @@ function SettingsShell({ bucket: activeBucket = null }) {
             </div>
           )}
 
-          <p className="text-sm text-v-text-secondary mb-4">
-            Upload your business terms and conditions. Customers must agree before accepting a quote.
+          <p className="text-sm text-v-text-secondary mb-2">
+            Your shop terms. Customers read them on quotes, invoices, the customer portal, and the quote PDF, and they agree before they pay or accept.
+          </p>
+          <p className="text-xs text-v-text-secondary/80 mb-4">
+            Leave this blank to use the default wording. Saving your own text replaces the default. A PDF replaces the text. Removing both brings the default back. Your text does not replace the Shiny Jets terms above.
           </p>
 
           {termsSuccess && (
@@ -3372,28 +3377,49 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 className="block w-full text-sm text-v-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-v-gold/10 file:text-v-gold hover:file:bg-v-gold/20 disabled:opacity-50"
               />
               {termsUploading && <p className="text-xs text-v-gold mt-1">Uploading...</p>}
-              <p className="text-xs text-v-text-secondary mt-1">PDF only, max 5MB</p>
+              <p className="text-xs text-v-text-secondary mt-1">PDF only, max 5MB. A PDF replaces any text you saved. Customers open it from the quote, the invoice, and the portal.</p>
             </div>
 
             <div className="text-center text-sm text-v-text-secondary">- or -</div>
 
             <div>
-              <label className="block text-sm font-medium text-v-text-secondary mb-2">Paste Terms Text</label>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-v-text-secondary">Your wording</label>
+                <button
+                  type="button"
+                  onClick={() => setTermsText(DEFAULT_SHOP_TERMS_MARKDOWN)}
+                  className="text-xs text-v-gold hover:underline"
+                >
+                  Fill with default wording
+                </button>
+              </div>
               <textarea
                 value={termsText}
                 onChange={(e) => setTermsText(e.target.value)}
-                rows={8}
-                placeholder="Enter your terms and conditions here..."
+                rows={10}
+                placeholder="Leave blank to use the default wording shown below."
                 className="w-full bg-v-charcoal border border-v-border text-v-text-primary placeholder:text-v-text-secondary rounded-sm p-3 text-sm"
               />
+              <p className="text-xs text-v-text-secondary mt-1">
+                Use short headings. Customers see this instead of the default once you save it.
+              </p>
             </div>
+
+            {!termsText.trim() && !termsPdfUrl && (
+              <div className="p-3 bg-v-charcoal border border-v-border rounded-sm">
+                <p className="text-xs font-medium text-v-text-primary mb-1">What customers see when this is blank</p>
+                <div className="max-h-48 overflow-y-auto text-v-text-secondary">
+                  <MarkdownLite source={DEFAULT_SHOP_TERMS_MARKDOWN} />
+                </div>
+              </div>
+            )}
 
             <button
               onClick={saveTermsText}
               disabled={termsSaving || !termsText.trim()}
               className="bg-v-gold hover:bg-v-gold-dim text-white px-4 py-2 rounded-sm text-sm font-medium disabled:opacity-50 transition-colors"
             >
-              {termsSaving ? 'Saving...' : 'Save Terms Text'}
+              {termsSaving ? 'Saving...' : 'Save shop terms'}
             </button>
           </div>
         </div>

@@ -815,7 +815,7 @@ function ContactStep({ onSubmit }) {
           I have read and agree to the{' '}
           <a href="/legal/quote-terms" target="_blank" rel="noreferrer"
             className="text-[#007CB1] underline" onClick={e => e.stopPropagation()}>
-            Terms of Service
+            service terms
           </a>
         </span>
       </label>

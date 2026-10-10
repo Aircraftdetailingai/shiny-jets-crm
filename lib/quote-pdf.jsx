@@ -5,6 +5,12 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { platformFeeRate } from './pricing-tiers';
 import { normalizePlan } from './plans';
+import {
+  cardFeeSentence,
+  DEFAULT_SHOP_TERMS_MARKDOWN,
+  markdownToBlocks,
+  PDF_TERMS_PDF_ONLY,
+} from './customer-service-terms';
 
 // Shared quote-PDF generator. The customer-facing route
 // (app/api/quotes/[id]/pdf/route.js) and the quote send path
@@ -82,6 +88,8 @@ const s = StyleSheet.create({
   termsBox: { marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.gray200 },
   termsLabel: { fontSize: 8, color: colors.gray400, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
   termsText: { fontSize: 8, color: colors.gray500, lineHeight: 1.5 },
+  termsHeading: { fontSize: 8, color: colors.gray700, fontFamily: 'Helvetica-Bold', marginTop: 6, marginBottom: 2 },
+  termsBullet: { fontSize: 8, color: colors.gray500, lineHeight: 1.5, marginLeft: 8 },
   // Footer
   footer: { position: 'absolute', bottom: 20, left: 40, right: 40, alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.gray200 },
   footerText: { fontSize: 7, color: colors.gray400, letterSpacing: 0.5 },
@@ -148,10 +156,13 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
   // basePrice + serviceFee. The CC fee stays a separate disclosure below.
   const displayTotal = servicesSubtotal + addonTotal + serviceFee;
 
-  // Terms snippet
-  const termsSnippet = detailer?.terms_text
-    ? (detailer.terms_text.length > 200 ? detailer.terms_text.slice(0, 200) + '...' : detailer.terms_text)
-    : null;
+  // Full service terms. Shop text replaces the default. A shop PDF replaces
+  // both, and the PDF then points at that file instead of printing a
+  // conflicting default. No 200-character cutoff — a cut-off sentence was
+  // harder to understand than the full short sections.
+  const customTerms = (detailer?.terms_text || '').trim();
+  const termsMarkdown = customTerms || (detailer?.terms_pdf_url ? '' : DEFAULT_SHOP_TERMS_MARKDOWN);
+  const termsBlocks = markdownToBlocks(termsMarkdown);
 
   // Status
   let statusLabel = 'QUOTE';
@@ -402,14 +413,9 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
           <Text style={s.totalLabel}>Total</Text>
           <Text style={s.totalValue}>{fmt(displayTotal)}</Text>
         </View>
-        {ccFeeMode === 'pass' && (
+        {(ccFeeMode === 'pass' || ccFeeMode === 'customer_choice') && (
           <Text style={s.ccFeeDisclosure}>
-            Card payments are subject to a processing fee.
-          </Text>
-        )}
-        {ccFeeMode === 'customer_choice' && ccFee > 0 && (
-          <Text style={s.ccFeeDisclosure}>
-            Card payment includes +{fmt(ccFee)} processing fee
+            {cardFeeSentence(ccFeeMode, { amountLabel: ccFee > 0 ? fmt(ccFee) : '' })}
           </Text>
         )}
 
@@ -423,12 +429,22 @@ function QuotePDF({ quote, detailer, lineItems, servicesList, addonFees, package
           </View>
         )}
 
-        {/* Terms */}
-        {(!isPaid && termsSnippet) && (
+        {/* Service terms */}
+        {!isPaid && (termsBlocks.length > 0 || detailer?.terms_pdf_url) && (
           <View style={s.termsBox}>
-            <Text style={s.termsLabel}>Terms & Conditions</Text>
-            <Text style={s.termsText}>Scheduling is subject to availability and confirmed upon payment.</Text>
-            {termsSnippet ? <Text style={[s.termsText, { marginTop: 6 }]}>{termsSnippet}</Text> : null}
+            <Text style={s.termsLabel}>Service terms</Text>
+            {detailer?.terms_pdf_url && !customTerms ? (
+              <Text style={s.termsText}>{PDF_TERMS_PDF_ONLY}</Text>
+            ) : null}
+            {termsBlocks.map((block, i) => (
+              block.type === 'heading' ? (
+                <Text key={i} style={s.termsHeading}>{block.text}</Text>
+              ) : block.type === 'bullet' ? (
+                <Text key={i} style={s.termsBullet}>{`• ${block.text}`}</Text>
+              ) : (
+                <Text key={i} style={s.termsText}>{block.text}</Text>
+              )
+            ))}
           </View>
         )}
 
@@ -465,7 +481,7 @@ export async function generateQuotePdf(quote, { supabase } = {}) {
 
   const { data: detailer } = await db
     .from('detailers')
-    .select('name, company, email, phone, preferred_currency, plan, pass_fee_to_customer, cc_fee_mode, terms_text, quote_display_preference')
+    .select('name, company, email, phone, preferred_currency, plan, pass_fee_to_customer, cc_fee_mode, terms_text, terms_pdf_url, quote_display_preference')
     .eq('id', quote.detailer_id)
     .single();
 
