@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { publicOverrideFlags } from '@/lib/applicability';
+import { invalidUuidInput, schemaNotReady } from '@/lib/model-offers-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ export async function GET(request) {
   query = customId ? query.eq('custom_aircraft_id', customId) : query.eq('aircraft_id', aircraftId);
   const { data, error } = await query;
   if (error) {
-    if (/relation|column/i.test(error.message || '')) return Response.json({ overrides: [] });
+    if (schemaNotReady(error.message) || invalidUuidInput(error.message)) return Response.json({ overrides: [] });
     return Response.json({ error: error.message }, { status: 500 });
   }
   return Response.json({ overrides: publicOverrideFlags(data) });

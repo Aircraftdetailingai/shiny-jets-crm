@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { hashPassword, createToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { jsonWithAuthCookie } from '@/lib/auth-cookie';
 import { welcomeTemplate } from '@/lib/email-templates';
 import { redeemCompInviteIfAny } from '@/lib/comp-invites';
 import { normalizePlan } from '@/lib/plans';
@@ -473,18 +473,6 @@ export async function POST(request) {
     // Create JWT
     const token = await createToken({ id: detailer.id, email: detailer.email });
 
-    // Set auth cookie
-    try {
-      const cookieStore = await cookies();
-      cookieStore.set('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/',
-      });
-    } catch {}
-
     const user = {
       id: detailer.id,
       email: detailer.email,
@@ -572,7 +560,7 @@ export async function POST(request) {
       console.error('[signup] Admin notification failed:', adminErr.message);
     }
 
-    return Response.json({ token, user });
+    return jsonWithAuthCookie({ token, user }, token);
   } catch (err) {
     console.error('[signup] Unhandled error:', err.message);
     console.error('[signup] Stack:', err.stack);

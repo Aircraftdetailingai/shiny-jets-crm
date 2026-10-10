@@ -6,6 +6,7 @@ import TermsConsentModal from '@/components/TermsConsentModal';
 import SocialLoginButtons from '@/components/SocialLoginButtons';
 import BiometricLogin from '@/components/BiometricLogin';
 import LanguageSelector from '@/components/LanguageSelector';
+import ShinyJetsLogo from '@/components/ShinyJetsLogo';
 import { useTranslation } from '@/lib/i18n';
 
 import { TERMS_VERSION } from '@/lib/terms';
@@ -135,7 +136,7 @@ function LoginContent() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/logos/shiny-jets-dark.png" alt="Shiny Jets CRM" className="h-12 mx-auto mb-2 object-contain" />
+          <ShinyJetsLogo size="md" className="h-12 mx-auto mb-2" />
           <p className="text-v-text-secondary mt-2 text-sm">{t('login.professionalSoftware')}</p>
         </div>
 
@@ -148,7 +149,6 @@ function LoginContent() {
                 onSuccess={(data) => {
                   localStorage.setItem('vector_token', data.token);
                   localStorage.setItem('vector_user', JSON.stringify(data.user));
-                  document.cookie = `auth_token=${data.token}; path=/; max-age=${60*60*24*30}; SameSite=Lax`;
                   window.location.href = '/dashboard';
                 }}
               />

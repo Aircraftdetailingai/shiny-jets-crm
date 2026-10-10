@@ -36,7 +36,7 @@ const BUCKETS = [
   { href: '/settings/business', label: 'Business Info', Icon: BuildingIcon },
   // Near top so QR/embed is never clipped below the fold on short viewports.
   // Route stays /settings/developer so old links keep working.
-  { href: '/settings/developer', label: 'Share & Embed · QR', Icon: QrIcon },
+  { href: '/settings/developer', label: 'Share & Embed', Icon: QrIcon },
   { href: '/settings/payments', label: 'Payments & Billing', Icon: CreditCardIcon },
   { href: '/settings/services', label: 'Services & Pricing', Icon: WrenchIcon },
   { href: '/settings/intake-flow', label: 'Intake Flow', Icon: GitBranchIcon },

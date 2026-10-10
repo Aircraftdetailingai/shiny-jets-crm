@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { DEFAULT_QUESTIONS } from '@/lib/default-intake-flow';
+import { correctIntakeCopy } from '@/lib/copy-corrections';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +19,9 @@ export async function GET(request) {
     const supabase = getSupabase();
     const { data } = await supabase.from('intake_flows').select('questions, flow_nodes, flow_edges, updated_at').eq('detailer_id', detailerId).single();
     return Response.json({
-      questions: data?.questions || DEFAULT_QUESTIONS,
-      flow_nodes: data?.flow_nodes || null,
-      flow_edges: data?.flow_edges || null,
+      questions: correctIntakeCopy(data?.questions || DEFAULT_QUESTIONS),
+      flow_nodes: correctIntakeCopy(data?.flow_nodes || null),
+      flow_edges: correctIntakeCopy(data?.flow_edges || null),
       updatedAt: data?.updated_at || null,
     }, {
       headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
@@ -35,9 +36,9 @@ export async function GET(request) {
   const { data } = await supabase.from('intake_flows').select('questions, flow_nodes, flow_edges, updated_at').eq('detailer_id', user.detailer_id || user.id).single();
 
   return Response.json({
-    questions: data?.questions || DEFAULT_QUESTIONS,
-    flow_nodes: data?.flow_nodes || null,
-    flow_edges: data?.flow_edges || null,
+    questions: correctIntakeCopy(data?.questions || DEFAULT_QUESTIONS),
+    flow_nodes: correctIntakeCopy(data?.flow_nodes || null),
+    flow_edges: correctIntakeCopy(data?.flow_edges || null),
     isDefault: !data,
     updatedAt: data?.updated_at || null,
   }, {
@@ -78,6 +79,10 @@ export async function POST(request) {
   } else {
     return Response.json({ error: 'Invalid payload' }, { status: 400 });
   }
+
+  if (upsertData.flow_nodes) upsertData.flow_nodes = correctIntakeCopy(upsertData.flow_nodes);
+  if (upsertData.flow_edges) upsertData.flow_edges = correctIntakeCopy(upsertData.flow_edges);
+  if (upsertData.questions) upsertData.questions = correctIntakeCopy(upsertData.questions);
 
   const { error } = await supabase.from('intake_flows').upsert(upsertData, { onConflict: 'detailer_id' });
 

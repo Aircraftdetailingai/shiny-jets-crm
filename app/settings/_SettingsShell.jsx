@@ -1732,13 +1732,18 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">Routing number</label>
                 <div className="flex items-center gap-2">
                   <input
-                    type={showAchRouting ? 'text' : 'password'}
-                    value={achRoutingNumber}
-                    onChange={(e) => { setAchRoutingNumber(e.target.value.replace(/\D/g, '')); markDirty('profile'); }}
+                    type="text"
+                    value={showAchRouting ? achRoutingNumber : (achRoutingNumber ? `••••${String(achRoutingNumber).replace(/\D/g, '').slice(-4)}` : '')}
+                    onChange={(e) => {
+                      if (!showAchRouting) return;
+                      setAchRoutingNumber(e.target.value.replace(/\D/g, ''));
+                      markDirty('profile');
+                    }}
+                    readOnly={!showAchRouting}
                     placeholder="9 digits"
                     autoComplete="off"
                     inputMode="numeric"
-                    maxLength={9}
+                    maxLength={showAchRouting ? 9 : 12}
                     className="flex-1 bg-transparent border-0 border-b border-v-border text-v-text-primary placeholder:text-v-text-secondary px-0 py-2 text-sm focus:border-v-gold focus:ring-0 outline-none transition-colors"
                   />
                   <button
@@ -1754,9 +1759,14 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 <label className="block text-sm font-medium text-v-text-secondary mb-1">Account number</label>
                 <div className="flex items-center gap-2">
                   <input
-                    type={showAchAccount ? 'text' : 'password'}
-                    value={achAccountNumber}
-                    onChange={(e) => { setAchAccountNumber(e.target.value.replace(/\D/g, '')); markDirty('profile'); }}
+                    type="text"
+                    value={showAchAccount ? achAccountNumber : (achAccountNumber ? `••••${String(achAccountNumber).replace(/\D/g, '').slice(-4)}` : '')}
+                    onChange={(e) => {
+                      if (!showAchAccount) return;
+                      setAchAccountNumber(e.target.value.replace(/\D/g, ''));
+                      markDirty('profile');
+                    }}
+                    readOnly={!showAchAccount}
                     placeholder="Account number"
                     autoComplete="off"
                     inputMode="numeric"
@@ -1772,8 +1782,8 @@ function SettingsShell({ bucket: activeBucket = null }) {
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-v-text-secondary/60 mt-3">
-              Routing and account numbers are stored and transmitted in plaintext inside Shiny Jets CRM. Only share with customers you trust.
+            <p className="text-[11px] text-v-text-secondary mt-3">
+              Routing and account numbers are encrypted before they are saved. They stay masked here until you choose Show, and they appear in full only on invoices you send.
             </p>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getAuthUser } from '@/lib/auth';
 import { normalizePlan } from '@/lib/plans';
 import { withTeamIdentity } from '@/lib/team-access';
+import { migratePlaintextAch } from '@/lib/bank-crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,7 +136,9 @@ export async function GET(request) {
   const isAdmin = user.account_kind === 'team'
     ? false
     : ADMIN_EMAILS.includes(data.email?.toLowerCase());
-  const built = buildUserResponse(data, isAdmin, { includeRemit });
+  // Decrypt for the owner and rewrite any leftover plaintext on this read.
+  const profile = includeRemit ? await migratePlaintextAch(supabase, detailerId, data) : data;
+  const built = buildUserResponse(profile, isAdmin, { includeRemit });
   const sessionUser = user.account_kind === 'team'
     ? withTeamIdentity(built, {
         id: user.team_member_id,

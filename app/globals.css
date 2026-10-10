@@ -541,3 +541,100 @@ iframe[src*="vercel"] {
   color: var(--v-text-primary) !important;
   stroke: currentColor;
 }
+
+/* Opacity leftovers that the first pass missed. */
+.theme-light .text-white\/80,
+.theme-light .text-white\/90,
+.theme-light .text-white\/95 {
+  color: var(--v-text-primary) !important;
+}
+.theme-light .text-white\/20,
+.theme-light .text-white\/25 {
+  color: var(--v-text-secondary) !important;
+}
+
+.theme-light .border-white\/5,
+.theme-light .border-white\/8,
+.theme-light .border-white\/15,
+.theme-light .border-white\/\[0\.08\],
+.theme-light .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+.theme-light .divide-white\/10 > :not([hidden]) ~ :not([hidden]),
+.theme-light .divide-white > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--v-border) !important;
+}
+
+.theme-light .bg-white\/\[0\.02\],
+.theme-light .bg-white\/\[0\.03\],
+.theme-light .bg-white\/\[0\.04\] {
+  background-color: rgba(15, 17, 23, 0.04) !important;
+}
+
+/* Hardcoded dark surfaces stay dark while text-white is remapped, which
+   paints dark text on a dark card. Point those utilities at the light tokens. */
+.theme-light .bg-\[\#0F1117\],
+.theme-light .bg-\[\#0f1117\],
+.theme-light .bg-\[\#0D1B2A\],
+.theme-light .bg-\[\#0d1b2a\],
+.theme-light .bg-\[\#080C12\],
+.theme-light .bg-\[\#080c12\],
+.theme-light .bg-\[\#0a0f1e\],
+.theme-light .bg-\[\#0a0f1e\]\/90 {
+  background-color: var(--v-charcoal) !important;
+}
+.theme-light .bg-\[\#1A2236\],
+.theme-light .bg-\[\#1a2236\],
+.theme-light .bg-\[\#1E2A40\],
+.theme-light .bg-\[\#1e2a40\],
+.theme-light .bg-\[\#0f1623\],
+.theme-light .bg-\[\#0d1520\],
+.theme-light .bg-\[\#0f172a\],
+.theme-light .bg-\[\#0f172a\]\/80,
+.theme-light .bg-\[\#0f1d1d\] {
+  background-color: var(--v-surface) !important;
+}
+.theme-light .border-\[\#1A2236\],
+.theme-light .border-\[\#1a2236\],
+.theme-light .border-\[\#2A3A50\],
+.theme-light .border-\[\#2a3a50\],
+.theme-light .border-\[\#1E2A40\] {
+  border-color: var(--v-border) !important;
+}
+.theme-light .text-\[\#F5F5F5\],
+.theme-light .text-\[\#f5f5f5\],
+.theme-light .text-\[\#8A9BB0\],
+.theme-light .text-\[\#8a9bb0\] {
+  color: var(--v-text-primary) !important;
+}
+
+/* Brand and solid buttons keep white labels. Page sections that only use
+   the brand color as a tint (bg-[#007CB1]/10) are a different class. */
+.theme-light button.bg-\[\#007CB1\],
+.theme-light a.bg-\[\#007CB1\],
+.theme-light span.bg-\[\#007CB1\],
+.theme-light button.bg-\[\#007cb1\],
+.theme-light a.bg-\[\#007cb1\],
+.theme-light button.bg-\[\#0081b8\],
+.theme-light a.bg-\[\#0081b8\],
+.theme-light button.bg-\[\#007CB1\] .text-white,
+.theme-light a.bg-\[\#007CB1\] .text-white,
+.theme-light span.bg-\[\#007CB1\] .text-white,
+.theme-light button.bg-\[\#0081b8\] .text-white,
+.theme-light a.bg-\[\#0081b8\] .text-white {
+  color: #FFFFFF !important;
+}
+
+.theme-light .set-password-form input {
+  background-color: #FFFFFF;
+  border: 1px solid #64748B;
+  color: #0B0D12;
+}
+.theme-light .set-password-form input:focus,
+.theme-light .set-password-form button:focus-visible {
+  outline: 2px solid #0369A1 !important;
+  border-color: #0369A1 !important;
+}
+
+/* shiny-jets-dark.png is the mark for dark backgrounds. */
+.sj-logo-for-light { display: none; }
+.theme-light .sj-logo-for-dark { display: none; }
+.theme-light .sj-logo-for-light { display: inline; }

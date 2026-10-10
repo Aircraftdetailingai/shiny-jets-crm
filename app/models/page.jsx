@@ -181,7 +181,7 @@ export default function MakesModelsPage() {
           placeholder="Search manufacturer or model"
           className="w-full mb-4 bg-v-surface border border-v-border rounded px-3 py-2 text-v-text-primary"
         />
-        <div className="grid md:grid-cols-[240px_1fr] gap-6">
+        <div className="grid md:grid-cols-[240px_minmax(0,1fr)] gap-6 min-w-0">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-v-text-secondary mb-2">Manufacturer</p>
             <div className="max-h-64 overflow-y-auto border border-v-border/40 divide-y divide-v-border/30 mb-4">
@@ -209,7 +209,7 @@ export default function MakesModelsPage() {
             )}
           </div>
 
-          <div>
+          <div className="min-w-0">
             {!model && <p className="text-v-text-secondary text-sm">Select a model to see the services that apply.</p>}
             {model && attrs && (
               <>
@@ -253,9 +253,9 @@ export default function MakesModelsPage() {
 
 function OfferList({ title, rows, hidden, kind, overrides, usage, products, catalogHours, savingKey, onSave, onAddUsage, onRemoveUsage }) {
   return (
-    <section className="mb-8">
+    <section className="mb-8 min-w-0">
       <h3 className="text-xs uppercase tracking-wider text-v-gold mb-2">{title}</h3>
-      <div className="divide-y divide-v-border/30 border border-v-border/40">
+      <div className="divide-y divide-v-border/30 border border-v-border/40 min-w-0">
         {rows.map((row) => (
           <OfferRow
             key={row.id}
@@ -312,31 +312,31 @@ function OfferRow({ row, kind, override, usage, products, catalogHours, saving, 
   const catalogHint = kind === 'service' && catalogCol && catalogHours ? catalogHours[catalogCol] : null;
 
   return (
-    <div className="px-3 py-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-sm text-v-text-primary flex-1 min-w-[140px]">{row.name}</p>
+    <div className="px-3 py-3 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+        <p className="text-sm text-v-text-primary basis-full sm:basis-auto sm:flex-1 min-w-0 break-words">{row.name}</p>
         {kind === 'service' && (
           <>
-            <label className="text-xs text-v-text-secondary">
+            <label className="text-xs text-v-text-secondary inline-flex items-center gap-1">
               Hours
               <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" placeholder={catalogHint ? String(catalogHint) : 'pin'}
-                className="ml-1 w-20 bg-v-charcoal border border-v-border rounded px-2 py-1 text-v-text-primary" />
+                className="w-20 max-w-full bg-v-charcoal border border-v-border rounded px-2 py-1 text-v-text-primary" />
             </label>
-            <label className="text-xs text-v-text-secondary">
+            <label className="text-xs text-v-text-secondary inline-flex items-center gap-1">
               Price
               <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="pin"
-                className="ml-1 w-24 bg-v-charcoal border border-v-border rounded px-2 py-1 text-v-text-primary" />
+                className="w-24 max-w-full bg-v-charcoal border border-v-border rounded px-2 py-1 text-v-text-primary" />
             </label>
           </>
         )}
         {kind === 'package' && (
-          <label className="text-xs text-v-text-secondary">
+          <label className="text-xs text-v-text-secondary inline-flex items-center gap-1">
             Price
             <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="pin"
-              className="ml-1 w-24 bg-v-charcoal border border-v-border rounded px-2 py-1 text-v-text-primary" />
+              className="w-24 max-w-full bg-v-charcoal border border-v-border rounded px-2 py-1 text-v-text-primary" />
           </label>
         )}
-        <button type="button" disabled={saving} className="text-xs text-v-gold disabled:opacity-50"
+        <button type="button" disabled={saving} className="text-xs text-v-gold disabled:opacity-50 shrink-0"
           onClick={() => onSave(targetOf(kind, row), {
             pinned_hours: kind === 'service' ? (hours === '' ? null : hours) : undefined,
             pinned_price: price === '' ? null : price,

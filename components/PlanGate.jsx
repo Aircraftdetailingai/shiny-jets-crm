@@ -36,7 +36,9 @@ export function userHasFeature(user, feature) {
 // Ask the server once before showing an upgrade prompt for Detailing AI.
 async function refreshStandaloneAi() {
   try {
-    const res = await fetch('/api/user/plan-status', { credentials: 'include', cache: 'no-store' });
+    const token = window.localStorage.getItem('vector_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch('/api/user/plan-status', { credentials: 'include', cache: 'no-store', headers });
     if (!res.ok) return false;
     const data = await res.json();
     const stored = readStoredUser();
@@ -121,7 +123,11 @@ export function UpgradePrompt({ feature, compact = false, className = '' }) {
 export default function PlanGate({ feature, title, children }) {
   const { ready, allowed } = usePlanFeature(feature);
   if (!ready) {
-    return <div className="min-h-screen bg-v-charcoal" aria-busy="true" />;
+    return (
+      <div className="min-h-screen bg-v-charcoal flex items-center justify-center" aria-busy="true">
+        <div className="w-8 h-8 border-2 border-v-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
   if (!allowed) {
     return (

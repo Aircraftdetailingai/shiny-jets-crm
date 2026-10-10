@@ -8,6 +8,7 @@ import {
   SCHEDULE_OPTIONS,
   DEFAULT_PERMISSIONS,
 } from '../../../lib/permissions';
+import AppShell from '@/components/AppShell';
 
 const BOOLEAN_PERMISSIONS = [
   'can_see_customer_contact',
@@ -112,27 +113,23 @@ export default function TeamPermissionsPage() {
 
   if (loading) {
     return (
-      <div className="page-transition min-h-screen bg-v-charcoal p-4 flex items-center justify-center">
-        <div className="text-white text-lg">{'Loading...'}</div>
-      </div>
+      <AppShell title="Permissions">
+        <div className="p-4 text-v-text-primary">{'Loading...'}</div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-v-charcoal p-4">
-      {/* Header */}
-      <header className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <a href="/team" className="text-white text-2xl">&#8592;</a>
-          <div>
-            <h1 className="text-2xl font-bold text-white">{'Permissions'}</h1>
-            <p className="text-white/60 text-sm">{'Control what each role can see and do'}</p>
-          </div>
+    <AppShell title="Permissions">
+    <div className="p-4">
+      <header className="flex items-center justify-between mb-6 gap-3">
+        <div>
+          <p className="text-v-text-secondary text-sm">{'Control what each role can see and do'}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={resetToDefaults}
-            className="px-4 py-2 text-white/70 border border-white/20 rounded-lg hover:bg-white/10 transition-colors text-sm"
+            className="px-4 py-2 text-v-text-secondary border border-v-border rounded-lg hover:bg-v-surface transition-colors text-sm"
           >
             {'Reset Defaults'}
           </button>
@@ -235,8 +232,8 @@ export default function TeamPermissionsPage() {
       </div>
 
       {/* Legend */}
-      <div className="mt-6 bg-white/10 rounded-lg p-4">
-        <h3 className="text-white/80 text-sm font-semibold mb-3">{'Role Descriptions'}</h3>
+      <div className="mt-6 bg-v-surface border border-v-border rounded-lg p-4">
+        <h3 className="text-v-text-primary text-sm font-semibold mb-3">{'Role Descriptions'}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {ROLES.map(role => (
             <div key={role.value} className="flex items-start gap-2">
@@ -249,7 +246,7 @@ export default function TeamPermissionsPage() {
               }`}>
                 {role.label}
               </span>
-              <p className="text-white/60 text-xs">
+              <p className="text-v-text-secondary text-xs">
                 {role.value === 'owner' && 'Full access to everything. Cannot be restricted.'}
                 {role.value === 'manager' && 'Day-to-day operations. Full schedule and customer access.'}
                 {role.value === 'lead_tech' && 'Senior technician. Customer contact and limited schedule.'}
@@ -261,5 +258,6 @@ export default function TeamPermissionsPage() {
         </div>
       </div>
     </div>
+    </AppShell>
   );
 }
