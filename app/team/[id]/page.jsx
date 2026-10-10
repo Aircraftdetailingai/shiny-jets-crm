@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import PhoneInput from '@/components/PhoneInput';
+import OpenShiftsPanel from '@/components/OpenShiftsPanel';
+import { isOpenShift, payableHours } from '@/lib/labor-summary';
 
 export default function TeamMemberPage() {
   const router = useRouter();
@@ -36,6 +38,8 @@ export default function TeamMemberPage() {
   const [payPeriodResetting, setPayPeriodResetting] = useState(false);
   const [payPeriod, setPayPeriod] = useState(null);
   const [payFrequency, setPayFrequency] = useState('biweekly');
+  const [openEntries, setOpenEntries] = useState([]);
+  const [openShiftPolicy, setOpenShiftPolicy] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('vector_token');
@@ -66,6 +70,8 @@ export default function TeamMemberPage() {
       setOwnerNotes(data.member?.owner_notes || '');
       setPayPeriod(data.pay_period || null);
       setPayFrequency(data.member?.pay_period_frequency || data.pay_period?.frequency || 'biweekly');
+      setOpenEntries(data.open_entries || []);
+      setOpenShiftPolicy(data.open_shift_policy || '');
       // Fetch availability
       try {
         const availRes = await fetch(`/api/team/${params.id}/availability`, {
@@ -207,11 +213,11 @@ export default function TeamMemberPage() {
 
   const weekHours = entries
     .filter(e => new Date(e.date) >= weekStart)
-    .reduce((sum, e) => sum + parseFloat(e.hours_worked || 0), 0);
+    .reduce((sum, e) => sum + payableHours(e), 0);
 
   const monthHours = entries
     .filter(e => new Date(e.date) >= monthStart)
-    .reduce((sum, e) => sum + parseFloat(e.hours_worked || 0), 0);
+    .reduce((sum, e) => sum + payableHours(e), 0);
 
   if (loading) {
     return <LoadingSpinner message={'Loading team...'} />;
@@ -283,11 +289,11 @@ export default function TeamMemberPage() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{'Total Hours'}</p>
+          <p className="text-white/60 text-xs">{'Pay period hours'}</p>
           <p className="text-white text-xl font-bold">{stats.total_hours.toFixed(1)}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
-          <p className="text-white/60 text-xs">{'Total Pay'}</p>
+          <p className="text-white/60 text-xs">{'Pay period pay'}</p>
           <p className="text-white text-xl font-bold">${stats.total_pay.toFixed(2)}</p>
         </div>
         <div className="bg-white/10 rounded-lg p-3 text-center">
@@ -299,6 +305,18 @@ export default function TeamMemberPage() {
           <p className="text-white text-xl font-bold">{monthHours.toFixed(1)}h</p>
         </div>
       </div>
+
+      {openShiftPolicy && (
+        <p className="text-v-text-secondary text-xs mb-4">{openShiftPolicy}</p>
+      )}
+      <OpenShiftsPanel
+        entries={openEntries}
+        policy={openShiftPolicy}
+        onClosed={() => {
+          const token = localStorage.getItem('vector_token');
+          if (token) fetchMember(token);
+        }}
+      />
 
       {/* Profile Card */}
       <div className="bg-v-surface rounded-lg p-5 mb-6">
@@ -661,15 +679,21 @@ export default function TeamMemberPage() {
               </thead>
               <tbody>
                 {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-v-border text-sm">
+                  <tr key={entry.id} className={`border-b border-v-border text-sm ${isOpenShift(entry) ? 'bg-amber-500/5' : ''}`}>
                     <td className="py-2.5 text-v-text-primary">
                       {new Date(entry.date).toLocaleDateString()}
                     </td>
-                    <td className="py-2.5 text-v-text-primary">{parseFloat(entry.hours_worked).toFixed(2)}</td>
+                    <td className="py-2.5 text-v-text-primary">
+                      {isOpenShift(entry)
+                        ? <span className="text-amber-300">Open</span>
+                        : parseFloat(entry.hours_worked || 0).toFixed(2)}
+                    </td>
                     <td className="py-2.5 text-v-text-secondary hidden sm:table-cell">{entry.service_type || '-'}</td>
                     <td className="py-2.5 text-v-text-secondary hidden md:table-cell">{entry.notes || '-'}</td>
                     <td className="py-2.5 text-v-text-primary">
-                      ${(parseFloat(entry.hours_worked) * parseFloat(member.hourly_pay || 0)).toFixed(2)}
+                      {isOpenShift(entry)
+                        ? <span className="text-amber-300 text-xs">Not in pay</span>
+                        : `$${(parseFloat(entry.hours_worked || 0) * parseFloat(member.hourly_pay || 0)).toFixed(2)}`}
                     </td>
                     <td className="py-2.5">
                       {entry.approved ? (

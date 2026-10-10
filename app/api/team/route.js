@@ -3,6 +3,8 @@ import { getAuthUser } from '@/lib/auth';
 import { sendTeamInviteEmail, sendTeamAddedEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { requireFeature, requireSeat } from '@/lib/plan-gate';
+import { buildLaborReport, isoToday } from '@/lib/labor-summary';
+import { fetchShopTimeEntries } from '@/lib/shop-time-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,33 +40,49 @@ export async function GET(request) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    // Get time entry stats for each member
-    const memberIds = (members || []).map(m => m.id);
-    let timeStats = {};
-
-    if (memberIds.length > 0) {
-      const { data: entries, error: entriesError } = await supabase
-        .from('time_entries')
-        .select('team_member_id, hours_worked')
-        .in('team_member_id', memberIds);
-
-      if (!entriesError && entries) {
-        for (const entry of entries) {
-          if (!timeStats[entry.team_member_id]) {
-            timeStats[entry.team_member_id] = { total_hours: 0 };
-          }
-          timeStats[entry.team_member_id].total_hours += parseFloat(entry.hours_worked || 0);
-        }
-      }
+    // Same window and closed-shift math as Payroll. Open shifts are returned
+    // separately and are not included in hours or pay.
+    const memberList = members || [];
+    let entries = [];
+    try {
+      entries = await fetchShopTimeEntries(supabase, memberList.map(m => m.id));
+    } catch (entriesError) {
+      console.error('Time entries fetch error:', entriesError);
     }
 
-    const membersWithStats = (members || []).map(m => ({
+    const report = buildLaborReport({
+      entries,
+      members: memberList,
+      detailerId: user.detailer_id || user.id,
+      today: isoToday(),
+    });
+    const totalsById = {};
+    for (const row of report.member_totals) totalsById[row.team_member_id] = row;
+
+    const membersWithStats = memberList.map(m => ({
       ...m,
-      total_hours: timeStats[m.id]?.total_hours || 0,
-      total_pay: (timeStats[m.id]?.total_hours || 0) * parseFloat(m.hourly_pay || 0),
+      total_hours: totalsById[m.id]?.total_hours || 0,
+      total_pay: totalsById[m.id]?.total_pay || 0,
+      open_shifts: totalsById[m.id]?.open_shifts || 0,
     }));
 
-    return Response.json({ members: membersWithStats });
+    return Response.json({
+      members: membersWithStats,
+      total_hours: report.total_hours,
+      total_pay: report.total_pay,
+      start_date: report.start_date,
+      end_date: report.end_date,
+      range_kind: report.range_kind,
+      range_label: report.range_label,
+      fallback_reason: report.fallback_reason,
+      period_note: report.period_note,
+      pay_period: report.pay_period,
+      labor_window: report.labor_window,
+      labor_totals: report.labor_totals,
+      open_entries: report.open_entries,
+      open_shift_policy: report.open_shift_policy,
+      includes_open_shifts_in_totals: false,
+    });
 
   } catch (err) {
     console.error('Team API error:', err);
